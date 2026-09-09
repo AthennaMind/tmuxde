@@ -11,6 +11,37 @@ release that shipped them.
 
 ## [Unreleased]
 
+### Breaking — the 0.7.0 clean break
+
+0.7.0 changes the pairing code, the frame key schedule and the wire version
+together, and none of the three is backward compatible. Everyone pairing over
+the hosted broker must be on 0.7.0 or later.
+
+- **Pairing codes are nine digits** — `492 716 384`, a three-digit slot the
+  broker routes on plus a six-digit secret it never sees. The 0.6.x six-digit
+  typed code and the two-digit-slot scan code are both deleted; a 0.6.x code
+  is refused rather than misread.
+- **Tunnel frames are sealed under a per-connection subkey** derived from a
+  16-byte salt carried on the first frame of each direction. A 0.6.x peer
+  cannot open a 0.7.0 frame, or the reverse. Existing pairings survive — the
+  base session keys in `~/.mtmux/config.json` and IndexedDB are unchanged, so
+  **nobody has to pair again**.
+- **The pairing protocol carries a version.** `PairNewRequest`,
+  `PairClaimRequest` and `PairRequestBody` all require `v`, and the pairing
+  sockets carry `?v=`. Below the broker's floor, HTTP answers `426 Upgrade
+  Required` and the WebSocket upgrade answers a raw `HTTP/1.1 426` before any
+  frame is sent.
+
+**Upgrading.** `npm i -g mtmux@latest`. A running 0.6.x CLI keeps its current
+tunnel until its agent socket next reconnects, then reports
+`This version of mtmux is too old for the pairing service` and stops retrying.
+Nothing is lost; the update restores it.
+
+**Self-hosting.** The floor is `API_MIN_PROTOCOL`, not a constant. Set it to
+`0` to accept every client, including ones that declare no version at all, and
+`API_ADVISORY` to put a line in front of your own users. A self-hosted broker
+answers to nobody's release schedule.
+
 ### Added
 
 - **Scan-to-connect.** `app.mtmux.com/j` claims the code `mtmux start` prints,
@@ -18,6 +49,11 @@ release that shipped them.
   connects with zero taps and no second command; with no fragment the page falls
   back to a six-digit field. `mtmux pair` remains the browser-initiated
   direction.
+- **`GET /v1/version`** — `{ protocol, floor, advisory? }`. The kill switch: a
+  broker can name a floor and say something urgent to every running CLI without
+  shipping code.
+- **`API_MIN_PROTOCOL`** and **`API_ADVISORY`** — the floor and the advisory
+  string that `/v1/version` reports. `API_MIN_PROTOCOL=0` disables the floor.
 - **`API_TUNNEL_MAX_STREAMS`** (default 16) — concurrent streams per tunnel. A
   `stream:open` past the cap is refused rather than closing the tunnel.
 - **Accounts and billing on the broker.** `/api/auth/*`, `/v1/me`,
@@ -33,6 +69,15 @@ release that shipped them.
 
 ### Changed
 
+- **A pairing code now buys exactly one online guess.** The fan-out moved from
+  the claim POST to the claim socket, and claiming a mailbox is a single atomic
+  compare-and-set, so a claim burns the slot only once it has paid for an
+  upgrade. `offeredTo`/`offerMailbox`/`burnOffer` are gone with the window they
+  described. `PairClaimResponse` is `{ claimId, expiresAt }` — `waiting` and
+  `offered` are deleted, because the POST can no longer know either.
+- **Claim rate limits are charged at attach, not at POST**, and re-derived from
+  the slot space: 4 per slot per minute, 200 globally, plus a cheap 5/min
+  per-IP limiter on the POST purely to bound allocation.
 - **Paired devices survive a restart.** The token derived with each browser is
   persisted against its peer record and replayed by `mtmux start`, so a restart,
   deploy, crash or reboot no longer un-pairs every phone. Bounded by the 90-day
@@ -48,6 +93,14 @@ release that shipped them.
 
 ### Fixed
 
+- **The broker could decrypt and forge tunnel frames.** Every hosted pairing
+  sealed two payloads under one key at counter 0 — the descriptor and the
+  first frame — which is AES-GCM nonce reuse and recovers both the plaintext
+  and the authentication key. Frames and descriptors now derive separate
+  per-connection subkeys under separate labels, so no key ever seals twice at
+  counter 0.
+- **The browser's sends are serialised**, so two in one tick can no longer
+  reach the wire out of counter order and trip the receiver's replay window.
 - `mtmux start` wires the tunnel agent correctly and awaits the tunnel id
   through `onTunnelReady`, so the hosted path works rather than falling back to
   local-only.
@@ -116,5 +169,5 @@ repository carried `ccremote` branding. Upgrading is safe: the CLI adopts a
 token found at `~/.tmuxremote/config.json` rather than issuing a new one, so
 bookmarked login URLs keep working.
 
-[Unreleased]: https://github.com/GagnDeep/tmuxremote/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/GagnDeep/tmuxremote/releases/tag/v0.3.0
+[Unreleased]: https://github.com/mtmux/mtmux/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/mtmux/mtmux/releases/tag/v0.3.0

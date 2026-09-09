@@ -13,8 +13,8 @@ Thanks for your interest in contributing to mtmux. This guide will help you get 
 1. Fork and clone the repository:
 
    ```bash
-   git clone https://github.com/<your-username>/tmuxremote.git
-   cd tmuxremote
+   git clone https://github.com/<your-username>/mtmux.git
+   cd mtmux
    ```
 
 2. Install dependencies and set up the project:
@@ -75,8 +75,8 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 **Scopes** — enforced by `commitlint.config.js`, so anything else fails the
 commit hook:
 
-`cli`, `web`, `docs`, `relay`, `api`, `protocol`, `crypto`, `ui`, `config`,
-`logger`, `infra`, `ci`, `deps`
+`cli`, `web`, `site`, `docs`, `relay`, `api`, `protocol`, `crypto`, `db`,
+`ui`, `config`, `logger`, `infra`, `ci`, `deps`
 
 The scope is optional; when present it must be one of those.
 
@@ -89,6 +89,26 @@ feat(crypto): bind the slot into the CPace channel identifier
 chore(deps): upgrade to Next.js 16
 docs: update setup instructions
 ```
+
+## The invariants
+
+Some changes are refused on sight, not because the code is wrong but because
+they contradict a promise the product makes. `CLAUDE.md` lists all of them; the
+four that most often catch a well-meant patch:
+
+- **The six-digit secret never reaches the broker** — not in a request, not as
+  a hash. If a change makes the broker able to test a guess offline, it is a
+  break of the central claim, not an optimisation.
+- **The broker logs counts and outcomes only.** No code, slot, mailbox id,
+  ciphertext, or address-to-mailbox mapping.
+- **The self-hosted path works with zero contact with our servers**, and
+  **accounts are optional forever**. `mtmux start --local` must never need a
+  network.
+- **Plan limits live only in `packages/config/src/plans.ts`.**
+
+A pull request that touches pairing, the broker, or the frame codec is expected
+to add adversarial tests — the ones that assert the bad thing *cannot* happen.
+That is most of what the existing suite is.
 
 ## Code Style
 

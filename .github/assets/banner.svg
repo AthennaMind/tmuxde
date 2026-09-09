@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-label="mtmux — your tmux, in any browser. Run mtmux, scan the code, and your phone is on the machine.">
+  <title>mtmux — your tmux, in any browser</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12100f"/>
+      <stop offset="1" stop-color="#1c1815"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e87958" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#e87958" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#e87958" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1280" height="2" fill="url(#glow)"/>
+
+  <!-- terminal chrome -->
+  <rect x="96" y="96" width="1088" height="448" rx="14" fill="#0b0a09" stroke="#332c27" stroke-width="1.5"/>
+  <rect x="96" y="96" width="1088" height="44" rx="14" fill="#191512"/>
+  <rect x="96" y="126" width="1088" height="14" fill="#191512"/>
+  <circle cx="126" cy="118" r="6" fill="#4a403a"/>
+  <circle cx="148" cy="118" r="6" fill="#4a403a"/>
+  <circle cx="170" cy="118" r="6" fill="#4a403a"/>
+  <text x="640" y="123" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="15" fill="#7d6f66">mtmux</text>
+
+  <g font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="21">
+    <text x="136" y="192" fill="#7d6f66">$</text>
+    <text x="162" y="192" fill="#f3ede8">npm install -g mtmux &amp;&amp; mtmux</text>
+
+    <text x="136" y="256" fill="#e87958">›</text>
+    <text x="162" y="256" fill="#f3ede8">serving your tmux…</text>
+
+    <g fill="#f3ede8" font-size="19">
+      <text x="162" y="312">▄▄▄▄▄▄▄ ▄▄  ▄ ▄▄▄▄▄▄▄</text>
+      <text x="162" y="338">█ ▄▄▄ █ ▀▄▀▄█ █ ▄▄▄ █</text>
+      <text x="162" y="364">█ ███ █ ▀ ▄▄▄ █ ███ █</text>
+      <text x="162" y="390">█▄▄▄▄▄█ █ ▀ █ █▄▄▄▄▄█</text>
+      <text x="162" y="416">▄▄▄▄  ▄ ▄▀▀▄▀▄▄▄ ▄▄</text>
+    </g>
+
+    <g font-size="19">
+      <text x="470" y="312" fill="#a2938a">Scan to open your terminal</text>
+      <text x="470" y="364" fill="#a2938a">or go to</text>
+      <text x="470" y="390" fill="#f3ede8">app.mtmux.com</text>
+      <text x="470" y="416" fill="#a2938a">and enter</text>
+      <text x="470" y="442" fill="#e87958" font-size="25" letter-spacing="2">492 716 384</text>
+    </g>
+
+    <g font-size="18">
+      <text x="162" y="482" fill="#7d6f66">Local  </text>
+      <text x="262" y="482" fill="#a2938a">http://localhost:14100</text>
+      <text x="162" y="508" fill="#7d6f66">Waiting for a device…</text>
+    </g>
+  </g>
+
+  <text x="640" y="590" text-anchor="middle" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="24" fill="#a2938a">
+    Your tmux, in any browser — one command, no port forward, no SSH key on the phone.
+  </text>
+</svg>

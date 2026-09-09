@@ -1,17 +1,24 @@
 <div align="center">
 
-# mtmux
+<img src=".github/assets/banner.svg" alt="mtmux — run one command, scan the code, and your phone is on your machine's tmux" width="820">
 
-**Your tmux, in any browser.**
+# mtmux — your tmux, in any browser
 
-Self-hosted browser terminal for [tmux](https://github.com/tmux/tmux). Connect to your sessions from any device — phone, tablet, laptop — over a single secure WebSocket. Works great with [Claude Code](https://www.anthropic.com/claude-code), Vim, REPLs, and long-running jobs. One npm install away.
+**A self-hosted browser terminal for [tmux](https://github.com/tmux/tmux).** Run one
+command on the machine that has your sessions, scan the code it prints, and your
+phone, tablet or laptop is on that terminal — from your own wifi or from cellular
+in another country. No port forwarding, no account, no SSH key on the phone.
 
-[![npm](https://img.shields.io/npm/v/mtmux?color=e87958)](https://www.npmjs.com/package/mtmux)
-[![CI](https://github.com/GagnDeep/tmuxremote/actions/workflows/ci.yml/badge.svg)](https://github.com/GagnDeep/tmuxremote/actions)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Docker](https://img.shields.io/badge/docker-ghcr.io-2496ED)](https://github.com/GagnDeep/tmuxremote/pkgs/container/tmuxremote)
+```bash
+npm install -g mtmux && mtmux
+```
 
-[GitHub](https://github.com/GagnDeep/tmuxremote) · [npm](https://www.npmjs.com/package/mtmux)
+[![npm version of the mtmux CLI](https://img.shields.io/npm/v/mtmux?color=e87958&label=npm)](https://www.npmjs.com/package/mtmux)
+[![CI status on main](https://github.com/mtmux/mtmux/actions/workflows/ci.yml/badge.svg)](https://github.com/mtmux/mtmux/actions)
+[![Licensed MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Container images on ghcr.io](https://img.shields.io/badge/docker-ghcr.io-2496ED)](https://github.com/mtmux/mtmux/pkgs/container/mtmux-api)
+
+[Docs](https://docs.mtmux.com/docs) · [npm](https://www.npmjs.com/package/mtmux) · [Self-hosting](https://docs.mtmux.com/docs/self-hosting) · [Security](SECURITY.md)
 
 </div>
 
@@ -24,20 +31,97 @@ npm install -g mtmux
 mtmux
 ```
 
-That's it. `start` is the default command. mtmux auto-generates a token, serves your tmux, prints a scannable code, and opens your browser. No config file, no Docker, no reverse proxy, no port forward.
+That's it. `start` is the default command. mtmux generates a token, serves your
+tmux on one port, opens a sealed tunnel, prints a scannable nine-digit code, and
+opens your browser. No config file, no Docker, no reverse proxy, no port forward.
 
-Requires Node 22+ and `tmux` on your PATH.
+Requires **Node 22+** and **tmux** on your PATH.
 
 <details>
-<summary>Other package managers & Docker</summary>
+<summary>Other package managers &amp; Docker</summary>
 
 ```bash
 bun install -g mtmux
 pnpm add -g mtmux
-docker run -p 14100:14100 ghcr.io/gagndeep/tmuxremote
+
+# Or run the whole thing — your own broker included — on your own box:
+git clone https://github.com/mtmux/mtmux.git && cd mtmux
+cp .env.example .env && docker compose up
 ```
 
 </details>
+
+## Demo
+
+```
+$ mtmux
+
+  ▄▄▄▄▄▄▄ ▄▄  ▄ ▄▄▄▄▄▄▄
+  █ ▄▄▄ █ ▀▄▀▄█ █ ▄▄▄ █    Scan to open your terminal
+  █ ███ █ ▀ ▄▄▄ █ ███ █
+  █▄▄▄▄▄█ █ ▀ █ █▄▄▄▄▄█    or go to  app.mtmux.com
+  ▄▄▄▄  ▄ ▄▀▀▄▀▄▄▄ ▄▄      and enter  492 716 384
+
+  Local    http://localhost:14100
+  Network  http://192.168.1.5:14100  (wlp3s0)
+
+  Waiting for a device…   Ctrl+C to stop.
+```
+
+**Scan it and you're in.** One command, no second terminal. If the camera won't
+cooperate, type the nine digits at `app.mtmux.com`. It works the same on your own
+network and over cellular — mtmux takes the direct path when the device can reach
+your machine and falls back to a relayed tunnel when it can't. You don't choose,
+and the switchover is invisible.
+
+## The threat model, in three lines
+
+1. **The last six digits never reach our servers.** They're the password for a
+   [CPace](https://datatracker.ietf.org/doc/draft-irtf-cfrg-cpace/) PAKE — not sent,
+   not hashed, not derivable. Only the leading three, which route the mailbox.
+2. **On the relayed path the broker forwards ciphertext it cannot read.** Frames are
+   AES-256-GCM under a per-connection subkey the broker never holds. It logs counts
+   and outcomes — never a code, a mailbox id, or an IP-to-mailbox mapping.
+3. **One wrong guess burns the code.** A failed key confirmation destroys the
+   mailbox, and the claim budget is charged when a socket attaches, not when a
+   request arrives — so guessing is bounded online and impossible offline.
+
+On the **direct** path the two devices talk over your own network and we are simply
+not in it; there the browser's own TLS, or on a plain LAN nothing, is what protects
+the hop. We say so rather than calling the whole product "end-to-end encrypted".
+
+[How pairing works →](https://docs.mtmux.com/docs/pairing) ·
+[The sealed tunnel →](https://docs.mtmux.com/docs/sealed-tunnel) ·
+[Security →](https://docs.mtmux.com/docs/security)
+
+## Self-hosting first
+
+mtmux is self-hosted by default and there are three degrees of independence:
+
+| You want | Command | Talks to our servers |
+| --- | --- | --- |
+| Your machine, your tmux, your token | `mtmux` | Only the pairing broker, and only in ciphertext |
+| Nothing leaves the building | `mtmux start --local` | **Never** |
+| Your own broker and web client too | `docker compose up` | **Never** |
+
+```bash
+mtmux config set api https://api.example.com   # point every command at your broker
+```
+
+`mtmux start` with no route to `api.mtmux.com` degrades to LAN serving rather than
+failing, by design. Accounts are optional forever — anonymous pairing is the
+default mode, not a degraded one. [Self-hosting →](https://docs.mtmux.com/docs/self-hosting)
+
+## Features
+
+- **True terminal fidelity** — xterm.js + WebGL, Unicode 11, 256-color
+- **Mobile-first** — keyboard toolbar, swipe gestures, haptic feedback
+- **Files + previews** — Monaco editor, syntax highlighting, image preview
+- **Session recording** — asciinema v2 `.cast` capture and scoped sharing
+- **Nine-digit pairing** — a phone on from anywhere, with a secret our servers never see
+- **Single port** — HTTP and WebSocket share one upstream behind nginx or Caddy
+- **PWA** — installable on iOS and Android home screens
+- **Great with coding agents** — Claude Code, Codex CLI, and long unattended runs
 
 ## Why mtmux?
 
@@ -47,40 +131,9 @@ docker run -p 14100:14100 ghcr.io/gagndeep/tmuxremote
 | File browser + Monaco editor    | ✓     | —            | —       | —        |
 | Single-port (HTTP + WS)         | ✓     | ✓            | ✓       | —        |
 | Self-hosted                     | ✓     | ✓            | ✓       | optional |
+| Reaches a device off your LAN   | ✓     | —            | —       | ✓        |
 | WebGL terminal                  | ✓     | —            | —       | —        |
-| Built for Claude Code workflows | ✓     | —            | —       | —        |
-
-## Features
-
-- **True terminal fidelity** — xterm.js + WebGL, Unicode 11, 256-color
-- **Mobile-first** — keyboard toolbar, swipe gestures, haptic feedback
-- **Files + previews** — Monaco editor, syntax highlighting, image preview
-- **Self-hosted** — your machine, your tmux, your token. No third party required.
-- **Six-digit pairing** — get a phone on from anywhere, end-to-end encrypted
-- **Single port** — HTTP and WS share one upstream behind nginx/Caddy
-- **PWA** — installable on iOS/Android home screens
-
-## Getting a phone on
-
-```
-$ mtmux
-
-  ▄▄▄▄▄▄▄ ▄▄  ▄ ▄▄▄▄▄▄▄
-  █ ▄▄▄ █ ▀▄▀▄█ █ ▄▄▄ █    Scan to open your terminal
-  █ ███ █ ▀ ▄▄▄ █ ███ █
-  █▄▄▄▄▄█ █ ▀ █ █▄▄▄▄▄█    or go to  app.mtmux.com
-  ▄▄▄▄  ▄ ▄▀▀▄▀▄▄▄ ▄▄      and enter  48 29 13
-```
-
-**Scan it and you're in.** One command, no second terminal. Camera won't cooperate? Type the six digits at `app.mtmux.com`. Works the same on your wifi and on cellular from another country — mtmux takes the direct path when it can and falls back to a relayed tunnel when it can't.
-
-The last four digits never reach our servers — they're the password for a [CPace](https://datatracker.ietf.org/doc/draft-irtf-cfrg-cpace/) PAKE, and everything afterwards is AES-256-GCM under keys the broker doesn't hold. The QR puts the code in a URL _fragment_, which browsers never send to a server. One wrong guess burns the code. [How it works →](https://docs.mtmux.com/docs/pairing)
-
-Paired devices stay paired: restarting mtmux re-admits them, and reloading the browser doesn't force a re-pair. Revoke with `mtmux devices revoke <id>`.
-
-Already at the browser instead of the terminal? Open `app.mtmux.com/pair` and run `mtmux pair <code>` — same handshake, other direction.
-
-Prefer nothing to leave the building? `mtmux start --local` contacts no broker at all.
+| Built for coding-agent workflows| ✓     | —            | —       | —        |
 
 ## Quick start
 
@@ -89,11 +142,12 @@ mtmux                          # serve, print a code, open a browser
 mtmux start --local            # LAN and loopback only, no broker
 mtmux start --port 8080        # different port
 mtmux start --no-open          # don't open a browser here
-mtmux pair 482913              # join a pairing the browser started
+mtmux pair 492716384           # join a pairing the browser started
 mtmux status                   # what's running here
 mtmux stop                     # stop it
 mtmux doctor                   # why isn't this working?
 mtmux devices                  # browsers this machine trusts
+mtmux record <session>         # capture a session to an asciinema cast
 mtmux token rotate             # new token; paired devices are kept
 mtmux --help
 ```
@@ -139,6 +193,7 @@ mtmux.example.com {
 | `-p, --port <n>`          | `14100`                              | HTTP + WS port                                       |
 | `-h, --host <addr>`       | `0.0.0.0` on a LAN, else `127.0.0.1` | Bind address. An explicit value always wins.         |
 | `--local`                 | off                                  | LAN and loopback only — never contact a broker       |
+| `--api <url>`             | `https://api.mtmux.com`              | Pairing broker, for this command only                |
 | `-n, --name <label>`      | hostname                             | What to call this machine in the dashboard           |
 | `--no-qr`                 | QR shown                             | Print the code without the QR block                  |
 | `-t, --token <value>`     | auto                                 | Override the auth token for this run                 |
@@ -151,10 +206,14 @@ There is deliberately **no fixed default host**: mtmux binds `0.0.0.0` when the 
 | Env                   | Default                 | Description                                                 |
 | --------------------- | ----------------------- | ----------------------------------------------------------- |
 | `MTMUX_CONFIG_DIR`    | `~/.mtmux`              | Where `config.json` and `server.json` live                  |
-| `MTMUX_API_URL`       | `https://api.mtmux.com` | Pairing broker. Point it at your own.                       |
+| `MTMUX_API_URL`       | `https://api.mtmux.com` | Pairing broker for this process. Point it at your own.      |
+| `MTMUX_APP_URL`       | `https://app.mtmux.com` | The web client the QR and pairing link point at             |
 | `MTMUX_BUILD_API_URL` | —                       | Build time only — bakes a broker origin into the web bundle |
 
-The auto-generated token is stored at `~/.mtmux/config.json` (mode `0600`), alongside the device key and the list of paired browsers.
+Stored settings beat neither: precedence is `--api` → `MTMUX_API_URL` →
+`mtmux config set api` → the default. The auto-generated token lives at
+`~/.mtmux/config.json` (mode `0600`), alongside the device key and the list of
+paired browsers.
 
 ## Architecture
 
@@ -174,6 +233,68 @@ Browser ──┬─ raced first ─────── direct ──────
 ```
 
 [Architecture →](https://docs.mtmux.com/docs/architecture) · [The sealed tunnel →](https://docs.mtmux.com/docs/sealed-tunnel)
+
+## FAQ
+
+<details>
+<summary><strong>Do I need an account?</strong></summary>
+
+No, and you never will. Anonymous pairing is the default path and is a permanent
+invariant of the project. An account buys a dashboard and hosted extras; it buys
+nothing that pairing needs.
+</details>
+
+<details>
+<summary><strong>Do I have to open a port or set up a VPN?</strong></summary>
+
+No. That's the point of the nine-digit code: the two devices find each other
+through a broker that can't read what they say to one another. If the device *can*
+reach your machine directly, mtmux uses that path instead — it races both.
+</details>
+
+<details>
+<summary><strong>Can your servers see my terminal?</strong></summary>
+
+Not on the relayed path — the broker forwards AES-256-GCM frames under a key it
+doesn't have, and logs counts and outcomes only. The honest caveat is that on the
+hosted path the browser's CPace and AES-GCM code is served by the same party that
+runs the broker. Self-hosting the web client is the real answer to that, and it's
+one `docker compose up`.
+</details>
+
+<details>
+<summary><strong>Is nine digits really enough?</strong></summary>
+
+Three of them route a mailbox and six are the PAKE password. A code buys exactly
+one *online* guess — a wrong key confirmation destroys the mailbox — and the
+budget is charged when a socket attaches, so a request flood buys nothing. There
+is no offline attack because the secret is never transmitted in any form.
+</details>
+
+<details>
+<summary><strong>Does restarting mtmux un-pair my phone?</strong></summary>
+
+No. Pairing-derived tokens are replayed on boot, so a device stays trusted until it
+goes 90 days unseen or you run `mtmux devices revoke <id>`. Revoking now closes any
+socket that device is holding.
+</details>
+
+<details>
+<summary><strong>Can I run it entirely on my own infrastructure?</strong></summary>
+
+Yes — CLI, web client and pairing broker. `git clone`, `cp .env.example .env`,
+`docker compose up`, then `mtmux config set api https://api.example.com`. It comes
+up working with `DATABASE_URL` unset: no accounts, no billing, no secrets to
+manage. See [Self-hosting](https://docs.mtmux.com/docs/self-hosting).
+</details>
+
+<details>
+<summary><strong>Does it work with Claude Code and other coding agents?</strong></summary>
+
+That is a large part of why it exists — a long unattended run you can check on
+from a phone, approve from a phone, and steer from a phone. See
+[Coding agents](https://docs.mtmux.com/docs/agents).
+</details>
 
 ## Development
 
@@ -209,6 +330,7 @@ container deployments, the repo also ships a **split web+relay** model with
 separate ports (web `14100`, relay `14300`), configured via
 `NEXT_PUBLIC_RELAY_URL` and a `/ws` reverse-proxy route:
 
+- **Docker compose** (`docker-compose.yml`) — broker + web, the supported self-host path
 - **Docker compose** (`docker-compose.prod.yml`) — separate web/relay services
 - **PM2** (`ecosystem.config.cjs`) — the five-app topology the hosted service runs
 
@@ -223,13 +345,14 @@ See [Deployment](https://docs.mtmux.com/docs/deployment) for the split-model det
 - [How pairing works](https://docs.mtmux.com/docs/pairing)
 - [The sealed tunnel](https://docs.mtmux.com/docs/sealed-tunnel)
 - [Security](https://docs.mtmux.com/docs/security)
+- [Self-hosting](https://docs.mtmux.com/docs/self-hosting)
 
 ## Contributing
 
-PRs welcome. Conventional commits with an [enforced scope list](commitlint.config.js). See [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+PRs welcome. Conventional commits with an [enforced scope list](commitlint.config.js). See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 Security reports: [SECURITY.md](SECURITY.md) — please don't open a public issue.
 
 ## License
 
-MIT
+MIT © Gagandeep Singh

@@ -4,7 +4,7 @@ The shipped product is the **`mtmux`** npm CLI (`apps/cli`) — `npm install -g 
 
 ## The one-liner
 
-`mtmux` serves the machine's tmux **and** opens a sealed tunnel, then prints a QR and a six-digit code. A phone anywhere scans it and is in. No port forwarding, no account, no SSH key on the phone.
+`mtmux` serves the machine's tmux **and** opens a sealed tunnel, then prints a QR and a nine-digit code. A phone anywhere scans it and is in. No port forwarding, no account, no SSH key on the phone.
 
 ## Tech Stack
 
@@ -55,7 +55,7 @@ pnpm release          # Bump, commit and tag the CLI
 
 Break these and the product's central claim is false.
 
-1. **The four-digit secret never reaches the broker** — not in a request, not as a hash. The secret is 10⁴ and the whole code is 10⁶; either is an instant offline search, which is why the broker must only ever be able to test a guess _online_, one per code. The online budget that enforces that lives in `apps/api/src/{mailbox,broker,config}.ts` — a per-slot mailbox cap, a claim that burns its guess only once it attaches a socket, and per-slot plus global claim ceilings that do not depend on the caller's IP.
+1. **The six-digit secret never reaches the broker** — not in a request, not as a hash. The secret is 10⁶ and the whole code is 10⁹; either is an instant offline search, which is why the broker must only ever be able to test a guess _online_, one per code. The online budget that enforces that lives in `apps/api/src/{mailbox,broker,config}.ts` — a per-slot mailbox cap, a claim that is fanned out and burns its guess in one atomic step when it attaches a socket, and per-slot plus global claim ceilings that do not depend on the caller's IP.
 2. **The broker logs counts and outcomes only.** No code, slot, mailbox id, ciphertext, or IP-to-mailbox mapping. A breach or a subpoena must yield nothing useful.
 3. **Browser key material lives in IndexedDB**, never `localStorage`. One deliberate exception, so it is not misread as a violation: the self-hosted relay bearer token (`TOKEN_KEY`) sits in `localStorage` until a device lock is enrolled, at which point the plaintext copy is deleted and it moves into the sealed record. Session _keys_ are never there. The trade is that a device with no lock can be read by anything with access to the origin — which is the same thing a device with no lock already concedes.
 4. **The self-hosted path stays fully functional with zero contact with our servers.** `mtmux start` with no route to `api.mtmux.com` must degrade to LAN serving, never fail. `--local` makes that explicit.
@@ -90,7 +90,7 @@ The relay (`apps/relay`) bridges WebSocket connections to tmux:
 
 ### Pairing and the tunnel
 
-The code is `slot(2) + secret(4)`. The broker mints the slot and routes on it; the secret is the CPace password and stays on the two endpoints. Both directions work — the CLI can host a pairing (what `mtmux start` does) or join one a browser started (`mtmux pair`). After CPace, HKDF derives `{c2s, s2c, confirm, directToken}`; frames are AES-256-GCM with a per-direction nonce and a monotonic counter that rejects replays. The CLI agent binds an incoming tunnel stream to a pairing by **trial decryption**, which is what lets the broker stay blind.
+The code is `slot(3) + secret(6)`. The broker mints the slot and routes on it; the secret is the CPace password and stays on the two endpoints. Both directions work — the CLI can host a pairing (what `mtmux start` does) or join one a browser started (`mtmux pair`). After CPace, HKDF derives `{c2s, s2c, confirm, directToken}`; frames are AES-256-GCM under a per-connection subkey derived from a public 16-byte salt on the first frame, with a per-direction nonce and a monotonic counter that rejects replays. The CLI agent binds an incoming tunnel stream to a pairing by **trial decryption**, which is what lets the broker stay blind.
 
 ### Recording
 

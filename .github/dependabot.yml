@@ -1,0 +1,32 @@
+# Dependency updates, grouped so the noise stays reviewable.
+#
+# A monorepo this size produces a wall of individual PRs otherwise, and a wall
+# nobody reads is worse than no alerts at all: the security updates are the
+# ones that must never be lost in it, so they are kept separate from the rest.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Everything routine, in one PR per week.
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Majors land deliberately, with the migration they need.
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns: ["*"]

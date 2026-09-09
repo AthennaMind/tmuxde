@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug in ccremote
+description: Report a bug in mtmux
 title: "[Bug]: "
 labels: ["bug", "triage"]
 body:

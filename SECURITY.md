@@ -23,6 +23,30 @@ Email **security@mtmux.com** with:
 - Any relevant logs or screenshots — **redacted**: never include a pairing code,
   an auth token, or a session token
 
+You can also open a private advisory at
+[github.com/mtmux/mtmux/security/advisories/new](https://github.com/mtmux/mtmux/security/advisories/new).
+Machine-readable contacts are at
+[mtmux.com/.well-known/security.txt](https://mtmux.com/.well-known/security.txt).
+
+## Safe harbour
+
+We will not pursue or support legal action against anyone who reports a
+vulnerability to us in good faith and follows this policy. Specifically, if you:
+
+- test only against **your own** machines, accounts and pairings — never a third
+  party's, and never a code you were given by someone else;
+- stop as soon as you have shown the problem exists, and do not access, modify,
+  retain, or exfiltrate anyone else's data;
+- avoid degrading the service for others (no volumetric denial of service, no
+  spam, no destructive testing against the hosted broker); and
+- give us reasonable time to fix the issue before disclosing it publicly;
+
+then we consider your research authorised, we will not treat it as a breach of
+our terms, and we will say so if a third party asks.
+
+If you are unsure whether something is in scope or would cross one of those
+lines, ask first at **security@mtmux.com**. Asking is always in good faith.
+
 ## Response Timeline
 
 - **Acknowledgement:** within 48 hours
@@ -31,6 +55,16 @@ Email **security@mtmux.com** with:
 
 We will coordinate disclosure with you and credit reporters in the release notes
 unless anonymity is requested.
+
+## Reporting abuse
+
+Someone using mtmux to attack you or others — a code sent under a false pretext,
+a machine you did not authorise, a relay hosted on our infrastructure that is
+being used to reach systems it should not — is an **abuse** report rather than a
+vulnerability report. Email **abuse@mtmux.com**, and include timestamps and the
+domain or address involved. We can act on hosted pairing and hosted accounts.
+We cannot act on a self-hosted install, which by design we cannot see and do not
+have access to.
 
 ## Threat Surface
 
@@ -79,8 +113,12 @@ nothing they do not already have: the mailbox in question is their own.
 ### The sealed tunnel
 
 - Any way the broker, or anyone on the path, can read or modify a frame. Frames
-  are AES-256-GCM under per-direction keys derived by HKDF-SHA-256 from the
-  CPace ISK.
+  are AES-256-GCM under a **per-connection subkey**: HKDF-SHA-256 from the CPace
+  ISK gives a per-direction key, and a 16-byte salt carried on the first frame
+  of each stream derives the key actually used, under a label that also
+  separates frames from the sealed descriptor. Any construction that lets one
+  key seal two payloads at counter 0 is the bug class this replaced, and is
+  worth reporting immediately.
 - Replay or reorder acceptance. The frame counter must strictly increase and the
   high-water mark must only advance on a frame that authenticates.
 - Reaching the relay through a tunnel without a valid pairing — a stream whose
