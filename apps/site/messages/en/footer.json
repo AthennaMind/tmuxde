@@ -18,6 +18,7 @@
     "changelog": "Changelog",
     "docs": "Docs & quickstart",
     "docsSite": "Full documentation",
+    "selfHosting": "Self-hosting",
     "blog": "Blog",
     "faq": "FAQ",
     "security": "Security",
@@ -29,6 +30,7 @@
     "privacy": "Privacy",
     "terms": "Terms",
     "github": "GitHub",
+    "discussions": "Discussions",
     "contact": "hey@mtmux.com"
   }
 }

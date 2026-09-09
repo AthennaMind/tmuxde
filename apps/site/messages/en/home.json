@@ -142,7 +142,7 @@
   "security": {
     "eyebrow": "security",
     "title": "The relay cannot read your session.",
-    "description": "Pairing is a PAKE, so the four secret digits never reach our broker — not even as a hash. Everything after that is sealed under keys nobody on the path can derive.",
+    "description": "Pairing is a PAKE, so the six secret digits never reach our broker — not even as a hash. Everything after that is sealed under keys nobody on the path can derive.",
     "readThreatModel": "Read the threat model",
     "cells": [
       {
@@ -162,6 +162,55 @@
         "description": "<cmd>mtmux start --local</cmd> contacts no broker at all, and <cmd>MTMUX_API_URL</cmd> points at your own."
       }
     ]
+  },
+  "openSource": {
+    "eyebrow": "open source",
+    "title": "MIT licensed. Run all of it yourself.",
+    "description": "The CLI, the browser client, the relay and the pairing broker are one public repo under one MIT licence. There is a hosted broker because it is convenient, not because anything depends on it.",
+    "degrees": {
+      "cli": {
+        "title": "The CLI is already self-hosted",
+        "description": "It runs on your machine, talks to your tmux, and holds its own token. Nothing is uploaded and no account is created. For one machine this is the whole answer."
+      },
+      "local": {
+        "title": "Or contact no broker at all",
+        "description": "<cmd>--local</cmd> serves your LAN and loopback and dials nothing — by choice, not by the tunnel quietly failing. Put your own reverse proxy in front of the single port and you are reachable from anywhere without us."
+      },
+      "broker": {
+        "title": "Or run the pairing broker too",
+        "description": "The broker is in the same repo and is blind by construction — it never sees the secret half of a code, and it moves ciphertext it cannot open. Point the CLI at yours with <cmd>mtmux config set api</cmd>."
+      }
+    },
+    "compose": {
+      "title": "your own broker, in four lines",
+      "note": "It comes up working with <cmd>DATABASE_URL</cmd> unset: no accounts, no billing, no secrets to manage, anonymous pairing on. Accounts are optional forever, and that is the default rather than a degraded mode."
+    },
+    "links": {
+      "repo": {
+        "title": "Source on GitHub",
+        "description": "The monorepo: CLI, web client, relay, broker, docs and this site."
+      },
+      "selfHosting": {
+        "title": "Self-hosting guide",
+        "description": "The three degrees of independence, and every variable each service reads."
+      },
+      "images": {
+        "title": "Container images",
+        "description": "Published to ghcr.io for the broker, the web client and the relay."
+      },
+      "npm": {
+        "title": "mtmux on npm",
+        "description": "The published CLI, built and released from the same repo."
+      },
+      "security": {
+        "title": "Threat model",
+        "description": "What the broker can and cannot see, written down rather than asserted."
+      },
+      "license": {
+        "title": "MIT licence",
+        "description": "Fork it, ship it, run it commercially. No CLA, no open-core split."
+      }
+    }
   },
   "pricing": {
     "eyebrow": "pricing",
@@ -184,10 +233,7 @@
       {
         "name": "Pro",
         "note": "Unlimited servers & devices",
-        "features": [
-          "200 GB/month relayed",
-          "Name your machines"
-        ],
+        "features": ["200 GB/month relayed", "Name your machines"],
         "popular": true
       }
     ],

@@ -9,6 +9,7 @@ import { Demo } from "@/components/sections/home/demo";
 import { Faq } from "@/components/sections/home/faq";
 import { Fidelity } from "@/components/sections/home/fidelity";
 import { HomeHero } from "@/components/sections/home/hero";
+import { OpenSource } from "@/components/sections/home/open-source";
 import { PricingTeaser } from "@/components/sections/home/pricing-teaser";
 import { Security } from "@/components/sections/home/security";
 import { siteConfig } from "@/config/site";
@@ -117,6 +118,7 @@ export default async function HomePage({
       <Fidelity />
       <Agents />
       <Security />
+      <OpenSource />
       <PricingTeaser />
       <Faq />
       <ClosingCta namespace="home.cta" showDocsLink />

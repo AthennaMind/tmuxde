@@ -53,10 +53,24 @@ export const siteConfig = {
   apiHost: "api.mtmux.com",
   /** The full documentation site (`apps/docs`). A separate origin, so links to it are absolute. */
   docsUrl: "https://docs.mtmux.com",
+  /** The published package. The install command above is the shorthand for it. */
+  npmUrl: "https://www.npmjs.com/package/mtmux",
+  /**
+   * The deep links the open-source section hands a reader who wants to run
+   * this themselves. Named here rather than typed into the component so the
+   * repo move that broke every one of these last time can only break one file.
+   */
+  docsSelfHosting: "https://docs.mtmux.com/docs/self-hosting",
+  docsSecurity: "https://docs.mtmux.com/docs/security",
   social: {
     github: repo,
     discussions: `${repo}/discussions`,
     releases: `${repo}/releases`,
+    issues: `${repo}/issues`,
+    license: `${repo}/blob/main/LICENSE`,
+    contributing: `${repo}/blob/main/CONTRIBUTING.md`,
+    /** Container images. `mtmux-api` is the broker — the one a self-hoster needs. */
+    packages: `${repo}/pkgs/container/mtmux-api`,
   },
 } as const;
 
@@ -88,6 +102,9 @@ export const footerNavigation = {
     // docs.mtmux.com is a separate origin and had no inbound link from here at
     // all, which left 22 pages orphaned from the site that ranks for them.
     { key: "docsSite", href: siteConfig.docsUrl, external: true },
+    // The page that answers "can I run this without you", which until now was
+    // reachable from the home page and nowhere else on the site.
+    { key: "selfHosting", href: siteConfig.docsSelfHosting, external: true },
     { key: "blog", href: "/blog" },
     { key: "faq", href: "/faq" },
     { key: "security", href: "/security" },
@@ -103,6 +120,7 @@ export const footerNavigation = {
     { key: "privacy", href: "/privacy" },
     { key: "terms", href: "/terms" },
     { key: "github", href: siteConfig.social.github, external: true },
+    { key: "discussions", href: siteConfig.social.discussions, external: true },
     { key: "contact", href: `mailto:${siteConfig.email}`, external: true },
   ],
 } as const;

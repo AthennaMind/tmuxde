@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 
 import { AppLink } from "@/components/site/app-link";
 import { CopyInstall } from "@/components/site/copy-install";
+import { GithubLink } from "@/components/site/github-link";
 import { LocaleSwitcher } from "@/components/site/locale-switcher";
 import { Logo } from "@/components/site/logo";
 import { MobileNav } from "@/components/site/mobile-nav";
@@ -32,6 +33,7 @@ export async function SiteHeader() {
         </nav>
 
         <div className="flex flex-none items-center gap-2">
+          <GithubLink className="hidden sm:grid" />
           <LocaleSwitcher className="hidden sm:inline-flex" />
           <ThemeToggle className="hidden sm:grid" />
           {/* From `sm` up, because below that the drawer carries it. This is
