@@ -16,18 +16,24 @@ export function TerminalWindow({
   title,
   children,
   className,
+  bodyClassName,
   chrome = true,
 }: {
   title?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Overrides the output type size — the hero fits a QR block in a column. */
+  bodyClassName?: string;
   /** Traffic-light dots. Off for inline config snippets. */
   chrome?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-line bg-surface-sunken",
+        // `terminal-scope` remaps the surface/text tokens inside to the fixed
+        // dark terminal palette: a terminal is a dark surface in both schemes,
+        // and ANSI colours picked against black are unreadable on paper.
+        "terminal-scope overflow-hidden rounded-xl border border-line bg-surface-sunken shadow-lift",
         className,
       )}
     >
@@ -42,7 +48,7 @@ export function TerminalWindow({
           ) : null}
           <span
             className={cn(
-              "font-mono text-[0.8125rem] text-text-subtle",
+              "font-mono text-[0.875rem] text-text-subtle",
               chrome && "ms-2",
             )}
           >
@@ -50,7 +56,12 @@ export function TerminalWindow({
           </span>
         </div>
       ) : null}
-      <div className="overflow-x-auto p-4 font-mono text-[0.875rem] leading-[1.8] sm:p-5">
+      <div
+        className={cn(
+          "overflow-x-auto p-4 font-mono text-[0.9375rem] leading-[1.8] sm:p-5",
+          bodyClassName,
+        )}
+      >
         <div className="terminal-lines">{children}</div>
       </div>
     </div>
@@ -91,7 +102,12 @@ export function Prompt() {
   );
 }
 
-type TokenKind =
+/**
+ * Exported because the demo replay renders spans imperatively — it writes
+ * class names onto DOM nodes at ~30fps rather than mounting a `<Tok>` per
+ * character. Duplicating the map there would let the two colour schemes drift.
+ */
+export type TokenKind =
   | "path"
   | "value"
   | "comment"
@@ -103,9 +119,12 @@ type TokenKind =
   | "blocked"
   | "stalled"
   | "failed"
-  | "agent";
+  | "agent"
+  /** A row of half-block QR glyphs. Coloured like `value`; the replay also
+   *  gives these rows their own leading so the modules come out square. */
+  | "qr";
 
-const TOKEN_CLASS: Record<TokenKind, string> = {
+export const TOKEN_CLASS: Record<TokenKind, string> = {
   path: "text-term-path",
   value: "text-term-value",
   comment: "text-term-comment",
@@ -118,6 +137,7 @@ const TOKEN_CLASS: Record<TokenKind, string> = {
   stalled: "text-signal-stalled",
   failed: "text-signal-failed",
   agent: "text-signal-agent",
+  qr: "text-term-value",
 };
 
 /** Semantic colouring for one token of terminal output. */

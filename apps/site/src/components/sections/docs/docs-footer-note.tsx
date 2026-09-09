@@ -6,7 +6,7 @@ export async function DocsFooterNote() {
   const t = await getTranslations("docs");
 
   return (
-    <p className="border-t border-line-subtle pt-8 text-[0.9063rem] text-text-subtle">
+    <p className="border-t border-line-subtle pt-8 text-[1rem] text-text-subtle">
       {t.rich("footerNote", {
         addr: siteConfig.email,
         discussions: (chunks) => (

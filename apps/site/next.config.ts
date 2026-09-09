@@ -27,7 +27,21 @@ function publishedCliVersion(): string {
   return version;
 }
 
+/**
+ * Dev and production never share a build directory.
+ *
+ * PM2 serves the production build out of `.next` while it keeps running; a
+ * `next dev` in the same checkout writes into that same tree and can hand the
+ * live server half a build. Development therefore gets `.next-dev`, and
+ * NEXT_DIST_DIR stays an explicit override for builds that need their own
+ * directory (the CLI's stripped-env build of apps/web uses it).
+ */
+const distDir =
+  process.env.NEXT_DIST_DIR ||
+  (process.env.NODE_ENV === "development" ? ".next-dev" : ".next");
+
 const nextConfig: NextConfig = {
+  distDir,
   reactStrictMode: true,
   poweredByHeader: false,
 

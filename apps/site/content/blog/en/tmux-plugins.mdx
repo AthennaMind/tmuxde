@@ -1,7 +1,8 @@
 ---
-title: "tmux plugins: TPM, and the five worth installing"
-description: "TPM installs tmux plugins via prefix + I; the real shortlist is tmux-resurrect, tmux-continuum, tmux-sensible, vim-tmux-navigator and tmux-yank."
+title: "tmux plugins: TPM, and the six worth installing"
+description: "TPM installs tmux plugins via prefix + I; the shortlist is tmux-resurrect, tmux-continuum, tmux-sensible, vim-tmux-navigator, tmux-yank and floax."
 date: "2026-07-22"
+updated: "2026-08-10"
 author: "ivo-hart"
 category: "tmux"
 icon: "🔌"
@@ -12,6 +13,8 @@ keywords:
   - "tmux plugin manager"
   - "best tmux plugins"
   - "tmux resurrect"
+  - "floax"
+  - "tmux floax"
 featured: false
 draft: false
 ---
@@ -21,12 +24,17 @@ TPM (Tmux Plugin Manager) is how you install tmux plugins: clone it once, list p
 Most tmux setups only need three or four plugins — session persistence and pane/vim navigation
 cover almost everything people actually reach for. None of this changes the actual tmux commands
 covered in [tmux commands](/blog/tmux-commands); plugins add bindings on top, they don't replace
-what's already there.
+what's already there, and every one of them is ultimately just writing the options and bindings
+documented in the [tmux man page](https://man7.org/linux/man-pages/man1/tmux.1.html) on your
+behalf. If tmux isn't installed yet, start at [installing tmux](/blog/install-tmux) — TPM needs a
+working tmux and `git`, nothing else.
 
 ## Installing TPM
 
 <Steps>
 <Step title="Clone TPM">
+
+[TPM](https://github.com/tmux-plugins/tpm) is itself just a repo you clone once:
 
 ```bash
 git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
@@ -72,18 +80,20 @@ key.
     ["tmux-sensible", "A bundle of defaults nearly everyone agrees on: bigger history-limit, shorter escape-time, aggressive-resize"],
     ["vim-tmux-navigator", "Ctrl-h/j/k/l cross between vim splits and tmux panes as if they were one grid"],
     ["tmux-yank", "Copies a copy-mode selection straight to the system clipboard, detecting pbcopy, xclip, xsel or wl-copy for you"],
+    ["tmux-floax", "Toggles a floating, centred pane on top of your current layout instead of splitting it; needs tmux 3.3 or newer"],
   ]}
 />
 
 ### Session persistence: resurrect and continuum
 
 These are two separate plugins that are almost always installed together, and it's worth being
-precise about which one does what. tmux-resurrect is the save/restore mechanism — prefix
+precise about which one does what. [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect)
+is the save/restore mechanism — prefix
 <Cmd>Ctrl-s</Cmd> writes the current state to disk, prefix <Cmd>Ctrl-r</Cmd> reads it back. On
 its own it's a manual snapshot, not automatic.
 
-tmux-continuum sits on top of it: it calls resurrect's save on a timer, and can call its restore
-automatically the moment tmux starts.
+[tmux-continuum](https://github.com/tmux-plugins/tmux-continuum) sits on top of it: it calls
+resurrect's save on a timer, and can call its restore automatically the moment tmux starts.
 
 ```bash title="~/.tmux.conf"
 set -g @plugin 'tmux-plugins/tmux-resurrect'
@@ -100,7 +110,8 @@ don't assume it happens for free.
 
 ### Staying oriented: vim-tmux-navigator and tmux-yank
 
-vim-tmux-navigator is the one people install after they've spent a week hitting `prefix` then an
+[vim-tmux-navigator](https://github.com/christoomey/vim-tmux-navigator) is the one people install
+after they've spent a week hitting `prefix` then an
 arrow key to move out of vim and into the next pane, and getting tired of it. The full config —
 both the tmux side and the vim/Neovim side — is in [tmux and vim](/blog/tmux-vim), since it needs
 changes in both places to work.
@@ -108,6 +119,43 @@ changes in both places to work.
 tmux-yank is smaller in scope but removes a real annoyance: without it, a copy-mode selection
 only lands in tmux's own paste buffer, and getting it to the system clipboard means piping
 through `pbcopy` or `xclip` by hand in your config. tmux-yank does that detection for you.
+
+### A floating scratch pane: tmux-floax
+
+[tmux-floax](https://github.com/omerxx/tmux-floax) is the odd one out on this list because it
+doesn't change how existing panes behave — it adds a new kind of pane. Toggling it opens a
+floating, centred pane on top of your current layout rather than splitting it, so your windows
+keep their sizes and the thing you popped up disappears again when you toggle it off. It's the
+right shape for a quick `git status`, a one-off `curl`, or a shell you need for thirty seconds
+and don't want to rearrange your layout for. Its README requires **tmux 3.3 or newer**.
+
+Install it like anything else in the list:
+
+```bash title="~/.tmux.conf"
+set -g @plugin 'omerxx/tmux-floax'
+```
+
+The README documents the default binding as <Cmd>prefix p</Cmd> to toggle the floating pane, and
+<Cmd>prefix P</Cmd> (shifted) for the plugin's own menu. Size, colours and the title are options
+rather than edits — `@floax-width` and `@floax-height` both default to `80%`, and
+`@floax-session-name` defaults to `scratch`, which is a real, separate session behind the popup
+rather than a pane in your current window (see [tmux new session](/blog/tmux-new-session) for what
+that distinction actually means).
+
+<Callout type="warning" title="prefix p is already bound">
+tmux binds `p` to `previous-window` out of the box — the full default key table is in the
+[tmux man page](https://man7.org/linux/man-pages/man1/tmux.1.html). Taking `prefix p` for a
+floating pane means giving that up, so if you cycle windows that way, set `@floax-bind` to
+something you aren't already using before you get confused about why `prefix p` stopped moving
+you backwards.
+</Callout>
+
+When is a normal split better? Whenever you need to _watch_ two things at once. A floating pane
+covers whatever is underneath it, which is exactly what you want for a transient command and
+exactly wrong for a test watcher, a log tail, or a dev server you want in the corner of your eye
+while you edit. Popups are also not where long work belongs: the point of the plugin is that you
+dismiss it. If you find yourself toggling the same floating pane back open all day, that's a
+split — or a window — asking to exist.
 
 ### One status-bar theme, if you want one
 
@@ -120,8 +168,10 @@ worth looking at rather than something abandoned since 2019. Treat this one as t
 
 Dotfiles repos with forty-line plugin lists are usually the result of years of "I'll try this"
 commits that never got removed, not a considered setup. A reasonable core is TPM itself plus
-tmux-sensible, tmux-resurrect and tmux-continuum, and vim-tmux-navigator if you use vim or
-Neovim. Add tmux-yank if you copy out of tmux often. Add a status theme if you care what it looks
+[tmux-sensible](https://github.com/tmux-plugins/tmux-sensible), tmux-resurrect and
+tmux-continuum, and vim-tmux-navigator if you use vim or
+Neovim. Add tmux-yank if you copy out of tmux often. Add floax if you keep wanting a scratch
+shell that doesn't disturb your layout. Add a status theme if you care what it looks
 like. Stop there — every additional plugin is something you now have to remember exists when
 something behaves oddly.
 
@@ -140,9 +190,12 @@ instant — if it is, the slowdown is in the list, not in tmux.
 
 Once tmux-continuum is actually keeping a session alive across reboots, the next question is
 usually whether it worked — and checking that from somewhere that isn't the machine itself is the
-same problem [tmux ssh](/blog/tmux-ssh) covers for connections in general. If you'd rather glance
-at a session from a browser than reattach over SSH to confirm, that's what mtmux
-(`npm i -g mtmux`) does.
+same problem [tmux ssh](/blog/tmux-ssh) covers for connections in general, and
+[tmux in the browser](/blog/tmux-in-browser) covers for everything that isn't a terminal. If
+you'd rather glance at a session from a browser than reattach over SSH to confirm, that's what
+mtmux (`npm i -g mtmux`) does — [what it is](/docs), and the
+[reference docs](https://docs.mtmux.com/web-app/sessions) for how sessions show up on the other
+end. It doesn't page you when something finishes; you open the session and look.
 
 <FAQ>
 <FAQItem q="What is TPM in tmux?">

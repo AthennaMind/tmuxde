@@ -36,20 +36,24 @@ export async function Faq() {
           title={t("title")}
           level={2}
           size="sm"
+          align="center"
           className="mb-8 max-w-none sm:mb-11"
         />
 
-        <Accordion defaultValue={[0]} className="border-t border-line-subtle">
+        <Accordion
+          defaultValue={[0]}
+          className="surface-lift overflow-hidden rounded-xl border border-line px-6 sm:px-7"
+        >
           {items.map((item, index) => (
             <AccordionItem
               key={item.question}
               value={index}
-              className="border-line-subtle"
+              className="border-line-subtle last:border-b-0"
             >
-              <AccordionTrigger className="gap-3.5 py-4.5 font-mono text-[0.96875rem] text-text-strong hover:no-underline hover:text-brand">
+              <AccordionTrigger className="gap-3.5 py-5 text-start font-mono text-[1.0625rem] text-text-strong hover:no-underline hover:text-brand">
                 <span
                   aria-hidden="true"
-                  className="text-[0.78125rem] text-brand"
+                  className="text-[0.8125rem] text-brand"
                 >
                   ▸
                 </span>
@@ -64,7 +68,7 @@ export async function Faq() {
                   the panels mounted is what makes the markup true; they still
                   render `hidden`, so nothing changes visually. */}
               <AccordionContent keepMounted>
-                <p className="max-w-[66ch] ps-7.5 text-[0.90625rem] leading-[1.8] text-text-muted">
+                <p className="max-w-[66ch] ps-7.5 pb-1 text-[1.0625rem] leading-[1.8] text-text-muted">
                   {t.rich(`items.${index}.answer`, {
                     post: inlineLink(ANSWER_LINKS[index] ?? "/blog"),
                   })}
@@ -74,10 +78,10 @@ export async function Faq() {
           ))}
         </Accordion>
 
-        <div className="mt-5.5">
+        <div className="mt-5.5 text-center">
           <Link
             href="/faq"
-            className="text-[0.90625rem] text-brand underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-brand"
+            className="text-[1rem] text-brand underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-brand"
           >
             {t("moreLink")} →
           </Link>

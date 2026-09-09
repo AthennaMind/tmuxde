@@ -27,7 +27,7 @@ export async function CompareWhenNot() {
     <section className="border-t border-line-subtle">
       <div className="container-content max-w-3xl py-(--spacing-section)">
         <SectionHeading level={2} size="sm" title={t("title")} />
-        <ul className="mt-6 grid gap-2.5 text-[0.9375rem] leading-[1.75] text-text-muted">
+        <ul className="mt-6 grid gap-2.5 text-[1rem] leading-[1.75] text-text-muted">
           {items.map((item) => (
             <li key={item} className="flex gap-3">
               <span aria-hidden="true" className="text-signal-blocked">
@@ -38,7 +38,7 @@ export async function CompareWhenNot() {
           ))}
         </ul>
         <div className="mt-8 rounded-xl border border-line bg-surface-raised p-5">
-          <p className="text-[0.9375rem] leading-[1.75] text-text">
+          <p className="text-[1rem] leading-[1.75] text-text">
             {t.rich("note", { link: linkRich })}
           </p>
         </div>

@@ -2,7 +2,7 @@
   "privacy": {
     "meta": {
       "title": "mtmux privacy policy — what we collect and why",
-      "description": "mtmux end-to-end encrypts your terminal. See what metadata we collect, what we never touch, our third parties, and how to export or delete your data."
+      "description": "mtmux never sees your terminal contents. See what metadata we collect, what we never touch, our third parties, and how to export or delete your data."
     },
     "breadcrumb": {
       "home": "Home",
@@ -15,7 +15,7 @@
       "shortVersion": {
         "heading": "The short version",
         "paragraphs": {
-          "p1": "Your terminal contents are encrypted end-to-end between your machine and your browser. We cannot read them and we do not store them. Everything below is detail on the small amount of metadata that makes the service work — and if you run mtmux in local mode, none of it exists, because your machine never contacts us at all."
+          "p1": "We never see your terminal contents. When traffic is relayed through our servers it is encrypted end-to-end between your machine and your browser, under keys derived on those two devices, and we forward ciphertext we cannot read. When your devices reach each other directly — on your own network, or over the internet without our relay — that connection does not pass through us at all, and it is protected by the browser’s own transport security rather than by us. Either way, we do not store your terminal contents. Everything below is detail on the small amount of metadata that makes the service work — and if you run mtmux in local mode, none of it exists, because your machine never contacts us at all."
         }
       },
       "whatWeCollect": {

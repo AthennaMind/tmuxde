@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { IBM_Plex_Mono, IBM_Plex_Sans, Martian_Mono } from "next/font/google";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { fontVariables } from "@/app/fonts";
 import { JsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
@@ -17,41 +17,22 @@ import {
   organizationSchema,
   websiteSchema,
 } from "@/lib/structured-data";
+import { THEME_SCRIPT } from "@/lib/theme";
 
 import "../globals.css";
-
-/* Display face: geometric monospace, used only for headings. */
-const martianMono = Martian_Mono({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
-  variable: "--font-martian-mono",
-  display: "swap",
-});
-
-/* Reading face: prose, UI labels, everything long-form. */
-const plexSans = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-plex-sans",
-  display: "swap",
-});
-
-/* Terminal face: code, shell output, keycaps. */
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-plex-mono",
-  display: "swap",
-});
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
 export const viewport: Viewport = {
-  // The site ships dark-only, so there is one theme colour and one scheme.
-  themeColor: "#0a0b0a",
-  colorScheme: "dark",
+  // Both schemes ship. The browser chrome follows the one actually in use —
+  // a single dark theme colour on a light page puts a black bar above white.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f8f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#111312" },
+  ],
+  colorScheme: "dark light",
 };
 
 export async function generateMetadata({
@@ -114,14 +95,25 @@ export default async function LocaleLayout({
   const t = await getTranslations({ locale, namespace: "common" });
 
   return (
-    // The site ships dark-only. The `dark` class is fixed here rather than
-    // toggled at runtime, so shadcn's `dark:` variants still resolve.
+    /*
+      Served with `dark` on the element: it is the canonical mtmux look, and
+      shipping the *majority* scheme in the static HTML is what keeps the
+      pre-paint script from having to repaint most visits. `ThemeScript`
+      removes it before first paint for anyone who chose light or whose OS
+      asks for it, so there is no flash either way — and `suppressHydration
+      Warning` is required because that script legitimately edits the class
+      React is about to hydrate against.
+    */
     <html
       lang={locale}
       dir={definition.dir}
-      className={`dark ${martianMono.variable} ${plexSans.variable} ${plexMono.variable}`}
+      suppressHydrationWarning
+      className={`dark ${fontVariables}`}
     >
       <head>
+        {/* A constant string from lib/theme.ts — no interpolation reaches it.
+            It has to run before first paint, so it cannot be a module. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <JsonLd
           json={graph(organizationSchema(), websiteSchema(locale as Locale))}
         />

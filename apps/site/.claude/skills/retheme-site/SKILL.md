@@ -15,14 +15,25 @@ If you are here because a component needs a colour it does not have, the answer 
 ## How the system is layered
 
 ```
-Layer 1   :root                  raw OKLCH values
+Layer 1a  :root                  scheme-independent constants (terminal + term-* syntax)
+Layer 1b  :root                  light scheme values
+Layer 1c  .dark                  dark scheme values
 Layer 2   @theme inline          maps each token to a Tailwind utility
 Layer 3   components             use utilities only: bg-surface-raised, text-brand
 ```
 
-The site ships **dark-only** — there is no theme toggle and no light scheme. `<html>` carries a
-fixed `dark` class purely so shadcn's own `dark:` variants still resolve; never add a `dark:`
-variant to a hand-written component.
+**Both schemes ship.** Every token name is defined in both blocks, so a hand-written component
+never needs a `dark:` variant — if a value differs per scheme, change the token, not the markup.
+`<html>` is served with `class="dark"`; the pre-paint script in `src/lib/theme.ts` swaps it
+before first paint, and `ThemeToggle` cycles system → light → dark.
+
+A subtree that draws a terminal carries **`terminal-scope`**, which remaps the surface/line/text
+tokens onto the fixed `--t-*` palette so the illustration stays dark on a light page. Change
+`--t-*` (or `term-*`) only if you mean to restyle every terminal on the site.
+
+Contrast is a real constraint on the light side: the acid green that carries dark is ~1.9:1 on
+paper, which is why light has its own deeper `--brand`. Check any new colour pair against the
+surface it sits on before shipping it.
 
 ## Token families
 
@@ -46,7 +57,8 @@ though mtmux emits those states.
 
 ## Changing the palette
 
-Edit the `:root` block in `src/app/globals.css`. Nothing else.
+Edit the `:root` (light) and `.dark` blocks in `src/app/globals.css`. Nothing else — and change
+both, or the site is half-rethemed.
 
 Values are OKLCH, which is worth keeping because it makes lightness perceptually uniform — you
 can adjust the L channel and get a predictable result instead of re-guessing every shade.

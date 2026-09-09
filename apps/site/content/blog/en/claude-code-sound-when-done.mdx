@@ -1,0 +1,202 @@
+---
+title: "Claude Code sound when done: alerts that actually play"
+description: "The exact commands to make Claude Code play a sound when it finishes or needs you — afplay, paplay, PowerShell, the WSL crossing, and two distinct tones."
+date: "2026-08-10"
+author: "ivo-hart"
+category: "agents"
+icon: "🔊"
+tags: ["claude code", "notifications", "agents", "cli"]
+keywords:
+  - "claude code make sound when done"
+  - "claude code sound when finished"
+  - "claude code alert"
+  - "claude code bell"
+  - "claude code notification sound"
+featured: false
+draft: false
+---
+
+The command that makes a sound is one line, and it is different on each platform:
+`afplay /System/Library/Sounds/Glass.aiff` on macOS,
+`paplay /usr/share/sounds/freedesktop/stereo/complete.oga` on Linux,
+and a `powershell.exe` call on Windows and WSL.
+Put it in the `Stop` event and Claude Code plays it when it finishes responding. Where
+that config file lives and how the event matching works is covered in
+[Claude Code notifications](/blog/claude-code-notifications); this page is only about the command
+inside it, which is the part that silently does nothing when you get it wrong.
+
+## What command plays a sound on macOS, Linux and Windows?
+
+<CompareTable
+  columns={["Platform", "Command", "Ships with the OS?"]}
+  rows={[
+    ["macOS", "afplay /System/Library/Sounds/Glass.aiff", "yes"],
+    ["Linux (PulseAudio)", "paplay /usr/share/sounds/freedesktop/stereo/complete.oga", "usually — needs pulseaudio-utils"],
+    ["Linux (PipeWire)", "pw-play /usr/share/sounds/freedesktop/stereo/complete.oga", "yes on PipeWire systems"],
+    ["Windows / WSL", "powershell.exe -c \"[console]::beep(880,300)\"", "yes"],
+    ["anything with a terminal", "printf '\\a'", "yes, but usually muted"],
+  ]}
+/>
+
+On **macOS**, `afplay` is built in and `/System/Library/Sounds/` holds the system alert sounds.
+`Glass` and `Tink` are short and unobtrusive; `Submarine` and `Sosumi` carry further; `Basso` is
+the one everyone reaches for to mean "something went wrong". No install, no dependency.
+
+On **Linux**, the sound theme is the `sound-theme-freedesktop` package and lives at
+`/usr/share/sounds/freedesktop/stereo/`, with filenames drawn from the
+[freedesktop sound naming specification](https://specifications.freedesktop.org/sound-naming-spec/latest/).
+`complete.oga`, `bell.oga`, `message.oga` and `dialog-warning.oga` are the useful ones. The player
+matters: `paplay` comes from
+`pulseaudio-utils`, `pw-play` from PipeWire, and both handle `.oga`. `aplay` is the ALSA tool and
+plays **WAV only** — pointing it at an `.oga` file fails, which is the single most common reason a
+Linux setup is silent.
+
+On **Windows**, `[console]::beep(frequency, milliseconds)` needs no file at all and is the most
+portable option. If you would rather have a real sound, `C:\Windows\Media\` holds `notify.wav`,
+`chimes.wav`, `ding.wav` and `tada.wav`, played with
+`powershell.exe -c "(New-Object Media.SoundPlayer 'C:\Windows\Media\notify.wav').PlaySync()"`.
+
+<Callout type="tip" title="Test the command in a shell before you put it in a config file">
+Paste the line into a terminal and press enter. If it does not make a noise there, it will not make
+a noise from Claude Code either — and a config file that runs a failing command reports nothing,
+so you will spend the next twenty minutes suspecting the wrong thing.
+</Callout>
+
+## Why should done and waiting use different sounds?
+
+Because they mean opposite things about how fast you need to move.
+
+Claude Code has two separate events. One fires when it has finished responding — the run is over,
+nothing is being wasted, and the only cost of noticing in five minutes is five minutes. The other
+fires when it is waiting on you: a permission prompt, an idle timeout, an MCP server asking a
+question. Nothing progresses until you answer, so every minute you do not notice is a minute of a
+run that is not happening.
+
+Wiring both to the same sound throws that information away and trains you to ignore both. Two
+distinct tones cost nothing:
+
+```bash title="a two-tone convention"
+# finished responding — soft, low, easy to ignore if you are mid-thought
+afplay /System/Library/Sounds/Tink.aiff
+
+# waiting on you — sharper, and worth interrupting for
+afplay /System/Library/Sounds/Submarine.aiff
+```
+
+The Linux equivalent pairs `complete.oga` with `dialog-warning.oga`; on Windows,
+`[console]::beep(660,150)` against `[console]::beep(1320,400)`. After a week you stop consciously
+identifying them and just know whether to get up.
+
+If you only wire one, wire the waiting one. A blocked session emits no completion event to tell you
+it is blocked, so a done-only setup is silent in exactly the case that costs the most — the
+asymmetry laid out in
+[which coding agent tells you what](/blog/coding-agent-notifications).
+
+## How do you play a sound from Claude Code under WSL?
+
+Two routes, and the second is the one that reliably works.
+
+**Call into Windows.** WSL's interop puts `powershell.exe` on your `PATH`, so a Linux-side command
+can play a Windows sound directly:
+
+```bash title="from inside WSL"
+powershell.exe -c "[console]::beep(880,300)"
+```
+
+This works on WSL1 and WSL2, needs no audio configuration on the Linux side, and produces sound
+through the Windows audio stack — which is the one that is actually connected to your speakers.
+
+**Use WSLg's audio bridge.** On Windows 11,
+[WSLg](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps) exposes a PulseAudio
+socket at `/mnt/wslg/PulseServer`, so `paplay` works natively once `PULSE_SERVER` points at it.
+Check whether
+you already have it before configuring anything — `ls /mnt/wslg/PulseServer` either exists or it
+does not, and if it does not, `wsl --update` and a restart is the fix.
+
+```bash title="~/.bashrc, only if /mnt/wslg/PulseServer exists"
+export PULSE_SERVER=unix:/mnt/wslg/PulseServer
+```
+
+Prefer the `powershell.exe` route for a notification. It has fewer moving parts, survives a WSL
+version change, and an alert that stops working after a Windows update is worse than no alert,
+because you will not find out until the run you needed it for. More of the WSL-specific terrain is
+in [running tmux on Windows](/blog/tmux-on-windows).
+
+## Why is nothing playing?
+
+Work down this list; it is roughly ordered by how often each one is the answer.
+
+<Steps>
+<Step title="The command fails when run by hand">
+Paste it into a shell. `command not found` for `paplay` means `pulseaudio-utils` is not installed;
+a file error means the sound theme package is not installed either.
+</Step>
+<Step title="The player cannot read the file format">
+`aplay` plays WAV and nothing else. If your command is `aplay something.oga`, that is the bug.
+Switch to `paplay` or `pw-play`, or point `aplay` at a `.wav`.
+</Step>
+<Step title="You are on a remote machine over SSH">
+There is no audio device at the far end. The command runs, exits cleanly, and makes no sound
+anywhere. Nothing you change in the config will fix this — the sound has to be produced on the
+machine you are sitting at, which is a different problem to solve.
+</Step>
+<Step title="You are inside tmux and using the terminal bell">
+`printf '\a'` is passed through to your terminal, but the terminal mutes the bell by default in
+most modern builds. Turning it back on is a terminal setting, not a tmux one — see
+[tmux notifications](/blog/tmux-notifications) for the multiplexer side and
+[terminal notifications](/blog/terminal-notifications) for the emulator side.
+</Step>
+<Step title="The system is muted, focused or in do-not-disturb">
+macOS Focus modes and Windows Focus Assist suppress alert sounds without telling the program that
+produced them. Check this last, but do check it.
+</Step>
+</Steps>
+
+## When is a bell better than a sound file?
+
+When you want the terminal to decide. `printf '\a'` hands the decision to whatever is attached —
+your terminal emulator can flash the window instead of playing a tone, bounce the dock icon, or
+mark the tab, and tmux can raise a window alert from it. A sound file bypasses all of that and
+plays one fixed noise regardless of context.
+
+The catch is that the bell is muted by default nearly everywhere, so it is the option that most
+often produces the "I configured it and nothing happened" experience. Use a sound file when you
+want a guaranteed noise; use the bell when you want the rest of your stack to be able to react,
+and accept that you will spend five minutes re-enabling it first.
+
+A sound is also, by construction, a local event. It reaches the room you are in and nowhere else.
+Once you are out of earshot the question is not what noise to make but how to see what the pane
+says, and that is where mtmux fits: it serves the tmux session Claude Code is running in to a
+browser over an encrypted tunnel, so checking costs a tab instead of a trip home.
+[The agent workflow](/agents) is the overview and the
+[quickstart](https://docs.mtmux.com/docs/getting-started) is the five-minute version.
+
+<FAQ>
+<FAQItem q="How do I make Claude Code play a sound when it finishes?">
+Point the `Stop` event at a player command for your platform:
+`afplay /System/Library/Sounds/Glass.aiff` on macOS,
+`paplay /usr/share/sounds/freedesktop/stereo/complete.oga` on Linux, or
+`powershell.exe -c "[console]::beep(880,300)"` on Windows and WSL. Test the command in a shell
+first — a failing command produces no error, just silence.
+</FAQItem>
+<FAQItem q="Why does my Claude Code sound work in the terminal but not from Claude Code?">
+Usually the environment. A command that relies on `PATH` entries or environment variables set by
+your interactive shell profile may not find them when run non-interactively. Use an absolute path
+to the player and to the sound file, and the difference disappears.
+</FAQItem>
+<FAQItem q="Can I play a different sound when Claude Code is waiting versus finished?">
+Yes, and you should. The two states are separate events, so point each at a different file. Use
+something soft for completion and something sharper for waiting — a blocked session is the one
+costing you time, and it never emits a completion event to tell you about itself.
+</FAQItem>
+<FAQItem q="Does a Claude Code sound alert work over SSH?">
+No. The command runs on the remote machine, which has no audio output, so it succeeds silently.
+Either play the sound from something running locally, or escalate to a signal that travels — a
+desktop notification on your own machine, or a push service.
+</FAQItem>
+<FAQItem q="What is the difference between playing a sound and ringing the terminal bell?">
+A sound file plays one fixed noise through the audio device. The bell (`printf '\a'`) is a signal
+to the terminal, which may play a tone, flash the window, or mark the tab — and tmux can turn it
+into a window alert. The bell is more flexible and more likely to be muted by default.
+</FAQItem>
+</FAQ>

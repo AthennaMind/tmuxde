@@ -43,7 +43,7 @@ export function TableOfContents({ entries }: { entries: TocEntry[] }) {
   if (entries.length < 2) return null;
 
   return (
-    <nav aria-labelledby="toc-heading" className="text-[0.875rem]">
+    <nav aria-labelledby="toc-heading" className="text-[0.9375rem]">
       <p id="toc-heading" className="eyebrow mb-3 text-text-faint">
         {t("onThisPage")}
       </p>

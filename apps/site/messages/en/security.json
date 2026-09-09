@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "How mtmux encrypts your terminal — full threat model",
-    "description": "A CPace PAKE over ristretto255, HKDF-SHA256 key derivation, AES-256-GCM frames and a broker that holds no key — plus what mtmux deliberately does not defend against."
+    "description": "A CPace PAKE over ristretto255, HKDF-SHA256 keys, AES-256-GCM frames and a broker that holds no key — plus what mtmux deliberately does not defend against."
   },
   "breadcrumb": {
     "home": "Home",
@@ -43,7 +43,7 @@
       },
       {
         "title": "The broker never sees the secret",
-        "description": "The code splits into a 2-digit routing slot and a 6-digit secret. The slot routes; the secret is the PAKE password and is never transmitted, not even as a hash. Only the first two digits reach our servers."
+        "description": "The code splits into a 3-digit routing slot and a 6-digit secret. The slot routes; the secret is the PAKE password and is never transmitted, not even as a hash. Only the first three digits reach our servers."
       },
       {
         "title": "One wrong guess ends it",
@@ -63,7 +63,7 @@
       },
       {
         "title": "Nothing to port-forward",
-        "description": "The CLI dials out to the broker. There is no firewall hole to open, no sshd exposed, and no reverse proxy to misconfigure."
+        "description": "The CLI dials out to the broker. There is no firewall hole to open, <post>no sshd exposed</post>, and no reverse proxy to misconfigure."
       },
       {
         "title": "Revocation forgets a key",

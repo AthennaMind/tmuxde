@@ -20,10 +20,10 @@ export async function SecurityDisclosure() {
     <Section id="escape-hatches" tone="raised">
       <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 sm:gap-12">
         <div>
-          <h2 className="mb-3.5 text-[clamp(1.125rem,2.1vw,1.4375rem)] leading-[1.06]">
+          <h2 className="mb-3.5 text-[clamp(1.25rem,2.2vw,1.5625rem)] leading-[1.06]">
             {t("escapeHatches.title")}
           </h2>
-          <p className="mb-5 max-w-[52ch] text-[0.9375rem] leading-[1.75] text-text-muted">
+          <p className="mb-5 max-w-[52ch] text-[1rem] leading-[1.75] text-text-muted">
             {t.rich("escapeHatches.prose", {
               cmd: (chunks) => <Cmd>{chunks}</Cmd>,
             })}
@@ -46,10 +46,10 @@ export async function SecurityDisclosure() {
           </TerminalWindow>
         </div>
         <div id="disclosure">
-          <h2 className="mb-3.5 text-[clamp(1.125rem,2.1vw,1.4375rem)] leading-[1.06]">
+          <h2 className="mb-3.5 text-[clamp(1.25rem,2.2vw,1.5625rem)] leading-[1.06]">
             {t("disclosure.title")}
           </h2>
-          <p className="mb-5 max-w-[52ch] text-[0.9375rem] leading-[1.75] text-text-muted">
+          <p className="mb-5 max-w-[52ch] text-[1rem] leading-[1.75] text-text-muted">
             {t.rich("disclosure.prose", {
               addr: siteConfig.securityEmail,
               email: (chunks) => (
@@ -62,7 +62,7 @@ export async function SecurityDisclosure() {
               ),
             })}
           </p>
-          <dl className="grid gap-2.5 text-[0.875rem]">
+          <dl className="grid gap-2.5 text-[0.9375rem]">
             {facts.map((fact, index) => (
               <div
                 key={fact.label}
@@ -80,7 +80,7 @@ export async function SecurityDisclosure() {
           {/* The "no audit yet" line is the most important sentence on this
               page. Claiming a review that has not happened is indefensible,
               and saying so plainly is cheaper than being caught. */}
-          <p className="mt-5 border-s-2 border-line-strong ps-4 text-[0.8438rem] leading-[1.75] text-text-subtle">
+          <p className="mt-5 border-s-2 border-line-strong ps-4 text-[0.875rem] leading-[1.75] text-text-subtle">
             {t("disclosure.auditNote")}
           </p>
         </div>

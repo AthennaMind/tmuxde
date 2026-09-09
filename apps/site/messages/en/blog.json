@@ -3,6 +3,10 @@
     "title": "tmux guides, terminal workflows and mobile access",
     "description": "Practical guides to tmux, running coding agents unattended, and reaching your terminal from a phone. Written by the people who build mtmux."
   },
+  "feed": {
+    "title": "mtmux — tmux guides and terminal workflows",
+    "description": "Guides on tmux, running coding agents unattended, and opening the session you already have from a phone. mtmux serves tmux to a browser over an end-to-end encrypted tunnel; it sends no notifications."
+  },
   "eyebrow": "blog",
   "title": "Notes on tmux, terminals and working away from the desk.",
   "description": "Working guides rather than announcements. Everything here is something we needed to figure out ourselves.",

@@ -2,6 +2,7 @@
 title: "Claude Code notifications: the Stop and Notification hooks"
 description: "Claude Code fires Stop and Notification hooks you can wire to a sound, a desktop alert, or a push — the real config, and where each stops helping."
 date: "2026-06-09"
+updated: "2026-08-10"
 author: "nadia-okonkwo"
 category: "agents"
 icon: "🔔"
@@ -30,7 +31,9 @@ with the team), or `.claude/settings.local.json` (this project, not checked in �
 for a personal `afplay` command your teammates don't need to see in a diff).
 
 Each entry matches an event name to a list of matchers, and each matcher runs one or more shell
-commands:
+commands — the shape is documented in Anthropic's own
+[hooks reference](https://code.claude.com/docs/en/hooks), which is the authority on the full event
+list if you want more than the two below:
 
 ```json title="~/.claude/settings.json"
 {
@@ -115,8 +118,9 @@ coffee. Still requires the desktop to be unlocked and you to be near it.
 </Step>
 <Step title="Push to your phone">
 The only tier that survives you leaving the house. Claude Code has no native push integration, so
-this means piping the hook command to something that can deliver one — typically a `curl` to a
-self-hosted ntfy topic or a Pushover account, each of which is one line inside the hook.
+this means piping the hook command to something that can deliver one — typically a `curl` to an
+[ntfy](https://ntfy.sh/) topic, self-hosted or on ntfy's public server, or a Pushover account. Each
+is one line inside the hook, and each is a separate tool with its own account and its own uptime.
 </Step>
 </Steps>
 
@@ -135,6 +139,14 @@ tier above it answers "something happened"; none of them answer the question you
 once the banner lands, which is what the pane currently says. mtmux covers that: it serves the
 tmux session Claude Code is already running in to a browser, end-to-end encrypted, with nothing to
 port-forward — so the follow-up to a push is [opening the session](/agents), not finding a laptop.
+The reference setup for that pairing is at
+[docs.mtmux.com/claude-code-remote](https://docs.mtmux.com/claude-code-remote).
+
+If the agent is running inside tmux, there is a second, entirely separate place to hang the same
+shell command: tmux's own `set-hook`, which fires on what the *pane* does rather than on what
+Claude Code reports about itself — `set-hook` and `capture-pane` are both in
+[tmux commands](/blog/tmux-commands). It is a different tool with different blind spots, not a
+replacement for the hooks above.
 
 ## What a good escalation setup actually looks like
 
@@ -147,7 +159,16 @@ long agent runs is the more common one. That's the argument made at length in
 [stop babysitting coding agents](/blog/stop-babysitting-coding-agents).
 
 If you also run OpenAI's CLI, the equivalent hook is different in shape and in what it goes silent
-on — see [Codex CLI notifications](/blog/codex-cli-notifications).
+on — see [Codex CLI notifications](/blog/codex-cli-notifications). For the same question asked
+across every agent at once — which ones signal natively, and what each one stays quiet about —
+[coding agent notifications](/blog/coding-agent-notifications) is the survey this post is one
+chapter of.
+
+The command *inside* the hook is a separate problem from the hook itself, and the one people get
+wrong: a banner you cannot hear is not much use in another room.
+[Making Claude Code play a sound when it's done](/blog/claude-code-sound-when-done) covers
+`afplay`, `paplay` and the PowerShell equivalent, and why `Stop` and `Notification` want two
+different sounds.
 
 <FAQ>
 <FAQItem q="What's the difference between the Stop and Notification hooks in Claude Code?">

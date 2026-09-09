@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "tmate vs ttyd vs SSH apps vs mtmux, compared honestly",
-    "description": "How mtmux compares to tmate, ttyd, wetty, mobile SSH clients and VS Code Remote for driving tmux from a phone — including when it's the wrong choice."
+    "description": "tmate, ttyd, wetty, gotty, sshx, Zellij, SSH apps and VS Code Remote compared for driving tmux from a phone — including when mtmux is the wrong choice."
   },
   "breadcrumb": {
     "home": "Home",
@@ -102,6 +102,71 @@
       }
     ],
     "note": "The notification row is a column of dashes on purpose. None of these tools page you, mtmux included — if that is what you need, a tmux hook into ntfy or your agent's own hook support is the answer, and it composes with any row above it."
+  },
+  "landscape": {
+    "title": "The rest of the landscape, briefly",
+    "description": "The five above are the ones most people actually choose between. These come up often enough to deserve a straight answer about what they are.",
+    "caption": "Eight remote-terminal tools, what each one is, and how you reach it from another machine.",
+    "columns": ["Tool", "What it is", "How you reach it", "More"],
+    "rows": [
+      {
+        "id": "tmate",
+        "tool": "tmate",
+        "what": "A second tmux server built for handing someone a link, right now.",
+        "reach": "Dials out to a tmate relay. Nothing to forward.",
+        "readMore": "tmate alternative"
+      },
+      {
+        "id": "ttyd",
+        "tool": "ttyd",
+        "what": "A small C binary that serves any command you name over a WebSocket. Read-only unless you pass -W.",
+        "reach": "Listens on port 7681. You expose it and bring your own proxy, TLS and auth.",
+        "readMore": "ttyd vs wetty"
+      },
+      {
+        "id": "wetty",
+        "tool": "wetty",
+        "what": "A Node server that runs ssh for you and renders it in the browser. No read-only mode.",
+        "reach": "Listens on port 3000. You expose it; SSH is the auth.",
+        "readMore": "ttyd vs wetty"
+      },
+      {
+        "id": "gotty",
+        "tool": "GoTTY",
+        "what": "The Go original of the same idea. The upstream repo's last release was 2017; an actively maintained fork carries it on.",
+        "reach": "Listens on port 8080, unencrypted unless you turn TLS on.",
+        "readMore": "tmux in a browser"
+      },
+      {
+        "id": "sshx",
+        "tool": "sshx",
+        "what": "Collaborative terminal sharing with remote cursors. The encryption key lives in the URL fragment, so its relay cannot read the session.",
+        "reach": "Dials out to a hosted relay. Self-hosting is not supported today.",
+        "readMore": "tmux in a browser"
+      },
+      {
+        "id": "zellij",
+        "tool": "Zellij",
+        "what": "A multiplexer in its own right — a tmux replacement, not a way to reach one. It has had an opt-in web client since v0.43.",
+        "reach": "Its web server listens on localhost by default; exposing it is your job.",
+        "readMore": "tmux commands"
+      },
+      {
+        "id": "ssh",
+        "tool": "Mobile SSH apps",
+        "what": "A native client with your private key stored on the phone.",
+        "reach": "Needs a reachable sshd, which a machine behind NAT may not have.",
+        "readMore": "tmux from your phone"
+      },
+      {
+        "id": "mtmux",
+        "tool": "mtmux",
+        "what": "A CLI that serves the tmux server you already run, with a touch layer on top.",
+        "reach": "Dials out and seals frames end to end. Nothing to forward.",
+        "readMore": "Two-minute quickstart"
+      }
+    ],
+    "note": "Zellij is in this table because people compare it to tmux, not because it competes with the rest — if you want a different multiplexer rather than remote access to the one you have, it is a good one. None of these tools send notifications."
   },
   "articles": {
     "eyebrow": "the honest version",

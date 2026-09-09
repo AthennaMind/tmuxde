@@ -44,7 +44,7 @@ export async function ClosingCta({
       {showDocsLink ? (
         <div
           aria-hidden="true"
-          className="glow-brand pointer-events-none absolute inset-0"
+          className="bg-hero-mesh pointer-events-none absolute inset-0"
         />
       ) : null}
       <div
@@ -56,8 +56,8 @@ export async function ClosingCta({
         <h2
           className={cn(
             showDocsLink
-              ? "text-[clamp(1.375rem,3.56vw,2.5rem)] leading-[1.02]"
-              : "text-[clamp(1.375rem,3vw,2.125rem)] leading-[1.04]",
+              ? "text-[clamp(1.625rem,3.8vw,2.75rem)] leading-[1.02]"
+              : "text-[clamp(1.5rem,3.2vw,2.3125rem)] leading-[1.04]",
           )}
         >
           {t.rich("title", richHandlers)}
@@ -65,7 +65,7 @@ export async function ClosingCta({
         <p
           className={cn(
             "mx-auto max-w-[44ch] leading-[1.7] text-text-muted",
-            showDocsLink ? "mt-4.5 text-[1.0625rem]" : "mt-4 text-[1rem]",
+            showDocsLink ? "mt-4.5 text-[1.125rem]" : "mt-4 text-[1.0625rem]",
           )}
         >
           {t.rich("description", richHandlers)}
@@ -76,13 +76,13 @@ export async function ClosingCta({
             showDocsLink ? "mt-7.5" : "mt-7",
           )}
         >
-          <CopyInstall size="lg" />
+          <CopyInstall size="lg" variant="solid" />
           {showDocsLink ? (
             <Link
               href="/docs"
               className={cn(
                 buttonVariants({ size: "lg" }),
-                "h-auto px-5.5 py-3 text-[0.96875rem]",
+                "h-auto px-5.5 py-3 text-[1.0625rem]",
               )}
             >
               {t("docsLink")}

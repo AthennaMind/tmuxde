@@ -4,6 +4,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { JsonLd } from "@/components/json-ld";
 import { CompareArticles } from "@/components/sections/compare/articles";
 import { CompareHero } from "@/components/sections/compare/hero";
+import { CompareLandscape } from "@/components/sections/compare/landscape";
 import { CompareMatrix } from "@/components/sections/compare/matrix";
 import { CompareWhenNot } from "@/components/sections/compare/when-not";
 import type { Locale } from "@/i18n/locales";
@@ -64,6 +65,7 @@ export default async function ComparePage({
       />
       <CompareHero />
       <CompareMatrix />
+      <CompareLandscape />
       <CompareArticles />
       <CompareWhenNot />
     </>

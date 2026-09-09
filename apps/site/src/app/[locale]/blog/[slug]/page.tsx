@@ -17,13 +17,14 @@ import { siteConfig } from "@/config/site";
 import { locales, type Locale } from "@/i18n/locales";
 import { Link } from "@/i18n/navigation";
 import { getAllSlugs, getPost, getRelatedPosts } from "@/lib/blog";
-import { extractFaqEntries, renderMdx } from "@/lib/mdx";
+import { extractFaqEntries, extractStepEntries, renderMdx } from "@/lib/mdx";
 import { absoluteUrl, buildMetadata } from "@/lib/seo";
 import {
   blogPostingSchema,
   breadcrumbSchema,
   faqSchema,
   graph,
+  howToSchema,
 } from "@/lib/structured-data";
 
 export async function generateStaticParams() {
@@ -82,6 +83,11 @@ export default async function BlogPostPage({
     getRelatedPosts(locale, slug),
   ]);
   const faqEntries = extractFaqEntries(post.body);
+  // A `HowTo` is only honest when the page renders the procedure it describes,
+  // so both come from the same source: no `<Steps>`, no `HowTo`.
+  const stepEntries = post.frontmatter.howTo
+    ? extractStepEntries(post.body)
+    : [];
 
   return (
     <>
@@ -99,14 +105,24 @@ export default async function BlogPostPage({
             description: post.frontmatter.description,
             datePublished: post.frontmatter.date,
             dateModified: post.frontmatter.updated ?? post.frontmatter.date,
-            authorName: author.name,
-            authorUrl: author.github,
+            author,
             image: `${absoluteUrl(locale as Locale, `/blog/${slug}`)}/opengraph-image`,
             keywords: post.frontmatter.keywords,
             wordCount: post.wordCount,
             section: post.frontmatter.category,
+            about: post.frontmatter.keywords[0],
+            mentions: post.frontmatter.tags,
           }),
           ...(faqEntries.length > 0 ? [faqSchema(faqEntries)] : []),
+          ...(stepEntries.length > 1
+            ? [
+                howToSchema({
+                  name: post.frontmatter.title,
+                  description: post.frontmatter.description,
+                  steps: stepEntries,
+                }),
+              ]
+            : []),
         )}
       />
 
@@ -115,7 +131,7 @@ export default async function BlogPostPage({
           <nav aria-label={t("breadcrumb.label")} className="mb-6">
             <Link
               href="/blog"
-              className="font-mono text-[0.8125rem] text-text-subtle transition-colors hover:text-brand"
+              className="font-mono text-[0.875rem] text-text-subtle transition-colors hover:text-brand"
             >
               ← {t("backToBlog")}
             </Link>
@@ -133,14 +149,14 @@ export default async function BlogPostPage({
             <p className="eyebrow mb-3 text-brand">
               {t(`categories.${post.frontmatter.category}`)}
             </p>
-            <h1 className="text-[clamp(1.625rem,3.6vw,2.5rem)] leading-[1.04]">
+            <h1 className="text-[clamp(1.8125rem,3.8vw,2.75rem)] leading-[1.04]">
               {post.frontmatter.title}
             </h1>
-            <p className="mt-4 text-[1.125rem] leading-[1.7] text-text-muted">
+            <p className="mt-4 text-[1.1875rem] leading-[1.7] text-text-muted">
               {post.frontmatter.description}
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line-subtle pt-5 font-mono text-[0.8125rem] text-text-faint">
+            <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line-subtle pt-5 font-mono text-[0.875rem] text-text-faint">
               <span className="text-text-muted">{author.name}</span>
               <span aria-hidden="true">·</span>
               <time dateTime={post.frontmatter.date}>
@@ -166,7 +182,7 @@ export default async function BlogPostPage({
             </div>
 
             {post.untranslated ? (
-              <p className="mt-5 rounded-lg border border-line border-s-2 border-s-signal-stalled bg-surface-raised p-4 text-[0.9063rem] text-text-muted">
+              <p className="mt-5 rounded-lg border border-line border-s-2 border-s-signal-stalled bg-surface-raised p-4 text-[1rem] text-text-muted">
                 {t("untranslated")}
               </p>
             ) : null}
@@ -183,7 +199,7 @@ export default async function BlogPostPage({
           <AuthorCard author={author} />
 
           <div className="mt-8 flex flex-col items-center gap-4 rounded-xl border border-line bg-surface-raised px-6 py-9 text-center">
-            <p className="max-w-[44ch] text-[1.0625rem] leading-[1.7] text-text-muted">
+            <p className="max-w-[44ch] text-[1.125rem] leading-[1.7] text-text-muted">
               {t("postCta", { name: siteConfig.name })}
             </p>
             <CopyInstall size="lg" />
@@ -200,7 +216,7 @@ export default async function BlogPostPage({
       {related.length > 0 ? (
         <section className="border-t border-line-subtle bg-surface-raised">
           <div className="container-content py-(--spacing-section)">
-            <h2 className="mb-6 text-[clamp(1.25rem,2.2vw,1.625rem)]">
+            <h2 className="mb-6 text-[clamp(1.375rem,2.4vw,1.75rem)]">
               {t("related")}
             </h2>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

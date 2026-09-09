@@ -69,10 +69,10 @@ export default async function BlogIndexPage({
 
       <header className="container-content pt-(--spacing-section) pb-10">
         <Eyebrow>{t("eyebrow")}</Eyebrow>
-        <h1 className="max-w-[18ch] text-[clamp(1.75rem,4vw,2.75rem)] leading-[1]">
+        <h1 className="max-w-[18ch] text-[clamp(1.9375rem,4.2vw,3rem)] leading-[1]">
           {t("title")}
         </h1>
-        <p className="mt-4 max-w-[56ch] text-[1.0625rem] leading-[1.72] text-text-muted">
+        <p className="mt-4 max-w-[56ch] text-[1.125rem] leading-[1.72] text-text-muted">
           {t("description")}
         </p>
 
@@ -121,7 +121,7 @@ export default async function BlogIndexPage({
         )}
 
         <div className="mt-14 flex flex-col items-center gap-4 rounded-xl border border-line bg-surface-raised px-6 py-10 text-center">
-          <p className="max-w-[42ch] text-[1.0625rem] leading-[1.7] text-text-muted">
+          <p className="max-w-[42ch] text-[1.125rem] leading-[1.7] text-text-muted">
             {t("cta")}
           </p>
           <CopyInstall size="lg" />

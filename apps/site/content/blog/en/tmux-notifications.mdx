@@ -1,0 +1,197 @@
+---
+title: "tmux notifications: activity, bell and silence alerts"
+description: "tmux can watch a pane for output, a bell or silence and run any command when it fires — the config, the hooks, and how to route one to your phone."
+date: "2026-08-10"
+author: "ivo-hart"
+category: "tmux"
+icon: "🔔"
+tags: ["tmux", "notifications", "hooks", "workflow"]
+keywords:
+  - "tmux notification"
+  - "tmux notifications"
+  - "tmux monitor activity"
+  - "tmux alert when command finishes"
+  - "tmux bell notification"
+featured: false
+draft: false
+---
+
+tmux has a built-in alert system with three triggers — **activity**, **bell** and **silence** — and
+a hook for each one that can run any shell command. Turn on the monitor for a window, set what the
+alert should do, and attach a hook: that is the whole mechanism, and it works for any program in
+the pane, including ones with no notification support of their own. Every option below is verified
+against the [tmux manual](https://man.openbsd.org/tmux.1).
+
+The reason to reach for this layer rather than a per-tool hook is coverage. tmux does not care what
+is running in the pane, so one config covers every long-running command you will ever launch, not
+just the ones whose authors thought about notifications.
+
+## How do you make tmux alert you when a pane does something?
+
+Three window options turn the monitors on, and three session options decide what an alert means.
+They are separate on purpose: the monitor detects, the action dispatches.
+
+```bash title="~/.tmux.conf"
+# Detect: these are window options, so they need -w (setw)
+setw -g monitor-bell on          # on by default
+setw -g monitor-activity on      # any output at all
+setw -g monitor-silence 300      # no output for 300s; 0 disables
+
+# Dispatch: which windows count, and what an alert does
+set -g bell-action any
+set -g activity-action other
+set -g silence-action other
+set -g visual-bell off
+```
+
+`monitor-bell` is already on in a default install; the other two are off. `monitor-silence` takes
+an interval in seconds rather than a boolean — `0` is the off switch. The dispatch lines above are
+mostly explicit restatements of the shipped defaults, which is deliberate: they are the three knobs
+you will want to change first, and a config that names them is one you can reason about.
+
+The `-action` options take `any`, `none`, `current` or `other`. `other` means "alert me about
+windows I am not currently looking at" and is the default for activity and silence; `any` — the
+default for bells — includes the window in front of you.
+
+`visual-bell off` is also the default and worth leaving alone. The manual is explicit that with it
+off a bell is "passed through to the terminal (which normally makes a sound)" — so turning it *on*
+replaces the sound your terminal would have made with a tmux status-line message. That is a trade,
+not an upgrade. Set it to `both` if you want both.
+
+## What is the difference between activity, bell and silence?
+
+They answer different questions, and the third one is the reason this layer exists at all.
+
+<CompareTable
+  columns={["Trigger", "Fires when", "Good for", "Fails on"]}
+  rows={[
+    ["bell", "the program writes \\a", "tools that deliberately signal", "programs that never ring one"],
+    ["activity", "any output appears", "a silent job producing its first output", "anything chatty — fires constantly"],
+    ["silence", "no output for N seconds", "a job that has stopped making progress", "jobs with idle chatter, e.g. spinners"],
+  ]}
+/>
+
+Silence is the interesting one. No program emits an "I am stuck" event, because from the inside it
+does not know it is stuck — that is true of build tools and it is true of every coding agent, as
+[the agent notification map](/blog/coding-agent-notifications) sets out. Watching for output
+silence is the only honest approximation available, and tmux does it at the pane level for free.
+Set the interval generously: 300 seconds catches a wedged process without firing on a slow test.
+
+The catch is a spinner. An animated progress indicator is output, so a job that hangs while still
+redrawing a spinner never looks silent to tmux. If that is your workload, silence monitoring is the
+wrong tool and you want the program's own signal instead.
+
+## How do you run a command when a tmux alert fires?
+
+Each trigger has a matching hook: `alert-bell`, `alert-activity` and `alert-silence`. Hooks are set
+with `set-hook -g` and take a tmux command, so shelling out means wrapping it in `run-shell`.
+
+```bash title="~/.tmux.conf"
+set-hook -g alert-bell   'run-shell -b "notify-send \"tmux\" \"bell in #{hook_window_name}\""'
+set-hook -g alert-silence 'run-shell -b "notify-send \"tmux\" \"#{hook_window_name} went quiet\""'
+```
+
+Two details make this work and are easy to miss.
+
+`run-shell -b` runs in the background. Without `-b`, tmux blocks its command queue until the
+command finishes — the manual states that `run-shell` "stop[s] execution of subsequent commands on
+the queue" — so a hook that shells out to a slow `curl` freezes the whole server for the duration.
+
+The `#{...}` values expand. `run-shell` expands its argument using tmux's format rules before
+executing it, so the hook can name the window that raised the alert. The formats available are
+`hook_window`, `hook_window_name`, `hook_session`, `hook_session_name` and `hook_pane` — enough to
+say *which* pane wants you, which is the difference between a useful alert and one that makes you
+check four windows.
+
+<Callout type="tip" title="Test a hook without waiting for a real job">
+Set the hook, then ring a bell into a pane on purpose:
+`printf '\a' > $(tmux display-message -p -t mywin '#{pane_tty}')`.
+If nothing fires, check `monitor-bell` is on for that window and that
+`bell-action` is not `none` — an alert with no matching monitor is silent rather than an error.
+</Callout>
+
+## How do you send a tmux alert to your phone?
+
+Nothing in tmux reaches a phone. The hook runs a local command, so reaching a device that is not
+this machine means that command calling out to a push service. [ntfy](https://docs.ntfy.sh/publish/)
+is the usual choice because publishing is a plain HTTP POST with no SDK and no account:
+
+```bash title="~/.tmux.conf"
+set-hook -g alert-silence 'run-shell -b "curl -s -H \"Title: tmux\" -H \"Priority: high\" -d \"#{hook_window_name} has been quiet\" ntfy.sh/YOUR-TOPIC-HERE"'
+```
+
+Two honest caveats before you paste that. A public `ntfy.sh` topic name is the only thing
+protecting the message — anyone who guesses it reads your alerts, so use something unguessable or
+self-host. And the alert only carries what you put in it: `#{hook_window_name}` tells you which
+window, not what it says. If you want the last few lines of the pane in the message, `capture-pane
+-p -t <target> | tail -5` inside the hook command will fetch them.
+
+## Why does my tmux alert fire constantly?
+
+Almost always `monitor-activity on`. Activity means *any output*, so a build log in a background
+window raises an alert every time it flushes, and the default `activity-action other` does nothing
+to help — it only excludes the window you are currently looking at. If you also set
+`activity-action any`, the focused window starts alerting too. The fix is usually to drop activity
+monitoring entirely and rely on bell and silence, which fire on events rather than on bytes.
+
+The second most common cause is a hook that has no dedupe. An alert can repeat while the condition
+persists, and a notification per repeat is how people end up muting the channel that was supposed
+to be the important one. Write to a timestamp file in the hook and skip if it is newer than your
+cooldown.
+
+A related complaint is the opposite: the hook fires but you never notice, because whatever it runs
+is easy to miss. If your hook plays audio, giving activity and silence
+[distinct tones](/blog/claude-code-sound-when-done) is worth more than a better message.
+
+## When is tmux the wrong layer for this?
+
+When the thing you want to know is *semantic*. tmux can tell you a pane produced output; it cannot
+tell you the tests passed, or that the y/n on screen is `rm -rf` rather than `npm install`. For
+that you want the program's own hook, where one exists — Claude Code's
+[Stop and Notification hooks](/blog/claude-code-notifications) carry the result, and
+[Codex CLI's notify hook](/blog/codex-cli-notifications) is handed a JSON blob with the last
+assistant message in it. Use tmux for coverage and the program's hook for content.
+
+It is also the wrong layer if your terminal is already doing the job. Warp raises its own
+notifications for supported agents with no config at all, and iTerm2 and Ghostty act on escape
+sequences the program emits — but a multiplexer in between changes that story, which is the subject
+of [terminal notifications](/blog/terminal-notifications). If you are new to the surrounding
+commands, [the tmux command cheat sheet](/blog/tmux-commands) is the map.
+
+Finally, an alert is not an answer. Whatever fires, the next question is what the pane actually
+says, and if you are away from the machine that is a separate problem from notification. mtmux is
+the piece that covers it — it serves the tmux session you are already running to a browser over an
+encrypted tunnel with nothing to port-forward, so acting on an alert costs a tab.
+[Running agents this way](/agents) and the
+[CLI reference](https://docs.mtmux.com/docs/cli) are the two places to start.
+
+<FAQ>
+<FAQItem q="How do I get a notification when a command finishes in tmux?">
+Turn on `monitor-bell` for the window and have the command ring the bell when it exits — appending
+`; printf '\a'` is enough. Then attach a hook with `set-hook -g alert-bell 'run-shell -b "..."'` to
+run whatever notifier you want. For commands that do not ring a bell, `monitor-silence` catches the
+moment output stops instead.
+</FAQItem>
+<FAQItem q="What is the difference between monitor-activity and monitor-bell in tmux?">
+`monitor-activity` fires on any output at all appearing in the window, so it is noisy for anything
+that logs. `monitor-bell` fires only when the program writes the BEL character, so it fires on
+deliberate signals. `monitor-bell` is on by default; `monitor-activity` is not.
+</FAQItem>
+<FAQItem q="Why is my tmux bell silent?">
+Check three things in order: `monitor-bell` is on for that window, `bell-action` is not `none`, and
+`visual-bell` is off so the bell is passed through to your terminal rather than replaced by a
+status message. If all three are right, the remaining suspect is your terminal emulator, which
+mutes the bell by default in most modern builds.
+</FAQItem>
+<FAQItem q="Can tmux notify me when a pane stops producing output?">
+Yes — `setw -g monitor-silence 300` raises an alert when a window has produced no output for 300
+seconds, and the `alert-silence` hook runs a command when it does. It is the closest thing to a
+stalled-job detector, with the caveat that a spinner or progress bar counts as output and defeats
+it.
+</FAQItem>
+<FAQItem q="Do tmux hooks work when no client is attached?">
+Yes. The alert hooks run on the tmux server, so they fire on a detached session — which is the
+whole point if you are monitoring a job you walked away from. Only the visual variants
+(`visual-bell`, `visual-activity`) need a client, since they draw a message in the status line.
+</FAQItem>
+</FAQ>

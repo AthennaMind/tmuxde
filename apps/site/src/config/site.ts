@@ -14,7 +14,10 @@
 const version = process.env.NEXT_PUBLIC_MTMUX_VERSION ?? "0.0.0";
 
 /** The one place the repository lives. Every GitHub URL below is derived from it. */
-const repo = "https://github.com/GagnDeep/tmuxremote";
+const repo = "https://github.com/mtmux/mtmux";
+
+/** The hosted web client and dashboard, hoisted so the four links below derive from it. */
+const appHost = "app.mtmux.com";
 
 export const siteConfig = {
   name: "mtmux",
@@ -30,9 +33,26 @@ export const siteConfig = {
   privacyEmail: "privacy@mtmux.com",
   requirements: "Node 22+ · tmux · macOS · Linux · WSL",
   /** The hosted web client and dashboard. */
-  appHost: "app.mtmux.com",
+  appHost,
+  /**
+   * The four real destinations on the app origin.
+   *
+   * Named constants rather than an `appLink(path)` helper: there are exactly
+   * four routes the app serves from here, and a helper is an invitation to
+   * invent a fifth that 404s. `?next=` is honoured — `safeNext()` accepts a
+   * single-slash path and the auth form replays it after sign-in.
+   *
+   * None of these belong in `staticRoutes` or the sitemap: the app origin
+   * disallows crawling in its own robots.txt, so these are human links only.
+   */
+  appUrl: `https://${appHost}`,
+  appSignIn: `https://${appHost}/signin`,
+  appSignUp: `https://${appHost}/signup`,
+  appBilling: `https://${appHost}/signin?next=/settings/billing`,
   /** The pairing broker. Self-hostable — see MTMUX_API_URL. */
   apiHost: "api.mtmux.com",
+  /** The full documentation site (`apps/docs`). A separate origin, so links to it are absolute. */
+  docsUrl: "https://docs.mtmux.com",
   social: {
     github: repo,
     discussions: `${repo}/discussions`,
@@ -52,6 +72,11 @@ export const navigation = [
 
 export const footerNavigation = {
   product: [
+    // The two app links live in `product` rather than `resources`: the app is
+    // the product, and the footer was the only site-wide surface that could
+    // carry both without competing with CopyInstall in the header.
+    { key: "openApp", href: siteConfig.appUrl, external: true },
+    { key: "signIn", href: siteConfig.appSignIn, external: true },
     { key: "features", href: "/features" },
     { key: "agents", href: "/agents" },
     { key: "useCases", href: "/use-cases" },
@@ -60,6 +85,9 @@ export const footerNavigation = {
   ],
   resources: [
     { key: "docs", href: "/docs" },
+    // docs.mtmux.com is a separate origin and had no inbound link from here at
+    // all, which left 22 pages orphaned from the site that ranks for them.
+    { key: "docsSite", href: siteConfig.docsUrl, external: true },
     { key: "blog", href: "/blog" },
     { key: "faq", href: "/faq" },
     { key: "security", href: "/security" },

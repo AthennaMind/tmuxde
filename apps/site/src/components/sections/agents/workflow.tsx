@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 
 import { Cmd, HairlineGrid, StepCard } from "@/components/primitives/cards";
 import { Section, SectionHeading } from "@/components/primitives/section";
+import { inlineLink } from "@/lib/rich-links";
 
 type Step = { title: string; body: string };
 
@@ -30,6 +31,9 @@ export async function AgentWorkflow() {
           <StepCard key={step.title} index={index + 1} title={step.title}>
             {t.rich(`steps.${index}.body`, {
               cmd: (chunks) => <Cmd>{chunks}</Cmd>,
+              // Only step one carries a <post> tag — the one that tells you to
+              // open a tmux session in the first place.
+              post: inlineLink("/blog/tmux-new-session"),
             })}
           </StepCard>
         ))}

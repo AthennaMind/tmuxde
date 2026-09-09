@@ -2,6 +2,7 @@
 title: "tmux ssh: fixing broken pipe and dropped sessions"
 description: "tmux over SSH keeps a job running through a dropped connection. The pattern is ssh host -t 'tmux attach || tmux new', plus keepalives for broken pipe."
 date: "2026-07-23"
+updated: "2026-08-10"
 author: "ivo-hart"
 category: "tmux"
 icon: "🔗"
@@ -41,7 +42,12 @@ ssh host -t 'tmux attach || tmux new'
 
 `tmux attach` succeeds if any session exists and fails otherwise, so `|| tmux new` only runs when
 there was nothing to attach to. Run this and you either land back in whatever you had running, or
-get a fresh session — never an error about a missing session name.
+get a fresh session — never an error about a missing session name. Both halves are ordinary tmux
+commands with all their usual flags, documented in the
+[tmux man page](https://man7.org/linux/man-pages/man1/tmux.1.html); this line only depends on
+their exit statuses. All of it assumes tmux is actually installed on the far end — see
+[installing tmux](/blog/install-tmux), or [tmux on Windows](/blog/tmux-on-windows) if the box
+you're SSHing into is running WSL2.
 
 <TerminalDemo title="local — attach-or-create">
 $ ssh build-box -t 'tmux attach || tmux new'
@@ -81,7 +87,9 @@ covers the full session, window and pane reference for whatever you do next.
 
 Attaching from a narrow terminal — a phone SSH client, a small split — into a session that's
 already attached elsewhere can shrink everyone's view to fit yours, because by default a tmux
-window sizes itself to the smallest attached client. [tmux attach session](/blog/tmux-attach-session)
+window sizes itself to the smallest attached client. That is the single most common complaint in
+[tmux from your phone](/blog/tmux-from-phone), and it is not phone-specific at all — any small
+client does it. [tmux attach session](/blog/tmux-attach-session)
 covers the full mechanics of `window-size` and `aggressive-resize`; the SSH-specific fix is
 simpler: attach with `-d` to detach every other client first instead of sharing the view.
 
@@ -99,7 +107,9 @@ connection died silently, usually because a NAT gateway or firewall dropped an i
 without telling either end. tmux itself is unaffected; the session is still running on the
 server, waiting for you to reconnect.
 
-The fix is a client-side keepalive, in `~/.ssh/config`:
+The fix is a client-side keepalive, in `~/.ssh/config` — both keywords below are standard OpenSSH
+client options, described in
+[ssh_config(5)](https://man.openbsd.org/ssh_config):
 
 ```bash title="~/.ssh/config"
 Host *
@@ -126,18 +136,21 @@ dead.
   ]}
 />
 
-These solve different layers and are often used together rather than as alternatives: mosh
-replaces the fragile TCP transport with something that survives roaming and packet loss, but it
+These solve different layers and are often used together rather than as alternatives:
+[mosh](https://mosh.org) replaces the fragile TCP transport with something that survives roaming and packet loss, but it
 doesn't give you sessions, panes, or anything that outlives the mosh client itself — that's still
 tmux's job. If your problem is a laptop that changes networks constantly, mosh plus tmux beats
 either alone. If your problem is just an occasional dropped connection on a stable network,
 keepalives and tmux are enough.
 
 Checking whether a long SSH-and-tmux job actually finished is the same "not at my desk" problem
-either way. If reattaching over SSH every time you want a status check gets old, mtmux
-(`npm i -g mtmux`) serves the same tmux session to a browser tab over an end-to-end encrypted
-tunnel — no SSH client and no key on the device doing the checking, even though the session it's
-serving still runs exactly as described above.
+either way, and it is the problem [tmux in the browser](/blog/tmux-in-browser) exists to survey.
+If reattaching over SSH every time you want a status check gets old, mtmux (`npm i -g mtmux`)
+serves the same tmux session to a browser tab over an end-to-end encrypted tunnel — no SSH client
+and no key on the device doing the checking, even though the session it's serving still runs
+exactly as described above. The [feature list](/features) says what it does; the
+[sealed tunnel docs](https://docs.mtmux.com/sealed-tunnel) say how the transport works. It still
+won't tell you when the build ends — you open the session and read it, same as `tmux attach`.
 
 <FAQ>
 <FAQItem q="How do I attach to a tmux session over SSH?">

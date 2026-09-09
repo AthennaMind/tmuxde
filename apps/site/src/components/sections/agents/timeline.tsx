@@ -53,19 +53,19 @@ export async function AgentTimeline() {
             >
               <span
                 className={cn(
-                  "pt-0.5 font-mono text-[0.8125rem]",
+                  "pt-0.5 font-mono text-[0.875rem]",
                   TIME_COLOR[item.tone],
                 )}
               >
                 {item.time}
               </span>
-              <p className="text-[0.9375rem] leading-[1.6] text-text">
+              <p className="text-[1rem] leading-[1.6] text-text">
                 {t.rich(`items.${index}.text`, { path, accent })}
               </p>
             </li>
           ))}
         </ol>
-        <p className="mt-6 max-w-3xl text-[0.9063rem] text-text-faint">
+        <p className="mt-6 max-w-3xl text-[1rem] text-text-faint">
           {t("note")}
         </p>
       </div>

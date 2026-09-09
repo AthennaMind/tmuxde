@@ -62,7 +62,7 @@ export function Eyebrow({
   return (
     <p
       className={cn(
-        "eyebrow mb-4",
+        "eyebrow mb-4 inline-flex items-center gap-2.5",
         tone === "brand" && "text-brand",
         tone === "blocked" && "text-signal-blocked",
         tone === "stalled" && "text-signal-stalled",
@@ -71,10 +71,11 @@ export function Eyebrow({
         className,
       )}
     >
-      <span aria-hidden="true" className="text-text-faint">
-        {"// "}
-      </span>
-      {children}
+      <span
+        aria-hidden="true"
+        className="inline-block h-px w-6 translate-y-[-0.2em] bg-current opacity-60"
+      />
+      <span>{children}</span>
     </p>
   );
 }
@@ -119,10 +120,10 @@ export function SectionHeading({
         className={cn(
           "text-balance",
           size === "sm" &&
-            "text-[clamp(1.25rem,2.2vw,1.625rem)] leading-[1.08]",
+            "text-[clamp(1.375rem,2.4vw,1.75rem)] leading-[1.08]",
           size === "md" &&
-            "text-[clamp(1.5rem,3.1vw,2.1875rem)] leading-[1.04]",
-          size === "lg" && "text-[clamp(1.75rem,4.2vw,3rem)] leading-[0.98]",
+            "text-[clamp(1.6875rem,3.3vw,2.4375rem)] leading-[1.04]",
+          size === "lg" && "text-[clamp(1.9375rem,4.4vw,3.25rem)] leading-[0.98]",
         )}
       >
         {title}
@@ -130,7 +131,7 @@ export function SectionHeading({
       {description ? (
         <p
           className={cn(
-            "mt-4 text-[1.0625rem] leading-[1.7] text-text-muted",
+            "mt-4 text-[1.125rem] leading-[1.7] text-text-muted",
             align === "center" && "mx-auto",
           )}
         >

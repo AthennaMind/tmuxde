@@ -2,6 +2,7 @@
 title: "tmux attach session: tmux a, -d, and the resize problem"
 description: "tmux attach -t name reattaches to a session by name; tmux a is shorthand for the most recent one. Use -d to detach other clients first."
 date: "2026-06-16"
+updated: "2026-08-10"
 author: "ivo-hart"
 category: "tmux"
 tags: ["tmux", "sessions", "ssh"]
@@ -18,7 +19,9 @@ draft: false
 `tmux attach -t name` reconnects your current terminal to the session called `name`. `tmux a`
 is shorthand for the same command and, with no `-t`, attaches to the most recently used
 session. The part that actually causes confusion isn't attaching — it's what happens when
-*two* terminals attach to the same session at different sizes, which is covered below.
+*two* terminals attach to the same session at different sizes, which is covered below. If
+sessions, windows and panes aren't distinct in your head yet, the
+[tmux tutorial](/blog/tmux-tutorial) sets that model up first.
 
 ## attach vs attach-session vs tmux a
 
@@ -78,7 +81,9 @@ looking at the same window, and their terminals are different sizes, tmux has to
 for the window. By default it picks the smallest.
 
 That's the `window-size` option, and its default is `latest` in modern tmux, but the practical
-effect people hit is still governed by `aggressive-resize`:
+effect people hit is still governed by `aggressive-resize`. Both options are described in full
+in the [tmux man page](https://man7.org/linux/man-pages/man1/tmux.1.html), which is worth
+checking against your own `tmux -V` — the defaults changed between releases:
 
 <CompareTable
   columns={["Setting", "Behaviour"]}
@@ -107,7 +112,8 @@ without contributing to the size negotiation.
 ## Attaching over SSH
 
 Nothing about `tmux attach` changes over SSH — it's the same command, run on the remote
-machine, not your laptop:
+machine, not your laptop. [tmux over SSH](/blog/tmux-ssh) goes into the surrounding setup;
+this is just the attach half of it:
 
 <TerminalDemo title="local — attaching to a remote session">
 $ ssh deploy-box
@@ -120,7 +126,9 @@ The session lives on `deploy-box`'s tmux server, not on your laptop, so closing 
 connection (network drop, laptop sleep, closing the terminal) detaches you but leaves the
 session running exactly like a manual `prefix d` would. Reconnect and `tmux a` gets you back to
 where you left off. That's the entire reason to run long jobs inside tmux over SSH in the first
-place — an unstable connection stops mattering.
+place — an unstable connection stops mattering. If the reconnecting itself is the annoyance,
+[Mosh](https://mosh.org) solves the other half of the problem: it keeps the remote shell alive
+across roaming and sleep, and people commonly run tmux inside it rather than instead of it.
 
 <Callout type="tip" title="Checking a remote session without attaching">
 `ssh deploy-box tmux capture-pane -p -t build` prints the pane's current contents without
@@ -148,10 +156,14 @@ both errors: it attaches if `bar` exists and creates it if it doesn't.
 ## Checking a session when you aren't at a terminal at all
 
 `tmux attach` assumes you have a terminal to attach from — SSH client, laptop, phone terminal
-app. The case it doesn't cover is wanting to glance at a session's output from a plain browser,
-with no SSH client installed. That's the specific gap mtmux fills: it serves the tmux session
-you already have to a browser tab, end-to-end encrypted, with nothing to port-forward and no SSH
-key on the device doing the looking — and without changing how `attach` itself works.
+app. Getting a usable one onto a phone is its own exercise, which
+[tmux from a phone](/blog/tmux-from-phone) works through. The case none of them cover is wanting
+to glance at a session's output from a plain browser, with no SSH client installed. That's the
+specific gap mtmux fills: it serves the tmux session you already have to a browser tab,
+end-to-end encrypted, with nothing to port-forward and no SSH key on the device doing the
+looking — and without changing how `attach` itself works. The [feature overview](/features) is
+the short version, and the [session reference](https://docs.mtmux.com/web-app/sessions) covers
+how attaching and detaching map onto the browser client.
 
 <FAQ>
 <FAQItem q="What is the difference between tmux attach and tmux a?">

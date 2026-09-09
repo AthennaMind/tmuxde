@@ -54,7 +54,7 @@ export function ChapterRail({
           >
             <span
               className={cn(
-                "font-mono text-[0.8125rem]",
+                "font-mono text-[0.875rem]",
                 isActive ? "text-brand" : "text-text-faint",
               )}
             >
@@ -69,13 +69,13 @@ export function ChapterRail({
               role="heading"
               aria-level={3}
               className={cn(
-                "mt-4 font-sans text-[0.9375rem] font-600 tracking-[-0.01em]",
+                "mt-4 font-sans text-[1rem] font-600 tracking-[-0.01em]",
                 isActive ? "text-text-strong" : "text-text",
               )}
             >
               {chapter.title}
             </span>
-            <span className="mt-2 text-[0.8125rem] leading-[1.65] text-text-muted">
+            <span className="mt-2 text-[0.875rem] leading-[1.65] text-text-muted">
               {chapter.description}
             </span>
             {/* Underline the live chapter. A colour change alone would be the

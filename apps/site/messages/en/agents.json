@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Check on Claude Code or Codex from your phone",
-    "description": "Run coding agents in tmux and open the same pane from a phone anywhere — read the diff, answer the approval prompt, start the next task. No SSH key, no VPN."
+    "description": "Run coding agents in tmux and open that pane from a phone anywhere — read the diff, answer the approval prompt, start the next task. No SSH key, no VPN."
   },
   "breadcrumb": {
     "home": "Home",
@@ -11,7 +11,7 @@
     "eyebrow": "coding agents",
     "title": "Long agent runs, checked from wherever you are.",
     "lead": "Agentic runs are long, chatty and easy to abandon. Run them in tmux — as most people already do — and mtmux gives you the same pane on a phone, so walking away stops meaning losing the thread.",
-    "note": "mtmux does not notify you. There is no push, no watcher and no agent detection. It is the session, on your phone, in about two seconds."
+    "note": "mtmux <post>does not notify you</post>. There is no push, no watcher and no agent detection. It is the session, on your phone, in about two seconds."
   },
   "workflow": {
     "title": "What the loop actually looks like",
@@ -19,7 +19,7 @@
     "steps": [
       {
         "title": "Start the run in tmux",
-        "body": "<cmd>tmux new -s work</cmd>, then start Claude Code, Codex, aider or whatever you use. mtmux never wraps or supervises the process."
+        "body": "<cmd>tmux new -s work</cmd>, then start Claude Code, Codex, aider or whatever you use. It is <post>an ordinary tmux session</post> — mtmux never wraps or supervises the process."
       },
       {
         "title": "Leave the desk",
@@ -56,7 +56,7 @@
         "It will not wake you at 3am, because it cannot wake you at all."
       ]
     },
-    "note": "If being paged is what you need, that is a real requirement and mtmux is not it — a tmux hook piping into <cmd>ntfy</cmd>, or your agent's own hook support, will serve you better. mtmux solves the other half: once you know you want to look, looking is trivial."
+    "note": "If being paged is what you need, that is a real requirement and mtmux is not it — <post>a tmux hook</post> piping into <cmd>ntfy</cmd>, or your agent's own hook support, will serve you better. mtmux solves the other half: once you know you want to look, looking is trivial."
   },
   "timeline": {
     "title": "A morning with three agents running",
@@ -95,11 +95,11 @@
     "items": [
       {
         "question": "Does mtmux notify me when Claude Code finishes?",
-        "answer": "No. mtmux has no notification system at all — no push, no email, no Slack. It gives you a session you can open from a phone in a couple of seconds and read. If you want to be paged, wire that up separately; the two are complementary, not alternatives."
+        "answer": "No. mtmux has no notification system at all — no push, no email, no Slack. It gives you a session you can open from a phone in a couple of seconds and read. If you want <post>Claude Code itself to page you</post>, wire that up separately; the two are complementary, not alternatives."
       },
       {
         "question": "Does it work with Claude Code, Codex CLI, Gemini CLI or aider?",
-        "answer": "With all of them, and with anything else that runs in a terminal, because mtmux does not know or care what is in the pane. It attaches to tmux. If your tool runs in tmux today, it works today, with no preset and no configuration."
+        "answer": "With all of them, and with anything else that runs in a terminal, because mtmux does not know or care what is in the pane. It attaches to tmux. If your tool runs in tmux today, it works today, with no preset and no configuration. <post>Being paged when Codex CLI stops</post> is a separate job for a separate tool — mtmux only shows you the pane."
       },
       {
         "question": "Can I answer an approval prompt from my phone?",

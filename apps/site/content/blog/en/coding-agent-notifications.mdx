@@ -1,0 +1,222 @@
+---
+title: "Coding agent notifications: which CLI tells you what"
+description: "Claude Code, Codex CLI and Gemini CLI each signal done and blocked differently. Four layers can page you, and not all of them survive tmux."
+date: "2026-08-10"
+author: "nadia-okonkwo"
+category: "agents"
+icon: "📣"
+tags: ["agents", "notifications", "claude code", "codex cli", "workflow"]
+keywords:
+  - "coding agent notifications"
+  - "claude cli notification"
+  - "ai agent notification"
+  - "notify when coding agent finishes"
+  - "agent waiting for input"
+featured: false
+draft: false
+---
+
+Every mainstream coding agent can tell you it finished. Fewer of them can tell you they are
+*stuck*, and the ones that can do not all deliver it the same way. Claude Code and Gemini CLI both
+expose the blocked state to a program you write; Codex CLI exposes it only as a terminal escape
+sequence, which is the one delivery route that tmux swallows by default. That difference — not the
+completion signal everybody advertises — is what decides whether a walk-away run is safe.
+
+This page is the map: which agent signals what, the four layers that can carry the signal, and
+where each layer stops. Every configuration file named here has its own page, linked in place.
+
+## Which coding agents can notify you, and about what?
+
+Two questions matter for each tool, and they are not the same question. *Can it run a program of
+my choosing?* decides whether you can escalate — to a sound, a push, a webhook, anything a shell
+can reach. *Can it tell the terminal directly?* decides whether you get anything at all with zero
+scripting, and whether that anything survives a multiplexer.
+
+<CompareTable
+  columns={["Agent", "Fires a program on 'done'", "Fires a program on 'blocked'", "Tells the terminal on 'blocked'"]}
+  rows={[
+    ["Claude Code", "Stop hook", "Notification hook", "via a hook you write"],
+    ["Codex CLI", "notify (agent-turn-complete)", "no — open request", "tui.notifications approval-requested"],
+    ["Gemini CLI", "AfterAgent hook", "Notification hook", "enableNotifications, 'Action required'"],
+  ]}
+/>
+
+Claude Code splits the two states into two hook events by design: per
+[Anthropic's hooks reference](https://code.claude.com/docs/en/hooks), `Stop` fires "when Claude
+finishes responding" and `Notification` "when Claude Code sends a notification" — the permission
+prompts and idle timeouts. Both take an arbitrary shell command, so both can escalate as far as you
+are willing to script. The
+[settings scopes and matcher semantics](/blog/claude-code-notifications) are the whole story on
+that side.
+
+Gemini CLI reaches the same place by a different road. Its hook table includes `AfterAgent`,
+which fires "once per turn after the model generates its final response", and a `Notification`
+event that fires "when the CLI emits a system alert (for example, Tool Permissions)" — the
+approval case. Separately, `general.enableNotifications` turns on a built-in system notification
+that distinguishes "Session complete" from "Action required". It is off by default and,
+[per Google's own docs](https://geminicli.com/docs/cli/notifications/), it falls back to a plain
+terminal bell on terminals that cannot do better.
+
+Codex CLI is the outlier, and it is worth understanding why before you design around it.
+
+## Why does Codex CLI go quiet when it needs approval?
+
+Codex CLI has two separate notification mechanisms that people routinely mistake for one.
+
+`notify` is a top-level array in `~/.codex/config.toml` naming a program. Codex runs it and hands
+it a JSON blob. As
+[OpenAI's configuration reference](https://learn.chatgpt.com/docs/config-file/config-advanced)
+states, the only event it currently emits is `agent-turn-complete` — a finished turn, nothing else.
+
+`tui.notifications` is a different thing entirely. It does not run a program; it emits an escape
+sequence at your terminal and lets the terminal decide what a notification looks like. That one
+*does* accept `approval-requested` alongside `agent-turn-complete`, with `notification_method`
+choosing between an OSC 9 sequence and a plain bell.
+
+So the blocked signal exists — it just cannot be handed to a script. There is
+[an open request](https://github.com/openai/codex/issues/19921) to expose the approval event
+through top-level `notify` as well. Until that lands, anything you want to happen when Codex is
+waiting has to be triggered by the terminal receiving that sequence, or by watching the pane
+yourself. The [Codex-specific config and a pane-watching wrapper](/blog/codex-cli-notifications)
+cover both.
+
+<Callout type="warning" title="The escape-sequence route is the one tmux breaks">
+An agent that signals "blocked" by writing an escape sequence is signalling to whatever is
+attached to its terminal. Inside tmux, that is tmux — and tmux does not forward arbitrary OSC
+sequences to the outer terminal. This is why Codex users report notifications that work standalone
+and vanish under tmux. It is not a Codex bug; see
+[terminal notifications and the passthrough problem](/blog/terminal-notifications).
+</Callout>
+
+## What is the difference between done, waiting and stalled?
+
+Three states, and most setups only ever wire the first one.
+
+**Done** is a completed turn. Every agent above emits it. It is also the least urgent of the
+three — a finished run is not going anywhere, and nothing is being wasted while you notice it in
+your own time.
+
+**Waiting** is a blocking read on your input: a permission prompt, an approval, a clarifying
+question. Nothing progresses until you answer. This is the state worth paging for, and it is the
+one with the patchiest support, because it is genuinely harder to emit — the process is sitting on
+a blocking read, which from the outside looks identical to one that is still thinking.
+
+**Stalled** has no event anywhere. No agent emits "I have been retrying the same failing test for
+eleven minutes". You find out by looking. Any tool that claims to detect it is inferring it from
+output silence, which is what tmux's own `monitor-silence` does and does honestly — covered in
+[tmux notifications](/blog/tmux-notifications).
+
+If you only wire one signal, wire **waiting**. A blocked agent produces no completion event to
+tell you it is blocked, so a done-only setup is silent exactly when silence is most expensive.
+
+## What are the four layers that can page you?
+
+A notification is not one thing. It is a signal handed down a chain, and each link can drop it.
+Knowing which link you are relying on is the difference between a setup that works and one that
+works on your laptop.
+
+<Steps>
+<Step title="The agent's own hook">
+The agent runs a command, or emits an escape sequence, when something happens. This is the only
+layer that knows *what* happened — everything below it is guessing from output. It is also the
+only layer that can put the answer in the message rather than making you go and look.
+</Step>
+<Step title="The multiplexer">
+tmux watches panes for activity, bells and silence, and can run a command when a window raises an
+alert. Useful precisely because it needs no cooperation from the program in the pane — it works
+for tools with no hook system at all, and it is the layer that turns "output stopped" into an
+event.
+</Step>
+<Step title="The terminal emulator">
+Warp, iTerm2, Ghostty and Windows Terminal each turn a bell or an OSC sequence into something the
+operating system will show you. Zero scripting, and the layer most likely to break silently the
+moment a multiplexer sits between it and the program.
+</Step>
+<Step title="A push service">
+The only tier that survives you leaving the building. Nothing in the list above delivers to a
+phone; reaching one means the layer above calling out to something that can — an ntfy topic, a
+Pushover account, a webhook.
+</Step>
+</Steps>
+
+The layers are additive and mostly independent, which is both the good news and the trap. A hook
+that plays a sound and a terminal that raises a toast will both fire, and you will get two
+notifications for one event and start muting things. Pick one layer per state and let the others
+stay quiet — and if the state you are signalling is "done" versus "waiting", give them
+[two different sounds](/blog/claude-code-sound-when-done) rather than two separate channels.
+
+## Which layer should you actually use?
+
+Match the layer to how far away you are, not to how sophisticated it looks.
+
+<CompareTable
+  columns={["You are...", "Right layer", "Why the others are wrong"]}
+  rows={[
+    ["at the keyboard", "terminal bell or a sound", "a desktop toast for a 40-second task is noise"],
+    ["elsewhere in the building", "OS notification from a hook", "a bell you cannot hear is not a signal"],
+    ["running many agents at once", "tmux alerts on the pane", "per-tool hooks means N configs to maintain"],
+    ["out of the house", "push service", "nothing local reaches a locked phone"],
+  ]}
+/>
+
+The per-tool cost is the one people underestimate. One agent, one machine, one hook file is a
+ten-minute setup. Three agents across two machines is six config files in three different formats,
+each of which breaks on its own release schedule. At that point the multiplexer layer is cheaper
+than the agent layer, because tmux does not care which agent is in the pane — which is the argument
+[tmux notifications](/blog/tmux-notifications) makes in full.
+
+## Where does every notification stop helping?
+
+At the moment it arrives.
+
+A banner tells you something happened. It does not tell you what the pane says, whether the diff
+is sane, or whether the y/n sitting there is `npm test` or `rm -rf`. If you are at the desk, the
+answer costs a keystroke. If you are not, a notification you cannot act on is worse than none — it
+has converted a task you had successfully forgotten about into one you are now anxious about and
+cannot resolve.
+
+This is the half of the problem the notification layer structurally cannot solve, and it is why
+the honest advice is to spend less time perfecting the signal and more time making the follow-up
+cheap. Getting a good message into the banner helps: a hook runs a shell command, so it can read
+`git diff --stat` or the tail of a log and paste that in, and "finished: 4 files, tests green"
+answers the question the banner would otherwise create. Beyond that you need the session itself.
+
+mtmux is the answer to the second half, and it is deliberately not a notification tool — it sends
+nothing and knows nothing about agent state. It serves the tmux session your agent is already
+running in to a browser over an end-to-end encrypted tunnel, so the follow-up to a push is opening
+the pane on the device already in your hand rather than finding a laptop.
+[How that works with agents](/agents) covers the shape of it; the
+[setup walkthrough](https://docs.mtmux.com/docs/getting-started) is the five-minute version. The
+broader argument for why polling beats paging on long runs is in
+[stop babysitting coding agents](/blog/stop-babysitting-coding-agents), and if you are getting
+there over SSH today, [tmux over SSH](/blog/tmux-ssh) is the setup it replaces.
+
+<FAQ>
+<FAQItem q="Which coding agent has the best notification support?">
+Claude Code, by a clear margin: it splits completion and blocked into two separate hook events
+(`Stop` and `Notification`), and both run an arbitrary shell command, so both can escalate to a
+sound, a desktop alert or a push. Gemini CLI covers the same two states through `AfterAgent` and
+`Notification` hooks. Codex CLI can only hand a completed turn to a program.
+</FAQItem>
+<FAQItem q="Why do I get no notification when Codex CLI asks for approval?">
+Because Codex CLI's `notify` program hook fires only on `agent-turn-complete`. The approval signal
+exists, but only through `tui.notifications`, which emits a terminal escape sequence rather than
+running a program — and that sequence is filtered by tmux unless you explicitly configure the
+passthrough.
+</FAQItem>
+<FAQItem q="Can a coding agent tell me when it is stuck rather than finished or blocked?">
+No. No agent emits a "stalled" event, because nothing in the process knows it is stalled — from
+the inside it is still working. The closest honest approximation is watching for output silence,
+which tmux's `monitor-silence` does at the pane level, independent of which agent is running.
+</FAQItem>
+<FAQItem q="Do agent notifications work inside tmux?">
+Hook-based ones do, because they run a shell command that never touches the terminal. The ones
+built on escape sequences frequently do not: tmux does not forward arbitrary OSC sequences to the
+outer terminal, so a notification that works standalone can silently stop working under tmux.
+</FAQItem>
+<FAQItem q="Can I get coding agent notifications on my phone?">
+Only by making the local hook call out to a push service such as ntfy or Pushover — none of these
+agents deliver to a phone on their own. Note that a push tells you something happened but not what
+the pane says, so most people pair it with a way to actually open the session remotely.
+</FAQItem>
+</FAQ>

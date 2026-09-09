@@ -70,10 +70,16 @@ export default async function HomePage({
   // `stripRichTags` is not optional here: two of these descriptions carry
   // `<post>`, and raw markup inside JSON-LD is quoted verbatim by whatever
   // reads it.
+  //
+  // `t.raw`, not `t`: two of these descriptions carry `<post>`, and asking
+  // next-intl to *format* a string whose tag handlers were not supplied throws
+  // a FORMATTING_ERROR it logs on every render before falling back to the raw
+  // value. The value is what we want, and `stripRichTags` is what removes the
+  // tags, so ask for it directly.
   const chapterKeys = ["install", "pair", "attach", "move", "agent"] as const;
   const howToSteps = chapterKeys.map((key) => ({
-    name: stripRichTags(t(`demo.chapters.${key}.title`)),
-    text: stripRichTags(t(`demo.chapters.${key}.description`)),
+    name: stripRichTags(t.raw(`demo.chapters.${key}.title`) as string),
+    text: stripRichTags(t.raw(`demo.chapters.${key}.description`) as string),
   }));
 
   const featureList = (
@@ -99,7 +105,7 @@ export default async function HomePage({
             // itself. This one is "what the demo shows", not "how long it takes".
             id: `${siteConfig.url}/#how-to-attach`,
             name: t("demo.title"),
-            description: stripRichTags(t("demo.description")),
+            description: stripRichTags(t.raw("demo.description") as string),
             steps: howToSteps,
           }),
           faqSchema(faqItems),

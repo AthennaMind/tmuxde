@@ -100,7 +100,7 @@ export function PostCover({
             "relative select-none drop-shadow-[0_2px_12px_var(--brand-glow)]",
             size === "lg" && "text-[4rem]",
             size === "md" && "text-[3rem]",
-            size === "banner" && "text-[2.5rem] sm:text-[3.25rem]",
+            size === "banner" && "text-[2.625rem] sm:text-[3.25rem]",
           )}
         >
           {icon}

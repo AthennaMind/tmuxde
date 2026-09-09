@@ -8,6 +8,7 @@ import readingTime from "reading-time";
 import { z } from "zod";
 
 import { defaultLocale } from "@/i18n/locales";
+import { assertLinkGraph } from "@/lib/link-graph";
 
 const CONTENT_ROOT = path.join(process.cwd(), "content", "blog");
 
@@ -28,6 +29,18 @@ export const frontmatterSchema = z.object({
    * the category's glyph — set it only when that default is too generic.
    */
   icon: z.string().min(1).max(8).optional(),
+  /**
+   * Opt in to `HowTo` structured data, built from the post's first `<Steps>`
+   * block.
+   *
+   * Two conditions, both required, and each catches a different lie. The
+   * `<Steps>` block supplies the steps, so the markup can never describe a
+   * sequence the reader cannot see. This flag asserts the sequence is a
+   * *procedure* — because `<Steps>` is also used for "the ten commands worth
+   * memorising", which is a list, and calling it a HowTo would be markup
+   * claiming a task the page never performs.
+   */
+  howTo: z.boolean().default(false),
   tags: z.array(z.string().min(1)).min(1).max(6),
   keywords: z.array(z.string().min(1)).min(1).max(12),
   featured: z.boolean().default(false),
@@ -168,10 +181,17 @@ export const getAllPosts = cache(async (locale: string): Promise<Post[]> => {
       }),
   ]);
 
-  return posts
+  const published = posts
     .filter((post): post is Post => post !== null)
     .filter(isPublished)
     .sort((a, b) => b.frontmatter.date.localeCompare(a.frontmatter.date));
+
+  // Every route that renders a post goes through here, so this is the one
+  // place the link graph can be checked without adding a build step. It runs
+  // once per process and is warn-only today — see `src/lib/link-graph.ts`.
+  if (locale === defaultLocale) await assertLinkGraph(published);
+
+  return published;
 });
 
 export const getPost = cache(
@@ -206,6 +226,16 @@ export const getAllTags = cache(
       .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
   },
 );
+
+/**
+ * How many posts a tag needs before its page is worth asking Google to index.
+ *
+ * A tag page is a list, and a list of one is a worse version of the post it
+ * links to — 19 of the 26 tags are in that state. They stay crawlable, because
+ * they are useful internal links between related posts, but they ask not to be
+ * indexed so the thin ones cannot dilute the pages that do answer a query.
+ */
+export const TAG_INDEX_MIN_POSTS = 3;
 
 /** URL-safe form of a tag, e.g. "cheat sheet" -> "cheat-sheet". */
 export function tagSlug(tag: string): string {

@@ -39,7 +39,9 @@ export function HairlineCell({
   className?: string;
 }) {
   return (
-    <div className={cn("bg-surface-raised p-5", className)}>{children}</div>
+    <div className={cn("bg-surface-raised p-6 sm:p-7", className)}>
+      {children}
+    </div>
   );
 }
 
@@ -57,17 +59,20 @@ export function FeatureCard({
   return (
     <div
       className={cn(
-        "rounded-xl border border-line bg-surface-raised p-5 transition-colors hover:border-line-strong",
+        "group surface-lift rounded-xl border border-line p-6 transition-[transform,border-color,box-shadow] duration-200",
+        "hover:-translate-y-0.5 hover:border-line-strong",
         className,
       )}
     >
       {icon ? (
-        <div className="mb-4 text-brand [&_svg]:size-5">{icon}</div>
+        <div className="mb-5 grid size-10 place-items-center rounded-lg bg-brand-soft text-brand transition-colors group-hover:bg-brand group-hover:text-brand-contrast [&_svg]:size-5">
+          {icon}
+        </div>
       ) : null}
-      <h3 className="font-sans text-[1rem] font-600 tracking-[-0.01em] text-text-strong">
+      <h3 className="font-sans text-[1.125rem] font-600 tracking-[-0.01em] text-text-strong">
         {title}
       </h3>
-      <p className="mt-2 text-[0.9063rem] leading-[1.7] text-text-muted">
+      <p className="mt-2.5 text-[1.0625rem] leading-[1.7] text-text-muted">
         {children}
       </p>
     </div>
@@ -84,11 +89,11 @@ export function StatCard({
   className?: string;
 }) {
   return (
-    <HairlineCell className={cn("p-6", className)}>
-      <p className="font-display text-[1.5625rem] leading-none tracking-[-0.05em] text-brand">
+    <HairlineCell className={cn("p-6 sm:p-7", className)}>
+      <p className="font-display text-[2rem] leading-none tracking-[-0.05em] text-brand">
         {value}
       </p>
-      <p className="mt-2 text-[0.8125rem] leading-snug text-text-muted">
+      <p className="mt-3 text-[0.9375rem] leading-snug text-text-muted">
         {label}
       </p>
     </HairlineCell>
@@ -111,14 +116,14 @@ export function StepCard({
 }) {
   return (
     <HairlineCell className={cn("flex flex-col p-6", className)}>
-      <span className="font-mono text-[0.8125rem] text-text-faint">
+      <span className="inline-grid size-8 place-items-center rounded-md bg-brand-soft font-mono text-[0.875rem] font-600 text-brand">
         {String(index).padStart(2, "0")}
       </span>
-      <h3 className="mt-5 font-sans text-[1.0625rem] font-600 tracking-[-0.01em] text-text-strong">
+      <h3 className="mt-5 font-sans text-[1.125rem] font-600 tracking-[-0.01em] text-text-strong">
         {title}
       </h3>
       {children ? (
-        <p className="mt-2 text-[0.9063rem] leading-[1.7] text-text-muted">
+        <p className="mt-2 text-[1rem] leading-[1.7] text-text-muted">
           {children}
         </p>
       ) : null}
@@ -140,7 +145,7 @@ export function Keycap({
   return (
     <span
       className={cn(
-        "grid place-items-center rounded-md border py-3 text-center font-mono text-[0.8125rem]",
+        "grid place-items-center rounded-md border py-3 text-center font-mono text-[0.875rem]",
         active
           ? "border-transparent bg-brand font-700 text-brand-contrast"
           : "border-line bg-surface-panel text-text-muted",

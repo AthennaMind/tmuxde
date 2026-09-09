@@ -74,6 +74,7 @@ that convert.
 | Agent monitoring          | ai agent babysitting, monitor ai coding agent, agent finished notification                        | `/blog/stop-babysitting-coding-agents`       |
 | tmux in browser           | tmux in browser, tmux web client, web terminal                                                    | `/` , `/blog/tmux-in-browser`                |
 | Alternatives              | tmate alternative, ttyd alternative, termius alternative                                          | `/compare`, `/blog/tmate-alternative`        |
+| Web terminals             | ttyd vs wetty, wetty alternative, browser ssh, gotty                                              | `/blog/ttyd-vs-wetty`, `/compare`            |
 | Mobile                    | tmux from phone, run tmux on iphone, terminal on ipad                                             | `/use-cases`, `/blog/tmux-from-phone`        |
 
 There is live, documented demand here: open issues on `openai/codex` asking for exactly this
@@ -103,7 +104,64 @@ worthless for ranking and earns no links. The honesty is the product.
 tables far more reliably than sentences, with consistent columns across pages.
 
 **FAQ markup only describes visible Q&A.** `src/lib/mdx.ts` parses `<FAQItem>` out of the same
-source the reader sees, so the structured data cannot drift from the page.
+source the reader sees, so the structured data cannot drift from the page. `extractStepEntries`
+does the same for `HowTo` and `<Steps>` — be clear-eyed that Google retired HowTo rich results in
+2023, so the payoff is AI-answer extraction, not a SERP feature.
+
+---
+
+## The link graph is part of the strategy, not decoration
+
+Depth alone does not rank a cluster. Two posts on a topic lose to one page that eleven other pages
+point at, because internal links are the site's own statement about what matters — and sixteen
+posts with two links each state nothing.
+
+`src/config/clusters.ts` declares the hub-and-spoke map; `src/lib/link-graph.ts` checks the actual
+MDX against it at build time. The rules it enforces, per post:
+
+| Rule | Why |
+| --- | --- |
+| Links **up** to its cluster hub | Concentrates authority on the page that answers the broad query |
+| ≥ 2 **sibling** links inside its cluster | Makes the cluster legible as a cluster |
+| ≥ 1 **cross-cluster** link | Stops each cluster becoming an island |
+| ≥ 1 link to a category-matched **product page** | A traffic post with no exit converts nothing |
+| ≥ 1 link to `docs.mtmux.com` | Two domains that never link to each other are two weak domains |
+| ≥ 2 **off-site citations** | A page that cites nothing reads as unresearched, to a reader and a crawler |
+| ≥ 3 **inbound** links | The floor that kills orphans |
+
+`tmux-commands` is the hub with the most inbound links, so it carries a down-link to each of the
+nine tmux-fundamentals posts. That single edit is what took the minimum inbound count off zero.
+
+**No prev/next navigation.** This is a reference blog, not a chronological one — date adjacency is
+random here, and prev/next spends two anchors per page on the words "Previous" and "Next".
+`getRelatedPosts()` scores by shared tags and category, which is the right signal.
+
+---
+
+## The `*mux` brand queries — mostly don't
+
+Search Console shows a scatter of `*mux` brand impressions. Most of them are traps, recorded here
+so nobody re-litigates them:
+
+- **`mux pricing` is Mux.com**, the video API company. Different industry, enormous brand, hopeless
+  to chase, and an off-topic page would dilute a topically tight domain. Explicitly a bad idea.
+- **`muximux`, `modelmux`** — name collisions in unrelated categories. Noise.
+- **`opentmux`** — a real project (an OpenCode plugin that opens tmux panes for subagents, ~150
+  stars, first published February 2026), but it shares no search intent with remote tmux access.
+  The impressions are as likely to be a concatenation of "open tmux". Either way the answer is a
+  `## How do you open tmux?` section in `tmux-tutorial` and **zero new pages**.
+- **`tmux floax`** is not a brand query at all — floax is a floating-pane plugin, so it belongs in
+  `tmux-plugins`. Free win, taken.
+
+And the one that *is* worth building: **`ttyd vs wetty`** — real, on-topic, and adjacent to a recipe
+`tmux-in-browser` already carries. Everything else in the landscape (gotty, sshx, zellij) is a row
+in `/compare`'s landscape table rather than a page, which picks up the long tail without spending a
+thin page per name.
+
+**No `/alternatives/*` pages.** `/compare` is short already; splitting it four ways gives four
+~200-word pages, and `tmate-alternative` already owns "tmate alternative". Adding
+`/alternatives/tmate` would create a *third* competing URL — precisely the self-inflicted wound
+this document warns about two sections up.
 
 ---
 
@@ -111,12 +169,21 @@ source the reader sees, so the structured data cannot drift from the page.
 
 - Per-page `generateMetadata` with self-referencing canonical, bidirectional `hreflang` and
   `x-default`.
-- JSON-LD: `Organization` + `WebSite`/`SearchAction` site-wide; `SoftwareApplication` on home and
-  pricing; `BreadcrumbList` everywhere; `FAQPage` where visible Q&A exists; `HowTo` on the docs
-  quickstart; `BlogPosting` per post; `ItemList` on listings.
+- JSON-LD: `Organization` + `WebSite` site-wide; `SoftwareApplication` on home and pricing;
+  `BreadcrumbList` everywhere; `FAQPage` where visible Q&A exists; `HowTo` on the docs quickstart
+  and on any post that renders a `<Steps>` block; `BlogPosting` per post, with `about`/`mentions`
+  and a stable per-author `@id`; `ItemList` on listings.
+  **There is deliberately no `SearchAction`** — this document claimed one for months and the code
+  was right to omit it. `/blog` honours no `?q=` parameter, so a `SearchAction` would be markup
+  describing a capability the user cannot reach. Add it the day search exists, not before.
 - `sitemap.xml` with per-locale `xhtml:link` alternate annotations — the most commonly botched
   part of multilingual SEO.
-- `/feed.xml` RSS, `/llms.txt` generated from the real route and post lists.
+- `/feed.xml` RSS, `/llms.txt` (an index) and `/llms-full.txt` (every post's full text), all three
+  generated from the real route and post lists so none of them can drift.
+- **A build-time link-graph assertion** (`src/lib/link-graph.ts`, driven by `src/config/clusters.ts`)
+  that catches dangling internal links, self-links, orphaned posts, posts with no product link and
+  posts with no off-site citation. Nothing else in the codebase can see a typo'd slug: it compiles,
+  renders as an ordinary anchor, and ships as a soft 404.
 - Per-page and per-post OG images at 1200×630 with copy inside the 1000×524 safe area.
 - Every route statically prerendered (`●` in the build output), so LCP is a static file.
 

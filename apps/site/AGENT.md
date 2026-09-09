@@ -27,9 +27,10 @@ its inline styles.
 ## The six rules that break things
 
 1. **No hardcoded colours.** Every colour is a token in `src/app/globals.css`. A hex code, an
-   `oklch(...)` or a stock Tailwind colour (`text-zinc-400`) in a `.tsx` file is a bug. The site
-   is dark-only — tokens live in `:root`, and hand-written components never need a `dark:`
-   variant (the fixed `dark` class on `<html>` exists only for shadcn's own variants).
+   `oklch(...)` or a stock Tailwind colour (`text-zinc-400`) in a `.tsx` file is a bug. Both
+   schemes ship — light in `:root`, dark in `.dark` — and hand-written components still never
+   need a `dark:` variant, because every token name exists in both. A subtree that draws a
+   terminal carries `terminal-scope` and stays dark in either scheme.
 
 2. **`params` is a Promise.** Next 16 removed the sync fallback. `const { locale } = await params;`
 

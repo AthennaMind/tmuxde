@@ -20,59 +20,163 @@
    Layer 2  @theme inline   token -> Tailwind utility mapping
    ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   Layer 1a — scheme-independent constants.
+
+   Terminal illustrations are dark in both schemes. A terminal is a dark
+   surface everywhere else in a developer's life, and 24-bit ANSI colours are
+   picked against black — flipping one to paper would make `term-comment`
+   invisible and the whole illustration read as a code block. These values are
+   therefore fixed, and `.terminal-scope` maps the site's surface/text tokens
+   onto them for any subtree that draws a terminal.
+   -------------------------------------------------------------------------- */
 :root {
-  /* ---- Layer 1b: dark scheme (the canonical mtmux look) ---------------- */
+  --t-base: oklch(0.1479 0.0027 145.44);
+  --t-raised: oklch(0.1791 0.0051 145.36);
+  --t-panel: oklch(0.2109 0.0062 145.3);
+  --t-sunken: oklch(0.128 0.003 145.41);
+  --t-line-subtle: oklch(0.2456 0.0128 135.12);
+  --t-line: oklch(0.2887 0.0178 131.28);
+  --t-line-strong: oklch(0.3507 0.0265 132.02);
+  --t-text-strong: oklch(0.961 0.0083 91.48);
+  --t-text: oklch(0.9278 0.0125 91.52);
+  --t-text-muted: oklch(0.7936 0.0288 120.69);
+  --t-text-subtle: oklch(0.7374 0.0309 122.21);
+  --t-text-faint: oklch(0.6349 0.0307 123.03);
 
-  /* Green-tinted charcoal. Hue ~140, chroma kept under 0.008 so the tint
-     reads as warmth rather than colour. */
-  --surface-base: oklch(0.1479 0.0027 145.44);
-  --surface-raised: oklch(0.1606 0.0053 145.32);
-  --surface-panel: oklch(0.1791 0.0051 145.36);
-  --surface-sunken: oklch(0.138 0.003 145.41);
-  --surface-inverse: oklch(0.961 0.0083 91.48);
-
-  --line-subtle: oklch(0.2286 0.0128 135.12);
-  --line: oklch(0.2687 0.0178 131.28);
-  --line-strong: oklch(0.3207 0.0265 132.02);
-
-  --text-strong: oklch(0.961 0.0083 91.48);
-  --text: oklch(0.9278 0.0125 91.52);
-  --text-muted: oklch(0.7436 0.0288 120.69);
-  --text-subtle: oklch(0.6974 0.0309 122.21);
-  --text-faint: oklch(0.5949 0.0307 123.03);
-  --text-inverse: oklch(0.1479 0.0027 145.44);
-
-  --brand: oklch(0.8627 0.1721 132.3);
-  --brand-hover: oklch(0.9002 0.1474 130.76);
-  --brand-contrast: oklch(0.1479 0.0027 145.44);
-  --brand-subtle: oklch(0.2687 0.0178 131.28);
-  --brand-glow: oklch(0.8627 0.1721 132.3 / 0.14);
-
-  --signal-done: oklch(0.8627 0.1721 132.3);
-  --signal-blocked: oklch(0.8123 0.1263 76.28);
-  --signal-stalled: oklch(0.8052 0.0821 205.56);
-  --signal-failed: oklch(0.6994 0.1572 21.96);
-  --signal-agent: oklch(0.746 0.1148 299.32);
-
-  --signal-done-surface: oklch(0.2687 0.0178 131.28);
-  --signal-blocked-surface: oklch(0.2624 0.0289 78.4);
-  --signal-stalled-surface: oklch(0.2591 0.0234 213.2);
-  --signal-failed-surface: oklch(0.2603 0.0312 24.6);
-  --signal-agent-surface: oklch(0.2688 0.0327 298.7);
-
-  --term-prompt: var(--brand);
+  /* Terminal syntax. Scheme-independent for the same reason. */
+  --term-prompt: oklch(0.8627 0.1721 132.3);
   --term-path: oklch(0.8052 0.0821 205.56);
   --term-value: oklch(0.8627 0.1721 132.3);
-  --term-comment: oklch(0.5949 0.0307 123.03);
+  --term-comment: oklch(0.6349 0.0307 123.03);
   --term-keyword: oklch(0.746 0.1148 299.32);
   --term-flag: oklch(0.8052 0.0821 205.56);
   --term-added: oklch(0.8627 0.1721 132.3);
   --term-removed: oklch(0.6994 0.1572 21.96);
 
+  --radius: 0.625rem;
+}
+
+/* ==========================================================================
+   Layer 1b — light scheme (the default document)
+
+   Paper, not white: a hair of the brand's hue in every surface so the light
+   side reads as the same product rather than an unstyled fallback. Text and
+   brand are darkened until each pair clears WCAG AA against the surface it
+   sits on — the acid green that carries the dark scheme is a 1.9:1 disaster
+   on paper, so light gets its own deeper green and keeps the bright one for
+   terminals only.
+   ========================================================================== */
+:root {
+  --surface-base: oklch(0.9772 0.0044 128.5);
+  --surface-raised: oklch(0.9958 0.0022 128.5);
+  --surface-panel: oklch(0.9535 0.0085 130.2);
+  --surface-sunken: oklch(0.9268 0.0114 131.4);
+  --surface-inverse: oklch(0.1791 0.0051 145.36);
+  --surface-header: oklch(0.9772 0.0044 128.5 / 0.82);
+
+  --line-subtle: oklch(0.9058 0.0121 130.6);
+  --line: oklch(0.8552 0.0186 131.1);
+  --line-strong: oklch(0.7623 0.0311 132.4);
+
+  --text-strong: oklch(0.2183 0.0198 145.2);
+  --text: oklch(0.3097 0.0176 144.6);
+  --text-muted: oklch(0.4429 0.0206 141.3);
+  --text-subtle: oklch(0.5012 0.0224 139.8);
+  --text-faint: oklch(0.5687 0.0243 137.4);
+  --text-inverse: oklch(0.9772 0.0044 128.5);
+
+  --brand: oklch(0.5346 0.1483 141.8);
+  --brand-hover: oklch(0.4708 0.1327 142.6);
+  --brand-contrast: oklch(0.9925 0.0075 120);
+  --brand-subtle: oklch(0.9186 0.0561 135.4);
+  --brand-soft: oklch(0.5346 0.1483 141.8 / 0.09);
+  --brand-glow: oklch(0.5346 0.1483 141.8 / 0.1);
+
+  --signal-done: oklch(0.5346 0.1483 141.8);
+  --signal-blocked: oklch(0.5716 0.1281 68.4);
+  --signal-stalled: oklch(0.5279 0.0921 218.6);
+  --signal-failed: oklch(0.5364 0.1876 26.4);
+  --signal-agent: oklch(0.5122 0.1832 299.1);
+
+  --signal-done-surface: oklch(0.9186 0.0561 135.4);
+  --signal-blocked-surface: oklch(0.9314 0.0516 78.2);
+  --signal-stalled-surface: oklch(0.9271 0.0364 214.8);
+  --signal-failed-surface: oklch(0.9308 0.0392 24.6);
+  --signal-agent-surface: oklch(0.9282 0.0402 298.7);
+
+  /* Two washes and a highlight, layered by `bg-hero-mesh`. */
+  --wash-1: oklch(0.5346 0.1483 141.8 / 0.14);
+  --wash-2: oklch(0.5122 0.1832 299.1 / 0.09);
+  --hairline-top: oklch(1 0 0 / 0.7);
+
+  --shadow-ambient:
+    0 1px 2px oklch(0.22 0.02 145 / 0.05), 0 8px 24px -14px oklch(0.22 0.02 145 / 0.16);
+  --shadow-float:
+    0 2px 6px oklch(0.22 0.02 145 / 0.06), 0 28px 64px -28px oklch(0.22 0.02 145 / 0.26);
+  --shadow-lift:
+    0 1px 2px oklch(0.22 0.02 145 / 0.06), 0 16px 40px -20px oklch(0.22 0.02 145 / 0.28);
+
+  color-scheme: light;
+}
+
+/* ==========================================================================
+   Layer 1c — dark scheme (the canonical mtmux look)
+
+   Green-tinted charcoal, one notch lighter than it used to be. The old base
+   sat at 0.148 with cards at 0.161, a 1.3% step that no display resolves —
+   which is what made the page read as one flat void. The layers below are
+   spaced far enough apart to see, and muted text was lifted until body copy
+   clears AA rather than sitting at the 4.1:1 it shipped at.
+   ========================================================================== */
+.dark {
+  --surface-base: oklch(0.1652 0.0034 145.44);
+  --surface-raised: oklch(0.1948 0.0057 145.32);
+  --surface-panel: oklch(0.2274 0.0074 145.36);
+  --surface-sunken: oklch(0.1412 0.003 145.41);
+  --surface-inverse: oklch(0.961 0.0083 91.48);
+  --surface-header: oklch(0.1652 0.0034 145.44 / 0.78);
+
+  --line-subtle: oklch(0.2596 0.0128 135.12);
+  --line: oklch(0.3087 0.0178 131.28);
+  --line-strong: oklch(0.3907 0.0265 132.02);
+
+  --text-strong: oklch(0.9724 0.0083 91.48);
+  --text: oklch(0.9278 0.0125 91.52);
+  --text-muted: oklch(0.8064 0.0264 120.69);
+  --text-subtle: oklch(0.7452 0.0296 122.21);
+  --text-faint: oklch(0.6483 0.0307 123.03);
+  --text-inverse: oklch(0.1652 0.0034 145.44);
+
+  --brand: oklch(0.8627 0.1721 132.3);
+  --brand-hover: oklch(0.9002 0.1474 130.76);
+  --brand-contrast: oklch(0.1479 0.0027 145.44);
+  --brand-subtle: oklch(0.3087 0.0178 131.28);
+  --brand-soft: oklch(0.8627 0.1721 132.3 / 0.12);
+  --brand-glow: oklch(0.8627 0.1721 132.3 / 0.16);
+
+  --signal-done: oklch(0.8627 0.1721 132.3);
+  --signal-blocked: oklch(0.8123 0.1263 76.28);
+  --signal-stalled: oklch(0.8052 0.0821 205.56);
+  --signal-failed: oklch(0.7194 0.1572 21.96);
+  --signal-agent: oklch(0.766 0.1148 299.32);
+
+  --signal-done-surface: oklch(0.2987 0.0178 131.28);
+  --signal-blocked-surface: oklch(0.2924 0.0289 78.4);
+  --signal-stalled-surface: oklch(0.2891 0.0234 213.2);
+  --signal-failed-surface: oklch(0.2903 0.0312 24.6);
+  --signal-agent-surface: oklch(0.2988 0.0327 298.7);
+
+  --wash-1: oklch(0.8627 0.1721 132.3 / 0.13);
+  --wash-2: oklch(0.766 0.1148 299.32 / 0.09);
+  --hairline-top: oklch(1 0 0 / 0.06);
+
   --shadow-ambient:
     0 1px 2px oklch(0 0 0 / 0.4), 0 8px 24px -12px oklch(0 0 0 / 0.6);
   --shadow-float:
     0 2px 4px oklch(0 0 0 / 0.4), 0 24px 60px -24px oklch(0 0 0 / 0.9);
+  --shadow-lift:
+    0 1px 2px oklch(0 0 0 / 0.45), 0 18px 44px -22px oklch(0 0 0 / 0.75);
 
   color-scheme: dark;
 }
@@ -82,8 +186,10 @@
 
    shadcn components are written against --background/--primary/etc. Those are
    aliases onto the tokens above so the two systems can never drift apart.
+   Declared once: they resolve per scheme because their right-hand sides do.
    -------------------------------------------------------------------------- */
-:root {
+:root,
+.dark {
   --background: var(--surface-base);
   --foreground: var(--text);
   --card: var(--surface-raised);
@@ -120,6 +226,33 @@
   --sidebar-ring: var(--brand);
 }
 
+/* Any subtree that draws a terminal: the site tokens are remapped onto the
+   fixed dark terminal palette, so the illustration keeps its own world in
+   either scheme and nothing inside it needs a `dark:` variant. */
+.terminal-scope {
+  --surface-base: var(--t-base);
+  --surface-raised: var(--t-raised);
+  --surface-panel: var(--t-panel);
+  --surface-sunken: var(--t-sunken);
+  --line-subtle: var(--t-line-subtle);
+  --line: var(--t-line);
+  --line-strong: var(--t-line-strong);
+  --text-strong: var(--t-text-strong);
+  --text: var(--t-text);
+  --text-muted: var(--t-text-muted);
+  --text-subtle: var(--t-text-subtle);
+  --text-faint: var(--t-text-faint);
+  --brand: oklch(0.8627 0.1721 132.3);
+  --brand-contrast: oklch(0.1479 0.0027 145.44);
+  --signal-done: oklch(0.8627 0.1721 132.3);
+  --signal-blocked: oklch(0.8123 0.1263 76.28);
+  --signal-stalled: oklch(0.8052 0.0821 205.56);
+  --signal-failed: oklch(0.7194 0.1572 21.96);
+  --signal-agent: oklch(0.766 0.1148 299.32);
+  --border: var(--t-line);
+  color-scheme: dark;
+}
+
 /* ==========================================================================
    Layer 2 — expose tokens as Tailwind utilities
    ========================================================================== */
@@ -154,6 +287,8 @@
 
   /* Brand */
   --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-surface-header: var(--surface-header);
   --color-brand-hover: var(--brand-hover);
   --color-brand-contrast: var(--brand-contrast);
   --color-brand-subtle: var(--brand-subtle);
@@ -226,10 +361,11 @@
   /* Elevation */
   --shadow-ambient: var(--shadow-ambient);
   --shadow-float: var(--shadow-float);
+  --shadow-lift: var(--shadow-lift);
 
   /* Layout rhythm */
   --spacing-gutter: clamp(1.25rem, 5vw, 2.5rem);
-  --spacing-section: clamp(3.5rem, 8vw, 6.5rem);
+  --spacing-section: clamp(3.75rem, 6.4vw, 6rem);
   --container-content: 72rem;
   --container-prose: 46rem;
 
@@ -237,7 +373,6 @@
   --animate-blink: blink 1.1s step-end infinite;
   --animate-rise-in: rise-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-pulse-ring: pulse-ring 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  --animate-scanline: scanline 7s linear infinite;
   --animate-marquee: marquee 42s linear infinite;
 
   @keyframes blink {
@@ -269,14 +404,6 @@
     }
     100% {
       box-shadow: 0 0 0 0 transparent;
-    }
-  }
-  @keyframes scanline {
-    from {
-      transform: translateY(-100%);
-    }
-    to {
-      transform: translateY(900%);
     }
   }
   @keyframes marquee {
@@ -323,11 +450,29 @@
     background-color: var(--color-surface-base);
     color: var(--color-text);
     font-family: var(--font-sans);
+    /* 17px. The site's body copy sat at 14–15px against a near-black ground,
+       which is where "everything is small and far away" came from. One step up
+       here lifts every rem-based size the components declare. */
+    font-size: 1.0625rem;
+    line-height: 1.65;
     font-feature-settings: "cv02", "cv03", "cv04", "ss01";
     letter-spacing: -0.003em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    /* Only the two properties the theme toggle changes, so a scheme switch
+       cross-fades instead of snapping. Deliberately not `transition: all`. */
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  /* Theme switching must not animate every bordered box on the page at once —
+     that reads as a glitch, not a transition. */
+  @media (prefers-reduced-motion: reduce) {
+    body {
+      transition: none;
+    }
   }
 
   h1,
@@ -417,21 +562,41 @@
   text-transform: uppercase;
 }
 
-/* Radial brand wash behind hero and CTA sections. */
-@utility glow-brand {
-  background-image: radial-gradient(
-    ellipse at center,
-    var(--brand-glow),
-    transparent 70%
-  );
-}
-
 /* Faint grid used as a backdrop on dark sections. */
 @utility bg-grid {
   background-image:
     linear-gradient(to right, var(--color-line-subtle) 1px, transparent 1px),
     linear-gradient(to bottom, var(--color-line-subtle) 1px, transparent 1px);
   background-size: 56px 56px;
+}
+
+/* The hero/CTA backdrop: two off-centre washes plus a hairline horizon. One
+   element, no images, and it re-tints itself per scheme because both stops are
+   tokens. */
+@utility bg-hero-mesh {
+  background-image:
+    radial-gradient(60rem 32rem at 18% -10%, var(--wash-1), transparent 62%),
+    radial-gradient(48rem 28rem at 88% 6%, var(--wash-2), transparent 60%);
+}
+
+/* A raised surface with a lit top edge — the cheapest honest depth cue, and
+   the thing that stops six identical cards reading as a spreadsheet. */
+@utility surface-lift {
+  background-color: var(--color-surface-raised);
+  box-shadow:
+    inset 0 1px 0 0 var(--hairline-top),
+    var(--shadow-lift);
+}
+
+/* Brand-tinted chip background that works in both schemes (the flat
+   `bg-brand-subtle` is opaque and too heavy on paper). */
+@utility bg-brand-soft {
+  background-color: var(--brand-soft);
+}
+
+/* Focus ring used by interactive cards and controls. */
+@utility ring-brand-soft {
+  box-shadow: 0 0 0 3px var(--brand-glow);
 }
 
 /* Text that should never be selected or copied (shell prompts, glyphs). */
@@ -586,8 +751,9 @@
 }
 
 /* --------------------------------------------------------------------------
-   Shiki. Highlighting emits both light and dark variables per token; we pick
-   the dark one, since the site ships dark-only.
+   Shiki. Highlighting emits both light and dark variables per token, and the
+   site now has both schemes — so light reads `--shiki-light` and `.dark`
+   overrides to `--shiki-dark`.
    -------------------------------------------------------------------------- */
 /* Deliberately unlayered: rules for Shiki output must beat the typography
    plugin's `.prose pre` styles, and cascade layers outrank specificity —
@@ -596,6 +762,14 @@ pre[data-theme],
 code[data-theme],
 pre[data-theme] span,
 code[data-theme] span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+
+.dark pre[data-theme],
+.dark code[data-theme],
+.dark pre[data-theme] span,
+.dark code[data-theme] span {
   color: var(--shiki-dark);
   background-color: var(--shiki-dark-bg);
 }

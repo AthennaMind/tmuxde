@@ -7,7 +7,12 @@ import { JsonLd } from "@/components/json-ld";
 import { Eyebrow } from "@/components/primitives/section";
 import { locales, type Locale } from "@/i18n/locales";
 import { Link } from "@/i18n/navigation";
-import { getAllTags, getPostsByTag, tagSlug } from "@/lib/blog";
+import {
+  getAllTags,
+  getPostsByTag,
+  TAG_INDEX_MIN_POSTS,
+  tagSlug,
+} from "@/lib/blog";
 import { buildMetadata } from "@/lib/seo";
 import { breadcrumbSchema, graph, itemListSchema } from "@/lib/structured-data";
 
@@ -21,13 +26,13 @@ export async function generateStaticParams() {
   return params;
 }
 
-/** Recovers the human-readable tag from its URL slug. */
+/** Recovers the human-readable tag, and how many posts carry it, from its URL slug. */
 async function resolveTag(
   locale: string,
   slug: string,
-): Promise<string | null> {
+): Promise<{ tag: string; count: number } | null> {
   const tags = await getAllTags(locale);
-  return tags.find(({ tag }) => tagSlug(tag) === slug)?.tag ?? null;
+  return tags.find(({ tag }) => tagSlug(tag) === slug) ?? null;
 }
 
 export async function generateMetadata({
@@ -36,16 +41,19 @@ export async function generateMetadata({
   params: Promise<{ locale: string; tag: string }>;
 }): Promise<Metadata> {
   const { locale, tag } = await params;
-  const label = await resolveTag(locale, tag);
-  if (!label) return {};
+  const entry = await resolveTag(locale, tag);
+  if (!entry) return {};
 
   const t = await getTranslations({ locale, namespace: "blog" });
 
   return buildMetadata({
     locale: locale as Locale,
     path: `/blog/tag/${tag}`,
-    title: t("tagMeta.title", { tag: label }),
-    description: t("tagMeta.description", { tag: label }),
+    title: t("tagMeta.title", { tag: entry.tag }),
+    description: t("tagMeta.description", { tag: entry.tag }),
+    // Still linked, still crawlable — just not offered for indexing while the
+    // tag has too few posts to be a better answer than the posts themselves.
+    noindex: entry.count < TAG_INDEX_MIN_POSTS,
   });
 }
 
@@ -57,8 +65,9 @@ export default async function BlogTagPage({
   const { locale, tag } = await params;
   setRequestLocale(locale);
 
-  const label = await resolveTag(locale, tag);
-  if (!label) notFound();
+  const entry = await resolveTag(locale, tag);
+  if (!entry) notFound();
+  const label = entry.tag;
 
   const t = await getTranslations("blog");
   const [posts, tags] = await Promise.all([
@@ -88,10 +97,10 @@ export default async function BlogTagPage({
 
       <header className="container-content pt-(--spacing-section) pb-10">
         <Eyebrow>{t("eyebrow")}</Eyebrow>
-        <h1 className="text-[clamp(1.625rem,3.4vw,2.375rem)] leading-[1.04]">
+        <h1 className="text-[clamp(1.8125rem,3.6vw,2.625rem)] leading-[1.04]">
           {t("tagTitle", { tag: label })}
         </h1>
-        <p className="mt-4 max-w-[54ch] text-[1.0625rem] leading-[1.7] text-text-muted">
+        <p className="mt-4 max-w-[54ch] text-[1.125rem] leading-[1.7] text-text-muted">
           {t("tagDescription", { tag: label, count: posts.length })}
         </p>
 
@@ -117,7 +126,7 @@ export default async function BlogTagPage({
         <p className="mt-10">
           <Link
             href="/blog"
-            className="font-mono text-[0.875rem] text-brand hover:underline"
+            className="font-mono text-[0.9375rem] text-brand hover:underline"
           >
             ← {t("backToBlog")}
           </Link>

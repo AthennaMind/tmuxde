@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "mtmux pricing — free on one machine, $10/mo for all",
-    "description": "Free forever on one server with three trusted devices, tunnel included. Pro is $10/month or $100/year for unlimited servers, unlimited devices and 200 GB relayed."
+    "description": "Free forever on one server, three trusted devices, tunnel included. Pro is $10/month or $100/year for unlimited servers and devices and 200 GB relayed."
   },
   "breadcrumb": {
     "home": "Home",
@@ -31,7 +31,7 @@
         "Local mode that contacts no broker at all",
         "Self-host the broker if you'd rather"
       ],
-      "cta": "Install"
+      "accountNote": "No account needed. Create one if you'd rather see the machine in a dashboard."
     },
     "pro": {
       "name": "Pro",
@@ -46,7 +46,8 @@
         "200 GB relayed a month",
         "Name your machines in the dashboard"
       ],
-      "cta": "Upgrade"
+      "cta": "Create an account",
+      "trialNote": "A {days}-day Pro trial starts by itself the first time Free isn't enough. No card."
     }
   },
   "comparison": {
@@ -92,12 +93,16 @@
         "answer": "No. Free is free indefinitely on one server, and the encrypted tunnel is included rather than held back as the upsell. We would rather you upgrade because you bought a second machine."
       },
       {
+        "question": "Is there a trial?",
+        "answer": "Yes, and you don't start it. The first time a Free account is refused something Pro allows — a second machine, usually — a {days}-day Pro trial begins on the spot. No card, no button, and if you never hit a limit it never starts."
+      },
+      {
         "question": "What happens if I go over 5 GB in a month?",
         "answer": "The relayed path is what stops; your own network is not affected, because it never went through us. Local and LAN access keep working exactly as before, and the counter resets with the calendar month."
       },
       {
         "question": "Can I use mtmux without paying and without an account?",
-        "answer": "Yes. An account is only needed to register more than one server or to open a dashboard. Without one you still get the CLI, the tunnel and local mode."
+        "answer": "Yes. An account is only needed to register more than one server or to open a dashboard. Without one you still get the CLI, the tunnel and local mode — <post>tmux in a browser</post>, on your own machine, for nothing."
       },
       {
         "question": "Who processes payments?",
@@ -109,5 +114,34 @@
       }
     ],
     "moreLink": "more answers"
+  },
+  "accounts": {
+    "eyebrow": "accounts",
+    "title": "What an account is actually for.",
+    "description": "Nothing here is a gate. Pairing, the tunnel and every session work exactly the same signed out — this is the part that only works when the machines are on a list.",
+    "items": {
+      "join": {
+        "title": "Ask to join from the browser",
+        "body": "Pick a machine from your dashboard instead of hunting for a fresh code. The machine still decides: whoever is there runs mtmux approve, and you read back six digits to confirm it's you."
+      },
+      "dashboard": {
+        "title": "Every machine in one list",
+        "body": "With a live dot, so “online” means something — each machine checks in every 30 seconds. The same list mtmux servers prints in a terminal."
+      },
+      "machines": {
+        "title": "More than one machine",
+        "body": "Free registers one. Pro registers as many as you like and lets you name them something other than their hostname."
+      },
+      "trial": {
+        "title": "A {days}-day Pro trial, by itself",
+        "body": "It starts the first time Free isn't enough — not from a button, and never with a card. If you never hit a limit, it never starts."
+      }
+    },
+    "unchanged": "What doesn't change: mtmux still needs no account to pair, the tunnel is still end-to-end encrypted so our broker cannot read a byte of it, and local mode still contacts nothing of ours at all. Signing out puts you back exactly where you were.",
+    "cta": {
+      "create": "Create an account",
+      "signIn": "Sign in",
+      "docs": "Read the accounts docs"
+    }
   }
 }

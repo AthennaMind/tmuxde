@@ -2,6 +2,7 @@
 title: "Installing tmux: apt, dnf, pacman, apk, and from source"
 description: "Install tmux with apt, dnf, pacman or apk, then check tmux -V — several distros ship a version too old for features like display-popup or true color."
 date: "2026-07-02"
+updated: "2026-08-10"
 author: "team"
 category: "tmux"
 icon: "📦"
@@ -41,7 +42,9 @@ depend on the version you actually got.
 Arch and Fedora track upstream closely because both are fast-moving distributions with short
 release cycles. Debian stable and RHEL are the two you're most likely to find running something
 noticeably older, because both distributions freeze package versions for years at a time in
-exchange for stability.
+exchange for stability. Windows is missing from that table because there is no native tmux for
+it — [tmux on Windows](/blog/tmux-on-windows) covers the WSL route, which is the only one that
+actually works.
 
 <TerminalDemo title="~ — install and verify">
 $ sudo apt update && sudo apt install tmux
@@ -106,8 +109,8 @@ gets you whatever was current when that Alpine release shipped.
 brew install tmux
 ```
 
-Homebrew always builds the current upstream release, so version lag isn't a concern on macOS.
-The clipboard and terminal-integration details specific to Mac are covered in
+[Homebrew](https://brew.sh) always builds the current upstream release, so version lag isn't a
+concern on macOS. The clipboard and terminal-integration details specific to Mac are covered in
 [tmux on Mac](/blog/tmux-on-mac) rather than here.
 
 ## Verifying your install
@@ -124,8 +127,10 @@ source against `master`, unexpected if a package manager gave you one.
 
 Debian stable in particular is a common source of "why doesn't this config option work"
 reports, because a `~/.tmux.conf` written against current tmux docs assumes options that
-Debian's frozen version doesn't have yet. Check what actually changed between your version and
-the one a feature needs before assuming your config is wrong:
+Debian's frozen version doesn't have yet. tmux keeps a per-release
+[`CHANGES` file](https://github.com/tmux/tmux/blob/master/CHANGES) listing every option added
+and removed, and reading the entries between your version and current is faster than guessing.
+Check what actually changed before assuming your config is wrong:
 
 <CompareTable
   columns={["Feature", "Minimum version", "What breaks below it"]}
@@ -181,9 +186,13 @@ assuming.
 
 Once tmux is on `PATH`, [tmux tutorial](/blog/tmux-tutorial) walks through the actual mental
 model and first session, and [tmux commands](/blog/tmux-commands) is the reference to keep
-open while you get used to it. If you're setting it up specifically to check on a long-running
-job from somewhere other than the machine it's on, mtmux (`npm i -g mtmux`) serves the sessions
-in the tmux you just installed to a browser on any device, with nothing to port-forward.
+open while you get used to it. The project's own
+[wiki](https://github.com/tmux/tmux/wiki) is the upstream companion to both. If you're setting
+it up specifically to check on a long-running job from somewhere other than the machine it's
+on, [tmux in a browser](/blog/tmux-in-browser) compares the tools that make that possible;
+mtmux (`npm i -g mtmux`) is one of them, serving the sessions in the tmux you just installed to
+any device with nothing to port-forward — the [docs](/docs) start with the one-command setup,
+and the [getting-started reference](https://docs.mtmux.com/getting-started) is the longer form.
 
 <FAQ>
 <FAQItem q="How do I check which version of tmux I have installed?">

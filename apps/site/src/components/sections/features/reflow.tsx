@@ -16,13 +16,13 @@ export async function FeaturesReflow() {
     <div className="grid items-center gap-10 sm:grid-cols-2 sm:gap-14">
       <div className="order-2">
         <Eyebrow>{t("eyebrow")}</Eyebrow>
-        <h2 className="text-[clamp(1.25rem,2.5vw,1.75rem)] leading-[1.06]">
+        <h2 className="text-[clamp(1.375rem,2.7vw,1.875rem)] leading-[1.06]">
           {t("title")}
         </h2>
-        <p className="mt-3.5 max-w-[50ch] text-[0.96875rem] leading-[1.75] text-text-muted">
+        <p className="mt-3.5 max-w-[50ch] text-[1.0625rem] leading-[1.75] text-text-muted">
           {t.rich("prose", codeHandlers)}
         </p>
-        <ul className="mt-5 grid gap-2.5 text-[0.90625rem] text-text-muted">
+        <ul className="mt-5 grid gap-2.5 text-[1rem] text-text-muted">
           {bullets.map((_, i) => (
             <li key={i} className="flex gap-2.5">
               <span aria-hidden="true" className="text-brand">
@@ -45,7 +45,7 @@ export async function FeaturesReflow() {
             <div className="row-span-2 rounded-[3px] border border-line-strong bg-surface-sunken" />
             <div className="rounded-[3px] bg-surface-sunken" />
           </div>
-          <span className="font-mono text-[0.75rem] text-text-faint">
+          <span className="font-mono text-[0.8125rem] text-text-faint">
             {t("before")}
           </span>
         </div>
@@ -60,7 +60,7 @@ export async function FeaturesReflow() {
             <div className="rounded-[3px] bg-surface-sunken" />
             <div className="rounded-[3px] bg-surface-sunken" />
           </div>
-          <span className="font-mono text-[0.75rem] text-text-faint">
+          <span className="font-mono text-[0.8125rem] text-text-faint">
             {t("after")}
           </span>
         </div>

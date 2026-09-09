@@ -75,6 +75,20 @@ Three things in there are easy to get wrong:
   set, `x-default`, Open Graph and the Twitter card. Hand-rolling `export const metadata` skips
   all of it.
 
+## 2b. The share card
+
+`buildMetadata` points `og:image` at `<route>/opengraph-image`, so the route needs one or the
+page shares as a bare grey link. Copy any neighbour's — they are four constants and a call to
+`renderPageOgCard` from `src/lib/og-page.tsx` with this page's message namespace:
+
+```tsx
+// src/app/[locale]/my-page/opengraph-image.tsx
+export default async function Image({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  return renderPageOgCard({ locale, namespace: "myPage", path: "/my-page" });
+}
+```
+
 ## 3. Title and description
 
 Keyword-first, and **never** a `| mtmux` suffix. Titles are ranking real estate, and a new domain

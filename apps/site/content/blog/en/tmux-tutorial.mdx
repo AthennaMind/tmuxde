@@ -2,6 +2,7 @@
 title: "tmux tutorial for beginners: sessions, windows, panes"
 description: "A start-to-finish tmux tutorial: the server/session/window/pane model, your first split, detaching and reattaching, and a minimal config that sticks."
 date: "2026-07-10"
+updated: "2026-08-10"
 author: "ivo-hart"
 category: "tmux"
 icon: "🎓"
@@ -22,6 +23,32 @@ tmux is a terminal multiplexer: one program that runs shells and other programs 
 persistent sessions that survive your terminal closing. You start a session, split it into
 panes, detach when you need to walk away, and reattach later to find everything exactly as you
 left it. This tutorial goes from nothing installed to a working daily setup.
+
+## How do you open tmux?
+
+You open tmux by typing `tmux` at a shell prompt and pressing Enter. There is no application to
+launch and no icon to click: the command starts a background server on first use, creates a
+session, and attaches your current terminal to it. On macOS and Linux any terminal emulator
+works — Terminal.app, iTerm2, GNOME Terminal, Alacritty — though Macs need a little extra setup
+for the clipboard and true color, which [tmux on Mac](/blog/tmux-on-mac) covers. On Windows
+there is no native tmux, so
+you open a WSL shell first and run `tmux` inside that; [tmux on Windows](/blog/tmux-on-windows)
+covers the setup.
+
+If the shell answers `tmux: command not found`, nothing is broken — tmux just isn't installed
+yet, and [installing tmux](/blog/install-tmux) covers every package manager.
+
+Bare `tmux` opens an unnamed session, which tmux numbers `0`. That's fine for a first look and
+annoying by the third one, because `tmux ls` ends up listing `0`, `1`, `2` and you have to guess
+which is which. `tmux new -s work` names it instead, and a named session is one you can find
+again later — [tmux new session](/blog/tmux-new-session) has the full argument for that habit.
+
+Leaving tmux is the part beginners get wrong. Press <Cmd>Ctrl-b</Cmd> then <Cmd>d</Cmd> to
+detach: the session and everything in it keeps running. Closing the terminal window does the
+same thing by accident but tells you nothing, and typing `exit` closes the pane for good.
+
+One disambiguation, since the string turns up in searches: "OpenTmux" is also the name of an
+unrelated OpenCode plugin. If that's what you were after, this page is not it.
 
 ## The mental model
 
@@ -140,7 +167,8 @@ you reattach with a differently-sized terminal, which is the next thing people t
 ## A minimal, sensible `~/.tmux.conf`
 
 You don't need a 300-line config with plugins to get real value out of tmux. This is enough to
-fix the handful of defaults that genuinely surprise people:
+fix the handful of defaults that genuinely surprise people — every option below is documented,
+with its default, in the [tmux man page](https://man7.org/linux/man-pages/man1/tmux.1.html):
 
 ```bash title="~/.tmux.conf"
 # Easier-to-reach prefix
@@ -202,10 +230,15 @@ because it reflects your own `~/.tmux.conf`, not a generic default.
 
 This tutorial covers the mental model and the workflow; [tmux commands](/blog/tmux-commands) is
 the reference table to keep open once the concepts click, grouped by session, window, pane and
-copy-mode operations rather than explained step by step. If tmux is going to run something
+copy-mode operations rather than explained step by step. The project's own
+[getting-started guide](https://github.com/tmux/tmux/wiki/Getting-Started) is a worthwhile
+second pass over the same ground in upstream's words. If tmux is going to run something
 long — a build, a dev server, an agent — on a machine you're not always sitting at, checking on
-it means either SSHing back in and reattaching, or, if the device in your hand has no SSH client
-at all, running mtmux alongside it and opening the same session in a browser.
+it means either SSHing back in and reattaching, or opening the same session in a browser
+instead; [tmux in a browser](/blog/tmux-in-browser) surveys the tools for that. mtmux is one of
+them — its [docs](/docs) start with the one-command setup, and the
+[mobile notes](https://docs.mtmux.com/web-app/mobile) cover what a tmux pane actually feels like
+on a phone screen.
 
 <FAQ>
 <FAQItem q="What is tmux used for?">

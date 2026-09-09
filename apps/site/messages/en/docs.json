@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Install mtmux and open tmux in a browser in 2 minutes",
-    "description": "Install mtmux with npm, scan the code once, and reach your tmux sessions from any browser. Full CLI reference, self-hosting the broker, and troubleshooting."
+    "description": "Install mtmux with npm, scan the code once, and reach your tmux sessions from any browser. Full CLI reference, self-hosting the broker and troubleshooting."
   },
   "breadcrumb": {
     "home": "Home",
@@ -22,7 +22,7 @@
   },
   "install": {
     "title": "Install",
-    "requirements": "Requires Node 22 or newer and tmux. Works on macOS, any glibc or musl Linux, and WSL2. The browser side needs nothing but WebSocket support, which every current browser has — there is no app to install and no account to create."
+    "requirements": "Requires Node 22 or newer and <post>tmux installed</post>. Works on macOS, any glibc or musl Linux, and WSL2. The browser side needs nothing but WebSocket support, which every current browser has — there is no app to install and no account to create."
   },
   "quickstart": {
     "title": "Quickstart",
@@ -47,69 +47,19 @@
   },
   "cli": {
     "title": "CLI reference",
-    "columns": {
-      "command": "Command",
-      "description": "What it does"
-    },
-    "descriptions": [
-      "Alias for start. Running mtmux with no arguments is the normal way to use it.",
-      "Serve this machine's tmux, open a sealed tunnel, and print a QR and a pairing code.",
-      "LAN and loopback only. Contacts no broker at all — no traffic leaves your network.",
-      "Print the pairing code without the QR block, for terminals that mangle it.",
-      "What to call this machine in the dashboard. Pro plans only; Free shows the hostname.",
-      "Port to serve on. Defaults to 14100.",
-      "Bind address. Defaults to 0.0.0.0 when there is a real LAN, and 127.0.0.1 otherwise.",
-      "Don't open a browser on this machine, and print a machine-readable startup record.",
-      "Alias for start --local.",
-      "Join a pairing the browser started. Prompts for the code if you don't pass one.",
-      "Show, or stop, the mtmux server running on this machine.",
-      "Check Node, tmux, the tmux socket, the port, config permissions and broker reachability.",
-      "Sign in, sign out, or show the signed-in account. Optional — via OAuth device authorization.",
-      "List the machines registered to your account.",
-      "List the browsers this machine trusts, and forget one by its device id.",
-      "Open checkout for mtmux Pro.",
-      "Show, regenerate, or set the auth token stored in ~/.mtmux/config.json.",
-      "Print version information."
-    ],
-    "configNote": "Configuration lives in <cmd>~/.mtmux/config.json</cmd>, created with mode 0600 — it holds your auth token and device key, so it is deliberately readable only by you."
+    "pointer": "Twenty-three commands, every flag, and the environment variables behind them — including share grants, device revocation and the token commands. It is generated from the CLI source, so it does not drift.",
+    "linkLabel": "Read the full CLI reference"
   },
   "selfHosting": {
     "title": "Self-hosting",
-    "prose": "Two levels, depending on how much of ours you want to use. The first needs no server at all: <cmd>--local</cmd> serves loopback and your LAN, and the CLI never contacts a broker. If you want the tunnel too — reaching the machine from outside your network — run the pairing broker yourself and point the CLI at it.",
-    "brokerProse": "The broker is <cmd>apps/api</cmd> in the repo. It relays sealed frames and holds no session key, so running your own changes who operates it, not what it can see. <cmd>MTMUX_API_URL</cmd> redirects a single run; <cmd>MTMUX_BUILD_API_URL</cmd> bakes a different default into a build.",
-    "filename": "shell",
-    "localComment": "no broker at all — LAN and loopback",
-    "runComment": "or point the CLI at your own broker",
-    "buildComment": "or bake it into a build"
+    "pointer": "mtmux is self-hosted by default: the CLI runs on your machine and holds its own token. Three degrees of independence beyond that — LAN-only, your own pairing broker, or the whole split deployment.",
+    "linkLabel": "Read the self-hosting guide"
   },
   "troubleshooting": {
     "title": "Troubleshooting",
-    "items": [
-      {
-        "problem": "No sessions listed",
-        "solution": "mtmux must run as the user that owns the tmux socket — on a shared box that is the usual cause. <cmd>mtmux doctor</cmd> reports which socket it found and whether it could read it."
-      },
-      {
-        "problem": "The code isn't accepted",
-        "solution": "A code is single-use and one wrong guess destroys the pairing, by design. mtmux mints a fresh one on its own — check you typed every digit of the newest code on screen, not an earlier one."
-      },
-      {
-        "problem": "It printed no code, only local addresses",
-        "solution": "The broker was unreachable, so mtmux degraded to serving your network rather than failing. <cmd>mtmux doctor</cmd> will say so; the LAN URL still works."
-      },
-      {
-        "problem": "Colors look wrong",
-        "solution": "Set <cmd>set -g default-terminal \"tmux-256color\"</cmd> and <cmd>set -as terminal-features \",*:RGB\"</cmd> in your tmux.conf."
-      },
-      {
-        "problem": "Port 14100 is already in use",
-        "solution": "Either another mtmux is running — <cmd>mtmux status</cmd> will tell you, and <cmd>mtmux stop</cmd> ends it — or something else holds the port, in which case pass <cmd>--port</cmd>."
-      },
-      {
-        "problem": "A browser you no longer trust is still paired",
-        "solution": "<cmd>mtmux devices</cmd> lists the device ids this machine trusts, and <cmd>mtmux devices revoke</cmd> forgets one so it cannot reconnect."
-      }
-    ]
+    "pointer": "Run mtmux doctor first — it checks Node, tmux, the port, config permissions and the broker. Twenty-five symptoms with causes and fixes, covering startup, connecting, pairing, the terminal, sessions, files and performance.",
+    "linkLabel": "Read the troubleshooting guide"
   },
+  "fullDocs": "This page is the quickstart. The reference documentation — architecture, the sealed tunnel, the relay protocol, deployment and the web app — lives at <docsLink>docs.mtmux.com</docsLink>.",
   "footerNote": "Still stuck? <discussions>GitHub Discussions</discussions> or <email>{addr}</email>."
 }

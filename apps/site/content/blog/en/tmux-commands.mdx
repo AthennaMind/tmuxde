@@ -2,7 +2,7 @@
 title: "tmux commands: the cheat sheet you'll actually remember"
 description: "The tmux commands worth memorising, grouped by what you are trying to do: sessions, windows, panes, copy mode and scripting."
 date: "2026-07-14"
-updated: "2026-07-26"
+updated: "2026-08-10"
 author: "ivo-hart"
 category: "tmux"
 tags: ["tmux", "cheat sheet", "cli"]
@@ -22,7 +22,10 @@ prefix, which is <Cmd>Ctrl-b</Cmd> unless you changed it. That single distinctio
 the confusion beginners have, so it is worth stating before the tables: `tmux kill-session` and
 <Cmd>Ctrl-b</Cmd> then <Cmd>x</Cmd> are the same kind of thing, typed in two different places.
 
-This is the reference I actually keep open, grouped by intent rather than alphabetically.
+This is the reference I actually keep open, grouped by intent rather than alphabetically. If tmux
+is not on the machine yet, [installing tmux](/blog/install-tmux) covers apt, dnf, pacman, Homebrew
+and building from source; the [official manual](https://man7.org/linux/man-pages/man1/tmux.1.html)
+is the exhaustive version of everything below.
 
 ## The prefix key, and why everything hangs off it
 
@@ -47,6 +50,9 @@ means "start of line") by pressing it twice.
 After editing `~/.tmux.conf`, run <Cmd>tmux source-file ~/.tmux.conf</Cmd>, or bind it:
 `bind r source-file ~/.tmux.conf \; display "reloaded"`.
 </Callout>
+
+Under WSL the prefix works the same, but the terminal in front of it may swallow chords before tmux
+ever sees them — [tmux on Windows](/blog/tmux-on-windows) covers which terminals pass what through.
 
 ## Session commands
 
@@ -81,7 +87,9 @@ And the key bindings for the same operations, once you are already inside:
 
 The one to internalise is <Cmd>prefix d</Cmd>. Detaching is not quitting: your processes keep
 running, and `tmux attach` puts you back exactly where you were —
-[attaching has its own sharp edges](/blog/tmux-attach-session) once two clients are involved.
+[attaching has its own sharp edges](/blog/tmux-attach-session) once two clients are involved. The
+creation side has more flags than the table above suggests: `-d`, `-c`, `-A` and the trailing
+command argument are all covered in [tmux new session](/blog/tmux-new-session).
 
 <TerminalDemo title="mbp — tmux">
 $ tmux new -s work
@@ -110,7 +118,9 @@ Windows are tabs inside a session.
 />
 
 Naming windows is the highest-value habit here. `prefix ,` and typing `api` costs two seconds and
-saves you from a status bar reading `0:zsh 1:zsh 2:zsh`.
+saves you from a status bar reading `0:zsh 1:zsh 2:zsh`. If sessions, windows and panes are still
+three words for the same fog, [the tmux tutorial](/blog/tmux-tutorial) builds them up in order
+rather than listing them.
 
 ## Pane commands
 
@@ -137,8 +147,7 @@ stack trace without touching the layout itself — zoom, read, zoom back.
 </Callout>
 
 The mnemonic for the splits is that `%` looks like a vertical divider and `"` looks like two stacked
-marks. If that does not stick, rebind them to something that does — see
-[the tmux tutorial](/blog/tmux-tutorial) for a minimal config that sets these up from scratch:
+marks. If that does not stick, rebind them to something that does:
 
 ```bash title="~/.tmux.conf"
 bind | split-window -h -c "#{pane_current_path}"
@@ -147,6 +156,10 @@ bind - split-window -v -c "#{pane_current_path}"
 
 The `-c "#{pane_current_path}"` part makes new panes open in the directory you were already in,
 which is what you almost always want and is not the default.
+
+If you live in vim, `prefix arrow` is one keystroke too many — [tmux and vim](/blog/tmux-vim) covers
+making `ctrl-h/j/k/l` move between vim splits and tmux panes without you having to know which one
+you are currently in.
 
 ## Copy mode
 
@@ -174,6 +187,10 @@ bind -T copy-mode-vi v send -X begin-selection
 bind -T copy-mode-vi y send -X copy-selection-and-cancel
 ```
 
+Copying into tmux's own buffer is the easy half. Getting it into the *system* clipboard is
+platform-specific and the usual reason "copy doesn't work" —
+[tmux on Mac](/blog/tmux-on-mac) covers `pbcopy` and the iTerm2 side of it.
+
 ## Commands worth knowing for scripts
 
 These are the ones that make tmux useful from a shell script or a dotfiles repo, and they are
@@ -193,7 +210,9 @@ where the shell-command form earns its keep.
 
 `capture-pane` and `has-session` are the two that turn tmux from an interactive tool into
 something you can automate around. A dev-environment bootstrap script is usually just
-`has-session || (new -d; send-keys; send-keys; ...)`.
+`has-session || (new -d; send-keys; send-keys; ...)`. If you would rather not maintain that script,
+[tmux plugins](/blog/tmux-plugins) covers tmux-resurrect and tmux-continuum, which save and restore
+the layout for you.
 
 <TerminalDemo title="~/bin/dev — idempotent session bootstrap">
 #!/usr/bin/env bash
@@ -225,7 +244,9 @@ If you only memorise ten, memorise these:
 
 That last one is the real cheat sheet. <Cmd>prefix ?</Cmd> lists every key binding your config
 currently has, which is more accurate than any article — including this one — because it reflects
-your actual `~/.tmux.conf`.
+your actual `~/.tmux.conf`. The
+[project's own getting-started guide](https://github.com/tmux/tmux/wiki/Getting-Started) is the
+other authority worth bookmarking.
 
 ## Reading a session you are not sitting at
 
@@ -234,9 +255,14 @@ long run, walked away, and want to know whether it finished.
 
 `tmux capture-pane -p` over SSH works, and for a quick check it is fine —
 [running tmux over SSH](/blog/tmux-ssh) has its own failure modes worth knowing. What it does not
-give you is the live pane, scrollback and all, on whatever device is actually in your hand.
-[mtmux](/agents) attaches to the tmux server you already run and serves the same session to a
-browser — real keys, real reflow, nothing to port-forward.
+give you is the live pane, scrollback and all, on whatever device is actually in your hand. That is
+what [tmux in a browser](/blog/tmux-in-browser) is about, and it is the shape of the problem when
+the thing you left running is [a coding agent](/agents) rather than a build.
+
+[mtmux](/docs) is one answer: it attaches to the tmux server you already run and serves the same
+session to a browser — real keys, real reflow, nothing to port-forward. The
+[web terminal reference](https://docs.mtmux.com/web-app/terminal) covers what survives the trip and
+what does not.
 
 Either way, the tmux commands stay exactly the same. Nothing above changes.
 

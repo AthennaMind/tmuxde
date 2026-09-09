@@ -1,0 +1,208 @@
+---
+title: "ttyd vs wetty: which web terminal should you run?"
+description: "ttyd spawns any command and ships read-only by default. wetty tunnels over SSH and has no read-only mode. The differences that decide it, with real flags."
+date: "2026-08-10"
+author: "team"
+category: "comparisons"
+tags: ["ttyd", "wetty", "comparisons", "browser", "self-hosted"]
+keywords:
+  - "ttyd vs wetty"
+  - "wetty alternative"
+  - "ttyd alternative"
+  - "web terminal"
+  - "browser ssh"
+featured: false
+draft: false
+---
+
+The short answer: **ttyd** runs any command you name and gives every browser its own process, so
+sharing one session means putting tmux underneath it — which its own docs tell you to do. **wetty**
+runs `ssh`, so it inherits SSH's authentication for free but needs an sshd and an account, and it
+has no read-only mode at all. Pick ttyd if you want a single binary in front of a specific command;
+pick wetty if the box already has SSH and you want the browser to be a thin SSH client.
+
+Everything below is checked against the two projects' own source and docs, because both have
+changed in ways that make most of the comparisons you'll find online wrong.
+
+## What is the actual difference between ttyd and wetty?
+
+They look interchangeable — both serve [xterm.js](https://xtermjs.org) over a WebSocket — and they
+are not. The difference is what sits behind the socket.
+
+ttyd is a C program built on libuv, and its argument *is* the command:
+`ttyd <options> <command> [<arguments...>]`. `ttyd bash`, `ttyd vim`, `ttyd top` are all valid, and
+each connected browser gets its own spawned process.
+
+wetty is a TypeScript program on Node that spawns `ssh` for you. Connecting a browser means wetty
+opening an SSH connection on your behalf — to `localhost` by default, or to `--ssh-host`. Run it as
+root and it launches `/bin/login` instead.
+
+That single decision cascades into almost every other difference in the table below.
+
+<CompareTable
+  columns={["", "ttyd", "wetty"]}
+  rows={[
+    ["Written in", "C, on libuv", "TypeScript, on Node 20+"],
+    ["What it runs", "any command you name", "ssh (or /bin/login as root)"],
+    ["Default port", "7681", "3000"],
+    ["Install", "brew, apt, snap, winget, scoop, docker, static binary", "npm or docker only"],
+    ["Auth", "HTTP basic, or a trusted proxy header", "SSH — it has no auth of its own"],
+    ["Read-only mode", "yes — and it is the default", "none"],
+    ["One session, many viewers", "not by itself — use tmux", "no"],
+    ["Latest release", "1.7.7, March 2024", "3.2.0, July 2026"],
+    ["License", "MIT", "MIT"],
+  ]}
+/>
+
+## Is ttyd read-only by default? (Yes, and this trips people up)
+
+This is the single most common stale claim about ttyd. Since **1.7.4**, released in October 2023,
+the web terminal is **read-only unless you pass `-W`**. The release notes are explicit that
+`--readonly` was replaced by `--writable`, and the check is right there in `protocol.c`: an `INPUT`
+frame is dropped unless the server was started writable.
+
+So:
+
+```bash title="ttyd — read-only vs writable"
+$ ttyd bash                    # anyone who connects can watch, and cannot type
+$ ttyd -W bash                 # interactive
+$ ttyd -p 8080 -W bash         # …on 8080 instead of 7681
+```
+
+Every guide telling you to add `-R` or `--readonly` to make ttyd safe is describing ttyd 1.7.3 or
+earlier. If you copied that flag, current ttyd will refuse to start.
+
+wetty has no equivalent. There is no read-only flag, no viewer mode and no per-connection
+permission — every client that reaches the page gets a fully interactive SSH session. If you want
+someone to watch without typing, wetty cannot express that and you want ttyd, or tmux's own
+`attach -r`, covered in [tmux attach session](/blog/tmux-attach-session).
+
+## How do you share one session between two browsers?
+
+Neither tool does it on its own, and both fail differently.
+
+ttyd spawns a process **per WebSocket connection**, so two tabs are two shells. Its own wiki gives
+the fix, and it is tmux:
+
+```bash title="the recipe from ttyd's own wiki"
+$ ttyd tmux new -A -s ttyd vim
+```
+
+`new -A` means "attach if it exists, otherwise create" — so the second browser lands in the same
+tmux session as the first, and `tmux new -A -s ttyd` from a local terminal joins the same one.
+That's the pattern the [ttyd wiki's example page](https://github.com/tsl0922/ttyd/wiki/Example-Usage)
+documents, and it is why ttyd and tmux are so often mentioned together. The `new -A` flag is worth
+knowing generally — see [tmux new session](/blog/tmux-new-session).
+
+wetty also spawns per connection, and kills the pty when the socket drops, so closing a tab ends
+that session. Its documentation mentions tmux **nowhere** — I grepped every file under `docs/`.
+You can pass `--command 'tmux new -A -s wetty'` and it will work, but understand that you are
+composing something the project does not document or test.
+
+<Callout type="note" title="tmux is the session layer either way">
+Both tools are transport. Persistence, multiple viewers, panes and scrollback are tmux's job, not
+theirs — which is the same reason a web terminal in front of a bare shell loses everything when the
+tab closes. [tmux in a browser](/blog/tmux-in-browser) walks through the full ttyd + nginx recipe
+with TLS terminated properly.
+</Callout>
+
+## Which one is safer to expose?
+
+Neither, without a reverse proxy. But the defaults differ, and wetty's are worse in one specific,
+documented way.
+
+**wetty's `known-hosts` defaults to `/dev/null`**, and it derives `StrictHostKeyChecking` from that
+value — so out of the box, host-key checking is off. That is a real man-in-the-middle exposure on
+the SSH hop, on a default install, and it is visible in `src/shared/defaults.ts`. Set `--known-hosts`
+to a real file. Its `--ssh-key` flag is likewise self-described in the help output as making the
+connection "password-less and insecure!" — the project is being honest, and people paste the flag
+anyway.
+
+wetty also carries a **current, patched CVE worth knowing about**:
+[GHSA-p26j-h7wj-r568](https://github.com/butlerx/wetty/security/advisories/GHSA-p26j-h7wj-r568)
+(CVE-2026-49864), published July 2026, rated High. A filename in the file-download escape sequence
+was interpolated into HTML unescaped, so any output containing that sequence — a `cat`'d file, a
+log tail, an SSH banner — could run script in the wetty origin and type into the victim's session.
+It needed no non-default flags. **Fixed in 3.0.4.** If you are running an older wetty, that is the
+upgrade to do today.
+
+ttyd's own docs carry no general "don't expose this" warning — worth saying plainly, because it is
+often attributed to them. What they *do* carry is a specific notice on the Auth-Proxy wiki page:
+if you use `-H/--auth-header` to delegate authentication to a proxy, ttyd will trust **any** request
+carrying that header, so it must listen on a unix socket or be firewalled off. That is a sharp edge
+with a clear label on it.
+
+For the authentication ttyd does have:
+
+```bash title="ttyd — the auth flags that exist"
+$ ttyd -c admin:hunter2 -W bash                     # HTTP basic auth
+$ ttyd -S -C cert.pem -K key.pem -W bash            # TLS
+$ ttyd -S -C cert.pem -K key.pem -A ca.pem -W bash  # …and require a client certificate
+$ ttyd -O -W bash                                   # reject cross-origin websocket upgrades
+```
+
+Client-certificate verification via `-A` is the underrated one: it is the closest thing either
+project has to real key-based auth, and it costs one flag.
+
+## Which project is actually maintained?
+
+Both are alive; they age differently, and the honest summary is not the one the star counts suggest.
+
+**ttyd** has roughly 12,000 stars and commits landing on `main` into 2026 — but its last tagged
+release is **1.7.7, from March 2024**. Recent commits are housekeeping: build scripts, copyright
+years, dropping a config file. It is stable and it is not moving. For a small C program with a
+narrow job, "finished" is a defensible state; just know you are installing a 2024 binary.
+
+**wetty** has roughly 5,400 stars and shipped **3.2.0 in July 2026**, with commits into August. It
+is the more actively developed of the two, and the CVE above is part of why — it was found, fixed
+and released.
+
+Distribution is where the gap is widest. ttyd is in Homebrew, apt, snap, winget, scoop, Docker Hub
+and as a static binary. wetty is npm or Docker, and the npm path needs `node-gyp` — meaning
+`make`, `python` and a compiler — because it builds `node-pty` from source. On a fresh minimal
+server that is the difference between one command and twenty minutes.
+
+## When is neither the right answer?
+
+Both assume you can put a listening port somewhere a browser can reach. If the machine is behind
+NAT or CGNAT with no inbound path, no flag in either project fixes that — you need a tunnel, a VPN,
+or something that dials out. [tmate](/blog/tmate-alternative) is the obvious one: it dials out to a
+relay and hands you a link in a second, at the cost of forking its own tmux server rather than
+using yours. And both assume a desktop keyboard: neither has a touch layer, so a
+prefix key on a phone means a soft keyboard that has no `ctrl`. [tmux from your phone](/blog/tmux-from-phone)
+covers what that actually feels like, and the [full comparison](/compare) puts both of these next to
+tmate, SSH clients and VS Code Remote.
+
+That gap is the one mtmux fills: it dials out instead of listening, and adds the modifier row a
+phone needs. If your machine is reachable and you're on a laptop, ttyd behind your own nginx is
+less machinery and you should use it — the [self-hosting notes](https://docs.mtmux.com/self-hosting)
+say the same thing.
+
+<FAQ>
+<FAQItem q="Is ttyd or wetty faster?">
+For a terminal, neither difference is perceptible — the bottleneck is the WebSocket round trip and
+the browser's rendering, not the server. ttyd's C process has a much smaller memory footprint per
+connection, which matters if you are running dozens of concurrent sessions on a small box, and
+essentially not at all otherwise.
+</FAQItem>
+<FAQItem q="Can wetty attach to an existing tmux session?">
+Not as a documented feature. You can pass `--command 'tmux new -A -s wetty'` and it behaves the way
+you would expect, but tmux appears nowhere in wetty's documentation, so treat it as your own
+composition rather than a supported path. ttyd documents exactly this pattern.
+</FAQItem>
+<FAQItem q="Do I still need a reverse proxy in front of ttyd?">
+For anything reachable from outside a trusted network, yes. ttyd can terminate TLS itself with
+`-S -C -K`, which is enough for a LAN, but a proxy gives you certificate renewal, rate limiting and
+a single place to put access control. The same is true of wetty.
+</FAQItem>
+<FAQItem q="Is GoTTY the same thing as ttyd?">
+No, though the names invite the confusion. GoTTY is a separate, older Go project with the same idea;
+ttyd is the C implementation and is the one still receiving commits. If you are choosing today,
+ttyd and wetty are the two live options.
+</FAQItem>
+<FAQItem q="Does either tool notify me when a command finishes?">
+No. Neither sends notifications of any kind, and neither knows what is running inside the pty. If
+you want to be paged when a long job ends, that is a tmux hook or your tool's own hook firing into
+something like ntfy — a separate concern that composes with either terminal.
+</FAQItem>
+</FAQ>

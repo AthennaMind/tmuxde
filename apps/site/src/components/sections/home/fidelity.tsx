@@ -22,25 +22,18 @@ export async function Fidelity() {
   }>;
 
   return (
-    <Section tone="raised">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-5 sm:mb-12">
-        <SectionHeading
-          eyebrow={t("eyebrow")}
-          title={t("title")}
-          description={t("description")}
-          level={2}
-          size="md"
-          className="mb-0"
-        />
-        <Link
-          href="/features"
-          className="text-[0.90625rem] text-brand underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-brand"
-        >
-          {t("allFeatures")} →
-        </Link>
-      </div>
+    <Section tone="base">
+      <SectionHeading
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
+        level={2}
+        size="md"
+        align="center"
+        className="mb-10 sm:mb-14"
+      />
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(15.9375rem,100%),1fr))] gap-3.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(19.5rem,100%),1fr))] gap-4">
         {features.map((feature, index) => {
           const Icon = ICONS[index % ICONS.length];
           return (
@@ -48,12 +41,20 @@ export async function Fidelity() {
               key={feature.title}
               icon={<Icon aria-hidden="true" />}
               title={feature.title}
-              className="bg-surface-base"
             >
               {feature.description}
             </FeatureCard>
           );
         })}
+      </div>
+
+      <div className="mt-8 text-center">
+        <Link
+          href="/features"
+          className="text-[1rem] text-brand underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-brand"
+        >
+          {t("allFeatures")} →
+        </Link>
       </div>
     </Section>
   );

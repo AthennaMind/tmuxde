@@ -2,6 +2,7 @@
 title: "tmux from your phone: the modifier key problem"
 description: "A native SSH app, a web terminal, or a purpose-built client can reach tmux from a phone — the real obstacle is Ctrl-b on a screen with no keyboard."
 date: "2026-07-21"
+updated: "2026-08-10"
 author: "ivo-hart"
 category: "mobile"
 tags: ["mobile", "tmux", "ssh", "comparisons"]
@@ -43,25 +44,32 @@ underneath, which is a solved problem in all three options below.
 ## Option 1: a native SSH app
 
 Termius and Blink are mature, well-built, and genuinely good at this specific problem — both ship
-a customizable accessory key row, both support Mosh for connections that survive a dropped signal
-switching between wifi and cellular, and both render a terminal about as well as a phone screen
-allows. If you already SSH into arbitrary hosts and just want that experience on your phone, this
-is the least new to learn.
+a customizable accessory key row, both support [Mosh](https://mosh.org) for connections that
+survive a dropped signal switching between wifi and cellular, and both render a terminal about as
+well as a phone screen allows. If you already SSH into arbitrary hosts and just want that
+experience on your phone, this is the least new to learn.
 
 The trade-offs are the same ones that come with SSH generally, just now on a phone: a private key
 lives on the device (or in the app's keychain), the host needs a reachable `sshd` — directly, via
 Tailscale, or through a jump host — and the app has no idea what happened on your session while it
-wasn't open. You reattach and read backward; nothing pushes you a summary of what you missed.
+wasn't open. You reattach and read backward; nothing pushes you a summary of what you missed. The
+desktop-side habits that make that reattach survivable — keepalives, the attach-or-create pattern,
+the nested-tmux mess — are in [tmux over SSH](/blog/tmux-ssh), and they apply unchanged from a
+phone.
 
 ## Option 2: a web terminal
 
 Point a browser at ttyd, wetty, or a self-hosted tmate relay — covered with the actual setup in
 [tmux in a browser](/blog/tmux-in-browser) — and it works on mobile Safari or Chrome the same as
-anywhere else the page loads. The catch is that building a mobile-friendly accessory key row into
-a web page is real, separate engineering that most self-hosted setups skip, because the person
-setting it up is usually testing from a desktop. Without one, you're typing `Ctrl-b` by finding
-whatever workaround your mobile browser's virtual keyboard happens to support that day, which is
-inconsistent across iOS and Android and across browser versions.
+anywhere else the page loads. All of them render [xterm.js](https://xtermjs.org), which handles a
+physical keyboard's modifiers correctly and has nothing to say about a soft one. The catch is that
+building a mobile-friendly accessory key row into a web page is real, separate engineering that
+most self-hosted setups skip, because the person setting it up is usually testing from a desktop.
+Without one, you're typing `Ctrl-b` by finding whatever workaround your mobile browser's virtual
+keyboard happens to support that day, which is inconsistent across iOS and Android and across
+browser versions. If you're weighing the two self-hosted options against each other,
+[ttyd vs wetty](/blog/ttyd-vs-wetty) is the narrower comparison; if the relay is what appeals,
+[tmate alternative](/blog/tmate-alternative) covers why its web link is read-only.
 
 ## Option 3: a purpose-built client
 
@@ -104,8 +112,9 @@ browser tab, the web terminal option in [tmux in a browser](/blog/tmux-in-browse
 new infrastructure. If the actual use case is checking on your own long-running sessions — agent
 runs, builds, deploys — from your phone specifically, and you'd rather not manage SSH keys on a
 device you might lose, that's the gap a purpose-built client closes. Setup details for that last
-option are in the [docs](/docs); how the device pairing and encryption work is on the
-[security page](/security).
+option are in the [docs](/docs) — the touch-specific behaviour, including the accessory row, is
+written up at [docs.mtmux.com/web-app/mobile](https://docs.mtmux.com/web-app/mobile) — and how the
+device pairing and encryption work is on the [security page](/security).
 
 <FAQ>
 <FAQItem q="How do I press Ctrl-b on an iPhone to use tmux?">

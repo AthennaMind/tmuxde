@@ -129,7 +129,7 @@ export async function CompareMatrix() {
               >
                 <TableHead
                   scope="row"
-                  className="whitespace-nowrap bg-transparent font-sans text-[0.9375rem] font-500 text-text-strong"
+                  className="whitespace-nowrap bg-transparent font-sans text-[1rem] font-500 text-text-strong"
                 >
                   {row.label}
                 </TableHead>
@@ -149,7 +149,7 @@ export async function CompareMatrix() {
       {/* The notification row is all dashes including our own column. Saying
           why, directly under the table, is what stops it reading as an
           oversight. */}
-      <p className="mt-6 max-w-[68ch] text-[0.875rem] leading-[1.75] text-text-faint">
+      <p className="mt-6 max-w-[68ch] text-[0.9375rem] leading-[1.75] text-text-faint">
         {t("note")}
       </p>
     </Section>

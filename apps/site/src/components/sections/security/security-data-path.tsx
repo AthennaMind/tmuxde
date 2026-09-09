@@ -30,13 +30,13 @@ export async function SecurityDataPath() {
               >
                 <p
                   className={cn(
-                    "mb-2 text-[0.9375rem]",
+                    "mb-2 text-[1rem]",
                     isRelay ? "text-signal-blocked" : "text-text-strong",
                   )}
                 >
                   {stage.title}
                 </p>
-                <p className="text-[0.8125rem] leading-[1.65] text-text-muted">
+                <p className="text-[0.875rem] leading-[1.65] text-text-muted">
                   {stage.description}
                 </p>
               </div>

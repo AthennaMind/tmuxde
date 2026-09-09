@@ -13,6 +13,15 @@
       "noSsh": "no SSH keys on your phone",
       "e2e": "end-to-end encrypted",
       "cellular": "works on cellular"
+    },
+    "terminal": {
+      "title": "mbp — mtmux",
+      "scan": "Scan to open your terminal",
+      "or": "or go to",
+      "code": "and enter",
+      "waiting": "Waiting for a device… ",
+      "caption": "exactly what mtmux prints when you run it — the code above is real, its pairing digits expired long ago",
+      "qrLabel": "QR code that opens app.mtmux.com and joins the session"
     }
   },
   "compat": {
@@ -42,11 +51,11 @@
       },
       "pair": {
         "title": "Run it",
-        "description": "It serves this machine's tmux and dials out to open a sealed tunnel, then prints a QR and a six-digit code. No config file, nothing to forward, no account."
+        "description": "It serves this machine's tmux and dials out to open a sealed tunnel, then prints a QR and a nine-digit code. No config file, nothing to forward, no account."
       },
       "attach": {
         "title": "You're attached",
-        "description": "<post>Real panes, real scrollback, real keys</post>. The four-digit half of the code never reaches our servers, and the browser is trusted from then on."
+        "description": "<post>Real panes, real scrollback, real keys</post>. The six-digit half of the code never reaches our servers, and the browser is trusted from then on."
       },
       "move": {
         "title": "Move around",
@@ -175,10 +184,16 @@
       {
         "name": "Pro",
         "note": "Unlimited servers & devices",
-        "features": ["200 GB/month relayed", "Name your machines"],
+        "features": [
+          "200 GB/month relayed",
+          "Name your machines"
+        ],
         "popular": true
       }
-    ]
+    ],
+    "tierCta": {
+      "pro": "What Pro adds"
+    }
   },
   "faq": {
     "eyebrow": "faq",

@@ -131,7 +131,7 @@ export async function PricingComparisonTable() {
               >
                 <TableHead
                   scope="row"
-                  className="whitespace-nowrap bg-transparent font-sans text-[0.9375rem] font-500 text-text-strong"
+                  className="whitespace-nowrap bg-transparent font-sans text-[1rem] font-500 text-text-strong"
                 >
                   {row.label}
                 </TableHead>
@@ -150,7 +150,7 @@ export async function PricingComparisonTable() {
           </TableBody>
         </Table>
       </div>
-      <p className="mt-6 max-w-[64ch] text-[0.875rem] leading-[1.75] text-text-faint">
+      <p className="mt-6 max-w-[64ch] text-[0.9375rem] leading-[1.75] text-text-faint">
         {t("note")}
       </p>
     </Section>

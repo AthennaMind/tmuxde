@@ -2,6 +2,7 @@
 title: "tmate alternative: for your own sessions, not pairing"
 description: "tmate is the best tool for sharing a terminal for ten minutes. This covers the different job: reaching your own sessions continuously, from your devices."
 date: "2026-07-07"
+updated: "2026-08-10"
 author: "team"
 category: "comparisons"
 tags: ["tmate", "comparisons", "sharing", "remote access"]
@@ -38,8 +39,9 @@ Anyone with the SSH link is typing in your terminal in the time it takes to past
 account for them to make, no inbound port on your machine, no reverse proxy to configure. That's
 the entire value proposition and it's a genuinely good one: for incident response, live teaching,
 and quick pairing, tmate removes every step between "I want to share this" and "someone else is
-looking at it." It's open source, self-hostable if you want your own relay instead of tmate's
-public one, and it has been the default answer to "how do I share a terminal" for a reason.
+looking at it." It's [open source](https://github.com/tmate-io/tmate), self-hostable if you want
+your own relay instead of [tmate's](https://tmate.io) public one, and it has been the default
+answer to "how do I share a terminal" for a reason.
 
 ## Where the job is different
 
@@ -71,6 +73,10 @@ whole thing up again each time you want to look.
     ["Purpose-built client (mtmux)", "your own sessions, continuously, from your devices", "yes — attaches to your tmux server", "touch-first, built for phone", "yes — attaches, doesn't fork", "free for 1 server + 3 devices, Pro $10/mo"],
   ]}
 />
+
+The middle row is really two tools with different authentication models, and picking between them
+is its own decision rather than a footnote to this one — [ttyd vs wetty](/blog/ttyd-vs-wetty)
+settles it on the flags that actually differ.
 
 ## The comparison in one line
 
@@ -105,7 +111,9 @@ should I use" is usually "depends what you're doing this afternoon," not a perma
 
 Full trade-offs for the wider set of options — SSH apps, VS Code Remote, browser clients — are on
 the [comparison page](/compare); the [security page](/security) covers how the end-to-end
-encryption and per-device revocation work for the continuous-access side of things.
+encryption and per-device revocation work for the continuous-access side of things, and
+[docs.mtmux.com/sharing](https://docs.mtmux.com/sharing) documents the read-only and expiring share
+links for the times you do want the tmate-shaped job done from a session you already have open.
 
 <FAQ>
 <FAQItem q="Is tmate secure?">

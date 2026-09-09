@@ -2,6 +2,7 @@
 title: "tmux on Windows: WSL2, Git Bash, and what actually works"
 description: "There is no native Windows build of tmux. WSL2 is the practical option; Git Bash and Cygwin exist but neither runs tmux well. Here is the real setup."
 date: "2026-06-24"
+updated: "2026-08-10"
 author: "nadia-okonkwo"
 category: "tmux"
 icon: "🪟"
@@ -42,7 +43,9 @@ whichever gaps that layer has.
 <Steps>
 <Step title="Install WSL2">
 From PowerShell (as administrator): `wsl --install`. This installs WSL2 and a default Ubuntu
-distribution. If you already have WSL1 distros, `wsl --set-version <distro> 2` upgrades them.
+distribution, as documented in
+[Microsoft's WSL install guide](https://learn.microsoft.com/en-us/windows/wsl/install). If you
+already have WSL1 distros, `wsl --set-version <distro> 2` upgrades them.
 </Step>
 <Step title="Install tmux inside the distro">
 Open the Ubuntu shell from the Start menu and run `sudo apt update && sudo apt install tmux`.
@@ -58,7 +61,10 @@ and doesn't clip colors.
 <Step title="Verify truecolor works">
 Run `tmux new`, then inside it `echo $COLORTERM` — it should print `truecolor` if Windows
 Terminal and your tmux config are both set up right. If it's empty, add
-`set -sa terminal-overrides ",*:RGB"` to `~/.tmux.conf`.
+`set -sa terminal-overrides ",*:RGB"` to `~/.tmux.conf`; the
+[tmux FAQ](https://github.com/tmux/tmux/wiki/FAQ) walks through the same 24-bit colour
+question for every other terminal too. This matters most if you edit inside tmux —
+[tmux and vim](/blog/tmux-vim) has the full terminfo and `terminal-features` setup.
 </Step>
 </Steps>
 
@@ -73,8 +79,9 @@ are unreliable. `wsl --set-version <distro> 2` upgrades an existing distro in pl
 ## Clipboard interop: the actual friction point
 
 Copying from tmux's copy mode doesn't reach the Windows clipboard by default — WSL2's Linux
-environment and Windows are still two separate clipboards until you wire them together. Two
-tools do it:
+environment and Windows are still two separate clipboards until you wire them together. This is
+the Windows version of a problem every platform has; [tmux on Mac](/blog/tmux-on-mac) covers the
+`pbcopy` side of it. Two tools do it here:
 
 <CompareTable
   columns={["Tool", "Direction", "Notes"]}
@@ -146,11 +153,20 @@ choose if WSL2 were available. Treat both as a fallback, not a destination.
 
 If you're running long jobs inside a WSL2 tmux session and want to check on them from your
 phone, the normal answer is SSH into the box and `tmux attach` — see
-[tmux attach session](/blog/tmux-attach-session). Once tmux itself is running, the rest of your
-workflow — [tmux commands](/blog/tmux-commands), windows, panes, copy mode — is identical to any
-other Linux box. If you'd rather open the session in a browser than arrange port forwarding into
-WSL2 first, that's what mtmux does — it runs inside WSL2 like anything else and serves the
-session out to whatever device you're holding.
+[tmux attach session](/blog/tmux-attach-session) for the mechanics, and
+[tmux from your phone](/blog/tmux-from-phone) for what a 40-column SSH client actually does to a
+pane layout. Once tmux itself is running, the rest of your workflow —
+[tmux commands](/blog/tmux-commands), windows, panes, copy mode — is identical to any other Linux
+box; the same applies to [tmux over SSH](/blog/tmux-ssh), which behaves no differently because the
+far end happens to be WSL2. If you'd rather open the session in a browser than arrange port
+forwarding into WSL2 first, that's what mtmux does — it runs inside WSL2 like anything else and
+serves the session out to whatever device you're holding
+([what it does](/docs), [reference docs](https://docs.mtmux.com/getting-started)).
+
+Worth being clear about what that does and doesn't get you: nothing pages you when a WSL2 build
+finishes. There is no push, no email, no Windows toast — you open the session and look at it,
+the same way you would by reattaching over SSH. The only thing that changes is what you need in
+your hand to do the looking.
 
 <FAQ>
 <FAQItem q="Can I install tmux directly on Windows without WSL?">

@@ -101,11 +101,21 @@ Available token families:
 - **Terminal syntax** — `term-prompt`, `term-path`, `term-value`, `term-comment`,
   `term-keyword`, `term-flag`, `term-added`, `term-removed`
 
-The site ships **dark-only**. There is no theme toggle and no light scheme — tokens are defined
-once in `:root`. `<html>` carries a fixed `dark` class purely so shadcn's own `dark:` variants
-still resolve; do not add `dark:` variants to hand-written components.
+**Both schemes ship.** Light values live in `:root`, dark values in `.dark`, and every token
+name exists in both — so a component still never needs a `dark:` variant. `<html>` is served
+with `class="dark"` (the canonical look) and the pre-paint script in `src/lib/theme.ts` swaps it
+before first paint for anyone who chose light or whose OS asks for it; `ThemeToggle` cycles
+system → light → dark. Writing a `dark:` variant in a hand-written component is still a bug: if
+a value differs per scheme, it belongs in the token, not the markup.
 
-Retheming the entire site = editing the `:root` block in `globals.css`.
+Two things are deliberately scheme-independent, both defined once in "Layer 1a":
+
+- **Terminal illustrations.** A terminal is dark everywhere in a developer's life, and ANSI
+  colours picked against black are unreadable on paper. Any subtree that draws one carries
+  `terminal-scope`, which remaps the surface/line/text tokens onto the fixed `--t-*` palette.
+- **`term-*` syntax colours**, for the same reason.
+
+Retheming the entire site = editing the `:root` and `.dark` blocks in `globals.css`.
 
 ### 2. Fonts are variables, not imports
 

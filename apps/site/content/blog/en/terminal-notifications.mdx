@@ -1,0 +1,200 @@
+---
+title: "Terminal notifications: Warp, iTerm2, Ghostty and tmux"
+description: "How Warp, iTerm2, Ghostty and Windows Terminal raise notifications for coding agents — and why tmux swallows OSC 9 until you allow passthrough."
+date: "2026-08-10"
+author: "ivo-hart"
+category: "agents"
+icon: "🖥️"
+tags: ["notifications", "agents", "claude code", "workflow"]
+keywords:
+  - "warp claude code notifications"
+  - "terminal notifications"
+  - "iterm2 notification escape sequence"
+  - "ghostty desktop notification"
+  - "tmux osc 9 not working"
+featured: false
+draft: false
+---
+
+Your terminal emulator can raise a desktop notification without any agent configuration at all —
+Warp does it natively for supported coding agents, and iTerm2 and Ghostty do it when a program
+writes an OSC 9 escape sequence. The catch is a multiplexer: tmux does not forward arbitrary
+escape sequences to the outer terminal, so a notification that works standalone goes silent the
+moment you run the same command inside tmux. That is the single most common "it worked yesterday"
+report in this whole area, and the fix is one pane option.
+
+## How does Warp notify you when a coding agent finishes?
+
+Warp is the only terminal in this list that understands agents rather than escape sequences. Its
+[agent notifications](https://docs.warp.dev/agent-platform/capabilities/agent-notifications/)
+feature classifies events into three kinds — **Complete** when the agent finishes successfully,
+**Request** when it is blocked and needs your input, and **Error** — and delivers each as a real
+desktop notification.
+
+Support is per-agent and not uniform, which is the part worth checking before you rely on it:
+
+<CompareTable
+  columns={["Agent", "How Warp learns about it"]}
+  rows={[
+    ["Warp Agent", "built in, no setup"],
+    ["Claude Code", "a notification plugin you install"],
+    ["Codex", "native Codex config — notification_condition = \"always\""],
+    ["OpenCode", "a notification plugin you install"],
+  ]}
+/>
+
+Warp separately notifies on long-running plain commands. That behaviour is on by default with a
+30-second threshold, and both the toggle and the threshold live under Settings → Features. If you
+find yourself getting a toast for every `npm install`, that is the setting, not the agent
+integration.
+
+Gemini CLI is not on Warp's supported list at the time of writing. It has its own built-in
+notifications instead, which take the escape-sequence route described below.
+
+## How do iTerm2 and Ghostty raise a notification?
+
+Through OSC 9 — an escape sequence a program writes to its own output, which the terminal
+intercepts and turns into a system notification. There is no configuration on the program side at
+all; it is one `printf`.
+
+```bash title="post a notification from any program"
+printf '\033]9;Build finished\007'
+```
+
+[iTerm2 documents this](https://iterm2.com/documentation-escape-codes.html) as
+`OSC 9 ; message ST`, and Ghostty implements the same sequence. Ghostty's
+[OSC 9 reference](https://ghostty.org/docs/vt/osc/9) adds one caveat that bites in practice: the
+message must not begin with a number followed by a semicolon, because ConEmu historically used OSC
+9 for progress reporting and a leading `4;` will be read as that instead of as text.
+
+Ghostty and WezTerm also accept OSC 777, the sequence rxvt-unicode introduced, which carries a
+separate title and body. Kitty uses its own OSC 99. If you want one command that works everywhere,
+OSC 9 is the widest common denominator; if you want a title *and* a body on Ghostty, use OSC 777.
+
+This is the mechanism Codex CLI's `tui.notifications` uses, and the mechanism Gemini CLI's
+`general.enableNotifications` uses, both falling back to a plain bell where the terminal cannot do
+better. It is why those two tools' notifications are so sensitive to what is between the process
+and the window — see
+[the agent-by-agent breakdown](/blog/coding-agent-notifications) for which tool signals what.
+
+## What does Windows Terminal do?
+
+Windows Terminal does not act on OSC 9. What it acts on is the plain terminal bell, and it has a
+[`bellStyle` profile setting](https://learn.microsoft.com/en-us/windows/terminal/customize-settings/profile-advanced)
+that decides what a bell means: `audible` (the default) plays a sound, `window` flashes the window,
+`taskbar` flashes the taskbar icon, `all` does both, and `none` disables it. There is a companion
+`bellSound` setting for choosing the audio file.
+
+Practically, that means a Windows setup should target the bell rather than an escape sequence —
+`printf '\a'` from the agent, `bellStyle` set to `all` so it survives you being in another window.
+If you would rather have a specific tone than whatever the bell resolves to, calling `powershell.exe`
+to [play a sound file directly](/blog/claude-code-sound-when-done) skips the bell entirely, and the
+[Windows-specific tmux terrain](/blog/tmux-on-windows) covers the rest of that stack.
+
+## Why do terminal notifications stop working inside tmux?
+
+Because tmux is the terminal now. The agent writes OSC 9 to its pty; tmux reads it, does not
+recognise it as something it should act on or relay, and drops it. Nothing errors. The outer
+terminal never sees it.
+
+tmux ships a deliberate escape hatch: the `allow-passthrough` pane option, added in tmux 3.3, which
+lets a program wrap a sequence in a DCS envelope that tmux forwards verbatim. The manual describes
+it as allowing "programs in the pane to bypass tmux using a terminal escape sequence".
+
+```bash title="~/.tmux.conf"
+set -g allow-passthrough all
+```
+
+The value matters more than the fact that it is on. With `on`, "passthrough sequences will be
+allowed only if the pane is visible" — so an agent running in a background window, which is
+precisely the case you wanted a notification for, is silently dropped anyway. `all` allows them
+even when the pane is invisible. Setting `on` and concluding that passthrough does not work is a
+very easy afternoon to lose.
+
+The wrapping itself has one rule people get wrong: **every escape character inside the payload must
+be doubled.**
+
+```bash title="~/bin/notify-osc9"
+#!/usr/bin/env bash
+# OSC 9 notification that survives tmux.
+seq=$(printf '\033]9;%s\007' "$1")
+if [ -n "${TMUX:-}" ]; then
+  printf '\033Ptmux;%s\033\\' "${seq//$'\033'/$'\033\033'}"
+else
+  printf '%s' "$seq"
+fi
+```
+
+<Callout type="warning" title="Passthrough needs tmux 3.3 or newer">
+`allow-passthrough` does not exist before 3.3 — check with `tmux -V`. On an older tmux the option
+is not ignored: setting it returns `invalid option: allow-passthrough` and exits non-zero, so a
+`.tmux.conf` you share across machines will fail to load cleanly on the one running 3.2.
+</Callout>
+
+There is a second route that avoids passthrough entirely: write the sequence to the attached
+client's terminal instead of to the pane. `tmux display-message -p '#{client_tty}'` gives you that
+device, and a `printf` redirected there reaches the outer terminal without tmux parsing it. It only
+works while a client is attached, which makes it the wrong choice for a detached session and a
+perfectly good one otherwise.
+
+If you would rather not fight this at all, let tmux raise the notification instead of relaying one
+— its own activity, bell and silence alerts run a shell command directly and never touch an escape
+sequence. [tmux notifications](/blog/tmux-notifications) is that approach end to end.
+
+## Which layer should own the notification?
+
+One of them, not several. The failure mode here is not missing notifications, it is three of them
+for the same event, followed by muting the channel.
+
+<CompareTable
+  columns={["Own it at...", "When that is right", "What you give up"]}
+  rows={[
+    ["the terminal emulator", "one machine, one terminal, zero config wanted", "breaks under tmux and over SSH"],
+    ["tmux", "many panes, mixed tools, detached sessions", "no semantic detail — it sees bytes"],
+    ["the agent's own hook", "you want the result in the message", "one config per tool, per machine"],
+  ]}
+/>
+
+The terminal layer is the cheapest and the most fragile. It is genuinely the right answer if you
+run one agent in one Warp window on one laptop. Add a multiplexer, a second machine, or SSH, and
+the assumptions it rests on stop holding — which is why the escalation ladder in
+[Claude Code notifications](/blog/claude-code-notifications) puts the hook layer above it, and why
+[Codex CLI's notify hook](/blog/codex-cli-notifications) is worth configuring even though its TUI
+notifications already work locally.
+
+And every layer here shares one ceiling: it can reach the machine you are sitting at, and no
+further. A notification that lands on a laptop you left at the office is a notification nobody
+receives. mtmux is the piece that covers the other side — it serves the tmux session your agent is
+running in to a browser over an end-to-end encrypted tunnel, so the pane is readable from whatever
+device did get the alert. [How that works for agents](/agents) is the overview, and
+[the troubleshooting guide](https://docs.mtmux.com/docs/troubleshooting) is where to go when the
+connection is the thing misbehaving.
+
+<FAQ>
+<FAQItem q="Why do Claude Code notifications not appear in Warp?">
+Warp's agent notifications need a notification plugin installed for Claude Code — unlike Warp's own
+agent, it is not detected automatically. Check Settings → Features to confirm agent notifications
+are enabled, then install the plugin Warp's agent-notifications documentation points at.
+</FAQItem>
+<FAQItem q="Why does OSC 9 not work inside tmux?">
+tmux reads the sequence from the pane and does not forward it to the outer terminal. Set
+`allow-passthrough all` in your tmux config and wrap the sequence in a DCS envelope
+(`\033Ptmux;...\033\\`) with every escape character inside it doubled. Note that the `on` value
+only passes sequences through for panes that are currently visible.
+</FAQItem>
+<FAQItem q="Does Windows Terminal support OSC 9 notifications?">
+No. Windows Terminal responds to the terminal bell instead, through its `bellStyle` profile
+setting — `audible`, `window`, `taskbar`, `all` or `none`. Target the bell rather than an escape
+sequence on Windows.
+</FAQItem>
+<FAQItem q="What is the difference between OSC 9 and OSC 777?">
+OSC 9 carries a single message and is the widest supported — iTerm2, Ghostty and WezTerm all act on
+it. OSC 777 originated in rxvt-unicode and carries a separate title and body; Ghostty and WezTerm
+support it, others generally do not. Kitty implements a third scheme, OSC 99.
+</FAQItem>
+<FAQItem q="Do terminal notifications work over SSH?">
+Yes, and that is their main advantage over playing a sound: the escape sequence travels back over
+the connection and is rendered by the terminal in front of you, not on the remote host. Add tmux at
+the remote end and you need the passthrough configuration above for it to keep working.
+</FAQItem>
+</FAQ>

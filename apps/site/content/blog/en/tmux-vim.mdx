@@ -2,6 +2,7 @@
 title: "tmux and vim: seamless splits, fast Escape, copy-paste"
 description: "vim-tmux-navigator crosses Ctrl-h/j/k/l between vim splits and tmux panes; escape-time 10 fixes Neovim's laggy Escape key. Config for both."
 date: "2026-07-24"
+updated: "2026-08-10"
 author: "nadia-okonkwo"
 category: "tmux"
 tags: ["tmux", "cli", "workflow"]
@@ -25,7 +26,8 @@ on top of the core bindings in [tmux commands](/blog/tmux-commands).
 
 Without this plugin, moving out of a vim split and into the next tmux pane means two different
 key sequences depending on which side of the boundary you're on — `Ctrl-w` plus a direction
-inside vim, `prefix` plus a direction outside it. vim-tmux-navigator collapses that into one
+inside vim, `prefix` plus a direction outside it.
+[vim-tmux-navigator](https://github.com/christoomey/vim-tmux-navigator) collapses that into one
 consistent set of keys on both sides.
 
 <KeyRow keys={["C-h", "C-j", "C-k", "C-l"]} active="C-h" />
@@ -82,8 +84,9 @@ crossing into tmux. Both halves are required.
 
 tmux waits up to `escape-time` milliseconds after receiving an Escape byte before deciding it was
 a standalone Escape key and not the start of a longer key sequence (like an arrow key, which also
-starts with Escape). The default is 500ms, which is fine for shells but noticeable and annoying
-inside an editor — pressing Escape to leave insert mode in Neovim has a visible half-second
+starts with Escape). `escape-time` is a server option, described alongside every other one in the
+[tmux man page](https://man7.org/linux/man-pages/man1/tmux.1.html). The default is 500ms, which is
+fine for shells but noticeable and annoying inside an editor — pressing Escape to leave insert mode in Neovim has a visible half-second
 hesitation before it registers.
 
 ```bash title="~/.tmux.conf"
@@ -112,7 +115,8 @@ set -as terminal-features ",*:RGB"
 ```
 
 `tmux-256color` is tmux's own terminfo entry, the current recommendation over the older
-`screen-256color`. The `terminal-features` line is the tmux 3.2+ way of asserting RGB support —
+`screen-256color`; the [tmux FAQ](https://github.com/tmux/tmux/wiki/FAQ) is the reference for
+this and for the terminfo problems that follow from getting it wrong. The `terminal-features` line is the tmux 3.2+ way of asserting RGB support —
 the `*` matches any terminal name, which is the safe default if you're not sure what `$TERM`
 your terminal reports; narrow it to your actual terminal (`xterm*`, `alacritty*`) if you want to
 be more specific.
@@ -168,16 +172,20 @@ session — running a quick command, checking git status, tailing a log while yo
 What it doesn't give you is persistence: a `:terminal` buffer dies with the Neovim process. If
 you close Neovim, lose your SSH connection, or your laptop sleeps, whatever was running in that
 terminal split is gone. tmux's actual job — sessions that survive you disconnecting, covered in
-[tmux ssh](/blog/tmux-ssh) — is still the reason to keep it around for anything long-running or
-remote. If your Neovim session and your shell are always local and never need to survive the
+[tmux ssh](/blog/tmux-ssh), and picking them back up afterwards, covered in
+[tmux attach session](/blog/tmux-attach-session) — is still the reason to keep it around for
+anything long-running or remote. If your Neovim session and your shell are always local and never need to survive the
 editor closing, you can reasonably skip tmux and just use `:terminal`. The moment you're SSHing
 into a remote box to edit and run things, tmux earns its place back.
 
 None of the above changes if you need to check on that remote Neovim-in-tmux session from
-somewhere without a terminal handy — a phone, someone else's machine. That's the specific case
-mtmux (`npm i -g mtmux`) covers: it serves the same tmux session to a browser tab, unchanged,
-so a long-running build or test watched from inside Neovim is still visible without SSHing back
-in just to look.
+somewhere without a terminal handy — a phone, someone else's machine. That general problem is
+[tmux in the browser](/blog/tmux-in-browser); the specific case mtmux (`npm i -g mtmux`) covers is
+serving the same tmux session to a browser tab, unchanged, so a long-running build or test watched
+from inside Neovim is still visible without SSHing back in just to look. Whether a modal editor
+survives that trip is a fair question — the [terminal docs](https://docs.mtmux.com/web-app/terminal)
+cover key handling and truecolor in the browser, and [what it does](/use-cases) covers the rest.
+Nothing announces itself when the test run ends; you open the tab and read the pane.
 
 <FAQ>
 <FAQItem q="How do I move between vim and tmux panes with the same keys?">

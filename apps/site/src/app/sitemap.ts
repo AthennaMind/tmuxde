@@ -3,12 +3,12 @@ import type { MetadataRoute } from "next";
 import { staticRoutes } from "@/config/site";
 import { locales } from "@/i18n/locales";
 import { absoluteUrl, languageAlternates } from "@/lib/seo";
-import { getAllPosts, getAllTags, tagSlug } from "@/lib/blog";
-
-// Stamped once per build so every static-route entry shares one timestamp,
-// instead of a fresh `new Date()` (and therefore a full sitemap diff) on
-// every request.
-const BUILD_TIME = new Date();
+import {
+  getAllPosts,
+  getAllTags,
+  TAG_INDEX_MIN_POSTS,
+  tagSlug,
+} from "@/lib/blog";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [];
@@ -16,11 +16,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // One entry per static route per locale. `alternates.languages` is what
   // makes Next render the `xhtml:link` hreflang annotations inside
   // <url> — the single most commonly botched part of a multilingual sitemap.
+  //
+  // Deliberately no `lastModified`: these used to carry the build timestamp,
+  // which claimed /privacy and /terms — declared `yearly` two lines down —
+  // changed on every deploy. Google drops `lastmod` for a whole site once it
+  // catches it lying, so the honest move is to omit what we cannot source.
+  // The blog and tag entries below have real dates and keep theirs.
   for (const route of staticRoutes) {
     for (const locale of locales) {
       entries.push({
         url: absoluteUrl(locale.code, route.href),
-        lastModified: BUILD_TIME,
         changeFrequency: route.changeFrequency,
         priority: route.priority,
         alternates: { languages: languageAlternates(route.href) },
@@ -47,13 +52,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   // Tag pages, per locale — freshness follows the newest post carrying the tag.
+  // Only the tags substantial enough to be indexed are submitted; the thin ones
+  // still render and are still linked from every post, they are simply not
+  // volunteered. A sitemap listing pages we ask robots not to index is a
+  // contradiction, and Search Console reports it as one.
   for (const locale of locales) {
     const [tags, posts] = await Promise.all([
       getAllTags(locale.code),
       getAllPosts(locale.code),
     ]);
 
-    for (const { tag } of tags) {
+    for (const { tag, count } of tags) {
+      if (count < TAG_INDEX_MIN_POSTS) continue;
+
       const slug = tagSlug(tag);
       const path = `/blog/tag/${slug}`;
       const newestDate = posts
@@ -67,7 +78,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
       entries.push({
         url: absoluteUrl(locale.code, path),
-        lastModified: newestDate ? new Date(newestDate) : BUILD_TIME,
+        // A tag only exists because a post carries it, so `newestDate` is
+        // always set in practice; the spread just refuses to invent one.
+        ...(newestDate ? { lastModified: new Date(newestDate) } : {}),
         changeFrequency: "weekly",
         priority: 0.4,
         alternates: { languages: languageAlternates(path) },

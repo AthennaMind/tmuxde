@@ -21,5 +21,12 @@
     "title": "Something broke",
     "description": "An unexpected error occurred while rendering this page.",
     "retry": "Try again"
+  },
+  "theme": {
+    "cycle": "Switch theme (currently {current})",
+    "system": "System theme",
+    "light": "Light theme",
+    "dark": "Dark theme",
+    "label": "Theme"
   }
 }

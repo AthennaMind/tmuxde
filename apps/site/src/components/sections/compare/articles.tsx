@@ -28,11 +28,11 @@ export async function CompareArticles() {
             id={item.id}
             className="scroll-mt-24 rounded-xl border border-line-subtle bg-surface-base p-6"
           >
-            <h2 className="text-[1.3125rem] leading-[1.12]">{item.title}</h2>
+            <h2 className="text-[1.375rem] leading-[1.12]">{item.title}</h2>
             {item.paragraphs.map((paragraph) => (
               <p
                 key={paragraph}
-                className="mt-3.5 text-[0.90625rem] leading-[1.75] text-text-muted"
+                className="mt-3.5 text-[1rem] leading-[1.75] text-text-muted"
               >
                 {paragraph}
               </p>

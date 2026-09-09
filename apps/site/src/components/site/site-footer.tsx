@@ -22,7 +22,7 @@ export async function SiteFooter() {
         <div className="max-w-72">
           <Link href="/" className="inline-flex items-center gap-2.5">
             <LogoMark />
-            <span className="font-display text-[1.0625rem] font-600 tracking-[-0.04em] text-text-strong">
+            <span className="font-display text-[1.125rem] font-600 tracking-[-0.04em] text-text-strong">
               mtmux
             </span>
           </Link>
@@ -31,7 +31,7 @@ export async function SiteFooter() {
           </p>
           {/* Was a glowing "relay operational" light, which implied a status
               page we do not run. A version and a licence are both checkable. */}
-          <p className="mt-5 inline-flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 font-mono text-[0.8125rem] text-text-muted">
+          <p className="mt-5 inline-flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 font-mono text-[0.875rem] text-text-muted">
             <span className="text-text-strong">v{siteConfig.version}</span>
             <span aria-hidden="true" className="text-text-faint">
               ·
@@ -78,10 +78,10 @@ export async function SiteFooter() {
       </div>
 
       <div className="container-content flex flex-wrap items-center justify-between gap-3 border-t border-line-subtle py-6">
-        <p className="text-[0.8125rem] text-text-faint">
+        <p className="text-[0.875rem] text-text-faint">
           {t("copyright", { year })}
         </p>
-        <p className="font-mono text-[0.8125rem] text-text-faint">
+        <p className="font-mono text-[0.875rem] text-text-faint">
           v{siteConfig.version} · {siteConfig.requirements}
         </p>
       </div>

@@ -4,10 +4,22 @@ import type { ReactNode } from "react";
 import { Cmd } from "@/components/primitives/cards";
 import { Eyebrow } from "@/components/primitives/section";
 import { Line, Prompt, TerminalWindow } from "@/components/primitives/terminal";
+import { inlineLink } from "@/lib/rich-links";
 import { cn } from "@/lib/utils";
 
 const richHandlers = {
   code: (chunks: ReactNode) => <Cmd>{chunks}</Cmd>,
+};
+
+/**
+ * The two scenarios whose copy carries a `<post>` tag, keyed by scenario.
+ *
+ * The hrefs are literal strings here so `src/lib/link-graph.ts` can read the
+ * `/use-cases` → post edge out of this file at build time.
+ */
+const POST_LINKS: Partial<Record<string, (chunks: ReactNode) => ReactNode>> = {
+  unattendedAgents: inlineLink("/blog/stop-babysitting-coding-agents"),
+  commuting: inlineLink("/blog/tmux-from-phone"),
 };
 
 /**
@@ -62,6 +74,10 @@ export async function UseCasesScenarios() {
       {SCENARIO_KEYS.map((key) => {
         const scenario = t.raw(`scenarios.${key}`) as Scenario;
         const isLead = key === "unattendedAgents";
+        const postLink = POST_LINKS[key];
+        const handlers = postLink
+          ? { ...richHandlers, post: postLink }
+          : richHandlers;
 
         return (
           <article
@@ -72,7 +88,7 @@ export async function UseCasesScenarios() {
             )}
           >
             <div className="mb-4 flex items-baseline gap-2.5">
-              <span className="font-mono text-[0.75rem] text-text-faint">
+              <span className="font-mono text-[0.8125rem] text-text-faint">
                 {scenario.index}
               </span>
               <Eyebrow className="mb-0">{scenario.eyebrow}</Eyebrow>
@@ -81,17 +97,17 @@ export async function UseCasesScenarios() {
               className={cn(
                 "leading-[1.12] text-text-strong",
                 isLead
-                  ? "text-[clamp(1.375rem,2.6vw,1.8125rem)]"
-                  : "text-[1.1875rem]",
+                  ? "text-[clamp(1.5rem,2.8vw,1.9375rem)]"
+                  : "text-[1.25rem]",
               )}
             >
               {scenario.title}
             </h2>
-            <p className="mt-3 text-[0.9375rem] leading-[1.75] text-text-muted">
-              {t.rich(`scenarios.${key}.body1`, richHandlers)}
+            <p className="mt-3 text-[1rem] leading-[1.75] text-text-muted">
+              {t.rich(`scenarios.${key}.body1`, handlers)}
             </p>
-            <p className="mt-2.5 text-[0.9375rem] leading-[1.75] text-text-subtle">
-              {t.rich(`scenarios.${key}.body2`, richHandlers)}
+            <p className="mt-2.5 text-[1rem] leading-[1.75] text-text-subtle">
+              {t.rich(`scenarios.${key}.body2`, handlers)}
             </p>
 
             {scenario.terminal ? (

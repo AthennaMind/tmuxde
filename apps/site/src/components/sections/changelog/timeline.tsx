@@ -60,7 +60,7 @@ export async function ChangelogTimeline() {
               <a
                 href={`#${release.id}`}
                 className={cn(
-                  "rounded-md px-2.5 py-1 font-mono text-[0.8125rem] font-700 no-underline",
+                  "rounded-md px-2.5 py-1 font-mono text-[0.875rem] font-700 no-underline",
                   release.current
                     ? "bg-brand text-brand-contrast"
                     : "border border-line-strong bg-surface-panel text-text",
@@ -68,7 +68,7 @@ export async function ChangelogTimeline() {
               >
                 {release.version}
               </a>
-              <span className="font-mono text-[0.8125rem] text-text-faint">
+              <span className="font-mono text-[0.875rem] text-text-faint">
                 {release.date}
                 {release.current ? ` · ${t("current")}` : null}
                 {release.unreleased ? ` · ${t("unreleased")}` : null}
@@ -76,12 +76,12 @@ export async function ChangelogTimeline() {
               </span>
             </div>
 
-            <div className="grid gap-2.5 text-[0.9063rem] leading-[1.75] text-text-muted">
+            <div className="grid gap-2.5 text-[1rem] leading-[1.75] text-text-muted">
               {release.entries.map((entry, index) => (
                 <div key={index} className="flex gap-3">
                   <span
                     className={cn(
-                      "shrink-0 basis-11 font-mono text-[0.8125rem]",
+                      "shrink-0 basis-11 font-mono text-[0.875rem]",
                       TYPE_TOKEN[entry.type],
                     )}
                   >
@@ -99,7 +99,7 @@ export async function ChangelogTimeline() {
           </article>
         ))}
 
-        <div className="rounded-xl border border-line bg-surface-raised p-5 text-[0.9063rem] leading-[1.75] text-text-muted">
+        <div className="rounded-xl border border-line bg-surface-raised p-5 text-[1rem] leading-[1.75] text-text-muted">
           {t.rich("subscribe", {
             ...cmdHandler,
             ghLink: (chunks) => (

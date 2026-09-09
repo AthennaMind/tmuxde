@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { CopyInstall } from "@/components/site/copy-install";
 import { Logo } from "@/components/site/logo";
+import { ThemeToggle } from "@/components/site/theme-toggle";
 import {
   Sheet,
   SheetContent,
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils";
 export function MobileNav() {
   const t = useTranslations("nav");
   const tFooter = useTranslations("footer");
+  const tCommon = useTranslations("common");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -36,7 +38,7 @@ export function MobileNav() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         aria-label={t("openMenu")}
-        className="grid size-8 place-items-center rounded-lg border border-line bg-surface-panel text-text-subtle transition-colors hover:border-line-strong hover:text-text-strong md:hidden"
+        className="grid size-9 place-items-center rounded-lg border border-line bg-surface-raised text-text-subtle transition-colors hover:border-line-strong hover:bg-surface-panel hover:text-text-strong md:hidden"
       >
         <Menu aria-hidden="true" className="size-4" />
       </SheetTrigger>
@@ -64,6 +66,34 @@ export function MobileNav() {
               </Link>
             );
           })}
+          {/* Above GitHub, because these two are the product and that one is
+              the source. Sign-in is spelled out here rather than folded into
+              "open app": the drawer is where there is room to be explicit, and
+              it is the only header surface below `sm`. */}
+          <a
+            href={siteConfig.appUrl}
+            rel="noreferrer noopener"
+            target="_blank"
+            className="flex items-center justify-between border-b border-line-subtle px-1 py-3.5 text-base text-text-muted transition-colors hover:text-text-strong"
+          >
+            {t("openApp")}
+            <ArrowUpRight
+              aria-hidden="true"
+              className="size-4 text-text-faint"
+            />
+          </a>
+          <a
+            href={siteConfig.appSignIn}
+            rel="noreferrer noopener"
+            target="_blank"
+            className="flex items-center justify-between border-b border-line-subtle px-1 py-3.5 text-base text-text-muted transition-colors hover:text-text-strong"
+          >
+            {t("signIn")}
+            <ArrowUpRight
+              aria-hidden="true"
+              className="size-4 text-text-faint"
+            />
+          </a>
           <a
             href={siteConfig.social.github}
             rel="noreferrer noopener"
@@ -78,8 +108,16 @@ export function MobileNav() {
           </a>
         </nav>
 
-        <div className="mt-auto p-4">
+        {/* The only theme control below `sm`, so it is spelled out rather than
+            left as a bare glyph in a row of links. */}
+        <div className="mt-auto grid gap-3 p-4">
           <CopyInstall className="w-full justify-center" />
+          <div className="flex items-center justify-between rounded-lg border border-line-subtle px-3 py-2">
+            <span className="text-[0.9375rem] text-text-muted">
+              {tCommon("theme.label")}
+            </span>
+            <ThemeToggle />
+          </div>
         </div>
       </SheetContent>
     </Sheet>

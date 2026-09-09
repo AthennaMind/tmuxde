@@ -41,6 +41,16 @@ export const PLANS: Record<PlanId, Plan> = {
   },
 };
 
+/**
+ * Length of the free Pro trial, in days.
+ *
+ * Mirrors `TRIAL_DAYS` in `packages/config/src/plans.ts`, which is what
+ * `withTrial()` actually enforces. The trial is not a button: it begins by
+ * itself the first time a Free account is refused something Pro would allow,
+ * and it never asks for a card. Copy has to describe it that way.
+ */
+export const TRIAL_DAYS = 7;
+
 export const PRICING = {
   pro: {
     monthlyUsd: 10,

@@ -21,18 +21,23 @@ export async function CompatStrip() {
     <Section
       tone="raised"
       className="border-b border-line-subtle"
-      innerClassName="py-5"
+      innerClassName="py-6"
     >
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-3.5">
+      <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3.5">
         <h2 className="eyebrow text-text-faint">{t("label")}</h2>
-        <ul className="flex list-none flex-wrap gap-x-5.5 gap-y-2.5 font-mono text-[0.90625rem] text-text-subtle">
+        <ul className="flex list-none flex-wrap gap-2 font-mono text-[0.9375rem] text-text-subtle">
           {items.map((item) => (
-            <li key={item}>{item}</li>
+            <li
+              key={item}
+              className="rounded-md border border-line-subtle bg-surface-base px-2.5 py-1"
+            >
+              {item}
+            </li>
           ))}
         </ul>
         <Link
           href="/blog/tmux-tutorial"
-          className="text-[0.8125rem] text-text-faint underline decoration-line-strong underline-offset-4 transition-colors hover:text-brand hover:decoration-brand"
+          className="text-[0.875rem] text-text-faint underline decoration-line-strong underline-offset-4 transition-colors hover:text-brand hover:decoration-brand"
         >
           {t("moreLink")} →
         </Link>

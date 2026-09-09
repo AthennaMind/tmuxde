@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "When you need tmux from a phone — 6 real scenarios",
-    "description": "Six real situations for reaching tmux from a phone: unattended agents, on-call triage, commutes, travelling without a laptop, long jobs and a machine behind NAT."
+    "description": "Six real reasons to reach tmux from a phone: unattended agents, on-call triage, commutes, travelling without a laptop, long jobs and a machine behind NAT."
   },
   "breadcrumb": {
     "home": "Home",
@@ -17,7 +17,7 @@
       "index": "01",
       "eyebrow": "unattended agents",
       "title": "A 40-minute refactor you didn't watch",
-      "body1": "Agents don't fail loudly. They finish quietly, or wait forever on a permission dialog you'd have answered in a second.",
+      "body1": "<post>Agents don't fail loudly</post>. They finish quietly, or wait forever on a permission dialog you'd have answered in a second.",
       "body2": "So look at the pane. Open the session on your phone, read what the agent actually printed, and tap <code>y</code> — it is the same pty your laptop was attached to, so nothing is lost in translation.",
       "terminal": {
         "title": "iphone — work:1",
@@ -43,7 +43,7 @@
       "index": "03",
       "eyebrow": "commuting",
       "title": "Twenty minutes of real progress",
-      "body1": "Read the diff the agent produced, kick off the next task, watch a test run, fix a config line.",
+      "body1": "Read the diff the agent produced, kick off the next task, watch a test run, fix a config line — <post>all of it from a phone</post>.",
       "body2": "The client reconnects on its own, so going through a tunnel costs you a moment rather than the session."
     },
     "travellingLight": {

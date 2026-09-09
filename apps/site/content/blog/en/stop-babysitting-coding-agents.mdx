@@ -2,6 +2,7 @@
 title: "Stop babysitting your AI coding agent"
 description: "A long agent run ends in four distinct ways and only one is success — why exit codes can't tell them apart, and what reading the pane gets you instead."
 date: "2026-06-23"
+updated: "2026-08-10"
 author: "nadia-okonkwo"
 category: "agents"
 icon: "🍼"
@@ -90,7 +91,10 @@ is actually doing:
 - **Blocked** is a known prompt pattern on screen — `(y/n)`, "Allow command?", "approve" — paired
   with no new output since it appeared.
 - **Stalled** is silence: no new bytes written to the pane for longer than the run's own normal
-  cadence, with no exit and no matched prompt.
+  cadence, with no exit and no matched prompt. tmux already implements exactly this check —
+  `monitor-silence` raises an alert when a window produces nothing for N seconds, and
+  `set-hook -g alert-silence` gives you somewhere to hang a command; both are in the
+  [tmux manual](https://man7.org/linux/man-pages/man1/tmux.1.html).
 - **Failed** is a non-zero exit, a pane whose process died, or output matching a known error
   signature before anything exited.
 
@@ -98,7 +102,10 @@ That's the logic behind the hook and polling approaches in
 [Claude Code notifications](/blog/claude-code-notifications) and
 [Codex CLI notifications](/blog/codex-cli-notifications) — both tools give you partial coverage
 of this natively, and both leave gaps you have to fill by watching the pane's actual text, not
-just its exit status.
+just its exit status. [Coding agent notifications](/blog/coding-agent-notifications) does the same
+audit across the rest of the field, and [tmux notifications](/blog/tmux-notifications) covers the
+layer underneath both — `monitor-activity`, `monitor-silence` and `set-hook`, which fire on the
+pane rather than on the agent and therefore catch the stalled case neither tool reports.
 
 <CompareTable
   columns={["State", "What it looks like", "What $? shows", "What's actually needed"]}
@@ -129,13 +136,18 @@ both need to be distinguishable from "still going," which itself splits into "fi
 
 You have three honest options, in increasing order of effort. Wire your agent's native hooks —
 Claude Code's `Stop`/`Notification`, Codex CLI's `notify` — and accept the gaps each one has.
-Write a pane-polling script that greps for prompt text and silence, and maintain it as your
-agents' UIs change. Or make looking cheap enough that you stop needing a signal at all: mtmux
-serves the tmux panes your agents already run in to a browser on any device you've paired, over an
-end-to-end encrypted tunnel with nothing to port-forward, so telling the four apart is a glance at
-the real pane rather than an inference from a banner. The [agents page](/agents) covers that
-workflow; the [comparison page](/compare) is honest about which option is less machinery for which
-use case.
+Write a pane-polling script that greps for prompt text and silence — `tmux capture-pane -p` is the
+primitive, and [tmux commands](/blog/tmux-commands) has the scripting subset — then pipe the result
+into a pager like [ntfy](https://ntfy.sh/) and maintain the whole thing as your agents' UIs change.
+Or make looking cheap enough that you stop needing a signal at all: mtmux serves the tmux panes
+your agents already run in to a browser on any device you've paired, over an end-to-end encrypted
+tunnel with nothing to port-forward, so telling the four apart is a glance at the real pane rather
+than an inference from a banner. The [agents page](/agents) covers that workflow, the session
+handling is documented at
+[docs.mtmux.com/web-app/sessions](https://docs.mtmux.com/web-app/sessions), and the
+[comparison page](/compare) is honest about which option is less machinery for which use case.
+None of the three sends you a notification on its own — the first two hand off to a separate
+notifier, and the third is pull, not push.
 
 The point isn't the specific tool. It's that "still running" was never a real answer to "is
 everything okay" — and that reading the pane is still the only thing that separates all four, so

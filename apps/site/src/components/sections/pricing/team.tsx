@@ -25,7 +25,7 @@ export async function PricingTeam() {
           align="center"
           className="mb-0"
         />
-        <p className="mx-auto mt-4 max-w-[52ch] text-[0.9375rem] leading-[1.75] text-text-muted">
+        <p className="mx-auto mt-4 max-w-[52ch] text-[1rem] leading-[1.75] text-text-muted">
           {t.rich("prose", {
             mailLink: (chunks) => (
               <a
@@ -41,7 +41,7 @@ export async function PricingTeam() {
           href={`mailto:${siteConfig.email}`}
           className={cn(
             buttonVariants({ variant: "outline", size: "lg" }),
-            "mt-6 h-auto px-5 py-3 text-[0.9375rem]",
+            "mt-6 h-auto px-5 py-3 text-[1rem]",
           )}
         >
           {t("cta")}

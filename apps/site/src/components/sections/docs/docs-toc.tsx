@@ -31,7 +31,7 @@ export async function DocsToc({ variant }: { variant: "row" | "sidebar" }) {
               <li key={section.id}>
                 <a
                   href={`#${section.id}`}
-                  className="-ms-px block border-s-2 border-transparent px-4 py-1.5 text-[0.8125rem] text-text-subtle transition-colors hover:border-line-strong hover:text-text"
+                  className="-ms-px block border-s-2 border-transparent px-4 py-1.5 text-[0.875rem] text-text-subtle transition-colors hover:border-line-strong hover:text-text"
                 >
                   {t(section.key)}
                 </a>

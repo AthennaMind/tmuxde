@@ -31,7 +31,7 @@ export function LegalPage({
   return (
     <div className="container-prose py-(--spacing-section)">
       <Eyebrow>{eyebrow}</Eyebrow>
-      <h1 className="text-[clamp(1.5rem,3.4vw,2.375rem)] leading-[1.04]">
+      <h1 className="text-[clamp(1.6875rem,3.6vw,2.625rem)] leading-[1.04]">
         {title}
       </h1>
       <p className="mt-3.5 mb-10 font-mono text-sm text-text-faint">
@@ -41,10 +41,10 @@ export function LegalPage({
       <div className="grid gap-8">
         {sections.map((section) => (
           <section key={section.id} id={section.id} className="scroll-mt-24">
-            <h2 className="font-sans text-[0.9688rem] font-600 text-text-strong">
+            <h2 className="font-sans text-[1.0625rem] font-600 text-text-strong">
               {section.heading}
             </h2>
-            <div className="mt-3 text-[0.9375rem] leading-[1.8] text-text-muted">
+            <div className="mt-3 text-[1rem] leading-[1.8] text-text-muted">
               {section.content}
             </div>
           </section>

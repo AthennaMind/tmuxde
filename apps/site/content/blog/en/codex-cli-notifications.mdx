@@ -1,7 +1,8 @@
 ---
 title: "Codex CLI notifications: the notify hook and its blind spot"
-description: "Codex CLI's notify hook fires when a turn completes but stays silent on approval prompts — the real config, and a wrapper script that covers the gap."
+description: "Codex CLI's notify hook only fires on turn completion. The real config, how to make Codex ding when it is waiting on you, and a wrapper for the gap."
 date: "2026-06-16"
+updated: "2026-08-10"
 author: "nadia-okonkwo"
 category: "agents"
 tags: ["codex cli", "notifications", "hooks", "agents"]
@@ -10,6 +11,8 @@ keywords:
   - "codex notify hook"
   - "openai codex notification"
   - "codex cli waiting for approval"
+  - "codex ding when prompt response needed"
+  - "codex cli sound when done"
 featured: false
 draft: false
 ---
@@ -17,13 +20,20 @@ draft: false
 Codex CLI has a `notify` setting in `config.toml` that runs a program of your choice every time
 the agent finishes a turn, passing it a JSON blob with the result. That covers "Codex is done."
 It does not cover "Codex is sitting at an approval prompt" — the notify hook only fires on turn
-completion, not on the interactive y/n that appears when a command needs your approval. That gap
-is the actual pain point, and the fix is a small polling wrapper, shown below.
+completion, not on the interactive y/n that appears when a command needs your approval.
+
+There is a second, separate mechanism that *does* cover the approval prompt: `[tui] notifications`,
+which makes Codex ding through your terminal rather than run a program. It is the right answer for
+most people and it is covered first, below. The polling wrapper after it is for the case that
+neither mechanism reaches — a run you have walked away from.
 
 ## The notify hook
 
 Add a `notify` array to `~/.codex/config.toml` pointing at any executable. Codex CLI invokes it
-with a single JSON-encoded argument describing the event:
+with a single JSON-encoded argument describing the event —
+[OpenAI's configuration reference](https://learn.chatgpt.com/docs/config-file/config-advanced)
+lists the payload as carrying `type`, `thread-id`, `turn-id`, `cwd`, `input-messages` and
+`last-assistant-message`:
 
 ```toml title="~/.codex/config.toml"
 notify = ["/usr/local/bin/codex-notify.sh"]
@@ -50,52 +60,104 @@ answered, an error surfaced back to you. For a foreground run where you're watch
 anyway, it's redundant. For anything you've alt-tabbed away from, it's the whole value of the
 feature.
 
-<TerminalDemo title="testing the hook">
-$ codex "list the files in this repo"
+```bash title="testing the hook"
+codex "list the files in this repo"
 # ... turn completes ...
 # desktop banner: "Codex CLI — Listed 14 files across src/ and tests/"
-</TerminalDemo>
+```
 
-## Where it goes quiet
+## How do you make Codex ding when it's waiting for a prompt response?
+
+Use `[tui] notifications`, which is a completely different mechanism from `notify` and the one
+almost everybody actually wants. Rather than running a program, it emits a notification escape
+sequence at your terminal — and unlike `notify`, it accepts the `approval-requested` event as well
+as `agent-turn-complete`.
+
+```toml title="~/.codex/config.toml"
+notify = ["/usr/local/bin/codex-notify.sh"]   # root keys go before any table
+
+[tui]
+notifications = ["agent-turn-complete", "approval-requested"]
+notification_method = "auto"
+notification_condition = "unfocused"
+```
+
+`notification_method` takes `auto`, `osc9` or `bel`. In `auto`, Codex prefers an OSC 9 escape
+sequence when the terminal looks capable and falls back to the plain bell (`\x07`) otherwise — so
+`bel` is the setting to force if your terminal rings but never shows a banner.
+`notification_condition` takes `unfocused` or `always`; `always` is what you want if the Codex pane
+is somewhere you are not looking even when the window has focus.
+
+<Callout type="warning" title="TOML ordering will silently eat your notify line">
+`notify` is a root key. TOML assigns every key after a `[table]` header to that table, so a `notify`
+line placed below `[tui]` becomes `tui.notify` and is ignored. Put root keys at the top of the file.
+</Callout>
+
+Two things break this, and both are worth checking before concluding it does not work. The
+terminal has to act on OSC 9 — iTerm2 and Ghostty do, Windows Terminal does not. And **tmux drops
+the sequence entirely** unless you turn on passthrough, which is the most common reason this
+"stops working" after someone starts running Codex in a session. Both are covered in
+[terminal notifications](/blog/terminal-notifications).
+
+## Where the notify hook goes quiet
 
 Codex CLI's default approval mode asks before running a command or touching a file outside the
 sandbox. That prompt is a foreground interaction — it blocks on your terminal, waiting for
-`y`/`n`/`a` — and it is not a turn completion. The `notify` hook does not fire for it. Kick off a
-run, walk away, and if Codex hits something it wants permission for, the terminal sits there
-indefinitely and nothing tells you. You'll notice when you come back and find no progress, not
-when it actually happened.
+`y`/`n`/`a` — and it is not a turn completion. The `notify` **program** hook does not fire for it,
+and OpenAI's configuration reference is explicit that `agent-turn-complete` is currently the only
+event it emits. Kick off a run, walk away, and if Codex hits something it wants permission for,
+nothing you can script runs.
 
-This is a real gap relative to Claude Code, whose `Notification` hook fires specifically for
-permission prompts — see [Claude Code notifications](/blog/claude-code-notifications) for that
-side of the comparison. Codex CLI's hook system, as of this writing, has one event, not two.
+That matters because the escape-sequence route above only reaches the terminal in front of you. If
+you want the approval prompt to trigger *a command* — a sound, a `curl` to a push service, anything
+at all — there is no supported way to do it today; there is
+[an open request](https://github.com/openai/codex/issues/19921) to expose `approval-requested`
+through top-level `notify`. Claude Code, whose `Notification` hook fires specifically for
+permission prompts and runs an arbitrary command, does not have this split — see
+[Claude Code notifications](/blog/claude-code-notifications) for that side of the comparison, and
+[which agent tells you what](/blog/coding-agent-notifications) for the whole landscape.
 
 <CompareTable
-  columns={["Signal", "Fires on completion?", "Fires on approval prompt?", "Setup"]}
+  columns={["Signal", "Fires on completion?", "Fires on approval prompt?", "Can run a command?"]}
   rows={[
-    ["notify hook (native)", "yes", "no", "one line in config.toml"],
-    ["terminal bell fallback", "no", "sometimes, if the prompt writes \\a", "none — depends on the TUI"],
-    ["polling wrapper (below)", "yes, via the hook", "yes", "a background loop + dedupe file"],
+    ["notify (root key)", "yes", "no", "yes — that is its whole job"],
+    ["tui.notifications", "yes", "yes", "no — escape sequence only"],
+    ["terminal bell fallback", "yes, via notification_method", "yes", "no"],
+    ["polling wrapper (below)", "yes, via notify", "yes", "yes"],
   ]}
 />
 
 ## A wrapper that covers the approval gap
 
-Since Codex CLI doesn't emit an event for "waiting on you," the only reliable option outside the
-tool itself is to watch the pane's actual output for the prompt text and notify when it appears.
-This is the same technique worth keeping in your pocket for any CLI that doesn't expose a hook at
+Since no Codex event can *run a command* when it is waiting on you, the only option outside the
+tool itself is to watch the pane's actual output for the prompt text and act when it appears. This
+is the same technique worth keeping in your pocket for any CLI that doesn't expose a hook at
 all — poll, match, dedupe, notify.
+
+The script below plays a sound as well as posting a banner, which is the difference between a
+signal you notice and one you find later. A banner on a screen you are not looking at is a log
+entry; a distinct tone reaches you across the room.
 
 ```bash title="~/bin/codex-watch"
 #!/usr/bin/env bash
 # Run this in a second pane pointed at the same tmux session as codex.
-# It polls the pane's visible output for an approval prompt and notifies once.
+# It polls the pane's visible output for an approval prompt, then dings once.
 target="${1:-codex:1.0}"
 seen=""
+
+ding() {
+  # macOS
+  afplay /System/Library/Sounds/Submarine.aiff 2>/dev/null &
+  osascript -e 'display notification "Codex is waiting for approval" with title "Codex CLI"'
+  # Linux — comment out the two lines above and use these instead
+  # paplay /usr/share/sounds/freedesktop/stereo/dialog-warning.oga 2>/dev/null &
+  # notify-send "Codex CLI" "Codex is waiting for approval"
+}
 
 while true; do
   snapshot=$(tmux capture-pane -p -t "$target" | tail -5)
   if echo "$snapshot" | grep -qE '\[y/n/a\]|approve\?' && [ "$snapshot" != "$seen" ]; then
-    osascript -e 'display notification "Codex is waiting for approval" with title "Codex CLI"'
+    ding
     seen="$snapshot"
   fi
   sleep 5
@@ -105,6 +167,15 @@ done
 The `seen` check is the part people skip and regret — without it, a prompt sitting on screen for
 three minutes fires a notification every five seconds. Dedupe on the last-seen snapshot, or on a
 timestamp file with a cooldown, and it fires once per event instead of once per poll.
+
+`capture-pane -p` prints a pane's visible contents to stdout, and the `session:window.pane` target
+syntax in `$target` is the same one every other tmux command takes — both are in
+[the tmux command cheat sheet](/blog/tmux-commands) if the addressing is unfamiliar.
+
+Use a *different* sound here from whatever your completion notification plays. "Done" and "blocked"
+mean opposite things about how fast you need to move, and one tone for both throws that away — the
+same argument, with the exact per-platform commands, is in
+[making Claude Code play a sound when it's done](/blog/claude-code-sound-when-done).
 
 <Callout type="note" title="This is a workaround, not a fix">
 A polling loop is grep against a moving target — it breaks the moment the prompt's wording
@@ -120,33 +191,56 @@ Claude Code, aider, or Gemini CLI, you're now maintaining a different regex per 
 different native-hook config per tool where one exists. At that point it's worth asking what the
 notification was actually for: nine times out of ten it is "should I go look," and the cheaper fix
 is making looking free. mtmux serves the tmux session Codex is already running in straight to a
-browser on any device — [the case for that with agents](/agents) — so a check costs a tab instead
-of a laptop. Whether that beats maintaining a regex depends on how many tools and machines you're
-actually watching — covered in more depth in
+browser on any device — [the case for that with agents](/agents), and the
+[quickstart](https://docs.mtmux.com/docs/getting-started) if you want to try it — so a check costs
+a tab instead of a laptop. Whether that beats maintaining a regex depends on how many tools and
+machines you're actually watching — covered in more depth in
 [stop babysitting coding agents](/blog/stop-babysitting-coding-agents).
 
-## Why the gap isn't a bug
+## Why the split exists at all
 
-It's tempting to file the missing approval event as an oversight, but the shape of the problem
-makes it a genuinely awkward one to solve inside the tool. An approval prompt isn't an event Codex
-CLI emits and moves past — it's a blocking read on stdin, and the process is, from the outside,
-indistinguishable from one that's still thinking. Any fix has to either poll the terminal state
-(what the wrapper above does) or have the approval-prompt code path itself call out to a notifier,
-which means every place in the codebase that can block on you needs to remember to fire the same
-hook. That's a larger change than adding a config field, which is presumably why `notify` shipped
-scoped to turn completion first.
+It's tempting to file the missing approval event on `notify` as an oversight, but the shape of the
+problem explains it. An approval prompt isn't an event Codex CLI emits and moves past — it's a
+blocking read on stdin, and the process is, from the outside, indistinguishable from one that's
+still thinking. Anything that reacts to it has to be wired into the prompt's own code path, which
+is exactly what `tui.notifications` is: the TUI already knows it is about to block, so emitting a
+sequence there is cheap. Handing the same moment to an external program is a bigger commitment —
+it has to survive the process being suspended, the user answering before the program returns, and
+every other place in the codebase that can block on you remembering to fire it.
 
-## Putting both together
+## Putting all three together
 
-The two are not mutually exclusive. Keep the native `notify` hook for turn completions — it's
-one line and it's exact — and add the polling wrapper only for the approval gap, scoped to
-whatever prompt text your Codex CLI version actually uses. Test both with a throwaway session
-before trusting either on a run you plan to walk away from.
+None of these are mutually exclusive, and a good setup uses each for what it is:
+
+<Steps>
+<Step title="tui.notifications for the blocked state">
+`["agent-turn-complete", "approval-requested"]` with `notification_condition = "always"`. Zero
+scripting, and it is the only native signal for an approval prompt.
+</Step>
+<Step title="notify for the completed state">
+One line pointing at a script, which gets the last assistant message and can therefore say *what*
+finished rather than merely that something did.
+</Step>
+<Step title="the polling wrapper only if you need a command on approval">
+Scoped to whatever prompt text your Codex CLI version actually uses, and only worth it if you need
+the blocked state to trigger a push or a sound rather than a terminal banner.
+</Step>
+</Steps>
+
+Test each with a throwaway session before trusting any of them on a run you plan to walk away from.
 
 <FAQ>
+<FAQItem q="How do I make Codex CLI ding when it needs a prompt response?">
+Set `notifications = ["agent-turn-complete", "approval-requested"]` under `[tui]` in
+`~/.codex/config.toml`, with `notification_condition = "always"` so it fires even when the window
+has focus. That is the only native signal for an approval prompt. If it rings but never shows a
+banner, your terminal isn't acting on OSC 9 — and if it works outside tmux but not inside, you need
+tmux's passthrough option turned on.
+</FAQItem>
 <FAQItem q="Does Codex CLI have a native notification for approval prompts?">
-Not as of this writing. The `notify` hook fires when a turn completes, not when the CLI is
-waiting on an approval prompt — that's the gap this post's wrapper script covers.
+Yes, but only through `tui.notifications`, which emits a terminal escape sequence. The `notify`
+program hook fires on turn completion only, so there is no supported way to run a *command* when
+Codex is waiting on an approval — that's the gap this post's wrapper script covers.
 </FAQItem>
 <FAQItem q="What does Codex CLI pass to the notify program?">
 A single JSON-encoded argument describing the event, including fields like the last assistant

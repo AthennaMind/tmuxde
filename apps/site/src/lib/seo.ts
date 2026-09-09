@@ -25,7 +25,7 @@ type BuildMetadataOptions = {
   path: string;
   /** Keyword-first, ≤ 60 characters. No brand suffix. */
   title: string;
-  /** ≤ 155 characters, and a standalone answer — AI engines quote it directly. */
+  /** ≤ 155 characters (enforced), and a standalone answer — AI engines quote it directly. */
   description: string;
   keywords?: readonly string[];
   type?: "website" | "article";
@@ -39,6 +39,14 @@ type BuildMetadataOptions = {
   imageAlt?: string;
   noindex?: boolean;
 };
+
+/**
+ * The description limit the type above documents. Seven pages had drifted past
+ * it before this was checked rather than merely written down, and in every case
+ * the clipped tail was the clause that distinguished the page from every other
+ * page on the site. Trim the copy; do not raise the number.
+ */
+const MAX_DESCRIPTION_LENGTH = 155;
 
 /** Absolute URL for a route in a given locale, honouring `localePrefix: 'as-needed'`. */
 export function absoluteUrl(locale: Locale, path: string): string {
@@ -77,8 +85,20 @@ export function buildMetadata({
   imageAlt,
   noindex = false,
 }: BuildMetadataOptions): Metadata {
+  // Every page and post routes through here, so this fails the build rather
+  // than shipping a description Google will cut off mid-sentence.
+  if (description.length > MAX_DESCRIPTION_LENGTH) {
+    throw new Error(
+      `Meta description for "${path}" (${locale}) is ${description.length} characters; the limit is ${MAX_DESCRIPTION_LENGTH}:\n  ${description}`,
+    );
+  }
+
   const canonical = absoluteUrl(locale, path);
   const definition = getLocaleDefinition(locale);
+  // Names the route's own generated card. That URL is a promise: the route
+  // needs an `opengraph-image.tsx` beside its `page.tsx` or this points at a
+  // 404 and the page shares as a bare grey link. `src/lib/og-page.tsx` renders
+  // the shared one, so a new page's file is a handful of lines.
   const ogImage = image ?? `${canonical.replace(/\/$/, "")}/opengraph-image`;
 
   return {
@@ -127,7 +147,13 @@ export function buildMetadata({
       images: [ogImage],
     },
     robots: noindex
-      ? { index: false, follow: false }
+      ? // `noindex, follow`, not `noindex, nofollow`. The only pages that set
+        // this are lists — thin tag pages — and their whole remaining value is
+        // the links out of them. Telling a crawler to ignore those links throws
+        // that away for nothing; keeping the page out of the index is all that
+        // was ever wanted. `nofollow` is for links we distrust, which these are
+        // not: they point at our own posts.
+        { index: false, follow: true }
       : {
           index: true,
           follow: true,

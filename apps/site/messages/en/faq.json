@@ -21,7 +21,7 @@
       "items": [
         {
           "question": "Does mtmux replace tmux?",
-          "answer": "No. It attaches to the tmux server you already run, the same way <cmd>tmux attach</cmd> does. Remove mtmux and every session keeps running, untouched."
+          "answer": "No. It attaches to the tmux server you already run, the same way <cmd>tmux attach</cmd> does — with the <post>same sharp edges around resizing</post>. Remove mtmux and every session keeps running, untouched."
         },
         {
           "question": "Do I need to install an app?",
@@ -33,7 +33,7 @@
         },
         {
           "question": "What does it need to run?",
-          "answer": "Node 22 or newer and tmux. macOS, Linux with glibc or musl, and WSL2 are all supported. <cmd>mtmux doctor</cmd> checks all of it and tells you what is missing."
+          "answer": "Node 22 or newer and tmux. macOS, Linux with glibc or musl, and WSL2 are all supported — <post>installing tmux</post> covers every package manager. <cmd>mtmux doctor</cmd> checks the rest and tells you what is missing."
         },
         {
           "question": "Does it work on a tablet?",
@@ -41,7 +41,7 @@
         },
         {
           "question": "What about screen or zellij?",
-          "answer": "tmux only. mtmux talks to the tmux server directly, so screen and zellij are not supported and there is no flag that enables them."
+          "answer": "tmux only. mtmux talks to the tmux server directly, so screen and zellij are not supported and there is no flag that enables them. If you are still deciding, the <post>tmux command reference</post> is the fastest way to judge whether tmux is the one you want."
         }
       ]
     },
@@ -50,7 +50,7 @@
       "items": [
         {
           "question": "Can I really type in vim on a phone?",
-          "answer": "For edits, yes. The modifier row keeps esc, ctrl, alt, tab and the arrows reachable, and modifiers latch so chords are two taps. Writing a new module on a phone is still a bad idea."
+          "answer": "For edits, yes. The modifier row keeps esc, ctrl, alt, tab and the arrows reachable, and modifiers latch so chords are two taps. Writing a new module on a phone is still a bad idea — <post>what typing on a phone actually feels like</post> is the unvarnished version."
         },
         {
           "question": "My layout is unreadable on a small screen.",
@@ -87,7 +87,7 @@
         },
         {
           "question": "I really do want to be paged. What should I use?",
-          "answer": "Something built for it — a tmux hook that curls <cmd>ntfy</cmd>, or your agent's own hook support if it has any. That composes with mtmux perfectly well: get paged by one thing, then open the session with the other."
+          "answer": "Something built for it — a tmux hook that curls <cmd>ntfy</cmd>, or your agent's own hook support if it has any. <post>Paging yourself from tmux</post> is the full recipe. That composes with mtmux perfectly well: get paged by one thing, then open the session with the other."
         }
       ]
     },
@@ -100,7 +100,7 @@
         },
         {
           "question": "Does the broker learn my pairing code?",
-          "answer": "Only the first two digits. The code splits into a two-digit routing slot, which the broker assigns, and a six-digit secret generated in your browser that is never transmitted — not even as a hash. It is the password for the PAKE."
+          "answer": "Only the first three digits. The code splits into a three-digit routing slot, which the broker assigns, and a six-digit secret generated in your browser that is never transmitted — not even as a hash. It is the password for the PAKE."
         },
         {
           "question": "What stops someone guessing the secret?",
@@ -116,7 +116,7 @@
         },
         {
           "question": "Can I run it fully self-hosted?",
-          "answer": "Yes, at two levels. <cmd>mtmux start --local</cmd> serves your LAN and loopback and contacts no broker at all. If you want the tunnel too, run the broker yourself and point the CLI at it with <cmd>MTMUX_API_URL</cmd>."
+          "answer": "Yes, at two levels. <cmd>mtmux start --local</cmd> serves your LAN and loopback and contacts no broker at all. If you want the tunnel too, run the broker yourself and point the CLI at it with <cmd>MTMUX_API_URL</cmd>. <post>Other ways to put tmux in a browser</post> covers the ttyd and wetty routes if you would rather not run ours."
         },
         {
           "question": "Has the cryptography been audited?",

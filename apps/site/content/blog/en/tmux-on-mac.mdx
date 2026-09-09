@@ -2,6 +2,7 @@
 title: "tmux on Mac: Homebrew, iTerm2, and the clipboard setup"
 description: "Install tmux on macOS with Homebrew, fix pbcopy clipboard integration, and decide whether iTerm2's tmux -CC control mode is worth using for your setup."
 date: "2026-07-19"
+updated: "2026-08-10"
 author: "nadia-okonkwo"
 category: "tmux"
 icon: "🍎"
@@ -27,8 +28,10 @@ is a genuinely different mode with real tradeoffs, not just a nicer skin.
 brew install tmux
 ```
 
-Homebrew always builds current upstream, so version lag — the thing that matters on Debian or
-RHEL — isn't a concern here. `tmux -V` after installing should print whatever's current.
+[Homebrew](https://brew.sh) always builds current upstream, so version lag — the thing that
+matters on Debian or RHEL, and the reason [installing tmux](/blog/install-tmux) spends half its
+length on version checks — isn't a concern here. `tmux -V` after installing should print
+whatever's current.
 
 ## The clipboard: pbcopy and reattach-to-user-namespace
 
@@ -111,6 +114,8 @@ tmux just hasn't been told.
 `-CC` is a different way of running tmux entirely: instead of drawing a text-mode UI inside a
 single terminal window, tmux sends structured data to iTerm2 and iTerm2 renders each tmux
 window as a native tab, with native scrollback, search, and copy/paste.
+[iTerm2's own documentation](https://iterm2.com/documentation.html) is the authority on which
+version supports what here, since control mode has picked up behaviour over the years.
 
 ```bash
 tmux -CC attach -t work
@@ -154,10 +159,13 @@ it belongs here.
 None of the above changes the tmux commands themselves — see [tmux commands](/blog/tmux-commands)
 for the full reference. It also doesn't change if you need to check on a session from somewhere
 that isn't your Mac — your phone, someone else's machine. The normal answer is SSH back in and
-`tmux attach`, covered in [tmux attach session](/blog/tmux-attach-session). If you'd rather open a
-browser tab than find an SSH client every time you want to look, that's what mtmux does —
-`npm i -g mtmux` on the Mac running the session, and it serves that same tmux out to whatever
-device you paired, with nothing forwarded through your router.
+`tmux attach`, covered in [tmux attach session](/blog/tmux-attach-session), and
+[tmux from a phone](/blog/tmux-from-phone) covers doing that from a handset specifically. If
+you'd rather open a browser tab than find an SSH client every time you want to look, that's what
+mtmux does — `npm i -g mtmux` on the Mac running the session, and it serves that same tmux out
+to whatever device you paired, with nothing forwarded through your router. The
+[docs](/docs) walk through it, and the
+[pairing reference](https://docs.mtmux.com/pairing) explains what the six-digit code is doing.
 
 <FAQ>
 <FAQItem q="Do I still need reattach-to-user-namespace on macOS?">

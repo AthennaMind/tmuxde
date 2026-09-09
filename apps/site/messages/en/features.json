@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Real tmux in the browser — prefix key, panes, truecolor",
-    "description": "mtmux is a tmux browser client: a real prefix key, a mobile keyboard row, pane reflow for small screens, truecolor rendering and reconnects that keep the session."
+    "description": "A tmux browser client: a real prefix key, a mobile keyboard row, pane reflow for small screens, truecolor rendering and reconnects that keep the session."
   },
   "breadcrumb": {
     "home": "Home",
@@ -15,7 +15,7 @@
   "input": {
     "eyebrow": "01 — input",
     "title": "The modifier row",
-    "prose": "Mobile keyboards hide the keys terminals live on. mtmux puts them back: a persistent row with the prefix key, esc, ctrl, alt, tab and the arrows. Modifiers latch, so <code>⌃b %</code> is two taps rather than a contortion.",
+    "prose": "<post>Mobile keyboards hide the keys terminals live on</post>. mtmux puts them back: a persistent row with the prefix key, esc, ctrl, alt, tab and the arrows. Modifiers latch, so <code>⌃b %</code> is two taps rather than a contortion.",
     "bullets": [
       "The prefix key is a real key, not a menu item",
       "Modifiers latch, so chords are taps rather than holds",
@@ -74,7 +74,7 @@
       },
       {
         "title": "Sessions, windows and panes",
-        "body": "Create, rename, switch and kill from the UI — the operations you would otherwise reach for the prefix key to do."
+        "body": "Create, rename, switch and kill from the UI — <post>the operations you would otherwise reach for the prefix key to do</post>."
       },
       {
         "title": "A file browser",

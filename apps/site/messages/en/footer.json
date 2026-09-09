@@ -9,12 +9,15 @@
     "company": "company"
   },
   "links": {
+    "openApp": "Open the app",
+    "signIn": "Sign in",
     "features": "Features",
     "agents": "Coding agents",
     "useCases": "Use cases",
     "pricing": "Pricing",
     "changelog": "Changelog",
     "docs": "Docs & quickstart",
+    "docsSite": "Full documentation",
     "blog": "Blog",
     "faq": "FAQ",
     "security": "Security",

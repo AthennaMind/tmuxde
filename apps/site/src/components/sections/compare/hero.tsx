@@ -9,10 +9,10 @@ export async function CompareHero() {
   return (
     <header className="container-content pt-(--spacing-section) pb-12 sm:pb-16">
       <Eyebrow>{t("eyebrow")}</Eyebrow>
-      <h1 className="max-w-[22ch] text-[clamp(1.5rem,3.7vw,2.6875rem)] leading-[1]">
+      <h1 className="max-w-[22ch] text-[clamp(1.6875rem,3.9vw,2.9375rem)] leading-[1]">
         {t("title")}
       </h1>
-      <p className="mt-4 max-w-[58ch] text-[1.09375rem] leading-[1.72] text-text-muted">
+      <p className="mt-4 max-w-[58ch] text-[1.1875rem] leading-[1.72] text-text-muted">
         {t("lead")}
       </p>
     </header>

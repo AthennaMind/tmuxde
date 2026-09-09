@@ -3,14 +3,13 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { JsonLd } from "@/components/json-ld";
 import { DOCS_QUICKSTART_COMMANDS } from "@/components/sections/docs/docs-quickstart";
-import { DocsCliReference } from "@/components/sections/docs/docs-cli-reference";
 import { DocsFooterNote } from "@/components/sections/docs/docs-footer-note";
 import { DocsHero } from "@/components/sections/docs/docs-hero";
 import { DocsInstall } from "@/components/sections/docs/docs-install";
+import { DocsPointer } from "@/components/sections/docs/docs-pointer";
 import { DocsQuickstart } from "@/components/sections/docs/docs-quickstart";
-import { DocsSelfHosting } from "@/components/sections/docs/docs-self-hosting";
 import { DocsToc } from "@/components/sections/docs/docs-toc";
-import { DocsTroubleshooting } from "@/components/sections/docs/docs-troubleshooting";
+import { siteConfig } from "@/config/site";
 import type { Locale } from "@/i18n/locales";
 import { buildMetadata } from "@/lib/seo";
 import { breadcrumbSchema, graph, howToSchema } from "@/lib/structured-data";
@@ -71,9 +70,51 @@ export default async function DocsPage({
           <div className="min-w-0 space-y-16">
             <DocsInstall />
             <DocsQuickstart />
-            <DocsCliReference />
-            <DocsSelfHosting />
-            <DocsTroubleshooting />
+            {/* These three used to restate docs.mtmux.com/docs/{cli,
+                self-hosting,troubleshooting} at a third of the length, on a
+                page that then competed with them for the same queries. They
+                keep their headings and ids so the table of contents is
+                unchanged, and point at the version that is actually
+                maintained. */}
+            <DocsPointer
+              id="cli-reference"
+              title={t("cli.title")}
+              href={`${siteConfig.docsUrl}/docs/cli`}
+              linkLabel={t("cli.linkLabel")}
+            >
+              {t("cli.pointer")}
+            </DocsPointer>
+            <DocsPointer
+              id="self-hosting"
+              title={t("selfHosting.title")}
+              href={`${siteConfig.docsUrl}/docs/self-hosting`}
+              linkLabel={t("selfHosting.linkLabel")}
+            >
+              {t("selfHosting.pointer")}
+            </DocsPointer>
+            <DocsPointer
+              id="troubleshooting"
+              title={t("troubleshooting.title")}
+              href={`${siteConfig.docsUrl}/docs/troubleshooting`}
+              linkLabel={t("troubleshooting.linkLabel")}
+            >
+              {t("troubleshooting.pointer")}
+            </DocsPointer>
+            {/* docs.mtmux.com is a separate origin, so it gets no link equity
+                from the site unless one is written by hand. This is the one
+                place a reader of the quickstart is looking for more. */}
+            <p className="border-t border-line-subtle pt-8 text-[1rem] text-text-subtle">
+              {t.rich("fullDocs", {
+                docsLink: (chunks) => (
+                  <a
+                    href={siteConfig.docsUrl}
+                    className="text-brand underline decoration-brand/40 underline-offset-2 hover:decoration-brand"
+                  >
+                    {chunks}
+                  </a>
+                ),
+              })}
+            </p>
             <DocsFooterNote />
           </div>
         </div>

@@ -21,7 +21,7 @@ export async function PostMeta({
   return (
     <p
       className={cn(
-        "flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[0.8125rem] text-text-faint",
+        "flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[0.875rem] text-text-faint",
         className,
       )}
     >
@@ -73,8 +73,8 @@ export async function PostCard({
           className={cn(
             "font-sans font-600 tracking-[-0.015em] text-text-strong",
             featured
-              ? "text-[clamp(1.25rem,2.6vw,1.75rem)] leading-[1.15]"
-              : "text-[1.0625rem] leading-snug",
+              ? "text-[clamp(1.375rem,2.8vw,1.875rem)] leading-[1.15]"
+              : "text-[1.125rem] leading-snug",
           )}
         >
           <Link
@@ -89,8 +89,8 @@ export async function PostCard({
           className={cn(
             "mt-2.5 text-text-muted",
             featured
-              ? "text-[1rem] leading-[1.7]"
-              : "text-[0.9063rem] leading-[1.65]",
+              ? "text-[1.0625rem] leading-[1.7]"
+              : "text-[1rem] leading-[1.65]",
           )}
         >
           {post.frontmatter.description}
@@ -117,7 +117,7 @@ export function TagChip({
     <Link
       href={`/blog/tag/${tagSlug(tag)}`}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[0.8125rem] transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[0.875rem] transition-colors",
         active
           ? "border-transparent bg-brand text-brand-contrast"
           : "border-line bg-surface-panel text-text-muted hover:border-line-strong hover:text-text-strong",

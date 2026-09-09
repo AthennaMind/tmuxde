@@ -52,7 +52,7 @@ export function Logo({
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <LogoMark className={markClassName} />
-      <span className="font-display text-[1.0625rem] font-600 tracking-[-0.04em] text-text-strong">
+      <span className="font-display text-[1.125rem] font-600 tracking-[-0.04em] text-text-strong">
         mtmux
       </span>
     </span>

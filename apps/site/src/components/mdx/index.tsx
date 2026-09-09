@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type { MDXComponents } from "mdx/types";
 import NextImage from "next/image";
+import { Children, isValidElement } from "react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 import { Cmd, Keycap } from "@/components/primitives/cards";
@@ -65,11 +66,11 @@ export function Callout({
         />
         <div className="min-w-0 flex-1">
           {title ? (
-            <p className="mb-1 text-[0.9375rem] font-600 text-text-strong">
+            <p className="mb-1 text-[1rem] font-600 text-text-strong">
               {title}
             </p>
           ) : null}
-          <div className="text-[0.9375rem] leading-[1.7] text-text-muted [&>:first-child]:mt-0 [&>:last-child]:mb-0 [&>p]:my-2">
+          <div className="text-[1rem] leading-[1.7] text-text-muted [&>:first-child]:mt-0 [&>:last-child]:mb-0 [&>p]:my-2">
             {children}
           </div>
         </div>
@@ -101,11 +102,11 @@ export function Step({
     <div className="relative grid grid-cols-[auto_minmax(0,1fr)] gap-4">
       <span
         aria-hidden="true"
-        className="grid size-7 place-items-center rounded-full border border-line bg-surface-panel font-mono text-[0.8125rem] text-brand [counter-increment:step] before:content-[counter(step)]"
+        className="grid size-7 place-items-center rounded-full border border-line bg-surface-panel font-mono text-[0.875rem] text-brand [counter-increment:step] before:content-[counter(step)]"
       />
       <div className="min-w-0">
-        <p className="text-[1rem] font-600 text-text-strong">{title}</p>
-        <div className="mt-2 text-[0.9375rem] leading-[1.75] text-text-muted [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+        <p className="text-[1.0625rem] font-600 text-text-strong">{title}</p>
+        <div className="mt-2 text-[1rem] leading-[1.75] text-text-muted [&>:first-child]:mt-0 [&>:last-child]:mb-0">
           {children}
         </div>
       </div>
@@ -118,6 +119,79 @@ export function Step({
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Recovers the literal text a `<TerminalDemo>` body was written as.
+ *
+ * The body is not handed to us as a string. MDX parses it as Markdown first, so
+ * `$ tmux ls` arrives as a `<p>` and `# ... 40 minutes pass ...` arrives as an
+ * `<h1>` — the `#` consumed as heading syntax. The old implementation called
+ * `String(children)` on that array and rendered the literal text
+ * `[object Object],[object Object]` into eleven published posts, including the
+ * two most-linked ones. Nothing catches that: it type-checks, it builds, and it
+ * only looks wrong to a human reading the page.
+ *
+ * So walk the tree and rebuild the source. Two details carry the whole thing:
+ *
+ * - A heading's `#` characters are gone from the DOM, but the tag name says how
+ *   many there were, so they are recoverable exactly.
+ * - Blank lines are gone too, and this is the ambiguous part. A heading may
+ *   *interrupt* a paragraph with no blank line before it, but a paragraph can
+ *   only follow another paragraph across one. So blocks join with a single
+ *   newline, and two adjacent paragraphs join with two. That reproduces every
+ *   demo in the content directory byte for byte.
+ *
+ * `rehype-autolink-headings` appends a `#` anchor to every heading it sees;
+ * that node is skipped, or every comment line would gain a stray `#`.
+ */
+function blockToText(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === "boolean") {
+    return "";
+  }
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(blockToText).join("");
+
+  if (!isValidElement(node)) return "";
+
+  const props = node.props as {
+    children?: ReactNode;
+    ["data-heading-anchor"]?: unknown;
+  };
+
+  // The autolink anchor is markup we added, not content the author wrote.
+  if (props["data-heading-anchor"] !== undefined) return "";
+
+  const inner = blockToText(props.children);
+
+  if (typeof node.type === "string") {
+    if (node.type === "br") return "\n";
+    const heading = /^h([1-6])$/.exec(node.type);
+    if (heading) return `${"#".repeat(Number(heading[1]))} ${inner}`;
+    if (node.type === "li") return `- ${inner}`;
+  }
+
+  return inner;
+}
+
+/** True for the element types Markdown only produces after a blank line. */
+function isParagraph(node: ReactNode): boolean {
+  return isValidElement(node) && node.type === "p";
+}
+
+function childrenToText(children: ReactNode): string {
+  if (typeof children === "string") return children;
+
+  const blocks = Children.toArray(children);
+  if (blocks.length === 0) return "";
+
+  let text = blockToText(blocks[0]);
+  for (let i = 1; i < blocks.length; i += 1) {
+    const separator =
+      isParagraph(blocks[i]) && isParagraph(blocks[i - 1]) ? "\n\n" : "\n";
+    text += separator + blockToText(blocks[i]);
+  }
+  return text;
+}
+
+/**
  * Terminal output written as plain lines in MDX. Each child line is rendered
  * verbatim; a leading `$ ` is coloured as a prompt.
  */
@@ -128,7 +202,7 @@ export function TerminalDemo({
   title?: string;
   children: ReactNode;
 }) {
-  const text = typeof children === "string" ? children : String(children ?? "");
+  const text = childrenToText(children);
   const lines = text.replace(/^\n+|\n+$/g, "").split("\n");
 
   return (
@@ -184,7 +258,7 @@ export function CompareTable({
   return (
     <figure className="not-prose my-7">
       <div className="overflow-x-auto rounded-xl border border-line">
-        <table className="w-full border-collapse text-[0.9375rem]">
+        <table className="w-full border-collapse text-[1rem]">
           <thead>
             <tr className="bg-surface-panel">
               {columns.map((column, index) => (
@@ -223,7 +297,7 @@ export function CompareTable({
         </table>
       </div>
       {caption ? (
-        <figcaption className="mt-2 text-[0.8125rem] text-text-faint">
+        <figcaption className="mt-2 text-[0.875rem] text-text-faint">
           {caption}
         </figcaption>
       ) : null}
@@ -272,8 +346,8 @@ export function FAQ({ children }: { children: ReactNode }) {
 export function FAQItem({ q, children }: { q: string; children: ReactNode }) {
   return (
     <div className="bg-surface-raised p-5">
-      <h3 className="font-sans text-[1rem] font-600 text-text-strong">{q}</h3>
-      <div className="mt-2 text-[0.9375rem] leading-[1.75] text-text-muted [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+      <h3 className="font-sans text-[1.0625rem] font-600 text-text-strong">{q}</h3>
+      <div className="mt-2 text-[1rem] leading-[1.75] text-text-muted [&>:first-child]:mt-0 [&>:last-child]:mb-0">
         {children}
       </div>
     </div>
@@ -295,7 +369,7 @@ export function Figure({
     <figure className="not-prose my-7">
       {children}
       {caption ? (
-        <figcaption className="mt-2 text-center text-[0.8125rem] text-text-faint">
+        <figcaption className="mt-2 text-center text-[0.875rem] text-text-faint">
           {caption}
         </figcaption>
       ) : null}

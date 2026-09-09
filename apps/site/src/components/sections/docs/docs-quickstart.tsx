@@ -30,7 +30,7 @@ export async function DocsQuickstart() {
 
   return (
     <section id="quickstart">
-      <h2 className="mb-5 text-[clamp(1.1875rem,2.35vw,1.6875rem)] leading-[1.06]">
+      <h2 className="mb-5 text-[clamp(1.3125rem,2.5vw,1.8125rem)] leading-[1.06]">
         {t("title")}
       </h2>
       <ol className="grid gap-3.5">
@@ -41,12 +41,12 @@ export async function DocsQuickstart() {
           >
             <span
               aria-hidden="true"
-              className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border border-line bg-surface-panel font-mono text-[0.75rem] text-brand"
+              className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border border-line bg-surface-panel font-mono text-[0.8125rem] text-brand"
             >
               {index + 1}
             </span>
             <div className="min-w-0">
-              <p className="mb-2.5 text-[0.9375rem] text-text-strong">
+              <p className="mb-2.5 text-[1rem] text-text-strong">
                 {step.label}
               </p>
               <TerminalWindow>
@@ -74,8 +74,8 @@ export async function DocsQuickstart() {
           </li>
         ))}
       </ol>
-      <div className="mt-6 flex gap-3 rounded-lg border border-line-subtle border-s-2 border-s-brand bg-surface-panel px-4 py-3.5 text-[0.875rem] leading-[1.75] text-text-muted">
-        <span className="mt-0.5 shrink-0 font-mono text-[0.75rem] font-500 tracking-[0.1em] text-brand uppercase">
+      <div className="mt-6 flex gap-3 rounded-lg border border-line-subtle border-s-2 border-s-brand bg-surface-panel px-4 py-3.5 text-[0.9375rem] leading-[1.75] text-text-muted">
+        <span className="mt-0.5 shrink-0 font-mono text-[0.8125rem] font-500 tracking-[0.1em] text-brand uppercase">
           {t("note.label")}
         </span>
         <p>{t.rich("note.body", { cmd: (chunks) => <Cmd>{chunks}</Cmd> })}</p>

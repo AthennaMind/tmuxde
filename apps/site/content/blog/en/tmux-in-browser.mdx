@@ -2,6 +2,7 @@
 title: "tmux in a browser: three ways that actually work"
 description: "ttyd or wetty behind your own reverse proxy, tmate's web link, or a purpose-built client — the real setup, trade-offs, and an actual ttyd + nginx recipe."
 date: "2026-06-30"
+updated: "2026-08-10"
 author: "team"
 category: "comparisons"
 tags: ["tmux", "browser", "comparisons", "self-hosted"]
@@ -23,10 +24,17 @@ itself shows up on screen.
 
 ## Option 1: ttyd or wetty behind your own proxy
 
-`ttyd` and `wetty` do the same job: wrap a terminal command in a WebSocket and serve `xterm.js` to
+[`ttyd`](https://github.com/tsl0922/ttyd) and [`wetty`](https://github.com/butlerx/wetty) do the
+same job: wrap a terminal command in a WebSocket and serve [xterm.js](https://xtermjs.org) to
 render it. Neither is tmux-specific — point either at `tmux attach` and the browser gets exactly
 what your terminal would show. Both are free, open source, and small enough to read in an
 afternoon.
+
+They stop being interchangeable one layer down: ttyd runs whatever command you name it, while wetty
+spawns `ssh` and inherits SSH's authentication along with SSH's requirement that there be an sshd
+and an account. Which of the two to run is a decision on its own, made in
+[ttyd vs wetty](/blog/ttyd-vs-wetty); the recipe below uses ttyd because the tmux case wants a
+command, not a login.
 
 The catch is in the name: *you* run the server. That means a reverse proxy, TLS, and
 authentication are your responsibility, not the tool's. Here's the actual recipe, using ttyd:
@@ -42,7 +50,11 @@ ttyd -p 7681 -i 127.0.0.1 tmux new-session -A -s main
 ```
 
 Binding to `127.0.0.1` matters: it keeps ttyd unreachable from the network directly, so the only
-path in is through nginx, where auth and TLS actually live.
+path in is through nginx, where auth and TLS actually live. `new-session -A -s main` is the
+attach-or-create form — it joins the existing `main` session if there is one and creates it
+otherwise, which is what you want when the browser tab may be the second client on that session;
+[tmux attach session](/blog/tmux-attach-session) covers what happens when two clients of different
+sizes are attached at once, because in a browser that is the normal case, not the edge case.
 
 ```nginx title="/etc/nginx/sites-available/tmux"
 server {
@@ -111,6 +123,13 @@ for inbound connections, so there's no port to open; it encrypts end-to-end (a C
 ristretto255, then AES-256-GCM frames) through a broker that only ever sees ciphertext; and the UI
 is built for touch, with the prefix key and modifiers as an on-screen row instead of a keyboard
 shortcut you don't have. Setup is `npm i -g mtmux`, then scan the code it prints — not a proxy config.
+The key schedule and frame format are [documented in full](https://docs.mtmux.com/sealed-tunnel);
+no independent audit has been performed on any of it.
+
+The dial-out shape is not unique to one implementation. [sshx](https://github.com/ekzhang/sshx)
+takes the same approach — it connects out to a hosted relay instead of listening on a port, and
+derives an AES key from a fragment in the URL that the server never receives. Worth knowing about
+if what appeals is the property rather than any particular tool that has it.
 
 <CompareTable
   columns={["", "Setup", "Inbound port", "Encryption", "Mobile UI", "Persistent session", "Price"]}
