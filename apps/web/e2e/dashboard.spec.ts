@@ -73,56 +73,82 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("shows each machine exactly once", async ({ page }) => {
+test("shows each machine exactly once", { tag: "@phone" }, async ({ page }) => {
   for (const server of SERVERS) {
     await expect(page.getByText(server.name, { exact: true })).toHaveCount(1);
   }
 });
 
-test("the pair button count matches the machine count", async ({ page }) => {
-  // It used to be double, one per duplicated card.
+test(
+  "the pair button count matches the machine count",
+  { tag: "@phone" },
+  async ({ page }) => {
+    // It used to be double, one per duplicated card.
+    await expect(
+      page.getByRole("button", { name: "Pair this device" }),
+    ).toHaveCount(SERVERS.length);
+  },
+);
+
+test(
+  "the unpaired card opens the dialog without navigating",
+  { tag: "@phone" },
+  async ({ page }) => {
+    const before = page.url();
+    await page
+      .getByRole("button", { name: "Pair this device" })
+      .first()
+      .click();
+
+    await expect(page.getByRole("dialog")).toBeVisible();
+    // Not a scroll to a second card, and not a route change.
+    expect(page.url()).toBe(before);
+  },
+);
+
+test("there is no second machine list", { tag: "@phone" }, async ({ page }) => {
+  /*
+   * "Manage machines" is gone, and this asserts it stays gone.
+   *
+   * It was a collapsed section rendering the same machines a second time
+   * through `ServerList`/`ServerRow` — a parallel UI for one noun, which meant
+   * every fix had to be made twice and the two that were not are exactly the
+   * bugs that shipped (an unconfirmed key destruction, a dangling
+   * `aria-controls`). Everything it could do is on the card's own menu now.
+   */
   await expect(
-    page.getByRole("button", { name: "Pair this device" }),
-  ).toHaveCount(SERVERS.length);
-});
-
-test("the unpaired card opens the dialog without navigating", async ({
-  page,
-}) => {
-  const before = page.url();
-  await page.getByRole("button", { name: "Pair this device" }).first().click();
-
-  await expect(page.getByRole("dialog")).toBeVisible();
-  // Not a scroll to a second card, and not a route change.
-  expect(page.url()).toBe(before);
-});
-
-test("management is a separate, collapsed section", async ({ page }) => {
-  // "Your machines" survives as rename/remove/share, and is no longer the only
-  // route to pairing — so it does not need to be open by default.
-  const toggle = page.getByRole("button", { name: /Manage machines/i });
-  await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    page.getByRole("button", { name: /Manage machines/i }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("list", { name: "Machines on this account" }),
-  ).toBeVisible();
-});
-
-test("tells only the out-of-date machine to update", async ({ page }) => {
-  // `cliVersion` was rendered and otherwise inert. It now gates the one thing
-  // that actually depends on it: 0.4.0 cannot pair from here, 0.6.0 can.
-  await expect(page.getByText(/on mtmux v0\.4\.0/)).toBeVisible();
-  await expect(page.getByText(/on mtmux v0\.6\.0/)).toHaveCount(0);
-});
-
-test("each session list has an accessible name", async ({ page }) => {
-  // Two session lists on one page with no names is two "list" landmarks a
-  // screen reader cannot tell apart.
-  const lists = page.getByRole("list");
-  const count = await lists.count();
-  expect(count).toBeGreaterThan(0);
+  ).toHaveCount(0);
   await expect(
     page.getByRole("list", { name: "Machines and their sessions" }),
   ).toBeVisible();
 });
+
+test(
+  "tells only the out-of-date machine to update",
+  { tag: "@phone" },
+  async ({ page }) => {
+    // `cliVersion` was rendered and otherwise inert. It now gates the one thing
+    // that actually depends on it: 0.4.0 cannot pair from here, 0.6.0 can.
+    await expect(page.getByText(/on mtmux v0\.4\.0/)).toBeVisible();
+    await expect(page.getByText(/on mtmux v0\.6\.0/)).toHaveCount(0);
+  },
+);
+
+test(
+  "each session list has an accessible name",
+  { tag: "@phone" },
+  async ({ page }) => {
+    // Two session lists on one page with no names is two "list" landmarks a
+    // screen reader cannot tell apart.
+    const lists = page.getByRole("list");
+    const count = await lists.count();
+    expect(count).toBeGreaterThan(0);
+    await expect(
+      page.getByRole("list", { name: "Machines and their sessions" }),
+    ).toBeVisible();
+  },
+);

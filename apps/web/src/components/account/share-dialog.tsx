@@ -10,6 +10,7 @@ import {
 } from "@repo/ui/components/ui/dialog";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
+import { SegmentedControl } from "@repo/ui/components/segmented-control";
 import { Switch } from "@repo/ui/components/ui/switch";
 import { CopyCommand } from "./copy-command";
 import { buildShareCommand, type ShareFiles } from "./share-command";
@@ -35,11 +36,15 @@ const EXPIRY_OPTIONS = [
   { value: "never", label: "Never" },
 ] as const;
 
+type Expiry = (typeof EXPIRY_OPTIONS)[number]["value"];
+
 const FILE_OPTIONS: { value: ShareFiles; label: string }[] = [
   { value: "none", label: "No files" },
   { value: "ro", label: "Read files" },
   { value: "rw", label: "Read + write files" },
 ];
+
+const DEFAULT_EXPIRY: Expiry = "7d";
 
 export function ShareDialog({
   open,
@@ -56,7 +61,37 @@ export function ShareDialog({
   const [name, setName] = useState(session);
   const [readOnly, setReadOnly] = useState(false);
   const [files, setFiles] = useState<ShareFiles>("none");
-  const [expires, setExpires] = useState<string>("7d");
+  const [expires, setExpires] = useState<Expiry>(DEFAULT_EXPIRY);
+
+  /*
+   * A render-phase reset, and the reason it has to exist.
+   *
+   * This dialog is permanently mounted — `open` is a prop, so the component
+   * renders whether or not it is on screen — and `useState(session)` therefore
+   * captured the *first* value of `session`, which on a freshly mounted
+   * dashboard is `""`. It never took another one. So opening Share on a session
+   * called `deploy-prod` and pressing Copy put `mtmux share ` on the clipboard,
+   * with a trailing space and no session, on every share anyone has ever made
+   * from this page.
+   *
+   * `readOnly`, `files` and `expires` are reset for a smaller version of the
+   * same problem: they persisted across opens, so a read-write share configured
+   * once quietly became the default for every later one, including for a
+   * different machine.
+   *
+   * This is React's documented way to reset state when a prop changes — an
+   * effect would paint the stale command for a frame first, and a `key` alone
+   * cannot help a caller that renders the dialog unconditionally. The callers
+   * pass a `key` as well, so a remount is the belt to this braces.
+   */
+  const [seed, setSeed] = useState(session);
+  if (seed !== session) {
+    setSeed(session);
+    setName(session);
+    setReadOnly(false);
+    setFiles("none");
+    setExpires(DEFAULT_EXPIRY);
+  }
 
   const command = buildShareCommand({
     session: name,
@@ -105,46 +140,33 @@ export function ShareDialog({
             />
           </div>
 
+          {/*
+            One choice, not three toggles.
+
+            These were bare `<button aria-pressed>`, which is what you reach for
+            when the group is only ever clicked — but it announces three
+            unrelated toggle buttons, makes each one a separate tab stop, and
+            gives arrow keys nothing to do. `SegmentedControl` is the APG
+            radiogroup: one tab stop, arrows between the segments.
+          */}
           <div className="space-y-2">
-            <Label>Files</Label>
-            <div className="flex flex-wrap gap-2">
-              {FILE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setFiles(option.value)}
-                  aria-pressed={files === option.value}
-                  className={
-                    files === option.value
-                      ? "rounded-md border border-primary bg-primary/10 px-3 py-2 text-sm text-foreground"
-                      : "rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-                  }
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+            <Label id="share-files-label">Files</Label>
+            <SegmentedControl
+              labelledBy="share-files-label"
+              value={files}
+              onChange={setFiles}
+              options={FILE_OPTIONS}
+            />
           </div>
 
           <div className="space-y-2">
-            <Label>Expires</Label>
-            <div className="flex flex-wrap gap-2">
-              {EXPIRY_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setExpires(option.value)}
-                  aria-pressed={expires === option.value}
-                  className={
-                    expires === option.value
-                      ? "rounded-md border border-primary bg-primary/10 px-3 py-2 text-sm text-foreground"
-                      : "rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-                  }
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+            <Label id="share-expires-label">Expires</Label>
+            <SegmentedControl
+              labelledBy="share-expires-label"
+              value={expires}
+              onChange={setExpires}
+              options={EXPIRY_OPTIONS}
+            />
           </div>
 
           <CopyCommand command={command} />

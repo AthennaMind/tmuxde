@@ -2,7 +2,7 @@
 
 import { Plus, X } from "lucide-react";
 import { Button } from "@repo/ui/components/ui/button";
-import { ScrollArea, ScrollBar } from "@repo/ui/components/ui/scroll-area";
+import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import { cn } from "@repo/ui/lib/utils";
 import { useSessionStore } from "@/stores/session-store";
 import { LAST_SESSION_KEY, writeStored } from "@/lib/storage-keys";
@@ -20,7 +20,7 @@ export function SessionTabs({ onCreateClick, className }: SessionTabsProps) {
 
   return (
     <div className={cn("flex items-center", className)}>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1" scrollbars="horizontal">
         <div role="tablist" className="flex items-center gap-1 px-1">
           {openedSessions.map((name) => {
             // A div, not a button: the close control below is a real button
@@ -66,7 +66,6 @@ export function SessionTabs({ onCreateClick, className }: SessionTabsProps) {
             );
           })}
         </div>
-        <ScrollBar orientation="horizontal" />
       </ScrollArea>
       <Button
         variant="ghost"

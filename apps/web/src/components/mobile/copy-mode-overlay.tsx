@@ -16,6 +16,7 @@ import { useUiStore } from "@/stores/ui-store";
 import { usePaneStore } from "@/stores/pane-store";
 import { useAlertStore } from "@/stores/alert-store";
 import { getRelayClient } from "@/hooks/use-websocket";
+import { copyText, copyFailureReason } from "@/lib/clipboard";
 import { isShell } from "@/lib/shell-commands";
 
 function shortenPath(path: string): string {
@@ -31,9 +32,16 @@ function formatPaneName(command?: string, path?: string): string {
 }
 
 export function CopyModeOverlay() {
-  const { capturedPaneId, capturedContent, setCopyModeOpen, setCapturedPane } =
-    useUiStore();
-  const { panes, activePaneId, windows } = usePaneStore();
+  // Per field: this overlay stays mounted over a live pane, and an unselected
+  // subscription re-renders the Monaco editor below on every unrelated store
+  // write — including the font-size writes a pinch produces by the frame.
+  const capturedPaneId = useUiStore((s) => s.capturedPaneId);
+  const capturedContent = useUiStore((s) => s.capturedContent);
+  const setCopyModeOpen = useUiStore((s) => s.setCopyModeOpen);
+  const setCapturedPane = useUiStore((s) => s.setCapturedPane);
+  const panes = usePaneStore((s) => s.panes);
+  const activePaneId = usePaneStore((s) => s.activePaneId);
+  const windows = usePaneStore((s) => s.windows);
 
   const currentPaneId = capturedPaneId ?? activePaneId;
   const currentPane = panes.find((p) => p.id === currentPaneId);
@@ -65,11 +73,13 @@ export function CopyModeOverlay() {
 
   const handleCopyAll = useCallback(async () => {
     if (!capturedContent) return;
-    try {
-      await navigator.clipboard.writeText(capturedContent);
+    // Not `navigator.clipboard` directly: on the self-hosted LAN origin the
+    // whole API is undefined, and this is *the* copy button on the *copy*
+    // screen. `copyText` falls back to execCommand, which does work there.
+    if (await copyText(capturedContent)) {
       useAlertStore.getState().push("success", "Copied to clipboard");
-    } catch {
-      useAlertStore.getState().push("error", "Failed to copy to clipboard");
+    } else {
+      useAlertStore.getState().push("error", copyFailureReason());
     }
   }, [capturedContent]);
 

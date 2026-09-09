@@ -39,7 +39,9 @@ export function CopyCommand({ command }: { command: string }) {
         type="button"
         onClick={copy}
         aria-label={`Copy "${command}"`}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        // 44px. This is the button on the empty state — the very first control
+        // a new user is asked to hit, usually on a phone — and it was 36.
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {copied ? (
           <Check className="h-4 w-4 text-success" aria-hidden />

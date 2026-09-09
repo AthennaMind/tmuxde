@@ -21,6 +21,28 @@ import { describe, expect, it } from "vitest";
  * because the site is dark-only; the app has a theme toggle, so the port had
  * to define `--brand` twice. This test is what stops someone "simplifying"
  * that back to one value.
+ *
+ * ## Why "every pair" is now true
+ *
+ * It was not. The scheme reader took `:root` and `.dark` and stopped there,
+ * which skipped the shadcn alias block entirely — and that block is what every
+ * shadcn component in `packages/ui` is written against. It held exactly one
+ * literal colour, `--destructive-foreground`, and that colour was 2.72:1 on
+ * `--destructive` in dark mode for as long as it existed. A test whose
+ * docstring promises coverage it does not have is worse than no test, because
+ * the promise is what stops anyone looking. The aliases are resolved one level
+ * below and asserted per scheme.
+ *
+ * ## What is known-failing and not asserted
+ *
+ * - `--border` / `--input` (`--line`) on the surfaces: 1.41:1 light, 1.31:1
+ *   dark, against the 3:1 floor WCAG 1.4.11 sets for a control boundary.
+ *   Fixing it needs a distinct token for control borders rather than a darker
+ *   `--line` for every divider in the app — a design decision, not a bug fix.
+ * - The xterm palettes in `terminal-themes.ts`. They are reproductions of
+ *   named palettes (Dracula, Solarized, …); "correct" there means faithful to
+ *   the original, and several originals fail. Changing them would make the
+ *   themes wrong in a different way.
  */
 
 const CSS = readFileSync(
@@ -33,28 +55,52 @@ const CSS = readFileSync(
 
 type Oklch = { L: number; C: number; h: number };
 
-/**
- * Read one scheme's raw token values.
- *
- * Deliberately only the literal `oklch(...)` declarations — `var(...)` aliases
- * are indirection, and resolving them here would mean reimplementing the
- * cascade. Every token this test cares about is declared literally in both
- * blocks.
- */
-function scheme(selector: string): Record<string, Oklch> {
+/** The text of one declaration block, selected by its opening selector. */
+function block(selector: string): string {
   const start = CSS.indexOf(selector);
   expect(start, `${selector} block not found`).toBeGreaterThan(-1);
   const open = CSS.indexOf("{", start);
   const close = CSS.indexOf("\n}", open);
-  const block = CSS.slice(open, close);
+  return CSS.slice(open, close);
+}
 
+/**
+ * Read one scheme's raw token values.
+ *
+ * Only the literal `oklch(...)` declarations. Aliases live in their own block
+ * and are handled by `aliases()` below, which is a deliberate split: the raw
+ * tokens flip per scheme, the aliases do not, and conflating the two is how
+ * the alias block went unread for as long as it did.
+ */
+function scheme(selector: string): Record<string, Oklch> {
   const out: Record<string, Oklch> = {};
   const re =
     /(--[\w-]+):\s*oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*(?:\/[^)]*)?\)/g;
-  for (const m of block.matchAll(re)) {
+  for (const m of block(selector).matchAll(re)) {
     out[m[1]!] = { L: Number(m[2]), C: Number(m[3]), h: Number(m[4]) };
   }
   return out;
+}
+
+/**
+ * The shadcn alias block: `--x` -> the token it points at.
+ *
+ * One level of indirection, resolved by hand rather than by reimplementing the
+ * cascade — which is all the block uses, and a nested alias is caught below
+ * rather than silently followed. A literal `oklch()` here is a token that has
+ * opted out of flipping with the scheme; that is legal but almost always a
+ * mistake, so it is reported by name.
+ */
+function aliases(): { refs: Record<string, string>; literals: string[] } {
+  const source = block(":root,\n.dark {");
+  const refs: Record<string, string> = {};
+  for (const m of source.matchAll(/(--[\w-]+):\s*var\(\s*(--[\w-]+)\s*\)/g)) {
+    refs[m[1]!] = m[2]!;
+  }
+  const literals = [...source.matchAll(/(--[\w-]+):\s*oklch\(/g)].map(
+    (m) => m[1]!,
+  );
+  return { refs, literals };
 }
 
 /** oklch → linear sRGB. The standard matrix; no gamma, luminance wants linear. */
@@ -162,12 +208,72 @@ describe.each([
     }
   });
 
+  /**
+   * Each `--x-foreground` on its `--x`, derived from the block itself rather
+   * than from a hand-kept list — so a shadcn token added tomorrow is covered
+   * without anyone remembering to add it here. `--foreground` pairs with
+   * `--background`, which is the one name that does not follow the pattern.
+   */
+  it.each(
+    Object.keys(aliases().refs)
+      .filter((name) => name.endsWith("-foreground"))
+      .map((fg): [string, string] => [
+        fg,
+        fg === "--foreground"
+          ? "--background"
+          : fg.slice(0, -"-foreground".length),
+      ]),
+  )("puts readable text on %s / %s", (fg, bg) => {
+    const { refs } = aliases();
+    const resolve = (alias: string) => {
+      const target = refs[alias];
+      expect(target, `${alias} is not a var() alias`).toBeDefined();
+      const colour = tokens[target!];
+      expect(
+        colour,
+        `${alias} -> ${target} is not a literal in the ${name} scheme`,
+      ).toBeDefined();
+      return colour!;
+    };
+    const ratio = contrast(resolve(fg), resolve(bg));
+    expect(
+      ratio,
+      `${fg} on ${bg} is ${ratio.toFixed(2)}:1 in the ${name} scheme`,
+    ).toBeGreaterThanOrEqual(AA_NORMAL);
+  });
+
   it("stays inside the sRGB gamut", () => {
     // An out-of-gamut oklch value is silently clipped by the browser, which
     // changes both the hue and the contrast — so a ratio computed from the
     // written numbers would be a ratio nobody ever sees.
     for (const [token, colour] of Object.entries(tokens)) {
       expect(inGamut(colour), `${token} clips outside sRGB`).toBe(true);
+    }
+  });
+});
+
+describe("the shadcn alias block", () => {
+  it("pins no colour of its own", () => {
+    // The block is scheme-independent by design: it maps shadcn's names onto
+    // tokens that already flip. A literal here is a colour that does not flip,
+    // which is exactly how --destructive-foreground stayed near-white on a
+    // mid-red in dark mode at 2.72:1. It is also invisible to `scheme()`, so
+    // the block that most needs checking would be the block nothing checks.
+    expect(aliases().literals).toEqual([]);
+  });
+
+  it("aliases nothing that is itself an alias", () => {
+    // `resolve()` above follows exactly one hop. A two-hop alias would resolve
+    // to undefined and fail with a confusing message, so it fails here with a
+    // clear one instead.
+    const { refs } = aliases();
+    const light = scheme(":root {");
+    const dark = scheme(".dark {");
+    for (const [alias, target] of Object.entries(refs)) {
+      expect(
+        light[target] !== undefined && dark[target] !== undefined,
+        `${alias} -> ${target}, which is not a literal in both schemes`,
+      ).toBe(true);
     }
   });
 });

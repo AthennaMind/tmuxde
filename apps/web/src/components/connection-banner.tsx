@@ -120,6 +120,14 @@ export function ConnectionBanner() {
   );
 }
 
+/**
+ * A pill that stays small but is not small to hit.
+ *
+ * These were 18px tall, and they are the controls a stranded user jabs at on a
+ * phone — the one moment in the app where a missed tap costs the most. The
+ * button is a 44px row and the pill is a span inside it, the same split the
+ * window tabs use: the target grows, the chrome does not.
+ */
 function BannerButton({
   onClick,
   children,
@@ -131,9 +139,11 @@ function BannerButton({
     <button
       type="button"
       onClick={onClick}
-      className="shrink-0 rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] transition-colors hover:bg-foreground/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-current"
+      className="group flex min-h-11 shrink-0 items-center rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-current"
     >
-      {children}
+      <span className="rounded bg-foreground/10 px-2 py-1 text-[11px] transition-colors group-hover:bg-foreground/20">
+        {children}
+      </span>
     </button>
   );
 }

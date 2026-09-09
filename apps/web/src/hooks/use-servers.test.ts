@@ -5,7 +5,8 @@ import { normalizeServer } from "./use-servers";
  * The normalizer, which is the part of this hook worth pinning.
  *
  * There used to be two of these — one in `all-sessions.tsx` and one in
- * `server-list.tsx` — reading the same `GET /v1/servers`. Two requests for one
+ * the since-deleted `server-list.tsx` — reading the same `GET /v1/servers`. Two
+ * requests for one
  * answer was the small problem; two different shapes for it was the real one,
  * because a machine could read as online in one list and offline in the other.
  */

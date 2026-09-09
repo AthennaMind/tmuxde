@@ -28,6 +28,7 @@ import { cn } from "@repo/ui/lib/utils";
 import { toast } from "sonner";
 import { apiFetch, isHostedBuild } from "@/lib/auth-client";
 import { deviceIdForPublicKey } from "@/components/account/connect-to-server";
+import { FORGET_MACHINE_BODY } from "@/components/account/forget-machine-dialog";
 import {
   listMachines,
   moveMachine,
@@ -472,10 +473,11 @@ function MachineRow({
           dismissed before the first makes sense again. */}
       {confirmingForget && (
         <div className="space-y-2 border-t border-border px-3 py-3">
-          <p className="text-xs text-muted-foreground">
-            Deletes this device&apos;s keys for {entry.name}. The machine keeps
-            running and stays on your account — you can pair with it again.
-          </p>
+          {/* The same sentence the dashboard's dialog uses, imported rather
+              than retyped. Copying this copy is how the dashboard's session
+              card ended up with no confirmation at all while two other
+              surfaces had one. */}
+          <p className="text-xs text-muted-foreground">{FORGET_MACHINE_BODY}</p>
           <div className="flex gap-2">
             <Button
               variant="outline"

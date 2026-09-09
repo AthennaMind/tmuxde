@@ -38,6 +38,31 @@ export function VisualViewportSync() {
       root.style.setProperty("--vv-keyboard-inset", `${next.inset}px`);
     };
 
+    /*
+     * Orientation, without asking a height the keyboard has already changed.
+     *
+     * This used to be `innerHeight >= innerWidth`, which is wrong here for a
+     * specific reason: the app sets `interactiveWidget: "resizes-content"`, so
+     * on Chromium `innerHeight` *shrinks by the keyboard's height*. On a
+     * 360×640 phone a ~300px keyboard leaves 340 < 360, so opening the keyboard
+     * reclassified the device as landscape — an orientation with no baseline,
+     * which the reducer then seeded with the keyboard-shrunk height and
+     * reported as closed. `data-keyboard` never became "open" on a small
+     * Android phone at all.
+     *
+     * `screen.orientation` describes the device and is unmoved by any of this;
+     * comparing against `screen.width` is the fallback for Safari versions
+     * without it, and the screen's own dimensions are likewise unaffected.
+     */
+    const readOrientation = (): "portrait" | "landscape" => {
+      const type = window.screen?.orientation?.type;
+      if (typeof type === "string") {
+        return type.startsWith("portrait") ? "portrait" : "landscape";
+      }
+      const { width = 0, height = 0 } = window.screen ?? {};
+      return height >= width ? "portrait" : "landscape";
+    };
+
     const update = () => {
       rafId = null;
       const vv = window.visualViewport;
@@ -59,8 +84,7 @@ export function VisualViewportSync() {
           visualHeight: height,
           scale,
           hasFocusedInput: isTextEntry(document.activeElement),
-          orientation:
-            window.innerHeight >= window.innerWidth ? "portrait" : "landscape",
+          orientation: readOrientation(),
         },
         baselines,
         keyboard,

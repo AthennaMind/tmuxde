@@ -11,6 +11,7 @@ import {
 } from "@repo/ui/components/ui/dialog";
 import { SendHorizonal, X } from "lucide-react";
 import { cn } from "@repo/ui/lib/utils";
+import { useMiniScrollbar } from "@repo/ui/components/ui/mini-scrollbar";
 import { triggerHaptic } from "@repo/ui/components/haptic-button";
 import { useCommandStore } from "@/stores/command-store";
 import { useConnectionStore } from "@/stores/connection-store";
@@ -111,6 +112,9 @@ function ComposerBody({
 }) {
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const [tab, setTab] = useState<Tab>("history");
+  // A 128px-tall raw scroller on a phone: nothing drew a bar, so a history
+  // longer than four entries looked like a history of four entries.
+  const { ref: entriesRef, scrollbar: entriesScrollbar } = useMiniScrollbar();
   const { history, snippets } = useCommandStore();
   const { hapticEnabled } = useSettingsStore();
   const connected = useConnectionStore((s) => s.status === "connected");
@@ -243,27 +247,31 @@ function ComposerBody({
             ))}
           </div>
 
-          <ul
-            className="max-h-32 overflow-y-auto px-2 py-2"
-            aria-label={`${tab} entries`}
-          >
-            {entries.length === 0 ? (
-              <li className="px-1 py-2 text-xs text-muted-foreground">
-                {emptyStateFor(tab)}
-              </li>
-            ) : (
-              entries.map((entry, i) => (
-                <li key={`${entry}-${i}`}>
-                  <button
-                    onClick={() => insertAtCaret(entry)}
-                    className="w-full truncate rounded px-1 py-1.5 text-left font-mono text-xs text-muted-foreground active:bg-muted"
-                  >
-                    {entry}
-                  </button>
+          <div className="relative">
+            {entriesScrollbar}
+            <ul
+              ref={entriesRef}
+              className="max-h-32 overflow-y-auto px-2 py-2"
+              aria-label={`${tab} entries`}
+            >
+              {entries.length === 0 ? (
+                <li className="px-1 py-2 text-xs text-muted-foreground">
+                  {emptyStateFor(tab)}
                 </li>
-              ))
-            )}
-          </ul>
+              ) : (
+                entries.map((entry, i) => (
+                  <li key={`${entry}-${i}`}>
+                    <button
+                      onClick={() => insertAtCaret(entry)}
+                      className="w-full truncate rounded px-1 py-1.5 text-left font-mono text-xs text-muted-foreground active:bg-muted"
+                    >
+                      {entry}
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 border-t px-2 py-2">

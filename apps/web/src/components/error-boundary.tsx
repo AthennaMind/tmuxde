@@ -5,6 +5,7 @@ import { AlertTriangle, RefreshCw, Copy, RotateCcw } from "lucide-react";
 import { Button } from "@repo/ui/components/ui/button";
 import { useSessionStore } from "@/stores/session-store";
 import { usePaneStore } from "@/stores/pane-store";
+import { copyText, copyFailureReason } from "@/lib/clipboard";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -15,6 +16,8 @@ interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
   retryCount: number;
+  /** Result of the last Copy Error press, shown next to the button. */
+  copyResult: string | null;
 }
 
 export class ErrorBoundary extends React.Component<
@@ -23,11 +26,18 @@ export class ErrorBoundary extends React.Component<
 > {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null, retryCount: 0 };
+    this.state = {
+      hasError: false,
+      error: null,
+      retryCount: 0,
+      copyResult: null,
+    };
   }
 
   static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
+    // `copyResult` too: it belongs to the error being shown, and a stale
+    // "Copied" over a *different* stack is a lie about which one you have.
+    return { hasError: true, error, copyResult: null };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
@@ -39,12 +49,25 @@ export class ErrorBoundary extends React.Component<
     });
   }
 
-  private handleCopyError = async () => {
+  /**
+   * Copy the stack, without throwing inside the screen that reports throwing.
+   *
+   * `navigator.clipboard` exists only in a secure context, and `mtmux start`
+   * serves the app over plain http on the LAN — so on the product's primary
+   * path this was an unhandled rejection raised from the error UI itself, with
+   * the button giving no sign either way. `copyText` has the execCommand
+   * fallback that actually works there; when even that fails the user is told
+   * why, because "nothing happened" is the one outcome they cannot act on.
+   */
+  private handleCopyError = () => {
     const { error } = this.state;
-    if (error) {
-      const text = `${error.message}\n\n${error.stack ?? ""}`;
-      await navigator.clipboard.writeText(text);
-    }
+    if (!error) return;
+    const text = `${error.message}\n\n${error.stack ?? ""}`;
+    void copyText(text).then(
+      (ok) =>
+        this.setState({ copyResult: ok ? "Copied" : copyFailureReason() }),
+      () => this.setState({ copyResult: copyFailureReason() }),
+    );
   };
 
   private handleRetry = () => {
@@ -53,13 +76,19 @@ export class ErrorBoundary extends React.Component<
       this.setState((s) => ({
         hasError: false,
         error: null,
+        copyResult: null,
         retryCount: s.retryCount + 1,
       }));
     } else {
       // Subsequent retries: hard reset — clear active session + panes
       useSessionStore.getState().setActiveSession(null);
       usePaneStore.getState().clearAll();
-      this.setState({ hasError: false, error: null, retryCount: 0 });
+      this.setState({
+        hasError: false,
+        error: null,
+        copyResult: null,
+        retryCount: 0,
+      });
     }
   };
 
@@ -94,6 +123,15 @@ export class ErrorBoundary extends React.Component<
               Reload Page
             </Button>
           </div>
+          {this.state.copyResult && (
+            <p
+              className="max-w-sm text-xs text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              {this.state.copyResult}
+            </p>
+          )}
         </div>
       );
     }

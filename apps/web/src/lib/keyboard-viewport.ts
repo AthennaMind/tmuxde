@@ -90,7 +90,21 @@ export function computeKeyboardState(
   // Focused, but we have never seen this orientation unfocused — so there is
   // nothing to measure a drop against. Seed it and claim nothing.
   if (current === undefined) {
-    next[sample.orientation] = sample.visualHeight;
+    /*
+     * Rotating while typing lands here, and the naive seed is wrong.
+     *
+     * The only sample available is one with the keyboard already up, so taking
+     * `visualHeight` as the unfocused baseline records a screen that is short
+     * by exactly the keyboard. Every later sample then computes a drop of zero
+     * and reports the keyboard closed: the nav bar comes back underneath a
+     * keyboard that is still there, and the inset collapses. Adding the inset
+     * we already believed in reconstructs what the unfocused height must have
+     * been, which is the honest estimate and self-corrects the moment the
+     * keyboard actually closes.
+     */
+    next[sample.orientation] = previous.open
+      ? sample.visualHeight + previous.inset
+      : sample.visualHeight;
     return { state: previous, baselines: next };
   }
 

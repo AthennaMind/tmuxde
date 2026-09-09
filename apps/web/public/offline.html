@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0a0b0a" />
+    <title>Offline · mtmux</title>
+    <!--
+      Deliberately self-contained: no scripts, no bundles, no font requests.
+
+      This is the only document the service worker precaches, and it is served
+      when a navigation cannot reach the network. Caching the app shell instead
+      would look like it worked and then hang forever — the shell's server
+      output is a loading spinner, and with no JS reachable it never hydrates
+      past it. An honest static page beats a fake running app.
+
+      Because it references nothing versioned, it also never goes stale, which
+      is what lets the cache name stay a plain constant.
+    -->
+    <style>
+      :root {
+        color-scheme: dark light;
+        --bg: #0a0b0a;
+        --fg: #f4f5f3;
+        --muted: #9aa09a;
+        --brand: #e87958;
+        --line: #23262300;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #fcfdfb;
+          --fg: #141614;
+          --muted: #5e645e;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: calc(2rem + env(safe-area-inset-top)) 1.5rem
+          calc(2rem + env(safe-area-inset-bottom));
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      main {
+        max-width: 26rem;
+        text-align: center;
+      }
+      .mark {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 3rem;
+        height: 3rem;
+        border-radius: 0.85rem;
+        background: var(--brand);
+        color: #fff5ee;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+      h1 {
+        margin: 1.5rem 0 0.5rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0 0 0.75rem;
+        color: var(--muted);
+        font-size: 0.9375rem;
+      }
+      a.retry {
+        display: inline-block;
+        margin-top: 1rem;
+        padding: 0.7rem 1.4rem;
+        border-radius: 0.6rem;
+        background: var(--brand);
+        color: #1f0c08;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        text-decoration: none;
+        min-height: 44px;
+        line-height: 1.6;
+      }
+      a.retry:focus-visible {
+        outline: 2px solid var(--fg);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="mark" aria-hidden="true">&rsaquo;</span>
+      <h1>You're offline</h1>
+      <p>
+        mtmux needs a connection to reach your machine — the terminal itself
+        runs there, not here.
+      </p>
+      <p>Your paired session is still on this device. Nothing was lost.</p>
+      <a class="retry" href="/">Try again</a>
+    </main>
+  </body>
+</html>

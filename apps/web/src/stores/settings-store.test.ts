@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { mergeToolbarKeys, defaultToolbarKeys } from "./settings-store";
+import {
+  mergeGestures,
+  mergeToolbarKeys,
+  defaultToolbarKeys,
+  type GestureSettings,
+} from "./settings-store";
 
 /**
  * The migration is the whole feature for anyone who has opened the app before.
@@ -54,5 +59,70 @@ describe("mergeToolbarKeys", () => {
     for (const key of mergeToolbarKeys(legacy)) {
       expect(key.group).toBeTruthy();
     }
+  });
+});
+
+/**
+ * The same migration problem, one level down.
+ *
+ * The obvious spread — `{ ...current, ...stored }` — copies whatever is in
+ * localStorage back out, including keys that no longer exist. That matters
+ * here because two gesture toggles were removed after shipping (they were
+ * switches wired to nothing), and a plain spread would have carried them in
+ * every persisted blob forever. It also has to survive a stored value of
+ * `false`, which is the whole point of a toggle someone turned off.
+ */
+describe("mergeGestures", () => {
+  const current: GestureSettings = {
+    swipeToSwitchSessions: true,
+    swipeToSwitchPanes: true,
+    dragToScroll: true,
+    pinchToZoom: true,
+  };
+
+  it("keeps a toggle the user turned off", () => {
+    expect(mergeGestures({ pinchToZoom: false }, current)).toEqual({
+      ...current,
+      pinchToZoom: false,
+    });
+  });
+
+  it("drops keys that no longer exist", () => {
+    const stored = {
+      pinchToZoom: false,
+      // Both removed after shipping; a spread would keep resurrecting them.
+      doubleTapToCopy: true,
+      longPressContextMenu: true,
+      twoFingerScroll: false,
+    } as Partial<GestureSettings>;
+    const merged = mergeGestures(stored, current);
+    expect(Object.keys(merged).sort()).toEqual(Object.keys(current).sort());
+  });
+
+  it("gives a new toggle its default on an install that predates it", () => {
+    // `dragToScroll` replaced the never-implemented `twoFingerScroll`.
+    const merged = mergeGestures(
+      { twoFingerScroll: false } as Partial<GestureSettings>,
+      current,
+    );
+    expect(merged.dragToScroll).toBe(true);
+  });
+
+  it("ignores a non-boolean left behind by a hand-edit", () => {
+    const merged = mergeGestures(
+      { pinchToZoom: "yes" } as unknown as Partial<GestureSettings>,
+      current,
+    );
+    expect(merged.pinchToZoom).toBe(true);
+  });
+
+  it("returns the defaults when nothing was stored", () => {
+    expect(mergeGestures(undefined, current)).toEqual(current);
+  });
+
+  it("does not mutate the defaults it was handed", () => {
+    const snapshot = { ...current };
+    mergeGestures({ dragToScroll: false }, current);
+    expect(current).toEqual(snapshot);
   });
 });

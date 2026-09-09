@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import {
   Search,
   Zap,
@@ -38,32 +38,53 @@ export function KeyboardToolbar({
   onSearchOpen,
   onCopy,
 }: KeyboardToolbarProps) {
-  const { toolbarKeys, hapticEnabled } = useSettingsStore();
+  const toolbarKeys = useSettingsStore((s) => s.toolbarKeys);
+  const hapticEnabled = useSettingsStore((s) => s.hapticEnabled);
   const [stickyCtrl, setStickyCtrl] = useState(false);
   const [stickyAlt, setStickyAlt] = useState(false);
   const [keySheetOpen, setKeySheetOpen] = useState(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Keys that travel to the relay are dead while the socket is down; the purely
   // local ones (search, palette, font size) stay live.
   const connected = useConnectionStore((s) => s.status === "connected");
 
+  /**
+   * Send a toolbar key, applying whichever sticky modifiers are lit.
+   *
+   * ## What the latch covers, and what it does not
+   *
+   * It covers **the keys in this row and the key sheet, only**. Anything typed
+   * on the soft keyboard goes straight to xterm's own `onData` and never
+   * passes through here, so tapping Ctrl and then typing `c` on the phone
+   * keyboard sends a literal `c`. That is a real limitation, stated here
+   * rather than left to be discovered.
+   *
+   * Ctrl is only defined for the ASCII range `@` through `_` (64–95), which
+   * maps to control codes 0–31 — that is the whole of what a terminal can
+   * express. Tab, the arrows, `⇧Tab` and `⌥⏎` are escape sequences with no
+   * Ctrl form, so they are sent unchanged. Alt has no such limit: it is an
+   * ESC prefix and composes with anything, including an escape sequence.
+   *
+   * Both latches clear after *any* key, whether or not the modifier could be
+   * applied. Clearing them only inside the transform is what left the chip lit
+   * indefinitely — `key.length === 1` is false for every multi-byte key in the
+   * row, so neither branch ran and neither latch was ever released.
+   */
   const sendKey = useCallback(
     (key: string) => {
       let data = key;
 
-      // Apply sticky modifiers
       if (stickyCtrl && key.length === 1) {
-        // Convert to ctrl code
-        const code = key.toUpperCase().charCodeAt(0) - 64;
-        if (code > 0 && code < 27) {
-          data = String.fromCharCode(code);
+        const code = key.toUpperCase().charCodeAt(0);
+        if (code >= 64 && code <= 95) {
+          data = String.fromCharCode(code - 64);
         }
-        setStickyCtrl(false);
-      } else if (stickyAlt) {
-        data = "\x1b" + key;
-        setStickyAlt(false);
+      }
+      if (stickyAlt) {
+        data = "\x1b" + data;
       }
 
+      setStickyCtrl(false);
+      setStickyAlt(false);
       sendKeySequence(data);
     },
     [stickyCtrl, stickyAlt],
@@ -86,22 +107,11 @@ export function KeyboardToolbar({
     [sendKey, hapticEnabled],
   );
 
-  const handleTouchStart = useCallback(
-    (_id: string) => {
-      longPressTimer.current = setTimeout(() => {
-        // Long press variants could show a popup
-        if (hapticEnabled) triggerHaptic(30);
-      }, 500);
-    },
-    [hapticEnabled],
-  );
-
-  const handleTouchEnd = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  }, []);
+  /* A long press on a key used to fire its own 30ms buzz after 500ms and then
+     do nothing at all. A haptic distinct from the tap one is a promise that
+     something is about to happen; there was never a variants popup behind it,
+     so the buzz was the whole feature. Removed rather than left to keep
+     promising. */
 
   /** Signals bypass the sticky-modifier path — they are already control codes. */
   const sendSignal = useCallback((data: string) => {
@@ -165,9 +175,10 @@ export function KeyboardToolbar({
                   : "border-border bg-background text-foreground",
               )}
               disabled={!connected}
+              aria-pressed={
+                key.id === "ctrl" || key.id === "alt" ? isSticky : undefined
+              }
               onClick={() => handleKeyPress(key.id, key.key)}
-              onTouchStart={() => handleTouchStart(key.id)}
-              onTouchEnd={handleTouchEnd}
             >
               {key.label}
             </button>

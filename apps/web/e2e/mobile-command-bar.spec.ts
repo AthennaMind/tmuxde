@@ -37,7 +37,7 @@ async function openTerminal(page: Page) {
 
 const bar = (page: Page) => page.getByRole("textbox", { name: "Command" });
 
-test.describe("the one-line bar", () => {
+test.describe("the one-line bar", { tag: "@phone-only" }, () => {
   test("is one line, and stays one line", async ({ page }) => {
     await openTerminal(page);
     const field = bar(page);
@@ -104,7 +104,7 @@ test.describe("the one-line bar", () => {
   });
 });
 
-test.describe("the microphone", () => {
+test.describe("the microphone", { tag: "@phone-only" }, () => {
   test("is absent when the browser has no Web Speech", async ({ page }) => {
     await page.addInitScript((token: string) => {
       localStorage.setItem("mtmux-token", token);

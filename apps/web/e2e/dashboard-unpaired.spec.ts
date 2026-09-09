@@ -59,7 +59,7 @@ async function stubAccount(page: Page) {
   );
 }
 
-test.describe("a dashboard with no pairings", () => {
+test.describe("a dashboard with no pairings", { tag: "@phone" }, () => {
   test.beforeEach(async ({ page }) => {
     await stubAccount(page);
     await page.goto("/start");

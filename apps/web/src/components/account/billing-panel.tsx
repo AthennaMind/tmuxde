@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@repo/ui/components/ui/card";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import { SegmentedControl } from "@repo/ui/components/segmented-control";
 import { cn } from "@repo/ui/lib/utils";
 import {
   PLANS,
@@ -51,6 +52,15 @@ type Billing = {
   status: "none" | "active" | "trialing" | "on_hold" | "cancelled" | string;
   renewsAt: number | null;
   usage: { bytes: number; servers: number | null };
+  /**
+   * Whether the broker has a payment provider configured at all.
+   *
+   * False for every self-hosted install, and false for a hosted deployment
+   * whose Dodo keys are missing — in which case `/v1/billing/checkout` answers
+   * 503. Rendering an Upgrade button that can only produce an error toast is
+   * worse than rendering no button, so this gates it.
+   */
+  enabled: boolean;
 };
 
 type Load =
@@ -118,11 +128,31 @@ function normalize(body: unknown): Billing {
         0,
       servers: num(pick(usage, "servers")) ?? num(pick(body, "servers")),
     },
+    // Defaults to true, so a broker too old to send the flag keeps offering
+    // the upgrade it has always offered. Only an explicit `false` hides it.
+    enabled: pick(body, "billingEnabled") !== false,
   };
 }
 
 const ON_HOLD = new Set(["on_hold", "past_due", "unpaid"]);
 const ENDED = new Set(["cancelled", "canceled", "expired", "none"]);
+
+/**
+ * How long to keep asking the broker whether the payment landed.
+ *
+ * The checkout returns the browser here the moment the provider is done, but
+ * what actually flips the plan is the *webhook*, which is a separate delivery
+ * racing the redirect. Without this, the overwhelmingly common outcome is that
+ * someone pays and is immediately shown "You're on the free plan" — the single
+ * worst moment in the product to be told something false.
+ *
+ * Twenty seconds is chosen to be longer than the race and shorter than
+ * patience. When it expires the panel says the payment is still settling
+ * rather than silently reverting to the free card, because at that point the
+ * money has been taken and the honest answer is "not yet", not "no".
+ */
+const CONFIRM_INTERVAL_MS = 2_000;
+const CONFIRM_TIMEOUT_MS = 20_000;
 
 export function BillingPanel() {
   const [load, setLoad] = useState<Load>({ state: "loading" });
@@ -130,6 +160,13 @@ export function BillingPanel() {
   // the global `setInterval`.
   const [billingInterval, setBillingInterval] = useState<Interval>("monthly");
   const [busy, setBusy] = useState<"checkout" | "portal" | null>(null);
+  /**
+   * `null` when there is nothing to confirm; otherwise where the confirmation
+   * has got to. Read from the URL rather than from React state on mount,
+   * because the round trip through the payment provider destroys the tab's
+   * state entirely — the query string is the only thing that survives it.
+   */
+  const [confirming, setConfirming] = useState<null | "polling" | "slow">(null);
 
   const refresh = useCallback(async () => {
     setLoad({ state: "loading" });
@@ -152,6 +189,79 @@ export function BillingPanel() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    // `window.location` rather than `useSearchParams`, deliberately: this is a
+    // client-only concern, and reading the hook here would force the whole
+    // panel under a Suspense boundary to keep the route prerenderable.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "complete") return;
+
+    /**
+     * Drop the parameter — but only once the poll has finished, never on the
+     * way in.
+     *
+     * Stripping it up front looks tidier and is a live bug. This effect can run
+     * more than once for one arrival: React's StrictMode deliberately mounts,
+     * tears down and re-mounts in development, and a Fast Refresh or a parent
+     * remount does the same in any environment. The first run would strip the
+     * parameter and then have its poll cancelled by the teardown; the second
+     * would read a URL with nothing in it and return immediately — leaving
+     * `confirming` set, the banner on screen, and no loop behind it. Someone
+     * who had just been charged would watch "Confirming your payment…" forever.
+     *
+     * Deferring the strip makes a re-run re-arm the poll instead of stranding
+     * it. The cost is that a reload *during* the window starts a fresh poll,
+     * which is the right answer anyway.
+     */
+    const clearParam = () => {
+      const next = new URLSearchParams(window.location.search);
+      if (!next.has("checkout")) return;
+      next.delete("checkout");
+      const query = next.toString();
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + (query ? `?${query}` : ""),
+      );
+    };
+
+    let cancelled = false;
+    setConfirming("polling");
+    const startedAt = Date.now();
+
+    const tick = async () => {
+      if (cancelled) return;
+      try {
+        const billing = normalize(await apiFetch("/v1/billing"));
+        if (cancelled) return;
+        setLoad({ state: "ready", billing });
+        if (billing.planSource === "paid") {
+          setConfirming(null);
+          clearParam();
+          toast.success("You're on Pro. Thanks for paying for this.");
+          return;
+        }
+      } catch {
+        // Swallowed on purpose. A failed poll during confirmation must not
+        // replace a rendered plan with an error card — the next tick is two
+        // seconds away, and the timeout below is the real backstop.
+      }
+      if (cancelled) return;
+      if (Date.now() - startedAt >= CONFIRM_TIMEOUT_MS) {
+        setConfirming("slow");
+        clearParam();
+        return;
+      }
+      timer = window.setTimeout(() => void tick(), CONFIRM_INTERVAL_MS);
+    };
+
+    let timer = window.setTimeout(() => void tick(), CONFIRM_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, []);
 
   /**
    * Both money buttons end the same way: the broker returns a URL owned by the
@@ -223,6 +333,49 @@ export function BillingPanel() {
 
   return (
     <div className="space-y-4">
+      {confirming !== null && (
+        <div
+          role="status"
+          className="rounded-lg border border-primary/40 bg-primary/5 p-4"
+        >
+          <div className="flex items-start gap-3">
+            {confirming === "polling" ? (
+              <Loader2
+                className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-primary"
+                aria-hidden
+              />
+            ) : (
+              <AlertCircle
+                className="mt-0.5 h-5 w-5 shrink-0 text-primary"
+                aria-hidden
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-medium text-foreground">
+                {confirming === "polling"
+                  ? "Confirming your payment…"
+                  : "Your payment is still settling"}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {confirming === "polling"
+                  ? "Your card has been charged. We're waiting for the payment provider to confirm it, which usually takes a few seconds."
+                  : "This is taking longer than usual. Nothing is wrong with your payment — it just hasn't reached us yet. Refresh in a minute, or write to us if it hasn't cleared."}
+              </p>
+              {confirming === "slow" && (
+                <Button
+                  variant="outline"
+                  className="mt-3 h-11 w-full sm:w-auto"
+                  onClick={() => void refresh()}
+                >
+                  <RefreshCw className="h-4 w-4" aria-hidden />
+                  Check again
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {onHold && (
         <div
           role="alert"
@@ -368,7 +521,12 @@ export function BillingPanel() {
             <Button
               className="h-11 w-full"
               onClick={() => void handoff("checkout")}
-              disabled={busy !== null}
+              disabled={busy !== null || !billing.enabled}
+              // Explains the disabled state to a screen reader, which otherwise
+              // gets a button that is simply unavailable for no stated reason.
+              aria-describedby={
+                billing.enabled ? undefined : "billing-unavailable"
+              }
             >
               {busy === "checkout" ? (
                 <>
@@ -379,8 +537,13 @@ export function BillingPanel() {
                 "Upgrade to Pro"
               )}
             </Button>
-            <p className="text-center text-xs text-muted-foreground">
-              Payment is handled by our payment provider. Cancel any time.
+            <p
+              id={billing.enabled ? undefined : "billing-unavailable"}
+              className="text-center text-xs text-muted-foreground"
+            >
+              {billing.enabled
+                ? "Payment is handled by our payment provider. Cancel any time."
+                : "This mtmux server has no payment provider configured, so there is nothing to upgrade to here. Self-hosted mtmux has no plan limits at all."}
             </p>
           </CardContent>
         </Card>
@@ -389,6 +552,15 @@ export function BillingPanel() {
   );
 }
 
+/**
+ * Monthly or yearly.
+ *
+ * Was a hand-rolled radiogroup: the roles were right and the keyboard support
+ * was entirely absent, so arrow keys did nothing, each segment was its own tab
+ * stop, and the segments were 40px on a phone. `SegmentedControl` is the APG
+ * pattern the original was reaching for, and `flex-1` keeps the two-up layout
+ * this card was designed around.
+ */
 function IntervalPicker({
   value,
   onChange,
@@ -397,38 +569,23 @@ function IntervalPicker({
   onChange: (next: Interval) => void;
 }) {
   const savings = PRICING.pro.monthlyUsd * 12 - PRICING.pro.yearlyUsd;
-  const options: { id: Interval; label: string }[] = [
-    { id: "monthly", label: "Monthly" },
-    {
-      id: "yearly",
-      label: savings > 0 ? `Yearly · save $${savings}` : "Yearly",
-    },
-  ];
 
   return (
-    <div
-      role="radiogroup"
-      aria-label="Billing interval"
-      className="flex gap-1 rounded-lg bg-muted p-1"
-    >
-      {options.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          role="radio"
-          aria-checked={value === option.id}
-          onClick={() => onChange(option.id)}
-          className={cn(
-            "h-10 flex-1 rounded-md px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            value === option.id
-              ? "bg-background font-medium text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
+    <SegmentedControl<Interval>
+      value={value}
+      onChange={onChange}
+      label="Billing interval"
+      segmentClassName="flex-1"
+      options={[
+        { value: "monthly", label: "Monthly" },
+        {
+          value: "yearly",
+          label: savings > 0 ? `Yearly · save $${savings}` : "Yearly",
+          // The visible label is a sales line; this is what it *is*.
+          ariaLabel: "Yearly",
+        },
+      ]}
+    />
   );
 }
 

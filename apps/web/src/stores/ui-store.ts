@@ -15,6 +15,14 @@ interface UiStore {
   capturedContent: string | null;
   /** The composer's draft, or null when it is closed. */
   composerDraft: string | null;
+  /**
+   * Transient pill naming what a switch just landed on.
+   *
+   * tmux's redraw after a window switch can be almost identical to the screen
+   * you left — same shell, same prompt — so without this the honest answer to
+   * "did anything happen?" is "you cannot tell".
+   */
+  switchHint: string | null;
   setMobileTab: (tab: MobileTab) => void;
   setPaneListOpen: (open: boolean) => void;
   setFabOpen: (open: boolean) => void;
@@ -27,6 +35,7 @@ interface UiStore {
   /** Open the composer, seeded with whatever was in the one-line bar. */
   openComposer: (draft?: string) => void;
   setComposerDraft: (draft: string) => void;
+  setSwitchHint: (hint: string | null) => void;
   closeComposer: () => void;
 }
 
@@ -42,6 +51,7 @@ export const useUiStore = create<UiStore>((set) => ({
   capturedPaneId: null,
   capturedContent: null,
   composerDraft: null,
+  switchHint: null,
   setMobileTab: (mobileTab) => set({ mobileTab }),
   setPaneListOpen: (paneListOpen) => set({ paneListOpen }),
   setFabOpen: (fabOpen) => set({ fabOpen }),
@@ -61,5 +71,6 @@ export const useUiStore = create<UiStore>((set) => ({
   // nullable draft rather than a boolean beside a string.
   openComposer: (draft = "") => set({ composerDraft: draft }),
   setComposerDraft: (composerDraft) => set({ composerDraft }),
+  setSwitchHint: (switchHint) => set({ switchHint }),
   closeComposer: () => set({ composerDraft: null }),
 }));

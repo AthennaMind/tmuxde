@@ -5,6 +5,7 @@ import {
   computeKeyboardState,
   isTextEntry,
   type KeyboardBaselines,
+  type KeyboardState,
   type ViewportSample,
 } from "./keyboard-viewport";
 
@@ -175,5 +176,73 @@ describe("isTextEntry", () => {
     expect(isTextEntry(el("DIV"))).toBe(false);
     expect(isTextEntry(el("BUTTON"))).toBe(false);
     expect(isTextEntry(null)).toBe(false);
+  });
+});
+
+describe("rotating while typing", () => {
+  /*
+   * The new orientation has never been seen unfocused, so the only sample
+   * available has the keyboard in it. Seeding the baseline with that height
+   * made the very next sample compute a drop of zero — the nav bar reappeared
+   * underneath a keyboard that was still up, and the inset fell to nothing.
+   */
+  it("keeps believing in the keyboard across the rotation", () => {
+    let baselines: KeyboardBaselines = {};
+    let state: KeyboardState = { open: false, inset: 0 };
+
+    // Portrait, unfocused: 800 tall.
+    ({ state, baselines } = computeKeyboardState(
+      sample({ visualHeight: 800, orientation: "portrait" }),
+      baselines,
+      state,
+    ));
+    // Portrait, typing: 500 tall, so a 300px keyboard.
+    ({ state, baselines } = computeKeyboardState(
+      sample({
+        visualHeight: 500,
+        orientation: "portrait",
+        hasFocusedInput: true,
+      }),
+      baselines,
+      state,
+    ));
+    expect(state).toEqual({ open: true, inset: 300 });
+
+    // Rotate, still typing. Landscape has no baseline of its own.
+    ({ state, baselines } = computeKeyboardState(
+      sample({
+        visualHeight: 200,
+        orientation: "landscape",
+        hasFocusedInput: true,
+      }),
+      baselines,
+      state,
+    ));
+    expect(state.open).toBe(true);
+    expect(baselines.landscape).toBe(500);
+
+    // And the next sample in the new orientation still says "open".
+    ({ state } = computeKeyboardState(
+      sample({
+        visualHeight: 200,
+        orientation: "landscape",
+        hasFocusedInput: true,
+      }),
+      baselines,
+      state,
+    ));
+    expect(state).toEqual({ open: true, inset: 300 });
+  });
+
+  it("self-corrects once the keyboard actually closes", () => {
+    let baselines: KeyboardBaselines = { landscape: 500 };
+    let state: KeyboardState = { open: true, inset: 300 };
+    ({ state, baselines } = computeKeyboardState(
+      sample({ visualHeight: 380, orientation: "landscape" }),
+      baselines,
+      state,
+    ));
+    expect(state).toEqual({ open: false, inset: 0 });
+    expect(baselines.landscape).toBe(500);
   });
 });

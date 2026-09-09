@@ -78,6 +78,43 @@ test.describe("a first visit", () => {
     await expect(page.getByText("$ mtmux", { exact: false })).toBeVisible();
   });
 
+  /**
+   * The account pitch, and the promise it must not break.
+   *
+   * `/start` is where an anonymous pairer arrives with a code in hand, so the
+   * account disclosure is collapsed and second — and on a build with no broker
+   * it must not exist at all. That absence is invariant #5 ("accounts are
+   * optional forever") expressed as a test: a self-hosted build has no account
+   * to offer and must make no claim about one.
+   */
+  test("offers an account only where there is a broker", async ({ page }) => {
+    const broker = await hasBroker(page);
+    const disclosure = page.getByRole("button", {
+      name: "What does an account add?",
+    });
+
+    if (!broker) {
+      await expect(disclosure).toHaveCount(0);
+      return;
+    }
+
+    // Collapsed by default: the code field is the page.
+    await expect(disclosure).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Create an account" }),
+    ).toHaveCount(0);
+
+    await disclosure.click();
+    await expect(
+      page.getByRole("link", { name: "Create an account" }),
+    ).toBeVisible();
+
+    // The meter stays visible. Hiding a limit we are about to apply is what
+    // would make every other line in that list suspect.
+    await expect(page.getByText(/metered at/)).toBeVisible();
+    await expect(page.getByText(/Anonymous relay is not metered/)).toBeVisible();
+  });
+
   test("always offers a route to the token page and to sign-in", async ({
     page,
   }) => {

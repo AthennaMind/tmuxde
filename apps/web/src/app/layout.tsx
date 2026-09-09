@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Martian_Mono } from "next/font/google";
 import { ThemeProvider } from "@repo/ui/providers/theme-provider";
 import { ToastProvider } from "@repo/ui/providers/toast-provider";
+import { PwaProvider } from "@/components/pwa/pwa-provider";
 import "./globals.css";
 
 /*
@@ -44,9 +45,25 @@ export const metadata: Metadata = {
   description:
     "Access Claude Code from any browser — remote terminal with tmux session management",
   manifest: "/manifest.json",
+  /*
+   * The app itself is never a search result — every route is either behind a
+   * pairing credential or a thin auth form, and the ones that render at all
+   * would compete with mtmux.com on the brand term. `robots.ts` states the
+   * same thing for crawlers that read it; this covers the ones that don't.
+   */
+  robots: { index: false, follow: false },
+  icons: {
+    // iOS composites home-screen icon transparency against black, so the
+    // rounded-corner PNGs in `icons` would pick up black corners and then be
+    // masked again. `apple-icon.png` is the same mark on an opaque tile.
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    // `black-translucent` forces white status-bar glyphs unconditionally,
+    // which in standalone + light theme is a white clock on `#fcfdfb`. Left
+    // to `default`, iOS picks the legible pair for the scheme in use.
+    statusBarStyle: "default",
     title: "mtmux",
   },
 };
@@ -101,6 +118,7 @@ export default function RootLayout({
           the thing to show someone who has expressed no preference.
         */}
         <ThemeProvider defaultTheme="dark">
+          <PwaProvider />
           {children}
           <ToastProvider />
         </ThemeProvider>

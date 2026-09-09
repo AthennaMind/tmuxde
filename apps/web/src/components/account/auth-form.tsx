@@ -37,6 +37,7 @@ import {
   type AccountLookup,
   type AuthConfig,
 } from "@/lib/auth-client";
+import { markOnboardingStarted } from "@/hooks/use-onboarding";
 import { HostedUnavailable } from "./hosted-unavailable";
 import { safeNext } from "./format";
 
@@ -89,8 +90,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   const [step, setStep] = useState<Step>(() =>
     // `/signup?email=…` as a hard navigation lands straight on the sign-up
-    // form. That link is printed by the CLI and by the dashboard, and making
-    // it re-ask for the address it was just given reads as a bug.
+    // form, with the address already filled in. Nothing in the CLI prints such
+    // a link — an earlier comment here claimed it did, and
+    // `grep -rn "/signup" apps/cli apps/api` is empty — but the site's pricing
+    // page and the terminal's account nudge both link here, and re-asking for
+    // an address that was just handed over reads as a bug.
     mode === "signup" && presetEmail ? "signup" : "email",
   );
   const [fields, setFields] = useState<Fields>({
@@ -295,6 +299,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
         );
         return;
       }
+      // Before `finish()`, which may navigate straight back into the CLI's
+      // device flow — someone who signs up mid-flow can go days before seeing
+      // the dashboard, and the checklist should still be there when they do.
+      markOnboardingStarted();
       finish();
     });
   }
@@ -572,7 +580,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
               <div className="flex items-center justify-between pt-1 text-sm">
                 <BackLink onClick={restart} />
-                {config.passwordReset && lookup?.hasPassword !== false && (
+                {config.passwordReset && lookup?.hasPassword !== false ? (
                   <button
                     type="button"
                     onClick={() => void onForgotPassword()}
@@ -581,6 +589,22 @@ export function AuthForm({ mode }: { mode: Mode }) {
                   >
                     Forgot password?
                   </button>
+                ) : (
+                  /*
+                   * A sentence, not a disabled button.
+                   *
+                   * With no mailer configured there is no reset to offer, and
+                   * the corner was simply empty — so someone who had forgotten
+                   * their password stared at a form with no way forward and no
+                   * statement that there wasn't one. Saying so is the whole
+                   * fix; a greyed-out "Forgot password?" would imply the
+                   * feature exists and is merely unavailable right now.
+                   */
+                  lookup?.hasPassword !== false && (
+                    <span className="text-right text-xs text-muted-foreground">
+                      No password reset on this deployment.
+                    </span>
+                  )
                 )}
               </div>
             </>
@@ -632,7 +656,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
                   id="password"
                   label="Password"
                   error={errors.password}
-                  hint={`At least ${MIN_PASSWORD} characters.`}
+                  hint={
+                    config.passwordReset
+                      ? `At least ${MIN_PASSWORD} characters.`
+                      : `At least ${MIN_PASSWORD} characters. This deployment cannot send email, so there is no reset — keep it somewhere you can find it.`
+                  }
                   input={
                     <Input
                       id="password"

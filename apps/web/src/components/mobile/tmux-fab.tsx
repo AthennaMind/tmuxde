@@ -48,6 +48,7 @@ import { usePaneStore } from "@/stores/pane-store";
 import { useUiStore } from "@/stores/ui-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useConnectionStore } from "@/stores/connection-store";
+import { noteEnteredCopyMode } from "@/lib/copy-mode-belief";
 import { getRelayClient } from "@/hooks/use-websocket";
 
 type FabTab = "panes" | "windows" | "advanced";
@@ -61,9 +62,14 @@ interface PendingConfirm {
 }
 
 export function TmuxFab() {
-  const { activeSessionId } = useSessionStore();
-  const { zoomedPaneId } = usePaneStore();
-  const { fabOpen, setFabOpen, setResizeModeActive } = useUiStore();
+  // Per field. The FAB is mounted for the whole life of an attached session,
+  // so an unselected subscription re-renders it — and the sheet's whole action
+  // grid — on every unrelated store write.
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const zoomedPaneId = usePaneStore((s) => s.zoomedPaneId);
+  const fabOpen = useUiStore((s) => s.fabOpen);
+  const setFabOpen = useUiStore((s) => s.setFabOpen);
+  const setResizeModeActive = useUiStore((s) => s.setResizeModeActive);
   const connected = useConnectionStore((s) => s.status === "connected");
   const [activeTab, setActiveTab] = useState<FabTab>("panes");
   const [longPressOpen, setLongPressOpen] = useState(false);
@@ -246,6 +252,11 @@ export function TmuxFab() {
       label: "Copy Mode",
       action: () => {
         getRelayClient()?.send({ type: "tmux:copy-mode" });
+        // Recorded so the next tap on the terminal knows to leave copy mode.
+        // Without this the pane really is in copy mode while the client thinks
+        // it isn't, and every keystroke afterwards is eaten as a copy-mode
+        // command with no visible reason.
+        noteEnteredCopyMode(useSessionStore.getState().activeSessionId);
         setFabOpen(false);
       },
     },
@@ -285,7 +296,10 @@ export function TmuxFab() {
       {/* FAB with long-press quick split. Positioned inside the terminal pane
           rather than the viewport so it can never reach — or swallow taps meant
           for — the footer chrome below it. */}
-      <div className="absolute bottom-3 right-3 z-[var(--z-fab)]">
+      {/* `right-5`, not `right-3`: the scroll rail owns the right 16px of the
+          pane, and a FAB sitting on top of it takes the bottom of the track —
+          the end of the history — out of reach. */}
+      <div className="absolute bottom-3 right-5 z-[var(--z-fab)]">
         {longPressOpen && (
           <div className="absolute bottom-14 right-0 flex gap-1 rounded-lg border bg-background p-1 shadow-lg">
             <Button

@@ -28,10 +28,13 @@ import { useCommandStore } from "@/stores/command-store";
 import { useUiStore } from "@/stores/ui-store";
 import { getRelayClient } from "@/hooks/use-websocket";
 import { sendCommand } from "@/lib/send-command";
-import { isHostedBuild } from "@/lib/auth-client";
+import { isHostedBuild, useSession } from "@/lib/auth-client";
 
 export function CommandPalette() {
   const { paletteOpen, setPaletteOpen, history, snippets } = useCommandStore();
+  const { data: session, isPending: sessionPending } = useSession();
+  const signedIn = !sessionPending && !!session?.user;
+  const signedOut = !sessionPending && !session?.user;
 
   // Cmd+K / Ctrl+K trigger
   useEffect(() => {
@@ -150,10 +153,20 @@ export function CommandPalette() {
             <SlidersHorizontal className="h-4 w-4" />
             Settings
           </CommandItem>
-          {isHostedBuild && (
+          {isHostedBuild && signedIn && (
             <CommandItem value="goto:/dashboard" onSelect={handleSelect}>
               <LayoutGrid className="h-4 w-4" />
               Your machines
+            </CommandItem>
+          )}
+          {/* Signed out, the same slot offers the thing that would make the
+              row above it exist. Never both, and never while the session is
+              still in flight — an item that appears a beat late is an item
+              someone's arrow key has already skipped past. */}
+          {isHostedBuild && signedOut && (
+            <CommandItem value="goto:/signup" onSelect={handleSelect}>
+              <LayoutGrid className="h-4 w-4" />
+              Create an mtmux account
             </CommandItem>
           )}
           <CommandItem value="goto:/start" onSelect={handleSelect}>

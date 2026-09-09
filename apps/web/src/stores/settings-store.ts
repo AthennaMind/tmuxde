@@ -232,12 +232,30 @@ const defaultToolbarKeys: ToolbarKey[] = [
   { id: "amp", label: "&", key: "&", visible: false, group: "symbol" },
 ];
 
+/**
+ * The gestures the client actually implements.
+ *
+ * Every key here gates real behaviour in the gesture reducer. That is the only
+ * rule this list has, and it was broken twice: `twoFingerScroll` (see below)
+ * and, until they were removed, `doubleTapToCopy` and `longPressContextMenu` —
+ * both shipped as switches, both defaulted on, both read by nothing. A switch
+ * that does nothing is worse than a missing feature, because the user turns it
+ * on and concludes the gesture is broken on their phone.
+ */
 interface GestureSettings {
   swipeToSwitchSessions: boolean;
   swipeToSwitchPanes: boolean;
-  doubleTapToCopy: boolean;
-  longPressContextMenu: boolean;
-  twoFingerScroll: boolean;
+  /**
+   * A one-finger vertical drag scrolls tmux's history.
+   *
+   * Named for what it is. Its predecessor was `twoFingerScroll`, which was
+   * shipped as a toggle, persisted, shown in settings — and wired to no code
+   * at all, because with tmux on the alternate screen there was nothing on the
+   * client to scroll. Scrolling is now a `tmux:scroll` round trip and a
+   * one-finger drag is what performs it, so the old name described neither the
+   * gesture nor the mechanism.
+   */
+  dragToScroll: boolean;
   pinchToZoom: boolean;
 }
 
@@ -288,6 +306,28 @@ export function mergeToolbarKeys(
   });
 }
 
+/**
+ * Keep the gestures that still exist, and only those.
+ *
+ * `{ ...current, ...stored }` was the old line, and it copies a *removed* key
+ * straight back out of localStorage on every load — for as long as that
+ * browser profile lives. Nothing renders it, so nothing goes visibly wrong;
+ * the persisted blob just quietly becomes a second, longer list of what the
+ * app supports than the app's own. Iterating the current keys instead means
+ * deleting a gesture from the interface above is the whole deletion.
+ */
+export function mergeGestures(
+  stored: Partial<GestureSettings> | undefined,
+  current: GestureSettings,
+): GestureSettings {
+  const merged = { ...current };
+  for (const key of Object.keys(current) as (keyof GestureSettings)[]) {
+    const value = stored?.[key];
+    if (typeof value === "boolean") merged[key] = value;
+  }
+  return merged;
+}
+
 export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set) => ({
@@ -295,9 +335,7 @@ export const useSettingsStore = create<SettingsStore>()(
       gestures: {
         swipeToSwitchSessions: true,
         swipeToSwitchPanes: true,
-        doubleTapToCopy: true,
-        longPressContextMenu: true,
-        twoFingerScroll: true,
+        dragToScroll: true,
         pinchToZoom: true,
       },
       hapticEnabled: true,
@@ -333,7 +371,7 @@ export const useSettingsStore = create<SettingsStore>()(
         return {
           ...current,
           ...state,
-          gestures: { ...current.gestures, ...state?.gestures },
+          gestures: mergeGestures(state?.gestures, current.gestures),
           toolbarKeys: mergeToolbarKeys(state?.toolbarKeys),
         };
       },

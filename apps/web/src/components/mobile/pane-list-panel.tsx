@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Maximize2, X, LayoutGrid } from "lucide-react";
 import {
   Sheet,
@@ -7,6 +8,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@repo/ui/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@repo/ui/components/ui/alert-dialog";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Tooltip,
@@ -15,7 +26,9 @@ import {
   TooltipProvider,
 } from "@repo/ui/components/ui/tooltip";
 import { cn } from "@repo/ui/lib/utils";
-import { useMediaQuery } from "@repo/ui/hooks/use-media-query";
+import { useStableMediaQuery } from "@repo/ui/hooks/use-media-query";
+import { useMiniScrollbar } from "@repo/ui/components/ui/mini-scrollbar";
+import { MOBILE_MEDIA_QUERY } from "@/lib/mobile-query";
 import { usePaneStore } from "@/stores/pane-store";
 import { useUiStore } from "@/stores/ui-store";
 import { getRelayClient } from "@/hooks/use-websocket";
@@ -46,9 +59,22 @@ function formatPaneName(command?: string, path?: string): string {
 }
 
 export function PaneListPanel() {
-  const { panes, activePaneId, zoomedPaneId } = usePaneStore();
-  const { paneListOpen, setPaneListOpen } = useUiStore();
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const panes = usePaneStore((s) => s.panes);
+  const activePaneId = usePaneStore((s) => s.activePaneId);
+  const zoomedPaneId = usePaneStore((s) => s.zoomedPaneId);
+  const paneListOpen = useUiStore((s) => s.paneListOpen);
+  const setPaneListOpen = useUiStore((s) => s.setPaneListOpen);
+  // The same question the rest of the app asks, asked the same way. The plain
+  // `useMediaQuery` this used re-evaluates during a pinch, and this flag
+  // decides whether selecting a pane also zooms it — so a zoom gesture could
+  // silently change what the next tap does. The bare width query it carried
+  // also called a phone in landscape a desktop; see MOBILE_MEDIA_QUERY.
+  const isMobile = useStableMediaQuery(MOBILE_MEDIA_QUERY);
+  /** The pane a "kill" tap is waiting on, if any. */
+  const [killing, setKilling] = useState<string | null>(null);
+  // A raw `overflow-y-auto`, so no scrollbar of any kind was drawn on touch —
+  // a list of panes that plainly ran off the bottom with nothing to say so.
+  const { ref: paneListRef, scrollbar: paneScrollbar } = useMiniScrollbar();
 
   if (panes.length === 0) {
     if (!paneListOpen) return null;
@@ -80,16 +106,12 @@ export function PaneListPanel() {
         return;
       }
 
-      if (zoomedPaneId) {
-        // Unzoom current, select new, zoom new
-        client.send({ type: "pane:zoom" });
-        client.send({ type: "pane:select", id });
-        client.send({ type: "pane:zoom" });
-      } else {
-        // Select and zoom
-        client.send({ type: "pane:select", id });
-        client.send({ type: "pane:zoom" });
-      }
+      // `pane:select` on the relay uses `select-pane -Z`, which carries the
+      // zoom across the selection. The old unzoom/select/rezoom triple
+      // flickered, and — because every pane of a zoomed window used to report
+      // `zoomed` — regularly rezoomed a pane the user had not chosen.
+      client.send({ type: "pane:select", id });
+      if (!zoomedPaneId) client.send({ type: "pane:zoom" });
     } else {
       client.send({ type: "pane:select", id });
     }
@@ -101,79 +123,130 @@ export function PaneListPanel() {
     getRelayClient()?.send({ type: "pane:zoom" });
   };
 
-  const handleKillPane = (id: string) => {
-    getRelayClient()?.send({ type: "pane:kill", id });
-  };
+  const killingPane = panes.find((p) => p.id === killing);
 
   return (
-    <Sheet open={paneListOpen} onOpenChange={setPaneListOpen}>
-      <SheetContent side="bottom" className="flex h-[40vh] flex-col px-4 pt-4">
-        <SheetHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="text-sm">Panes ({panes.length})</SheetTitle>
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
+    <>
+      <Sheet open={paneListOpen} onOpenChange={setPaneListOpen}>
+        <SheetContent
+          side="bottom"
+          className="flex h-[40vh] flex-col px-4 pt-4"
+        >
+          <SheetHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <SheetTitle className="text-sm">
+                Panes ({panes.length})
+              </SheetTitle>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-11 w-11"
+                      aria-label={zoomedPaneId ? "Unzoom pane" : "Zoom pane"}
+                      onClick={handleZoomPane}
+                    >
+                      <Maximize2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {zoomedPaneId ? "Unzoom" : "Zoom"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </SheetHeader>
+
+          {/* Pane list */}
+          <div className="relative mt-1 flex min-h-0 flex-1 flex-col">
+            {paneScrollbar}
+            <div
+              ref={paneListRef}
+              className="min-h-0 flex-1 overflow-y-auto space-y-1"
+            >
+              {panes.map((pane) => (
+                <div
+                  key={pane.id}
+                  className={cn(
+                    "flex items-center justify-between rounded-md px-3 py-2 text-sm",
+                    pane.id === activePaneId
+                      ? "bg-accent"
+                      : "hover:bg-accent/50",
+                  )}
+                >
+                  <button
+                    className="flex min-h-11 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    onClick={() => handleSelectPane(pane.id)}
+                  >
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {pane.index}
+                    </span>
+                    <span className="truncate">
+                      {formatPaneName(pane.command, pane.path)}
+                    </span>
+                    {pane.dimensions && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {pane.dimensions.cols}x{pane.dimensions.rows}
+                      </span>
+                    )}
+                  </button>
+                  {/* Confirms, like the same action does on the tmux sheet. It
+                  sits 44px from the row's own tap-to-select target, so the
+                  slip that costs you a running process is one thumb-width
+                  wide — and a killed pane cannot be brought back. */}
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-11 w-11"
-                    aria-label={zoomedPaneId ? "Unzoom pane" : "Zoom pane"}
-                    onClick={handleZoomPane}
+                    className="h-11 w-11 shrink-0 text-muted-foreground hover:text-destructive"
+                    aria-label={`Kill pane ${pane.index}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setKilling(pane.id);
+                    }}
                   >
-                    <Maximize2 className="h-3.5 w-3.5" />
+                    <X className="h-3.5 w-3.5" />
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {zoomedPaneId ? "Unzoom" : "Zoom"}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </SheetHeader>
-
-        {/* Pane list */}
-        <div className="mt-1 flex-1 min-h-0 overflow-y-auto space-y-1">
-          {panes.map((pane) => (
-            <div
-              key={pane.id}
-              className={cn(
-                "flex items-center justify-between rounded-md px-3 py-2 text-sm",
-                pane.id === activePaneId ? "bg-accent" : "hover:bg-accent/50",
-              )}
-            >
-              <button
-                className="flex min-h-11 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                onClick={() => handleSelectPane(pane.id)}
-              >
-                <span className="font-mono text-xs text-muted-foreground">
-                  {pane.index}
-                </span>
-                <span className="truncate">
-                  {formatPaneName(pane.command, pane.path)}
-                </span>
-                {pane.dimensions && (
-                  <span className="text-[10px] text-muted-foreground">
-                    {pane.dimensions.cols}x{pane.dimensions.rows}
-                  </span>
-                )}
-              </button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-11 w-11 shrink-0 text-muted-foreground hover:text-destructive"
-                aria-label="Kill pane"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleKillPane(pane.id);
-                }}
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </SheetContent>
-    </Sheet>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <AlertDialog
+        open={killing !== null}
+        onOpenChange={(open) => {
+          if (!open) setKilling(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {killingPane
+                ? `Kill pane ${killingPane.index}?`
+                : "Kill this pane?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The pane and every process running in it are terminated. This
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (killing) {
+                  getRelayClient()?.send({ type: "pane:kill", id: killing });
+                }
+              }}
+            >
+              Kill Pane
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -4,22 +4,24 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useStableMediaQuery } from "@repo/ui/hooks/use-media-query";
+import { MOBILE_MEDIA_QUERY } from "@/lib/mobile-query";
 import {
   TerminalView,
   type TerminalViewHandle,
 } from "@/components/terminal/terminal-view";
 import { TerminalToolbar } from "@/components/terminal/terminal-toolbar";
 import { TerminalSearch } from "@/components/terminal/terminal-search";
+import { TerminalScrollRail } from "@/components/terminal/terminal-scroll-rail";
 import { SessionList } from "@/components/session/session-list";
 import { SessionCreateDialog } from "@/components/session/session-create-dialog";
 import { FileTree } from "@/components/files/file-tree";
 import { SettingsPanel } from "@/components/settings/settings-panel";
-import { SwipeSessionSwitcher } from "@/components/mobile/swipe-session-switcher";
 import { WindowTabs } from "@/components/mobile/window-tabs";
 import { TmuxFab } from "@/components/mobile/tmux-fab";
 import { PaneListPanel } from "@/components/mobile/pane-list-panel";
 import { PaneResizeControls } from "@/components/mobile/pane-resize-controls";
-import { PinchZoomHandler } from "@/components/mobile/pinch-zoom-handler";
+import { TerminalGestureSurface } from "@/components/terminal/terminal-gesture-surface";
+import { SwitchHint } from "@/components/terminal/switch-hint";
 import { cn } from "@repo/ui/lib/utils";
 import { getFileViewMode } from "@/lib/file-utils";
 import { PanelLeftClose, PanelLeft } from "lucide-react";
@@ -28,6 +30,7 @@ import { useSessionStore } from "@/stores/session-store";
 import { useFileStore } from "@/stores/file-store";
 import { useUiStore } from "@/stores/ui-store";
 import { getRelayClient } from "@/hooks/use-websocket";
+import { useWheelScroll } from "@/hooks/use-wheel-scroll";
 
 const FileEditor = dynamic(
   () =>
@@ -65,7 +68,7 @@ const CopyModeOverlay = dynamic(
  */
 export function TerminalWorkspace() {
   const router = useRouter();
-  const isMobile = useStableMediaQuery("(max-width: 768px)");
+  const isMobile = useStableMediaQuery(MOBILE_MEDIA_QUERY);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const setSelectedFile = useFileStore((s) => s.setSelectedFile);
@@ -82,6 +85,13 @@ export function TerminalWorkspace() {
   const setTerminalSearchOpen = useUiStore((s) => s.setTerminalSearchOpen);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const terminalRef = useRef<TerminalViewHandle>(null);
+  /*
+   * The terminal pane, for the wheel — see `useWheelScroll`.
+   *
+   * One callback ref shared by both layouts: only one of them is ever mounted,
+   * and a callback ref is what lets the listener follow the swap between them.
+   */
+  const paneRef = useWheelScroll();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const currentPath = useFileStore((s) => s.currentPath);
   const setCurrentPath = useFileStore((s) => s.setCurrentPath);
@@ -93,6 +103,31 @@ export function TerminalWorkspace() {
       setMobileTab("terminal");
     }
   }, [activeSessionId, isMobile, setMobileTab]);
+
+  /*
+   * Repaint on the way back to the terminal tab.
+   *
+   * The tab swap is `visibility: hidden` rather than `display: none` (see the
+   * comment on the pane below, which explains why that has to stay), and a
+   * hidden-but-laid-out element never stops intersecting — so the
+   * `IntersectionObserver` refit inside `TerminalView` does not fire on the way
+   * back, and neither does anything else. The terminal was left holding a
+   * canvas sized for whatever the layout was when it was last painted, which is
+   * the "it goes blurry when I come back" report.
+   *
+   * Twice: once on the next frame for the common case, and once after the tab
+   * transition has settled, because a fit against a box that is still moving
+   * measures the wrong box.
+   */
+  useEffect(() => {
+    if (!isMobile || mobileTab !== "terminal") return;
+    const frame = requestAnimationFrame(() => terminalRef.current?.redraw());
+    const settle = setTimeout(() => terminalRef.current?.redraw(), 300);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(settle);
+    };
+  }, [isMobile, mobileTab]);
 
   // #2: Navigate handler for inline breadcrumb
   const handleBreadcrumbNavigate = useCallback(
@@ -158,33 +193,41 @@ export function TerminalWorkspace() {
               "invisible absolute inset-0 pointer-events-none",
           )}
         >
-          <SwipeSessionSwitcher className="h-full max-h-full">
-            <div className="flex h-full flex-col">
-              <WindowTabs />
-              <div className="relative flex-1 overflow-hidden">
-                <PinchZoomHandler className="absolute inset-0">
-                  <TerminalView
-                    ref={terminalRef}
-                    sessionName={activeSessionId}
-                    className="h-full"
-                    onCreateSession={() => setShowCreateDialog(true)}
-                  />
-                </PinchZoomHandler>
-                {terminalSearchOpen && (
-                  <TerminalSearch
-                    className="absolute inset-x-2 top-2 z-[var(--z-banner)]"
-                    onSearch={handleSearch}
-                    onNext={handleSearchNext}
-                    onPrevious={handleSearchPrevious}
-                    onClose={() => setTerminalSearchOpen(false)}
-                  />
-                )}
-                {/* Lives inside the terminal pane, not the viewport: as a
-                    `fixed` element it overlapped the command bar's send button. */}
-                <TmuxFab />
-              </div>
+          <div className="flex h-full flex-col">
+            <WindowTabs />
+            <div ref={paneRef} className="relative flex-1 overflow-hidden">
+              {/* One recogniser for scroll, swipe and pinch — the three used
+                  to be split across two stacked components that fought each
+                  other. See lib/touch-gestures.ts. */}
+              <TerminalGestureSurface className="absolute inset-0">
+                <TerminalView
+                  ref={terminalRef}
+                  sessionName={activeSessionId}
+                  className="h-full"
+                  onCreateSession={() => setShowCreateDialog(true)}
+                />
+              </TerminalGestureSurface>
+              <SwitchHint />
+              {terminalSearchOpen && (
+                <TerminalSearch
+                  className="absolute inset-x-2 top-2 z-[var(--z-banner)]"
+                  onSearch={handleSearch}
+                  onNext={handleSearchNext}
+                  onPrevious={handleSearchPrevious}
+                  onClose={() => setTerminalSearchOpen(false)}
+                />
+              )}
+              {/* Siblings of the gesture surface, not children, so their own
+                  touches never reach the recogniser. Lives inside the terminal
+                  pane rather than the viewport: as a `fixed` element the FAB
+                  overlapped the command bar's send button. */}
+              <TmuxFab />
+              {/* A sibling of the gesture surface, like everything else that
+                  needs its own touches: `touch-action: none` cannot be given
+                  back to a descendant. */}
+              <TerminalScrollRail sessionName={activeSessionId} />
             </div>
-          </SwipeSessionSwitcher>
+          </div>
         </div>
         <div
           className={cn(
@@ -280,13 +323,19 @@ export function TerminalWorkspace() {
           onOpenSettings={handleOpenSettings}
           isFullscreen={isFullscreen}
         />
-        <div className="flex-1 overflow-hidden">
+        {/* Windows are not a mobile concept. The desktop client used to have
+            no window affordance at all, so a session with three windows looked
+            like a session with one. */}
+        <WindowTabs />
+        <div ref={paneRef} className="relative flex-1 overflow-hidden">
           <TerminalView
             ref={terminalRef}
             sessionName={activeSessionId}
             className="h-full"
             onCreateSession={() => setShowCreateDialog(true)}
           />
+          <SwitchHint />
+          <TerminalScrollRail sessionName={activeSessionId} />
         </div>
       </div>
 

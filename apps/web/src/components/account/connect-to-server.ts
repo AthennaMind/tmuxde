@@ -13,11 +13,7 @@
  * keys. Saying so plainly beats a button that spins and then fails.
  */
 import { deviceIdFor, hexToBytes } from "@repo/crypto";
-import { activateDescriptor, listPairedServerIds } from "@/lib/session-store";
-
-export type ConnectResult =
-  | { ok: true; href: string }
-  | { ok: false; reason: string };
+import { listPairedServerIds } from "@/lib/session-store";
 
 /**
  * The id this browser files a machine's keys under, derived from the machine's
@@ -49,23 +45,9 @@ export async function pairedServerKeys(
   return paired;
 }
 
-export async function connectToServer(
-  publicKey: string,
-): Promise<ConnectResult> {
-  const deviceId = deviceIdForPublicKey(publicKey);
-  if (!deviceId) {
-    return { ok: false, reason: "That machine's identity is unreadable." };
-  }
-
-  const session = await activateDescriptor(deviceId);
-  if (!session) {
-    return {
-      ok: false,
-      reason:
-        "This browser hasn't paired with that machine yet. Run `mtmux` on it " +
-        "and scan the code once — after that it opens straight from here.",
-    };
-  }
-
-  return { ok: true, href: "/" };
-}
+/*
+ * `connectToServer` used to live here — a "look up the keys, then navigate"
+ * helper that only `ServerList` ever called. That list is gone: the session
+ * cards do the same thing through `activateDescriptor` directly, because they
+ * already know which session to open and this helper did not.
+ */

@@ -11,12 +11,17 @@ import {
 } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
+import Link from "next/link";
 import {
   AlertCircle,
+  ChevronRight,
   Fingerprint,
   Link2,
   Loader2,
   Plus,
+  RefreshCw,
+  SlidersHorizontal,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -54,6 +59,17 @@ export function SecurityPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Distinct from `error`, and it has to be.
+   *
+   * `error` is "that action failed". This is "we do not know what your sign-in
+   * methods are" — and the difference matters because the fallback for an
+   * unknown list used to be the *empty* list, so a failed fetch rendered "No
+   * passkeys yet" under a red banner. That is not a degraded state; it is a
+   * false statement about the credentials guarding the account, and the obvious
+   * reaction to it is to add a passkey you already have.
+   */
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async () => {
     const [keys, linked] = await Promise.all([
@@ -75,10 +91,24 @@ export function SecurityPanel() {
     );
   }, []);
 
+  /** The retry the error banner never had — it was a dead end with no way out. */
+  const reload = useCallback(async () => {
+    setLoadFailed(false);
+    setPasskeys(null);
+    setAccounts(null);
+    setError(null);
+    try {
+      await load();
+    } catch {
+      setError("Could not load your sign-in methods.");
+      setLoadFailed(true);
+    }
+  }, [load]);
+
   useEffect(() => {
     void fetchAuthConfig().then(setConfig);
-    void load().catch(() => setError("Could not load your sign-in methods."));
-  }, [load]);
+    void reload();
+  }, [reload]);
 
   const hasPassword =
     accounts?.some((a) => a.providerId === PASSWORD_PROVIDER) ?? false;
@@ -187,17 +217,32 @@ export function SecurityPanel() {
     });
   }
 
-  const loading = passkeys === null || accounts === null;
+  // `loadFailed` ends the loading state as surely as data does — otherwise a
+  // failed fetch leaves `passkeys` null and the skeleton spins forever.
+  const loading = !loadFailed && (passkeys === null || accounts === null);
 
   return (
     <div className="space-y-6">
       {error && (
         <div
           role="alert"
-          className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+          className="flex flex-wrap items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
         >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <span>{error}</span>
+          <span className="min-w-0 flex-1">{error}</span>
+          {/* Only on the load failure. An action failure is retried by doing
+              the action again, and a Retry beside it would be ambiguous about
+              which of the two it meant. */}
+          {loadFailed && (
+            <Button
+              variant="outline"
+              className="h-11 shrink-0"
+              onClick={() => void reload()}
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden />
+              Try again
+            </Button>
+          )}
         </div>
       )}
 
@@ -213,16 +258,32 @@ export function SecurityPanel() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/*
+            Three states where there used to be two.
+
+            A skeleton rather than a bare spinner: the old one was a 16px
+            `Loader2` with no text and no `role`, which announces nothing and
+            gives a sighted reader no idea what shape is coming.
+
+            And `loadFailed` renders **nothing**. It used to fall through to the
+            empty case, so a failed fetch said "No passkeys yet" under a red
+            banner — a false statement about the credentials guarding the
+            account, whose obvious remedy is to enrol a passkey you already
+            have. The banner above says what happened and offers the retry.
+          */}
           {loading ? (
-            <Loader2
-              className="h-4 w-4 animate-spin text-muted-foreground"
-              aria-hidden
-            />
-          ) : passkeys.length === 0 ? (
+            <div className="space-y-2" aria-hidden>
+              <Skeleton className="h-14 w-full rounded-md" />
+              <Skeleton className="h-14 w-full rounded-md" />
+              <span className="sr-only" role="status">
+                Loading your sign-in methods
+              </span>
+            </div>
+          ) : loadFailed ? null : (passkeys ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">No passkeys yet.</p>
           ) : (
             <ul className="divide-y divide-border rounded-md border border-border">
-              {passkeys.map((row) => (
+              {(passkeys ?? []).map((row) => (
                 <li
                   key={row.id}
                   className="flex items-center justify-between gap-3 px-3 py-2"
@@ -254,7 +315,10 @@ export function SecurityPanel() {
             </ul>
           )}
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div
+            className="flex flex-col gap-2 sm:flex-row sm:items-end"
+            hidden={loading || loadFailed}
+          >
             <div className="flex-1 space-y-2">
               <Label htmlFor="passkey-name">Name this device</Label>
               <Input
@@ -282,7 +346,10 @@ export function SecurityPanel() {
         </CardContent>
       </Card>
 
-      {config.providers.length > 0 && (
+      {/* Hidden while the account list is unknown: with `accounts` null every
+          provider would render a "Connect" button, including ones that are
+          already connected. Same lie as "No passkeys yet", one card down. */}
+      {config.providers.length > 0 && !loadFailed && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -346,6 +413,36 @@ export function SecurityPanel() {
           </CardContent>
         </Card>
       )}
+
+      {/*
+        The other half of "security", and it is not on this page.
+
+        The device PIN, the erase-after-ten-wrong-attempts toggle and "Erase
+        this device" all live at `/settings` — device state, not account state,
+        which is why they are a separate route. A card rather than a fourth item
+        in the header nav: the bar already has to fit three links, an email and
+        sign-out inside 390px, and this is a page you visit once.
+      */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <SlidersHorizontal className="h-4 w-4 text-primary" aria-hidden />
+            This device
+          </CardTitle>
+          <CardDescription>
+            The PIN that locks this browser, what an erase does, and the
+            terminal&apos;s own settings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline" className="h-11 w-full sm:w-auto">
+            <Link href="/settings">
+              Device settings
+              <ChevronRight className="h-4 w-4" aria-hidden />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

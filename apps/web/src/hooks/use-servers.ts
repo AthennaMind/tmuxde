@@ -4,16 +4,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/auth-client";
 import { pairedServerKeys } from "@/components/account/connect-to-server";
 import { toEpochMs } from "@/components/account/format";
-import type { RegisteredServer } from "@/components/account/server-row";
+import type { RegisteredServer } from "@/components/account/registered-server";
 
 /**
  * The account's machines, fetched once for the whole page.
  *
- * `AllSessions` and `ServerList` used to each call `GET /v1/servers` on mount,
- * with two different normalizers, and each ran its own 30-second clock tick and
- * its own `pairedServerKeys` read. Two requests for one answer is the small
- * problem; two *different shapes* of the same answer is the real one, because a
- * machine could be online in one list and not the other.
+ * `AllSessions` and the since-deleted `ServerList` used to each call `GET
+ * /v1/servers` on mount, with two different normalizers, and each ran its own
+ * 30-second clock tick and its own `pairedServerKeys` read. Two requests for
+ * one answer is the small problem; two *different shapes* of the same answer is
+ * the real one, because a machine could be online in one list and not the
+ * other.
  *
  * The clock tick lives here for the same reason: it exists so "4m ago" stays
  * honest, and one timer does that for every consumer.
@@ -36,10 +37,26 @@ export function normalizeServer(raw: RawServer): RegisteredServer {
   };
 }
 
+/**
+ * How a refresh should behave when nobody asked for it.
+ *
+ * A poll is not a page load, and treating it as one is how a working list gets
+ * replaced by skeletons twice a minute and then by an error card the first time
+ * a phone loses a bar of signal. See `refresh` below.
+ */
+export type RefreshOptions = { background?: boolean };
+
 export type ServersState = {
   phase: "loading" | "ready" | "error";
   servers: RegisteredServer[];
   message: string | null;
+  /**
+   * When a background refresh last failed, in epoch ms — else null.
+   *
+   * The list on screen is still the last good one. This is how the UI says "and
+   * it may be out of date" without throwing away the only thing it can show.
+   */
+  staleSince: number | null;
   /**
    * Public keys this browser holds keys for.
    *
@@ -49,7 +66,7 @@ export type ServersState = {
   pairedKeys: Set<string>;
   /** Ticks every 30s, so relative timestamps stay honest without re-fetching. */
   now: number;
-  refresh: () => Promise<void>;
+  refresh: (options?: RefreshOptions) => Promise<void>;
   /** Re-read the paired set, after a pairing completes. */
   refreshPaired: () => Promise<void>;
   /** Patch one machine locally, after a rename. */
@@ -79,14 +96,28 @@ export function useServers(): ServersState {
   const [servers, setServers] = useState<RegisteredServer[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [pairedKeys, setPairedKeys] = useState<Set<string>>(() => new Set());
+  const [staleSince, setStaleSince] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  const refresh = useCallback(async () => {
+  /**
+   * Fetch the account's machines.
+   *
+   * `background: true` is the polling mode, and every difference in it exists
+   * because of what a poll must never do to a list the user is reading.
+   *
+   * It does not set `phase: "loading"`, because that flashes skeletons over a
+   * perfectly good list every 45 seconds. It does not set `phase: "error"` or
+   * clear `servers` on failure, because one flaky poll on a phone would then
+   * replace a working dashboard with an error card — and the previous answer,
+   * which is what the user is looking at, is still the best information we
+   * have. A failure records `staleSince` and nothing else.
+   */
+  const refresh = useCallback(async ({ background }: RefreshOptions = {}) => {
     // Deliberately not gated on `isHostedBuild`. `apiFetch` resolves the base
     // itself, and this page is only ever reached behind `RequireSession` — so
     // gating here would leave a signed-in user staring at nothing on any build
     // whose API origin is same-origin rather than a separate host.
-    setPhase("loading");
+    if (!background) setPhase("loading");
     try {
       const body = await apiFetch<{ servers?: RawServer[] }>("/v1/servers");
       const next = Array.isArray(body.servers)
@@ -94,13 +125,19 @@ export function useServers(): ServersState {
         : [];
       setServers(next);
       setMessage(null);
+      setStaleSince(null);
       setPhase("ready");
     } catch (error) {
-      setMessage(
+      const text =
         error instanceof ApiError
           ? error.message
-          : "Could not load your machines.",
-      );
+          : "Could not load your machines.";
+      if (background) {
+        // Keep the list, keep `phase`. Only say that it is ageing.
+        setStaleSince((since) => since ?? Date.now());
+        return;
+      }
+      setMessage(text);
       setPhase("error");
     }
   }, []);
@@ -144,9 +181,9 @@ export function useServers(): ServersState {
   }, []);
 
   /**
-   * Renaming used to live in `ServerList`, which is why only that list could do
-   * it — the session cards above it, the ones people actually look at, had no
-   * route to a rename at all.
+   * Renaming used to live inside the management list, which is why only that
+   * list could do it — the session cards above it, the ones people actually
+   * look at, had no route to a rename at all.
    */
   const rename = useCallback(
     async (id: string, name: string): Promise<RenameOutcome> => {
@@ -179,6 +216,7 @@ export function useServers(): ServersState {
       phase,
       servers,
       message,
+      staleSince,
       pairedKeys,
       now,
       refresh,
@@ -191,6 +229,7 @@ export function useServers(): ServersState {
       phase,
       servers,
       message,
+      staleSince,
       pairedKeys,
       now,
       refresh,

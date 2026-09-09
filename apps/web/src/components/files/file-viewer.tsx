@@ -15,6 +15,7 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { Button } from "@repo/ui/components/ui/button";
 import { Badge } from "@repo/ui/components/ui/badge";
+import { MiniScrollbar } from "@repo/ui/components/ui/mini-scrollbar";
 import { useFileStore } from "@/stores/file-store";
 import { downloadFile, filesAvailable } from "@/lib/file-url";
 import { useFileObjectUrl } from "@/hooks/use-file-object-url";
@@ -93,6 +94,10 @@ function MediaError({ path, message }: { path: string; message: string }) {
 
 function ImageContent({ path }: { path: string }) {
   const [actualSize, setActualSize] = useState(false);
+  // "Actual size" on a large image scrolls in both axes, with no indication of
+  // where in the image the view sits. One node, two bars — the hook keeps its
+  // own node, so both axes have to read the same one from here.
+  const [imageScrollRef, setImageScroller] = useState<HTMLElement | null>(null);
   const [decodeError, setDecodeError] = useState(false);
   const { url, loading, error } = useFileObjectUrl(path);
 
@@ -106,46 +111,51 @@ function ImageContent({ path }: { path: string }) {
   }
 
   return (
-    <div
-      className="flex h-full items-center justify-center overflow-auto"
-      style={{
-        backgroundImage:
-          "linear-gradient(45deg, hsl(var(--muted)) 25%, transparent 25%), linear-gradient(-45deg, hsl(var(--muted)) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, hsl(var(--muted)) 75%), linear-gradient(-45deg, transparent 75%, hsl(var(--muted)) 75%)",
-        backgroundSize: "20px 20px",
-        backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
-      }}
-    >
-      <div className="relative">
-        {(loading || !url) && (
-          <div className="flex items-center justify-center p-8">
-            <span className="text-sm text-muted-foreground">Loading...</span>
-          </div>
-        )}
-        {url && (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={url}
-              alt={path.split("/").pop() ?? ""}
-              className={cn(actualSize ? "" : "max-w-full object-contain")}
-              style={{
-                touchAction: "pinch-zoom",
-                ...(actualSize
-                  ? {}
-                  : { maxHeight: "calc(var(--vv-height, 100dvh) - 8rem)" }),
-              }}
-              onError={() => setDecodeError(true)}
-            />
-            <Button
-              variant="secondary"
-              size="sm"
-              className="absolute bottom-3 right-3 opacity-80 hover:opacity-100"
-              onClick={() => setActualSize(!actualSize)}
-            >
-              {actualSize ? "Fit to Screen" : "Actual Size"}
-            </Button>
-          </>
-        )}
+    <div className="relative h-full">
+      <MiniScrollbar target={imageScrollRef} />
+      <MiniScrollbar target={imageScrollRef} orientation="horizontal" />
+      <div
+        ref={setImageScroller}
+        className="flex h-full items-center justify-center overflow-auto"
+        style={{
+          backgroundImage:
+            "linear-gradient(45deg, hsl(var(--muted)) 25%, transparent 25%), linear-gradient(-45deg, hsl(var(--muted)) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, hsl(var(--muted)) 75%), linear-gradient(-45deg, transparent 75%, hsl(var(--muted)) 75%)",
+          backgroundSize: "20px 20px",
+          backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
+        }}
+      >
+        <div className="relative">
+          {(loading || !url) && (
+            <div className="flex items-center justify-center p-8">
+              <span className="text-sm text-muted-foreground">Loading...</span>
+            </div>
+          )}
+          {url && (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt={path.split("/").pop() ?? ""}
+                className={cn(actualSize ? "" : "max-w-full object-contain")}
+                style={{
+                  touchAction: "pinch-zoom",
+                  ...(actualSize
+                    ? {}
+                    : { maxHeight: "calc(var(--vv-height, 100dvh) - 8rem)" }),
+                }}
+                onError={() => setDecodeError(true)}
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                className="absolute bottom-3 right-3 opacity-80 hover:opacity-100"
+                onClick={() => setActualSize(!actualSize)}
+              >
+                {actualSize ? "Fit to Screen" : "Actual Size"}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

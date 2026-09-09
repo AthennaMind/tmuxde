@@ -22,9 +22,9 @@ import {
 } from "@/lib/pairing-client";
 import { pairedMessage, persistPairing } from "@/lib/persist-pairing";
 import { deviceLabel } from "@/lib/device-label";
-import { semverGte } from "@/lib/semver-gte";
+import { semverGte } from "@repo/protocol";
 import { CopyCommand } from "./copy-command";
-import type { RegisteredServer } from "./server-row";
+import type { RegisteredServer } from "./registered-server";
 
 /**
  * "Pair this device", made to actually pair.
@@ -45,7 +45,7 @@ import type { RegisteredServer } from "./server-row";
  * ## Mounted once, not per row
  *
  * The broker enforces one live request per device. N dialogs would be N ways to
- * race each other into a 409, so `ServerList` keeps a single
+ * race each other into a 409, so the dashboard page keeps a single
  * `useState<RegisteredServer | null>` and this component reads it.
  */
 

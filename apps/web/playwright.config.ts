@@ -45,22 +45,39 @@ export default defineConfig({
       // feature, and CDP is Chromium's.
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /mobile-.*\.spec\.ts/,
+      // Only the specs that are *meaningless* off a phone are excluded. See
+      // the note below for why this is a tag and not a filename pattern.
+      grepInvert: /@phone-only/,
     },
     {
       /*
-       * The phone specs.
+       * The phone project.
+       *
+       * ## Why tags and not filenames
+       *
+       * This used to be `testMatch: /mobile-.*\.spec\.ts/`, which meant a spec
+       * ran at a phone viewport only if somebody had thought to *name the file*
+       * `mobile-…`. Two specs did. The dashboard's did not — so no dashboard
+       * assertion had ever executed at 390px, and that is precisely why a
+       * header that overflows a phone and a "Pair this device" button 8px under
+       * the tap-target floor both shipped. A convention that has to be
+       * remembered at file-creation time is not a test strategy.
+       *
+       * `@phone` means "also run this at a phone viewport"; `@phone-only` means
+       * "this asserts nothing on a desktop" — the command bar and the composer,
+       * which exist because of the soft keyboard. `/@phone/` matches both, so a
+       * `@phone-only` spec still runs here.
        *
        * `Pixel 7` rather than any of the iPhone descriptors: those default to
        * WebKit, and this suite is Chromium-only for the reason above. What is
-       * being asserted here — that the command bar is one line and stays one
-       * line, that its font is at least 16px, that the composer fits inside the
-       * visual viewport — is engine-independent enough for that to be a fair
-       * trade. Real iOS behaviour stays on the manual checklist.
+       * asserted at this size — a one-line field, a 16px font, a header that
+       * does not overflow, a 44px button — is engine-independent enough for
+       * that to be a fair trade. Real iOS behaviour stays on the manual
+       * checklist.
        */
       name: "mobile-chromium",
       use: { ...devices["Pixel 7"] },
-      testMatch: /mobile-.*\.spec\.ts/,
+      grep: /@phone/,
     },
   ],
   webServer: process.env.E2E_BASE_URL
@@ -71,5 +88,32 @@ export default defineConfig({
         url: `${baseURL}/login`,
         reuseExistingServer: true,
         timeout: 120_000,
+        env: {
+          ...(process.env as Record<string, string>),
+          /*
+           * `pnpm dev` reads PORT, not E2E_PORT.
+           *
+           * Without this, `E2E_PORT=14180 playwright test` pointed the browser
+           * at 14180 and started the dev server on 14100 — where, on a machine
+           * that has `mtmux` installed globally, an unrelated *production*
+           * build is usually already listening. `reuseExistingServer` then
+           * happily adopted it and the whole suite ran against a months-old
+           * bundle. Setting an E2E port has to move both halves.
+           */
+          PORT: String(PORT),
+          /*
+           * The dashboard specs need a hosted build.
+           *
+           * `isHostedBuild` is `NEXT_PUBLIC_API_URL !== undefined`, and the
+           * repo's `.env` does not set it — correctly, since the default dev
+           * loop is the self-hosted one. With it absent every account route
+           * renders "Hosted accounts aren't configured" and the dashboard
+           * specs fail on a missing element rather than on anything they
+           * assert. Nothing has to be listening on the other end: every call
+           * to it is stubbed with `page.route`.
+           */
+          NEXT_PUBLIC_API_URL:
+            process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:14400",
+        },
       },
 });

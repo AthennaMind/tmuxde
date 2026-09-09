@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useState, useRef } from "react";
-import { Plus, RefreshCw, Terminal, Loader2 } from "lucide-react";
+import { Plus, RefreshCw, Terminal, Loader2, PlugZap } from "lucide-react";
 import { Button } from "@repo/ui/components/ui/button";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import { cn } from "@repo/ui/lib/utils";
 import { useSessionStore } from "@/stores/session-store";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useUiStore } from "@/stores/ui-store";
 import { getRelayClient } from "@/hooks/use-websocket";
 import { SessionCard } from "./session-card";
@@ -24,7 +25,18 @@ export function SessionList({ onCreateClick, className }: SessionListProps) {
   const sessionsLoaded = useSessionStore((s) => s.sessionsLoaded);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
-  const isLoading = !sessionsLoaded;
+  const status = useConnectionStore((s) => s.status);
+
+  /*
+   * `sessionsLoaded` is set by a `session:list` reply and by nothing else, so
+   * on a cold load against a machine that never answers it stays false
+   * forever — and three pulsing bars said "nearly there" indefinitely, with no
+   * error and nothing to press. The skeleton is only honest while a reply is
+   * still plausibly coming; once the socket has given up, so should it.
+   */
+  const unreachable =
+    !sessionsLoaded && (status === "disconnected" || status === "reconnecting");
+  const isLoading = !sessionsLoaded && !unreachable;
 
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -148,7 +160,32 @@ export function SessionList({ onCreateClick, className }: SessionListProps) {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          {isLoading ? (
+          {unreachable ? (
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <PlugZap
+                className="h-10 w-10 text-muted-foreground"
+                aria-hidden
+              />
+              <div>
+                <p className="text-sm font-medium">
+                  Can&apos;t reach this machine
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {status === "reconnecting"
+                    ? "Still trying. Its sessions are safe — tmux keeps running whether or not anything is watching."
+                    : "The connection dropped. Its sessions are safe — tmux keeps running whether or not anything is watching."}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                className="min-h-11"
+                onClick={() => getRelayClient()?.connect()}
+              >
+                <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden />
+                Try again
+              </Button>
+            </div>
+          ) : isLoading ? (
             <>
               <div className="animate-pulse rounded-md bg-muted h-16" />
               <div className="animate-pulse rounded-md bg-muted h-16" />
