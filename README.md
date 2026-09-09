@@ -53,26 +53,31 @@ cp .env.example .env && docker compose up
 
 ## Demo
 
-```
-$ mtmux
-
-  ▄▄▄▄▄▄▄ ▄▄  ▄ ▄▄▄▄▄▄▄
-  █ ▄▄▄ █ ▀▄▀▄█ █ ▄▄▄ █    Scan to open your terminal
-  █ ███ █ ▀ ▄▄▄ █ ███ █
-  █▄▄▄▄▄█ █ ▀ █ █▄▄▄▄▄█    or go to  app.mtmux.com
-  ▄▄▄▄  ▄ ▄▀▀▄▀▄▄▄ ▄▄      and enter  492 716 384
-
-  Local    http://localhost:14100
-  Network  http://192.168.1.5:14100  (wlp3s0)
-
-  Waiting for a device…   Ctrl+C to stop.
-```
+<img src=".github/assets/demo.svg" alt="A terminal running mtmux beside a phone browser: the terminal prints a QR and a nine-digit pairing code, and the phone is attached to the same tmux session, showing the dev server window" width="900">
 
 **Scan it and you're in.** One command, no second terminal. If the camera won't
 cooperate, type the nine digits at `app.mtmux.com`. It works the same on your own
 network and over cellular — mtmux takes the direct path when the device can reach
 your machine and falls back to a relayed tunnel when it can't. You don't choose,
 and the switchover is invisible.
+
+`--no-qr` drops the block and keeps the digits, which is what you want in a
+terminal that mangles block characters, or when you are reading this over SSH:
+
+```
+$ mtmux --no-qr
+  ›  mtmux  0.6.3
+
+  Open your terminal
+
+  Go to     app.mtmux.com
+  and enter 492 716 384
+
+  Local    http://127.0.0.1:14100
+  Network  http://192.168.1.24:14100  (en0)
+
+  Waiting for a device…   Ctrl+C to stop.
+```
 
 ## The threat model, in three lines
 
@@ -98,11 +103,11 @@ the hop. We say so rather than calling the whole product "end-to-end encrypted".
 
 mtmux is self-hosted by default and there are three degrees of independence:
 
-| You want | Command | Talks to our servers |
-| --- | --- | --- |
-| Your machine, your tmux, your token | `mtmux` | Only the pairing broker, and only in ciphertext |
-| Nothing leaves the building | `mtmux start --local` | **Never** |
-| Your own broker and web client too | `docker compose up` | **Never** |
+| You want                            | Command               | Talks to our servers                            |
+| ----------------------------------- | --------------------- | ----------------------------------------------- |
+| Your machine, your tmux, your token | `mtmux`               | Only the pairing broker, and only in ciphertext |
+| Nothing leaves the building         | `mtmux start --local` | **Never**                                       |
+| Your own broker and web client too  | `docker compose up`   | **Never**                                       |
 
 ```bash
 mtmux config set api https://api.example.com   # point every command at your broker
@@ -125,15 +130,15 @@ default mode, not a degraded one. [Self-hosting →](https://docs.mtmux.com/docs
 
 ## Why mtmux?
 
-|                                 | mtmux | ttyd / GoTTY | Web SSH | tmate    |
-| ------------------------------- | ----- | ------------ | ------- | -------- |
-| Mobile-first UX                 | ✓     | —            | —       | —        |
-| File browser + Monaco editor    | ✓     | —            | —       | —        |
-| Single-port (HTTP + WS)         | ✓     | ✓            | ✓       | —        |
-| Self-hosted                     | ✓     | ✓            | ✓       | optional |
-| Reaches a device off your LAN   | ✓     | —            | —       | ✓        |
-| WebGL terminal                  | ✓     | —            | —       | —        |
-| Built for coding-agent workflows| ✓     | —            | —       | —        |
+|                                  | mtmux | ttyd / GoTTY | Web SSH | tmate    |
+| -------------------------------- | ----- | ------------ | ------- | -------- |
+| Mobile-first UX                  | ✓     | —            | —       | —        |
+| File browser + Monaco editor     | ✓     | —            | —       | —        |
+| Single-port (HTTP + WS)          | ✓     | ✓            | ✓       | —        |
+| Self-hosted                      | ✓     | ✓            | ✓       | optional |
+| Reaches a device off your LAN    | ✓     | —            | —       | ✓        |
+| WebGL terminal                   | ✓     | —            | —       | —        |
+| Built for coding-agent workflows | ✓     | —            | —       | —        |
 
 ## Quick start
 
@@ -242,14 +247,16 @@ Browser ──┬─ raced first ─────── direct ──────
 No, and you never will. Anonymous pairing is the default path and is a permanent
 invariant of the project. An account buys a dashboard and hosted extras; it buys
 nothing that pairing needs.
+
 </details>
 
 <details>
 <summary><strong>Do I have to open a port or set up a VPN?</strong></summary>
 
 No. That's the point of the nine-digit code: the two devices find each other
-through a broker that can't read what they say to one another. If the device *can*
+through a broker that can't read what they say to one another. If the device _can_
 reach your machine directly, mtmux uses that path instead — it races both.
+
 </details>
 
 <details>
@@ -260,15 +267,17 @@ doesn't have, and logs counts and outcomes only. The honest caveat is that on th
 hosted path the browser's CPace and AES-GCM code is served by the same party that
 runs the broker. Self-hosting the web client is the real answer to that, and it's
 one `docker compose up`.
+
 </details>
 
 <details>
 <summary><strong>Is nine digits really enough?</strong></summary>
 
 Three of them route a mailbox and six are the PAKE password. A code buys exactly
-one *online* guess — a wrong key confirmation destroys the mailbox — and the
+one _online_ guess — a wrong key confirmation destroys the mailbox — and the
 budget is charged when a socket attaches, so a request flood buys nothing. There
 is no offline attack because the secret is never transmitted in any form.
+
 </details>
 
 <details>
@@ -277,6 +286,7 @@ is no offline attack because the secret is never transmitted in any form.
 No. Pairing-derived tokens are replayed on boot, so a device stays trusted until it
 goes 90 days unseen or you run `mtmux devices revoke <id>`. Revoking now closes any
 socket that device is holding.
+
 </details>
 
 <details>
@@ -286,6 +296,7 @@ Yes — CLI, web client and pairing broker. `git clone`, `cp .env.example .env`,
 `docker compose up`, then `mtmux config set api https://api.example.com`. It comes
 up working with `DATABASE_URL` unset: no accounts, no billing, no secrets to
 manage. See [Self-hosting](https://docs.mtmux.com/docs/self-hosting).
+
 </details>
 
 <details>
@@ -294,6 +305,7 @@ manage. See [Self-hosting](https://docs.mtmux.com/docs/self-hosting).
 That is a large part of why it exists — a long unattended run you can check on
 from a phone, approve from a phone, and steer from a phone. See
 [Coding agents](https://docs.mtmux.com/docs/agents).
+
 </details>
 
 ## Development

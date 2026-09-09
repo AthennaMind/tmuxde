@@ -179,7 +179,11 @@ export function renderBannerLines(opts: BannerOpts): string[] {
     );
     aside.push("");
     aside.push(
-      kleur.dim(showQr ? "or go to  " : "Go to    ") + brand(opts.invite.host),
+      // Both arms are ten columns wide, so `app.mtmux.com` and the code below
+      // it start in the same place. "Go to    " was nine, which left the
+      // --no-qr banner — the one people read *because* the QR is not there —
+      // with its two answers a character out of line.
+      kleur.dim(showQr ? "or go to  " : "Go to     ") + brand(opts.invite.host),
     );
     aside.push(kleur.dim("and enter ") + kleur.bold(renderCode(typedCode)));
   } else if (opts.invite && showQr) {
@@ -206,7 +210,10 @@ export function renderBannerLines(opts: BannerOpts): string[] {
     );
     out.push("");
   } else if (aside.length > 0) {
-    out.push(...aside.map((line) => INDENT + line));
+    // Indent only lines that have something on them: an indented empty string
+    // is two trailing spaces, invisible in a terminal and very visible in a
+    // README code fence or a `git diff`.
+    out.push(...aside.map((line) => (line ? INDENT + line : "")));
     out.push("");
   }
 
