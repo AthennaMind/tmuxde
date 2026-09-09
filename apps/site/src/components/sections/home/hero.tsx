@@ -4,7 +4,13 @@ import { getTranslations } from "next-intl/server";
 import { Cmd } from "@/components/primitives/cards";
 import { QrCode } from "@/components/primitives/qr-code";
 import { Accent } from "@/components/primitives/section";
-import { Cursor, Line, Prompt, TerminalWindow, Tok } from "@/components/primitives/terminal";
+import {
+  Cursor,
+  Line,
+  Prompt,
+  TerminalWindow,
+  Tok,
+} from "@/components/primitives/terminal";
 import { CopyInstall } from "@/components/site/copy-install";
 import { buttonVariants } from "@/components/ui/button";
 import { siteConfig } from "@/config/site";
@@ -117,7 +123,10 @@ export async function HomeHero() {
             {/* The banner: code on the left, the way to do it by hand beside
                 it — the same two columns `banner.ts` prints. */}
             <div className="flex flex-wrap items-center gap-x-7 gap-y-5 py-2 ps-2">
-              <QrCode label={t("terminal.qrLabel")} className="w-[9rem] shrink-0" />
+              <QrCode
+                label={t("terminal.qrLabel")}
+                className="w-[9rem] shrink-0"
+              />
               <div className="space-y-1">
                 <Line tone="strong">{t("terminal.scan")}</Line>
                 <Line> </Line>
@@ -125,7 +134,7 @@ export async function HomeHero() {
                   {t("terminal.or")} <Tok kind="path">{siteConfig.appHost}</Tok>
                 </Line>
                 <Line tone="faint">
-                  {t("terminal.code")} <Tok kind="value">48 29 13</Tok>
+                  {t("terminal.code")} <Tok kind="value">492 716 384</Tok>
                 </Line>
               </div>
             </div>

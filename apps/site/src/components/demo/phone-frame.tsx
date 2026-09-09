@@ -73,31 +73,56 @@ function byId(id: PhoneScreen): Window | undefined {
   return WINDOWS.find((w) => w.id === id);
 }
 
-/** The six-box pairing field, before the phone is attached. */
-function PairScreen({ code, tapping }: { code: string; tapping: string | null }) {
+/**
+ * The pairing field, before the phone is attached.
+ *
+ * Nine boxes in three groups, matching `codeGroups()` in `@repo/crypto` and so
+ * the grouping the CLI prints — the visitor is meant to recognise the shape of
+ * what is on their own screen. It used to be a flat row of six, which is the
+ * code this product stopped issuing.
+ */
+const CODE_GROUPS = [3, 3, 3] as const;
+
+function PairScreen({
+  code,
+  tapping,
+}: {
+  code: string;
+  tapping: string | null;
+}) {
+  // Flat index across the groups, so the caret lands on the box the next tap
+  // fills rather than restarting inside each group.
+  let box = -1;
   return (
     // Everything here is sized to fit the phone viewport's fixed height: at
     // the previous scale the prompt and the bottom keypad row were both clipped
     // by it, which read as a half-rendered screen rather than a phone.
-    <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+    <div className="flex h-full flex-col items-center justify-center gap-3 px-3">
       <p className="text-center font-sans text-[0.75rem] leading-snug text-text-muted">
         Enter the code from your terminal
       </p>
-      <div className="flex gap-1.5">
-        {Array.from({ length: 6 }, (_, i) => (
-          <span
-            key={i}
-            className={cn(
-              "grid size-6 place-items-center rounded-md border font-mono text-[0.8125rem] transition-colors",
-              code[i]
-                ? "border-brand bg-brand-subtle text-text-strong"
-                : "border-line bg-surface-sunken text-text-faint",
-              // The box about to be filled gets the caret.
-              i === code.length && "border-line-strong",
-            )}
-          >
-            {code[i] ?? ""}
-          </span>
+      <div className="flex items-center gap-2">
+        {CODE_GROUPS.map((size, group) => (
+          <div key={group} className="flex gap-[3px]">
+            {Array.from({ length: size }, () => {
+              const i = ++box;
+              return (
+                <span
+                  key={i}
+                  className={cn(
+                    "grid size-4 place-items-center rounded border font-mono text-[0.625rem] transition-colors",
+                    code[i]
+                      ? "border-brand bg-brand-subtle text-text-strong"
+                      : "border-line bg-surface-sunken text-text-faint",
+                    // The box about to be filled gets the caret.
+                    i === code.length && "border-line-strong",
+                  )}
+                >
+                  {code[i] ?? ""}
+                </span>
+              );
+            })}
+          </div>
         ))}
       </div>
       <div className="grid grid-cols-3 gap-1">

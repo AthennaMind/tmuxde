@@ -37,10 +37,7 @@ const screen = (t: number) => frameAt(cast, t).rows.map(flat).join("\n");
 
 describe("compileCast", () => {
   it("durations sum, and the whole thing stays under 45 seconds", () => {
-    const sum = cast.steps.reduce(
-      (n, s) => n + (s.k === "mark" ? 0 : s.ms),
-      0,
-    );
+    const sum = cast.steps.reduce((n, s) => n + (s.k === "mark" ? 0 : s.ms), 0);
     expect(cast.duration).toBe(sum);
     expect(cast.duration).toBeLessThan(45_000);
     expect(cast.duration).toBeGreaterThan(10_000);
@@ -228,7 +225,7 @@ describe("banner fidelity", () => {
     ["the scan prompt", "Scan to open your terminal"],
     ["the typed-code fallback", "or go to"],
     ["the app host, from siteConfig", siteConfig.appHost],
-    ["the grouped six-digit code", GROUPED],
+    ["the grouped nine-digit code", GROUPED],
     ["the local address label", "Local"],
     ["the network address label", "Network"],
     ["the wait line", "Waiting for a device…"],

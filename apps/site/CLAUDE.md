@@ -262,7 +262,7 @@ plans are). Where they and this file disagree, they win.
   `siteConfig.version` reads. Bump the CLI; the site follows.
 - Requires **Node 22 or newer and tmux**. macOS, Linux (glibc or musl), WSL2.
 - What the product is: one command serves the tmux sessions you already run to any browser **and**
-  opens an end-to-end encrypted tunnel, printing a QR and a six-digit code. No port forwarding,
+  opens an end-to-end encrypted tunnel, printing a QR and a nine-digit code. No port forwarding,
   no VPN, no SSH key on the phone, no account required.
 
 ### The command surface
@@ -311,9 +311,11 @@ in a browser. Never write "notifies you", "pushes you" or "tells you when".
 ### Crypto (verified against `packages/crypto/src/`)
 
 - Pairing is a **balanced PAKE — CPace over ristretto255**, ciphersuite `CPACE-RISTR255-SHA512`.
-- The six-digit code is a **2-digit routing slot** the broker assigns plus a **4-digit secret**
+- The nine-digit code is a **3-digit routing slot** the broker assigns plus a **6-digit secret**
   generated in the browser. The secret is the PAKE password and **never reaches the broker, not
-  even as a hash**. One wrong guess destroys the pairing.
+  even as a hash**. One wrong guess destroys the pairing. Grouping is `492 716 384`, and it comes
+  from `codeGroups()` in `packages/crypto/src/pairing-code.ts` — never slice the string yourself.
+  The scanned form uses a separate 4-digit slot space; both are settled in that one file.
 - Keys come from an **HKDF-SHA256** schedule over the CPace transcript, one per direction.
 - Frames are **AES-256-GCM**, per-direction nonces, monotonic counter that rejects replays.
 - Reconnecting a known browser is a signed **Ed25519** challenge; revocation is by device id.
@@ -330,8 +332,10 @@ in a browser. Never write "notifies you", "pushes you" or "tells you when".
 - Real hosts: **`app.mtmux.com`** (web client and dashboard), **`api.mtmux.com`** (pairing
   broker). Self-hosting the broker is real — `MTMUX_API_URL` at runtime, `MTMUX_BUILD_API_URL`
   at build time.
-- The CLI is **MIT** licensed (`apps/cli/package.json`). There is no relay container image and no
-  source-available tier.
+- The whole monorepo is **MIT** licensed, not just the CLI, and it is public at
+  `https://github.com/mtmux/mtmux`. There is no source-available tier and no CLA. Container
+  images are published to `ghcr.io/mtmux/mtmux-{api,web,relay}`; the broker image is the one a
+  self-hoster needs.
 
 ### No unsourced numbers
 

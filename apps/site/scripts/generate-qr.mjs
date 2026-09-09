@@ -4,12 +4,13 @@ import { createRequire } from "node:module";
 import { writeFileSync } from "node:fs";
 
 const require = createRequire("/home/ubuntu/tmux-remote-ai/package.json");
-const base = "./node_modules/.pnpm/qrcode-terminal@0.12.0/node_modules/qrcode-terminal";
+const base =
+  "./node_modules/.pnpm/qrcode-terminal@0.12.0/node_modules/qrcode-terminal";
 const QRCode = require(`${base}/vendor/QRCode`);
 const Level = require(`${base}/vendor/QRCode/QRErrorCorrectLevel`);
 const qrcode = require(`${base}/lib/main.js`);
 
-const PAYLOAD = "https://app.mtmux.com/j#482913";
+const PAYLOAD = "https://app.mtmux.com/j#492716384";
 
 const qr = new QRCode(-1, Level.L);
 qr.addData(PAYLOAD);
@@ -23,7 +24,9 @@ for (let r = 0; r < n; r++) {
 }
 
 let small = "";
-qrcode.generate(PAYLOAD, { small: true }, (out) => { small = out; });
+qrcode.generate(PAYLOAD, { small: true }, (out) => {
+  small = out;
+});
 const rows = small.split("\n").filter((line) => line.length > 0);
 const width = new Set(rows.map((r) => [...r].length));
 if (width.size !== 1) throw new Error("ragged rows");
@@ -67,5 +70,8 @@ ${rows.map((r) => `  ${JSON.stringify(r)},`).join("\n")}
 export const QR_WIDTH = QR_ROWS[0]?.length ?? 0;
 `;
 
-writeFileSync("/home/ubuntu/tmux-remote-ai/apps/site/src/lib/demo/qr-glyph.ts", file);
+writeFileSync(
+  "/home/ubuntu/tmux-remote-ai/apps/site/src/lib/demo/qr-glyph.ts",
+  file,
+);
 console.log(`wrote ${n}x${n} matrix, ${rows.length} half-block rows`);

@@ -17,20 +17,18 @@ import type { Row, Step } from "./types";
  * literals, so a release bump moves them here too.
  */
 
-/** The demo's pairing code. Six digits, grouped the way the CLI groups them. */
-const CODE = "482913";
-const GROUPED = "48 29 13";
+/**
+ * The demo's pairing code — nine digits, grouped the way `codeGroups()` in
+ * `@repo/crypto` groups them: a 3-digit slot the broker routes on and a
+ * 6-digit secret that never leaves the two endpoints.
+ */
+const CODE = "492716384";
+const GROUPED = "492 716 384";
 
 const INDENT = "  ";
 
 /** Chapter ids. Also the keys the rail's labels are looked up under. */
-export const CHAPTERS = [
-  "install",
-  "pair",
-  "attach",
-  "move",
-  "agent",
-] as const;
+export const CHAPTERS = ["install", "pair", "attach", "move", "agent"] as const;
 export type ChapterId = (typeof CHAPTERS)[number];
 
 /**
@@ -67,13 +65,7 @@ const steps: Step[] = [
   {
     k: "out",
     ms: 420,
-    rows: [
-      [],
-      [
-        { text: "added 1 package in 2s", tone: "faint" },
-      ],
-      [],
-    ],
+    rows: [[], [{ text: "added 1 package in 2s", tone: "faint" }], []],
   },
   { k: "wait", ms: 320 },
 
@@ -108,7 +100,12 @@ const steps: Step[] = [
         { text: " (en0)", tone: "faint" },
       ],
       [],
-      [{ text: INDENT + "Waiting for a device…   Ctrl+C to stop.", tone: "faint" }],
+      [
+        {
+          text: INDENT + "Waiting for a device…   Ctrl+C to stop.",
+          tone: "faint",
+        },
+      ],
     ],
   },
   { k: "wait", ms: 1000 },
@@ -169,7 +166,11 @@ const steps: Step[] = [
 
 export const HOME_DEMO = compileCast({
   // Sized to the tallest chapter (the banner) so the viewport never reflows.
-  rows: 22,
+  // 24, not 22: the nine-digit code is a version-3 QR, four modules taller than
+  // the six-digit one, and at 22 the banner scrolled its own `$ mtmux` prompt
+  // off the top. `player.test.ts` asserts that prompt is still in the settled
+  // frame, which is what caught it.
+  rows: 24,
   cols: 66,
   steps,
 });
