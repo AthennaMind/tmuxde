@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Setting up ccremote..."
+echo "Setting up mtmux..."
 
 # Copy env file if not exists
 if [ ! -f .env ]; then

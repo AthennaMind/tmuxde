@@ -22,6 +22,9 @@ export default [
       "next-env.d.ts",
       ".next/**",
       ".next-cli/**",
+      // The dev-server output directory (`distDir` in each app's
+      // next.config.ts). Generated code, same as `.next`.
+      ".next-dev/**",
       ".source/**",
       "out/**",
     ],

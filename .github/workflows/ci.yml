@@ -5,6 +5,9 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Called by the release workflow, so a tag runs the same checks a PR does
+  # rather than publishing whatever happens to be on the tagged tree.
+  workflow_call:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

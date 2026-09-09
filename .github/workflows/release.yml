@@ -7,10 +7,23 @@ on:
 
 permissions:
   contents: write
+  # npm provenance: the publish is signed against this workflow run, so the
+  # bundled web client can be tied back to a commit. This is the concrete
+  # answer to "you serve the JavaScript that does the crypto" — it costs one
+  # flag and one permission.
+  id-token: write
 
 jobs:
+  # Everything a pull request runs, on the tagged tree. Nothing publishes
+  # until this passes: a tag on a broken tree used to reach npm because the
+  # two jobs below ran in parallel with no `needs:` and no checks of their own.
+  checks:
+    name: Checks
+    uses: ./.github/workflows/ci.yml
+
   github-release:
     name: Create GitHub Release
+    needs: [checks]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -28,7 +41,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   npm-publish:
-    name: Publish tmuxremote to npm
+    name: Publish mtmux to npm
+    needs: [checks]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,6 +56,13 @@ jobs:
       - run: pnpm --filter mtmux build
       - name: Publish
         working-directory: apps/cli
-        run: npm publish --access public
+        # A tag with a pre-release suffix publishes under `next`, so
+        # `npm i -g mtmux` never installs a release candidate by accident.
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
+            npm publish --access public --provenance --tag next
+          else
+            npm publish --access public --provenance
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

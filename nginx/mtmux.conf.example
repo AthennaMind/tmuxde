@@ -1,15 +1,15 @@
-# ccremote — standalone-host nginx config
+# mtmux — standalone-host nginx config
 #
-# Use this when ccremote runs directly on the host (PM2 or `docker compose`
+# Use this when mtmux runs directly on the host (PM2 or `docker compose`
 # without the bundled nginx profile). TLS is assumed — issue certs with
 # certbot before enabling the HTTPS server block.
 #
 # Install:
-#   sudo cp nginx/ccremote.conf.example /etc/nginx/sites-available/ccremote.conf
-#   sudo sed -i 's/ccremote.example.com/your-domain.com/g' \
-#       /etc/nginx/sites-available/ccremote.conf
-#   sudo ln -s /etc/nginx/sites-available/ccremote.conf \
-#       /etc/nginx/sites-enabled/ccremote.conf
+#   sudo cp nginx/mtmux.conf.example /etc/nginx/sites-available/mtmux.conf
+#   sudo sed -i 's/mtmux.example.com/your-domain.com/g' \
+#       /etc/nginx/sites-available/mtmux.conf
+#   sudo ln -s /etc/nginx/sites-available/mtmux.conf \
+#       /etc/nginx/sites-enabled/mtmux.conf
 #   sudo certbot --nginx -d your-domain.com
 #   sudo nginx -t && sudo systemctl reload nginx
 
@@ -17,7 +17,7 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name ccremote.example.com;
+    server_name mtmux.example.com;
 
     # certbot HTTP-01 challenge
     location /.well-known/acme-challenge/ {
@@ -34,11 +34,11 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
     http2 on;
-    server_name ccremote.example.com;
+    server_name mtmux.example.com;
 
     # TLS (certbot / Let's Encrypt)
-    ssl_certificate /etc/letsencrypt/live/ccremote.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/ccremote.example.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/mtmux.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mtmux.example.com/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
     ssl_prefer_server_ciphers on;

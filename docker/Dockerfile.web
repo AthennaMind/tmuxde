@@ -1,6 +1,6 @@
 FROM node:22-alpine AS base
-LABEL org.opencontainers.image.source="https://github.com/nicholasgriffintn/ccremote"
-LABEL org.opencontainers.image.description="ccremote web client — access Claude Code from any browser"
+LABEL org.opencontainers.image.source="https://github.com/mtmux/mtmux"
+LABEL org.opencontainers.image.description="mtmux web client — your tmux sessions in any browser"
 LABEL org.opencontainers.image.licenses="MIT"
 
 RUN apk add --no-cache wget
@@ -18,8 +18,17 @@ COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN pnpm install --frozen-lockfile
 
-# Build stage
+# Build stage.
+#
+# The broker origin has to arrive here, not at runtime: Next inlines
+# NEXT_PUBLIC_* into the client bundle when it builds. An image built without
+# it serves a pair page that renders "not configured", and no environment
+# variable on the running container can fix it.
 FROM installer AS builder
+ARG NEXT_PUBLIC_API_URL=""
+ARG NEXT_PUBLIC_RELAY_URL=""
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_RELAY_URL=$NEXT_PUBLIC_RELAY_URL
 COPY --from=pruner /app/out/full/ .
 RUN pnpm turbo build --filter=@app/web
 

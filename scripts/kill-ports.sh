@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Kill all ccremote dev processes and free ports
+# Kill all mtmux dev processes and free ports
 set -euo pipefail
 
 PORTS=(14100 14102 14300)

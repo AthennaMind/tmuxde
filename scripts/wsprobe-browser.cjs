@@ -10,7 +10,7 @@ const http = require('http');
 const port = parseInt(process.env.PORT || '14100', 10);
 const origin = `http://127.0.0.1:${port}`;
 const { token } = JSON.parse(
-  fs.readFileSync(process.env.HOME + '/.ccremote/config.json', 'utf8'),
+  fs.readFileSync(process.env.HOME + '/.mtmux/config.json', 'utf8'),
 );
 
 function get(path) {

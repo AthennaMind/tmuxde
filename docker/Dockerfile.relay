@@ -1,6 +1,6 @@
 FROM node:22-slim AS base
-LABEL org.opencontainers.image.source="https://github.com/nicholasgriffintn/ccremote"
-LABEL org.opencontainers.image.description="ccremote relay server — WebSocket bridge to tmux sessions"
+LABEL org.opencontainers.image.source="https://github.com/mtmux/mtmux"
+LABEL org.opencontainers.image.description="mtmux relay server — WebSocket bridge to tmux sessions"
 LABEL org.opencontainers.image.licenses="MIT"
 
 RUN apt-get update && apt-get install -y \

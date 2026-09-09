@@ -1,0 +1,68 @@
+# The pairing broker.
+#
+# The one service a self-hoster most needs and, until now, the only one with no
+# image: they were told to "just run the container" and there was no container.
+#
+# Two things this file exists to get right. The build stage needs a toolchain,
+# because `better-sqlite3` is a native module and is deliberately left external
+# by `apps/api/scripts/build.mjs`. And the runtime image needs the migration
+# SQL: `packages/db` looks for `drizzle/` next to its own source, which the
+# bundle does not carry, so the files are copied in and pointed at explicitly.
+# Without that the broker boots fine with no database and answers 503 to every
+# account route — which is a legitimate mode, but not the one someone who set
+# DATABASE_URL was asking for.
+FROM node:22-alpine AS base
+LABEL org.opencontainers.image.source="https://github.com/mtmux/mtmux"
+LABEL org.opencontainers.image.description="mtmux pairing broker — blind by construction"
+LABEL org.opencontainers.image.licenses="MIT"
+
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+WORKDIR /app
+
+# Prune stage — only the workspace @app/api actually needs.
+FROM base AS pruner
+COPY . .
+RUN pnpm dlx turbo@2.3.3 prune @app/api --docker
+
+# Install stage. python3/make/g++ build `better-sqlite3` from source on musl,
+# where no prebuilt binary is published.
+FROM base AS installer
+RUN apk add --no-cache python3 make g++
+COPY --from=pruner /app/out/json/ .
+COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+RUN pnpm install --frozen-lockfile
+
+FROM installer AS builder
+COPY --from=pruner /app/out/full/ .
+RUN pnpm turbo build --filter=@app/api
+
+# Runner stage.
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+RUN apk add --no-cache wget
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 broker
+
+COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api/node_modules ./node_modules
+# The migrations the bundle cannot carry. MTMUX_MIGRATIONS_DIR is what
+# `packages/db` checks first, so this is explicit rather than path-guessing.
+COPY --from=builder /app/packages/db/drizzle ./drizzle
+ENV MTMUX_MIGRATIONS_DIR=/app/drizzle
+
+# Anything the broker persists (a SQLite file, when accounts are on) belongs on
+# a volume, not in the image.
+RUN mkdir -p /data && chown broker:nodejs /data
+VOLUME ["/data"]
+
+USER broker
+EXPOSE 24400
+ENV API_PORT=24400
+ENV API_HOST=0.0.0.0
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
+  CMD wget --spider -q http://localhost:24400/health || exit 1
+
+CMD ["node", "dist/index.js"]

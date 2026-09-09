@@ -1,19 +1,19 @@
-# ccremote — nginx configs
+# mtmux — nginx configs
 
 Two ready-to-go reverse-proxy layouts, one for each supported deployment
 style.
 
 ## Standalone host (PM2 / bare Docker)
 
-Use `ccremote.conf.example` when nginx runs on the host and ccremote is
+Use `mtmux.conf.example` when nginx runs on the host and mtmux is
 reachable at `127.0.0.1:14100`, `:14300`, and `:14102`.
 
 ```bash
-sudo cp nginx/ccremote.conf.example /etc/nginx/sites-available/ccremote.conf
-sudo sed -i 's/ccremote.example.com/your-domain.com/g' \
-    /etc/nginx/sites-available/ccremote.conf
-sudo ln -s /etc/nginx/sites-available/ccremote.conf \
-    /etc/nginx/sites-enabled/ccremote.conf
+sudo cp nginx/mtmux.conf.example /etc/nginx/sites-available/mtmux.conf
+sudo sed -i 's/mtmux.example.com/your-domain.com/g' \
+    /etc/nginx/sites-available/mtmux.conf
+sudo ln -s /etc/nginx/sites-available/mtmux.conf \
+    /etc/nginx/sites-enabled/mtmux.conf
 
 # Issue TLS certs
 sudo certbot --nginx -d your-domain.com
@@ -50,7 +50,7 @@ sudo certbot certonly --standalone -d your-domain.com
 
 Mount `/etc/letsencrypt` into the container (already wired in
 `docker-compose.prod.yml`), then uncomment the HTTPS `server { … }` block in
-`nginx/docker/default.conf` and replace `ccremote.example.com` with your
+`nginx/docker/default.conf` and replace `mtmux.example.com` with your
 domain. Reload with `docker compose exec nginx nginx -s reload`.
 
 We deliberately don't ship an automated certbot companion — one more moving
@@ -60,7 +60,7 @@ part for a small surface we'd rather keep transparent.
 
 | File | Purpose |
 |------|---------|
-| `ccremote.conf.example` | Standalone-host server config |
+| `mtmux.conf.example` | Standalone-host server config |
 | `docker/nginx.conf` | Base nginx.conf for the sidecar container |
 | `docker/default.conf` | Per-site config for the sidecar container |
 

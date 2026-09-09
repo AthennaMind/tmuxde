@@ -1,31 +1,103 @@
+# The supported self-hosted deployment.
+#
+#   git clone …  &&  cp .env.example .env  &&  docker compose up
+#
+# What you get: your own pairing broker on 24400 and your own web client on
+# 24100, talking to each other and to nothing of ours. That is the whole point
+# — invariant #4 says the self-hosted path works with zero contact with our
+# servers, and a compose file that quietly pointed the browser at
+# api.mtmux.com would make that false while looking correct.
+#
+# It comes up **working with `DATABASE_URL` unset**: no accounts, no billing,
+# no secrets to manage, anonymous pairing on. That is not a degraded mode, it
+# is the default one (invariant #5). Set `DATABASE_URL` and the accounts
+# variables in `.env` if you want sign-in as well.
+#
+# The relay and docs services are opt-in, because the CLI already bundles a
+# relay on its own port and most people never need a separate one:
+#
+#   docker compose --profile relay up      # standalone relay on 24300
+#   docker compose --profile docs up       # the documentation site
 services:
-  relay:
+  api:
     build:
       context: .
-      dockerfile: docker/Dockerfile.relay
+      dockerfile: docker/Dockerfile.api
     ports:
-      - "14300:14300"
+      - "${API_PORT:-24400}:24400"
     env_file: .env
+    environment:
+      # Inside the network the broker listens on all interfaces; the port
+      # published above is what decides who can reach it.
+      API_HOST: 0.0.0.0
+      API_PORT: 24400
+      # Where your browser will load the web client from. The broker refuses to
+      # boot in production with a localhost origin here, on purpose.
+      API_CORS_ORIGINS: ${API_CORS_ORIGINS:-http://localhost:24100}
     volumes:
-      - /tmp/tmux-1000:/tmp/tmux-1000
+      - mtmux-data:/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:24400/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks: [mtmux]
 
   web:
     build:
       context: .
       dockerfile: docker/Dockerfile.web
+      args:
+        # Next inlines NEXT_PUBLIC_* at **build time**, so the broker origin
+        # has to be a build argument. Setting it on the running container
+        # changes nothing about the bundle already being served — which is the
+        # single most confusing failure in this whole file, because the page
+        # loads and looks fine until someone tries to pair.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:24400}
+        NEXT_PUBLIC_RELAY_URL: ${NEXT_PUBLIC_RELAY_URL:-}
     ports:
-      - "14100:14100"
+      - "${WEB_PORT:-24100}:24100"
     env_file: .env
     depends_on:
-      - relay
+      api:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:24100"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks: [mtmux]
+
+  relay:
+    profiles: [relay]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.relay
+    ports:
+      - "${RELAY_PORT:-24300}:24300"
+    env_file: .env
+    volumes:
+      # The host's tmux socket. Adjust the uid if yours is not 1000.
+      - /tmp/tmux-1000:/tmp/tmux-1000
+    restart: unless-stopped
+    networks: [mtmux]
 
   docs:
+    profiles: [docs]
     build:
       context: .
       dockerfile: docker/Dockerfile.docs
     ports:
-      - "14102:14102"
+      - "${DOCS_PORT:-24102}:24102"
     env_file: .env
     restart: unless-stopped
+    networks: [mtmux]
+
+volumes:
+  mtmux-data:
+
+networks:
+  mtmux:

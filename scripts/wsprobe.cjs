@@ -2,7 +2,7 @@ const WS = require('ws');
 const fs = require('fs');
 const port = parseInt(process.env.PORT || '14100', 10);
 const { token } = JSON.parse(
-  fs.readFileSync(process.env.HOME + '/.ccremote/config.json', 'utf8')
+  fs.readFileSync(process.env.HOME + '/.mtmux/config.json', 'utf8')
 );
 const ws = new WS('ws://127.0.0.1:' + port + '/_relay');
 ws.on('open', () => {

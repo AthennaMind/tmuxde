@@ -20,9 +20,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ccremote-web
+          - image: mtmux-api
+            dockerfile: docker/Dockerfile.api
+          - image: mtmux-web
             dockerfile: docker/Dockerfile.web
-          - image: ccremote-relay
+          - image: mtmux-relay
             dockerfile: docker/Dockerfile.relay
 
     steps:
