@@ -28,7 +28,19 @@ terminal. The registry is a convenience layered on top, never a licence check.
 - **Named machines.** `mtmux start --name "build box"` instead of a hostname.
 - **A liveness signal.** A signed-in server heartbeats the registry every 30
   seconds so the dashboard can show it as online.
-- **Higher limits.** More machines, more trusted devices, more relayed traffic.
+- **Ask to join from the browser.** Pick a machine from the dashboard instead of
+  reading a fresh code off a screen. The machine still decides: whoever is there
+  runs `mtmux approve` and reads back a six-digit SAS.
+- **More machines.** Free registers one; Pro lifts that.
+- **A free 7-day Pro trial.** It starts by itself the first time Free is not
+  enough — no button, no card. If you never hit a limit, it never starts.
+
+<Callout type="warn">
+  Signing in does **not** give you more relayed traffic. It is the other way
+  round: anonymous relay traffic is unmetered, and an account is what introduces
+  the monthly meter in the table below. The reason to sign in is the dashboard
+  and the machine list, not bandwidth.
+</Callout>
 
 ## Plan limits
 
@@ -146,3 +158,10 @@ The broker serves these when `DATABASE_URL` is set:
 Configuration — `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`,
 `APP_ORIGIN`, `AUTH_COOKIE_DOMAIN` and the `DODO_*` billing keys — is documented
 in [Configuration → Hosted accounts](/docs/configuration#hosted-accounts-optional).
+
+## Next steps
+
+- [How pairing works](/docs/pairing) — the anonymous path an account never replaces
+- [Multi-agent layouts](/docs/agents/multi-agent-layouts) — several machines, one dashboard
+- [Security](/docs/security) — what each credential can actually do
+- [Self-hosting](/docs/self-hosting) — accounts on a broker you run

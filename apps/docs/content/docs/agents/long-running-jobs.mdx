@@ -1,0 +1,81 @@
+---
+title: Long-Running Jobs
+description: Idle timeouts, reconnection behaviour, and what happens to a long agent run while nothing is watching it.
+---
+
+A long agent run — a refactor, a full test suite, a migration — spends most of
+its life with nobody looking. This page is the reference for what happens during
+that time.
+
+## The run does not depend on the browser
+
+The agent is a child of tmux, and tmux is a child of nothing. Closing the tab,
+losing signal, putting the phone in a pocket and flying somewhere all detach a
+*client*; none of them touch the process. The relay attaches an ordinary tmux
+client on your behalf and detaching it is a normal tmux operation.
+
+This is also why there is no "keep alive" setting to find: nothing is being kept
+alive.
+
+## Idle disconnects
+
+The relay closes a connection that has been silent for a while. It reaps the
+**connection**, never the session.
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `IDLE_TIMEOUT_MINUTES` | `30` | Minutes of silence before the socket is closed. `0` disables the reaper entirely. |
+
+Watching an agent work is, from the socket's point of view, silence — output
+flows one way and you type nothing. If you want a session to survive hours of
+that without a reconnect, set the variable to `0`. Reconnection is automatic
+either way, but it re-attaches the terminal, which costs you a redraw.
+
+`IDLE_TIMEOUT_MINUTES` is a relay variable, so it applies in the split
+deployment; the full table is in [Configuration](/docs/configuration), and the
+topologies are in [Deployment](/docs/deployment).
+
+## What reconnection does and does not restore
+
+| | On reconnect |
+| --- | --- |
+| The agent process | Untouched — it never knew |
+| Scrollback | Intact, on the host |
+| Your position in the session | Re-attached |
+| Keystrokes typed while the socket was down | **Dropped.** Never buffered, never replayed |
+
+<Callout type="warn" title="Input typed offline is discarded on purpose">
+Replaying keystrokes into a session that has moved on is worse than losing them
+— a `y` meant for one prompt lands on whatever prompt exists by the time the
+socket comes back. Check the pane before you type after a reconnect.
+</Callout>
+
+## Watching without a browser open
+
+```bash
+mtmux status     # what is running here, and how it is reachable
+mtmux logs -f    # follow the relay log
+mtmux stop       # stop serving; the tmux session is unaffected
+```
+
+`mtmux logs` reads `~/.mtmux/logs/mtmux.log`. It is the relay's log — connection
+and pairing events — **not** the agent's output. Nothing in mtmux records what an
+agent printed.
+
+## Metered paths
+
+If the device is on the sealed tunnel rather than a direct connection, the run's
+output crosses the broker as ciphertext and counts against the relayed-bytes
+figure on your account. A verbose agent left streaming to an idle phone is the
+one way to spend that without meaning to. Direct connections do not go through
+the broker at all — the selection is automatic and described in
+[Architecture](/docs/architecture) and [The sealed tunnel](/docs/sealed-tunnel).
+
+Closing the tab is enough to stop it; the agent carries on.
+
+## Next steps
+
+- [Session persistence](/docs/agents/session-persistence) — surviving restarts and reboots
+- [Notifications](/docs/agents/notifications) — knowing when the run ended
+- [Configuration](/docs/configuration) — `IDLE_TIMEOUT_MINUTES` and every other variable
+- [mtmux doctor](/docs/doctor) — the first thing to run when a connection misbehaves

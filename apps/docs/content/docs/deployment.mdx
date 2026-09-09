@@ -103,6 +103,25 @@ pm2 reload mtmux-api mtmux-app --update-env
 
 Verify with `curl -s https://api.mtmux.com/health`.
 
+### Crossing a protocol break
+
+0.7.0 raised the pairing protocol floor, and any future break works the same
+way. The order is not interchangeable:
+
+1. **Publish the CLI to npm first.** A new CLI pairs happily with the *old*
+   broker — Zod strips the version field it does not know and the socket query
+   is ignored — so there is no window where the published CLI cannot work.
+2. **Deploy the broker and the web client together.** The browser bundle is
+   served by us, so every visitor upgrades on reload as the floor lands.
+   Deploying the broker first strands browsers holding the previous bundle.
+3. **Existing pairings survive.** Nobody re-pairs.
+4. **Tell people to update.** A CLI below the floor keeps its current tunnel
+   until its agent socket next reconnects, then reports itself outdated and
+   stops retrying rather than looping on a refusal it cannot explain.
+
+Roll back by lowering `API_MIN_PROTOCOL` — the floor is config, so recalling a
+floor does not require a deploy.
+
 ## Generic PM2
 
 ```bash
@@ -144,6 +163,8 @@ NEXT_PUBLIC_API_URL=https://api.example.com
 API_PORT=24400
 API_HOST=127.0.0.1
 API_CORS_ORIGINS=https://app.example.com
+API_MIN_PROTOCOL=            # empty: the version this build ships with. 0 disables the floor.
+API_ADVISORY=                # optional line shown to every CLI that checks in
 ```
 
 Two startup guards will stop a bad deploy dead:
@@ -219,7 +240,7 @@ mtmux.example.com {
 
 ### Split model
 
-Two ready-to-use configs ship in the repo: `nginx/ccremote.conf.example` for
+Two ready-to-use configs ship in the repo: `nginx/mtmux.conf.example` for
 nginx on the host, and `nginx/docker/default.conf` for the sidecar.
 
 ```nginx
@@ -272,3 +293,10 @@ bucket. The broker reads only the left-most entry, and only the address.
 | Marketing site | — | 41317 |
 
 Distinct ranges so dev and production can coexist on one host.
+
+## Next steps
+
+- [Self-hosting](/docs/self-hosting) — the three degrees of independence
+- [Configuration](/docs/configuration) — every variable each service reads
+- [Architecture](/docs/architecture) — what each process is responsible for
+- [Relay server](/docs/relay) — the service behind the WebSocket

@@ -1,0 +1,104 @@
+---
+title: Multi-Agent Layouts
+description: Running several agents on one machine — session naming, what mtmux serves, switching between them on a phone, and scoping what you share.
+---
+
+One `mtmux` process serves **every session on the machine's tmux server**, not
+one session and not one window. That single fact decides how to lay several
+agents out.
+
+## One session per agent
+
+```bash
+tmux new -d -s claude-api      # an agent working on the API
+tmux new -d -s claude-web      # another on the web app
+tmux new -d -s codex-infra     # a third, different agent
+mtmux                          # serves all three
+```
+
+Sessions, not windows, because the session name is the unit everything else
+takes:
+
+| It is the handle for | Where |
+| --- | --- |
+| The card you tap in the client | The Sessions tab — see [Sessions, windows and panes](/docs/web-app/sessions) |
+| What swipe-to-switch cycles through | [Mobile](/docs/web-app/mobile) |
+| The argument to `mtmux share` | [Sharing a session](/docs/sharing) |
+| The argument to `mtmux start --share` | [CLI reference](/docs/cli) |
+
+Panes inside a session are for things that belong together — an agent and the
+test watcher it is chasing. Two unrelated agents in two panes of one window
+means you can never hand one of them to somebody without handing over both.
+
+<Callout type="info" title="Name them for what they are doing, not what they are">
+Three sessions called `claude`, `claude2` and `claude3` are indistinguishable on
+a phone screen, which is the screen this is for. `api-refactor` and `flaky-test`
+are not.
+</Callout>
+
+## Switching between them on a phone
+
+- **Swipe left/right** cycles panes when the window has more than one, and
+  sessions when it does not. So one agent per session, one pane each, makes swipe
+  a session switcher.
+- **The Sessions tab** is the full list, with attach and kill.
+- **Auto-zoom panes** (mobile, optional) zooms the active pane on attach and
+  after a split, because a split pane on a phone is usually too narrow to read.
+
+## Handing one agent to somebody
+
+The point of the layout: a session is a boundary you can actually give away.
+
+```bash
+mtmux share flaky-test                     # one session, read-write, 7 days
+mtmux share flaky-test --read-only         # they can watch, and cannot type
+mtmux share flaky-test --files ro          # plus read-only file browsing
+mtmux share flaky-test --expires 24h
+mtmux share list                           # every share on this machine
+mtmux share revoke grn_…                   # end one immediately
+```
+
+They get a pairing code, land in that session, and get no shell of their own and
+no access to the other sessions.
+
+You can also arm the code that way from the start:
+
+```bash
+mtmux start --share flaky-test,api-refactor --read-only
+```
+
+<Callout type="warn" title="Read-write sharing is not a security boundary">
+A read-write share is a shell in that session, and a shell can start anything.
+`--read-only` is the mode that is a boundary. Read the paragraph mtmux prints
+above the code — and [Sharing a session](/docs/sharing) — before handing one to
+someone you would not hand the machine to. A read-only participant also cannot
+answer an agent's permission prompt; see [Approvals](/docs/agents/approvals).
+</Callout>
+
+## Several machines rather than several sessions
+
+If the agents are on different boxes, the unit is a machine, not a session:
+
+```bash
+mtmux login
+mtmux start --name "build box"      # on each machine
+mtmux servers                       # list them
+```
+
+One dashboard, one paired phone, every machine. Optional — anonymous pairing per
+machine keeps working. See [Accounts](/docs/accounts).
+
+## Cost of watching several at once
+
+Each attached session is its own stream. On the sealed tunnel that is metered
+relayed traffic, and three chatty agents streaming to a phone in a pocket is the
+easy way to spend it without noticing. Detach what you are not reading; the
+agents carry on regardless — see
+[Long-running jobs](/docs/agents/long-running-jobs).
+
+## Next steps
+
+- [Sharing a session](/docs/sharing) — the full grant model
+- [Session persistence](/docs/agents/session-persistence) — what survives what
+- [Web app overview](/docs/web-app) — the client that renders all of this
+- [Architecture](/docs/architecture) — one process, one port, every session

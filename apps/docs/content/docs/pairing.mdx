@@ -20,7 +20,7 @@ mtmux
   █ ▄▄▄ █ ▀▄▀▄█ █ ▄▄▄ █    Scan to open your terminal
   █ ███ █ ▀ ▄▄▄ █ ███ █
   █▄▄▄▄▄█ █ ▀ █ █▄▄▄▄▄█    or go to  app.mtmux.com
-  ▄▄▄▄  ▄ ▄▀▀▄▀▄▄▄ ▄▄      and enter  48 29 13
+  ▄▄▄▄  ▄ ▄▀▀▄▀▄▄▄ ▄▄      and enter  492 716 384
 
   Local    http://localhost:14100
   Network  http://192.168.1.5:14100  (wlp3s0)
@@ -43,7 +43,7 @@ when there is not; you do not choose, and the change is invisible.
 
 ### Why the QR target is a fragment
 
-The QR encodes `https://app.mtmux.com/j#482913`. Everything after the `#` is a
+The QR encodes `https://app.mtmux.com/j#492716384`. Everything after the `#` is a
 **fragment**, and browsers never transmit a fragment to a server. So the four
 digits that are the PAKE password never reach the web host's access log, a
 referrer header, or a CDN — which is the entire reason the code can be short
@@ -59,7 +59,7 @@ Sometimes the browser is already open and the terminal is the thing you have to
 go and find. `mtmux pair` covers that:
 
 1. Open **`https://app.mtmux.com/pair`** on the device. It shows a code.
-2. Run **`mtmux pair 482913`** on the machine running mtmux.
+2. Run **`mtmux pair 492716384`** on the machine running mtmux.
 
 Same protocol, same guarantees — only the question of which side showed the code
 first differs. `mtmux pair` needs a server already running on that port; it
@@ -102,14 +102,14 @@ restarts — see [Staying paired](#staying-paired).
 ## What the code is
 
 ```
-    4 9   2 7 1 6 3 8
-    └┬┘   └────┬────┘
-   slot       secret
+    4 9 2   7 1 6 3 8 4
+    └─┬─┘   └────┬────┘
+     slot       secret
 ```
 
 The split is the load-bearing design decision.
 
-- **The first two digits are a slot.** The broker assigns it, so it can route a
+- **The first three digits are a slot.** The broker assigns it, so it can route a
   claim to the right pending mailbox. It is the *only* part that reaches our
   servers.
 - **The last six are the secret.** They are generated locally and used as the
@@ -126,7 +126,7 @@ Both halves are drawn by rejection sampling, not `random % 1000000`, because the
 modulo bias would measurably weaken the one-shot guessing bound the whole design
 rests on.
 
-Slots are **not scarce**. Many pairings can hold slot `49` at once. A claim is
+Slots are **not scarce**. Many pairings can hold slot `492` at once. A claim is
 fanned out to every live mailbox under that slot, and only the one whose secret
 matches produces a key confirmation that verifies. So slots never run out and
 reveal nothing.
@@ -135,17 +135,20 @@ reveal nothing.
 
 A QR is not a human. Nobody reads it aloud, so there is no reason for it to
 carry a secret a person could retype — it carries **128 bits**, and draws its
-routing slot from a separate four-digit space. A sweep of the small typed space
+routing slot from a separate four-digit space. A sweep of the typed space
 cannot touch a scanned pairing at all.
 
 `mtmux start` therefore parks two mailboxes and races them: one for the code on
 screen, one behind the QR. Whichever is claimed first wins, and the other is
 destroyed.
 
-Codes are told apart by length alone — 6 or 8 digits typed, 24 or 26 characters
-scanned — with no prefix and no version byte. The shorter forms are still
-*parsed*, so a client can read a code minted by an older mtmux; only the longer
-ones are emitted.
+Codes are told apart by length alone — 9 digits typed, 26 characters scanned —
+with no prefix and no version byte. 0.7.0 deleted the older forms outright
+rather than keeping them readable: a 0.6.x six-digit code would alias a slot in
+the new three-digit space, so a client that still parsed one would route
+somewhere real and derive the wrong key, and read to its user as a wrong code
+however many times they retyped it. Refusing it says "update mtmux", which is
+both true and fixable.
 
 ## Why the secret is enough
 
@@ -164,16 +167,23 @@ sweep, indefinitely. It no longer does: every failure spends from a budget that
 entered a wrong code, and from the fourth in a row it slows the replacement down
 to two minutes.
 
-The broker additionally rate-limits claims to 5 per minute per address, 12 per
-minute against any one slot regardless of address, and 600 per minute across the
-whole service — which is what stops an attacker spraying claims across every
-slot to improve those odds.
+The broker additionally rate-limits claims, and the ceilings that matter
+deliberately ignore the caller's address — a bound that depends on how many
+addresses an attacker controls is not a bound. A claim is charged **when it
+attaches a socket**, not when it is POSTed, because attaching is the act that
+actually tests a guess: 4 per minute against any one slot, 200 per minute across
+the whole service, plus a cheap 5 per minute per address on the POST purely to
+stop someone allocating claim objects for free.
+
+Those two ceilings are derived rather than chosen. An attacker must never sweep
+the slot space faster than codes are reissued, which against 1,000 slots and a
+five-minute mailbox lifetime caps the service-wide rate below 333 per minute.
 
 This is the same argument Bluetooth pairing and Magic Wormhole rest on.
 
 ## What the broker can see
 
-`api.mtmux.com` is a blind broker. It routes on the first two digits and
+`api.mtmux.com` is a blind broker. It routes on the first three digits and
 forwards opaque blobs. This is structural, not a promise:
 
 - **The secret never reaches it.** It is the password for
@@ -231,7 +241,7 @@ wins within 800 ms, the session rides the tunnel.
 ### Forcing the tunnel
 
 ```bash
-mtmux pair 482913 --tunnel-only
+mtmux pair 492716384 --tunnel-only
 ```
 
 Sends no candidates at all. Two uses: keeping your LAN topology out of the
@@ -300,3 +310,10 @@ should not un-pair every device you own.
 None of this requires ours. `mtmux start --local` contacts no broker at all, and
 a machine with no route to one degrades to exactly that behaviour. To run your
 own, see [Self-hosting](/docs/self-hosting#the-pairing-broker).
+
+## Next steps
+
+- [The sealed tunnel](/docs/sealed-tunnel) — the cryptography, in full
+- [Security](/docs/security) — the three credentials and what each can do
+- [Accounts](/docs/accounts) — what signing in adds, and what it never takes away
+- [Approvals](/docs/agents/approvals) — admitting a device to a machine nobody is sitting at

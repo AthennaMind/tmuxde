@@ -1,0 +1,84 @@
+---
+title: Codex CLI
+description: Reference for running OpenAI's Codex CLI under tmux and mtmux — setup, its approval prompt, and where the notify hook stops being enough.
+---
+
+Codex CLI is a terminal program, so the arrangement is identical to
+[Claude Code](/docs/agents/claude-code): Codex in a tmux session, mtmux serving
+that tmux. mtmux has no Codex-specific code.
+
+## Setup
+
+```bash
+npm install -g mtmux
+tmux new -s codex        # start Codex CLI inside this session
+mtmux                    # in another terminal, or after Ctrl-b d
+```
+
+Then scan the QR or type the nine digits at `app.mtmux.com`. Full walkthrough in
+[Getting started](/docs/getting-started).
+
+## The two states worth reaching a phone for
+
+| State | What it looks like | Does Codex signal it? |
+| --- | --- | --- |
+| Turn complete | The agent stops and returns the prompt | Yes — the `notify` hook runs |
+| Waiting at an approval prompt | A command is proposed and Codex blocks for `y`/`n`/`a` | **No** — `notify` fires on turn completion, not on approval |
+
+That asymmetry is the whole practical problem with an unattended Codex run: the
+state that actually blocks progress is the one nothing announces. A run left
+alone can sit at an approval prompt indefinitely.
+
+Two ways round it, neither of them a mtmux feature:
+
+- **Watch the pane.** `tmux capture-pane -p -t codex` in a loop, matched against
+  the prompt text, is what a second pane can do without any agent support.
+- **Look.** Because the session is on a browser you already have paired, glancing
+  at the pane is a phone unlock, not a laptop.
+
+See [Approvals](/docs/agents/approvals) for answering the prompt once you are
+looking at it.
+
+## The notify hook
+
+Codex CLI reads a `notify` setting from `~/.codex/config.toml`. It names an
+executable, which Codex invokes with a JSON argument describing the event:
+
+```toml title="~/.codex/config.toml"
+notify = ["/usr/local/bin/codex-notify.sh"]
+```
+
+The program is yours; Codex only runs it. It executes **on the machine Codex is
+running on**, so on its own it reaches a desktop, not a phone — the last hop is
+something you add, such as a `curl` to a push service.
+
+<Callout type="warn" title="mtmux is not that push service">
+mtmux sends no notifications of any kind and has no endpoint for a hook to call.
+It is the terminal you open once a notification has arrived by some other route.
+The four layers that can actually page you are set out on
+[Notifications](/docs/agents/notifications).
+</Callout>
+
+## Narrowing what a paired browser can reach
+
+```bash
+mtmux start --allowed-paths /home/me/projects
+```
+
+Bounds the [file browser](/docs/web-app/files) only. A paired browser still has
+a terminal with your user's permissions — the credential model is in
+[Security](/docs/security).
+
+## What survives a dropped connection
+
+Same as any tmux program: the process, the scrollback and your place in it all
+survive; input typed while the client was offline is dropped rather than
+replayed. Details, including reboots, in
+[Session persistence](/docs/agents/session-persistence).
+
+## Next steps
+
+- [Notifications](/docs/agents/notifications) — the layer map, and mtmux's place in it
+- [Approvals](/docs/agents/approvals) — answering a blocked prompt from a phone
+- [Multi-agent layouts](/docs/agents/multi-agent-layouts) — Codex and Claude Code side by side
+- [CLI reference](/docs/cli) — every mtmux command and flag

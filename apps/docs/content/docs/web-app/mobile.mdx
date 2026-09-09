@@ -10,7 +10,9 @@ Start with [How pairing works](/docs/pairing) to get the device on.
 
 ## Navigation
 
-Below 768px the sidebar layout becomes a bottom tab bar:
+The sidebar layout becomes a bottom tab bar on any touch device — below 768px
+wide, or up to 1366px when the pointer is coarse, which is what puts a tablet
+here rather than on the desktop layout:
 
 - **Terminal** — the terminal, with swipe switching
 - **Sessions** — the full session list
@@ -31,8 +33,13 @@ Then the configurable keys, each of which can be hidden in Settings:
 
 `Tab` `Esc` `Ctrl` `Alt` `↑` `↓` `←` `→` `|` `-` `~` `/`
 
-**Ctrl and Alt are sticky.** Tap Ctrl, then a letter, and it sends the control
-sequence — no chording on a touch screen. Buttons that need the relay are
+**Ctrl and Alt are sticky.** Tap Ctrl, then another key in this row, and it
+sends the control sequence — no chording on a touch screen. The latch applies to
+keys in the toolbar and the `⋯` sheet only; a character typed on the phone's own
+keyboard goes straight to the terminal unmodified. Ctrl has an effect on `@`
+through `_` (the whole of what a terminal can express as a control code); keys
+that are already escape sequences, such as `Tab` and the arrows, are sent
+unchanged. Either latch clears after one key. Buttons that need the relay are
 disabled while disconnected.
 
 ## The command bar
@@ -45,11 +52,11 @@ newline. It carries its own `^C`, `↑` and `Tab` buttons.
 
 The floating action button opens a bottom sheet with three tabs:
 
-| Tab | Actions |
-| --- | --- |
-| **Panes** | Split horizontally / vertically, zoom, resize, swap, kill |
-| **Windows** | Create, rename, kill, tiled layout, rotate layout |
-| **Advanced** | Copy mode, send the tmux prefix, detach |
+| Tab          | Actions                                                   |
+| ------------ | --------------------------------------------------------- |
+| **Panes**    | Split horizontally / vertically, zoom, resize, swap, kill |
+| **Windows**  | Create, rename, kill, tiled layout, rotate layout         |
+| **Advanced** | Copy mode, send the tmux prefix, detach                   |
 
 Long-pressing the FAB is a shortcut to split.
 
@@ -60,16 +67,25 @@ boundary five cells and repeats while held.
 
 Configurable in Settings:
 
-| Gesture | Action |
-| --- | --- |
+| Gesture          | Action                                                                |
+| ---------------- | --------------------------------------------------------------------- |
+| Drag up/down     | Scroll tmux's history                                                 |
 | Swipe left/right | Switch pane if the window has more than one, otherwise switch session |
-| Pinch | Change font size |
+| Pinch            | Change font size                                                      |
 
-Swipes that begin on the terminal screen itself are ignored so text selection
-still works.
+Scrolling is a real tmux operation, not a client-side one: the relay attaches a
+normal tmux client, so tmux holds the alternate screen and there is no local
+scrollback to move. A drag puts the pane into copy mode and walks it; tapping
+the terminal afterwards leaves copy mode so you can type again.
 
-Settings also lists switches for double-tap-to-copy, long-press context menu and
-two-finger scroll. Those are stored but do not currently gate any behaviour.
+There is also a scrollbar down the right edge of the terminal, and it is a real
+one: its thumb is sized and placed from tmux's own `history_size` and
+`scroll_position`, so it shows how far back you are and drags straight to a
+point in the history. A mouse wheel or trackpad over the terminal scrolls the
+same way.
+
+A drag also clears any selection — including the one a terminal search leaves
+behind. Tapping does not, so text you are about to copy is safe.
 
 ## Haptics
 
@@ -82,6 +98,13 @@ The page declares `interactiveWidget: "resizes-content"`, and the client mirrors
 `visualViewport` into CSS variables so the layout follows the keyboard rather
 than being covered by it. The terminal refits on every viewport change.
 
+The app frame sizes itself from the visual viewport rather than from `100dvh`,
+because `interactiveWidget` is Chromium-only: on iOS Safari the frame would stay
+full height and the whole footer — command bar and keyboard toolbar — would sit
+underneath the keyboard, hiding the one row that exists because the keyboard is
+up. Rotating mid-sentence is handled too; the keyboard stays accounted for
+across the rotation instead of the nav bar reappearing beneath it.
+
 ## Auto-zoom panes
 
 Optional, mobile only: zoom the active pane automatically on attach and after a
@@ -89,8 +112,25 @@ split. A split pane on a phone screen is usually too narrow to read.
 
 ## Installing it
 
-The client is a PWA and can be added to an iOS or Android home screen, where it
-runs without browser chrome.
+The client is a PWA. Installed, it runs without browser chrome — which on a
+phone is worth roughly four extra terminal rows, and means the address bar stops
+reappearing when you scroll.
+
+**Settings → Install** is the shortest route. What it offers depends on where
+you opened the app from:
+
+- **Android / Chrome, over the tunnel or `app.mtmux.com`** — an Install button.
+- **iOS** — there is no install API on iOS at all, so the panel shows the manual
+  steps instead: Share, then Add to Home Screen. This works over plain `http`
+  too, so a phone on your LAN can install it.
+- **Android, over a plain LAN address** — the panel says so rather than offering
+  a button that cannot work. No browser will install from a non-secure origin;
+  open the invite link `mtmux start` printed and install from there.
+
+Offline, the app shows a short static page rather than the terminal shell. That
+is deliberate: the terminal runs on your machine, so there is nothing useful to
+serve from a cache, and an app shell that loads and then hangs forever is worse
+than an honest one that says the connection is gone.
 
 ## Two things to know
 
@@ -98,3 +138,9 @@ runs without browser chrome.
   panel, so the mobile Settings tab has no logout button.
 - **Snippets cannot currently be created** from the UI. The command palette will
   show a snippets group, but it stays empty.
+
+## Next steps
+
+- [Web app overview](/docs/web-app) — the rest of the client
+- [Sessions, windows and panes](/docs/web-app/sessions) — what the tmux sheet is driving
+- [Claude Code](/docs/agents/claude-code) — the controls that matter while an agent runs

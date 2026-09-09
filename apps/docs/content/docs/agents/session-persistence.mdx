@@ -1,0 +1,83 @@
+---
+title: Session Persistence
+description: Exactly what survives a closed tab, a stopped CLI, a rotated token and a reboot — and what does not.
+---
+
+Three separate things are commonly called "the session", and they have three
+different lifetimes. Getting them confused is why people expect a reboot to be
+survivable and are surprised, or expect a token rotation to un-pair a phone and
+are surprised the other way.
+
+| Thing | Lives in | Ends when |
+| --- | --- | --- |
+| The **tmux session** — the agent, its shell, its scrollback | The tmux server on the host | The tmux server exits: `tmux kill-server`, the session is killed, or the machine reboots |
+| The **mtmux server** — the process serving that tmux to browsers | The `mtmux` process | Ctrl+C, or `mtmux stop` |
+| The **connection** — one browser attached to one session | A WebSocket | The tab closes, the network drops, or the idle reaper fires |
+
+Only the first one holds your work.
+
+## The survival table
+
+| Event | tmux session | Paired devices | Open connections |
+| --- | --- | --- | --- |
+| Close the browser tab | survives | survive | this one ends |
+| Lose signal / go offline | survives | survive | ends, reconnects automatically |
+| Ctrl+C the `mtmux` process | survives | survive | end |
+| `mtmux stop`, then `mtmux` again | survives | survive — re-admitted on boot | end, then reconnect |
+| `mtmux token rotate` | survives | **survive** — device keys are separate | end |
+| `tmux kill-session` | **gone** | survive | end |
+| Reboot the machine | **gone** unless you restored it | survive | end |
+
+<Callout type="info" title="Rotating the token does not un-pair anything">
+The auth token and a paired device's key are different credentials with
+different lifetimes — the full model is in [Security](/docs/security). Rotate
+the token freely; your phone stays paired.
+</Callout>
+
+## Why devices come back after a restart
+
+The tokens mtmux derived with each browser are written to
+`~/.mtmux/config.json` and replayed when the server starts, so a restart does not
+force a re-pair. A device stays trusted until it goes **90 days unseen**, or
+until you run:
+
+```bash
+mtmux devices revoke <deviceId>
+```
+
+Reloading the browser does not force a re-pair either. The mechanism, including
+why the first pairing needs a code and later ones do not, is in
+[How pairing works](/docs/pairing).
+
+## Surviving a reboot
+
+Nothing in mtmux persists a tmux session across a reboot, and nothing should:
+the session's contents are running processes, which do not serialise. The
+options are the usual tmux ones — `tmux-resurrect` and `tmux-continuum` restore
+the layout and, optionally, restart named programs — and they belong in
+`~/.tmux.conf`, not here.
+
+What you can make automatic is the serving:
+
+- Run `mtmux` from a systemd user unit or a launchd agent so the machine serves
+  its tmux from boot.
+- A machine started that way has nobody at the keyboard, so a browser asking to
+  join it will be denied unless you open a window with `mtmux approve` — see
+  [Approvals](/docs/agents/approvals).
+
+## Scrollback
+
+Scrollback lives on the host, in tmux's history buffer, and is bounded by
+`history-limit` in `~/.tmux.conf` — not by mtmux, and not by the browser. A long
+agent run can exceed the default; raise it there if you need the whole
+transcript. Copy mode in the client reads that same buffer.
+
+Nothing about your terminal output is stored by mtmux or by the broker. The
+broker cannot read it at all — see [The sealed tunnel](/docs/sealed-tunnel).
+
+## Next steps
+
+- [Long-running jobs](/docs/agents/long-running-jobs) — idle timeouts and reconnection
+- [Multi-agent layouts](/docs/agents/multi-agent-layouts) — organising several sessions
+- [Sessions, windows and panes](/docs/web-app/sessions) — what the client can do to tmux
+- [Accounts](/docs/accounts) — machines across more than one box

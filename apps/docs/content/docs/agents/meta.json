@@ -1,0 +1,13 @@
+{
+  "title": "Coding Agents",
+  "pages": [
+    "index",
+    "claude-code",
+    "codex-cli",
+    "notifications",
+    "approvals",
+    "long-running-jobs",
+    "session-persistence",
+    "multi-agent-layouts"
+  ]
+}

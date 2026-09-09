@@ -8,8 +8,8 @@ description: mtmux serves your machine's tmux sessions to any browser. One npm i
 `mtmux` is a CLI you install on the machine that already runs your tmux. It
 starts one Node process that serves a browser terminal and bridges it to tmux
 over a WebSocket, so you can pick up a session from a phone, a tablet or another
-laptop. It works with anything you would run in tmux — Claude Code, Vim, REPLs,
-long builds.
+laptop. It works with anything you would run in tmux — [coding agents](/docs/agents),
+Vim, REPLs, long builds.
 
 The shipped product is the **`mtmux`** npm package. Everything else in the
 repository (`apps/web`, `apps/relay`, `apps/api`, `packages/*`) is the source
@@ -47,7 +47,7 @@ It works the same on your own wifi and on cellular from another country. mtmux
 takes the direct path when the device can reach your machine and falls back to a
 relayed tunnel when it cannot, without asking you.
 
-The code is `slot(2) + secret(6)`. The last six digits are the password for a
+The code is `slot(3) + secret(6)`. The last six digits are the password for a
 PAKE and **never reach the broker**, not even as a hash; everything afterwards
 is AES-256-GCM under keys neither the broker nor anyone else on the path holds.
 The QR puts the code in a URL *fragment*, which browsers never send to a server.
@@ -75,8 +75,45 @@ with `MTMUX_API_URL`. See [Self-hosting](/docs/self-hosting).
 
 ## Next steps
 
-- [Getting started](/docs/getting-started) — install, first run, first device
-- [CLI reference](/docs/cli) — every command and flag
-- [How pairing works](/docs/pairing) — what the code is, and why it is enough
-- [Security](/docs/security) — the actual authentication model
-- [`mtmux doctor`](/docs/doctor) — the first thing to run when something is off
+<Cards>
+  <Card
+    title="Getting started"
+    href="/docs/getting-started"
+    description="Install, first run, first device."
+  />
+  <Card
+    title="CLI reference"
+    href="/docs/cli"
+    description="Every command and flag, as implemented."
+  />
+  <Card
+    title="How pairing works"
+    href="/docs/pairing"
+    description="What the nine digits are, and why they are enough."
+  />
+  <Card
+    title="Coding agents"
+    href="/docs/agents"
+    description="Claude Code, Codex CLI, and what survives a disconnect."
+  />
+  <Card
+    title="The web client"
+    href="/docs/web-app"
+    description="Terminal, sessions, files, and the mobile client."
+  />
+  <Card
+    title="Security"
+    href="/docs/security"
+    description="The credentials mtmux actually uses, and what each can do."
+  />
+  <Card
+    title="Self-hosting"
+    href="/docs/self-hosting"
+    description="Run all of it, including the broker, on your own boxes."
+  />
+  <Card
+    title="mtmux doctor"
+    href="/docs/doctor"
+    description="The first thing to run when something is off."
+  />
+</Cards>

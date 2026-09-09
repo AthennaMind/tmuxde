@@ -1,83 +1,26 @@
-import { ImageResponse } from "next/og";
+import { OG_CONTENT_TYPE, OG_SIZE, renderDocsOgCard } from "@/lib/og-card";
 
-export const runtime = "edge";
 export const alt = "mtmux docs — tmux in your browser";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+export const size = OG_SIZE;
+export const contentType = OG_CONTENT_TYPE;
 
-export default async function Image() {
-  return new ImageResponse(
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "flex-start",
-        padding: "80px",
-        background:
-          "linear-gradient(135deg, #1a0c0a 0%, #2a1410 60%, #3a1c14 100%)",
-        color: "#fff5ee",
-        fontFamily: "system-ui",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 20,
-          marginBottom: 40,
-        }}
-      >
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: 18,
-            background: "#e87958",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 44,
-            color: "#fff5ee",
-            fontWeight: 700,
-          }}
-        >
-          ›
-        </div>
-        <div style={{ fontSize: 56, fontWeight: 700, letterSpacing: -1 }}>
-          mtmux
-        </div>
-      </div>
-      <div
-        style={{
-          fontSize: 72,
-          fontWeight: 800,
-          letterSpacing: -2,
-          lineHeight: 1.05,
-          marginBottom: 24,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <span>tmux in your</span>
-        <span style={{ color: "#e87958" }}>browser.</span>
-      </div>
-      <div style={{ fontSize: 28, color: "#d4b8a8", maxWidth: 900 }}>
-        One command, any device. Documentation.
-      </div>
-      <div
-        style={{
-          marginTop: 40,
-          fontSize: 22,
-          color: "#e87958",
-          fontFamily: "monospace",
-        }}
-      >
-        $ npm i -g mtmux
-      </div>
-    </div>,
-    { ...size },
-  );
+/**
+ * The card for the routes in this segment — `/` and the 404.
+ *
+ * Every docs page has its own card from
+ * `app/docs/[[...slug]]/opengraph-image.tsx`; this is the fallback for the two
+ * routes that are not docs pages, drawn by the same function so they cannot
+ * drift into two different-looking cards.
+ *
+ * `runtime = "edge"` used to be declared here, which made Next log "Using edge
+ * runtime on a page currently disables static generation" and rendered the card
+ * on request. It has no reason to be dynamic — the strings are constants.
+ */
+export default function Image() {
+  return renderDocsOgCard({
+    title: "mtmux docs",
+    description:
+      "Install the mtmux CLI, pair a device, and understand the sealed tunnel.",
+    path: "/docs",
+  });
 }

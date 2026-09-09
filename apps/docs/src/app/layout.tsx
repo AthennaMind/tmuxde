@@ -26,9 +26,14 @@ export const metadata: Metadata = {
     "Claude Code remote",
     "developer tools",
   ],
+  // Deliberately no `url` here and no `alternates` at all. Metadata set on the
+  // root layout is inherited by every page below it, so a canonical (or an
+  // `og:url`) pinned to the docs homepage made all 22 pages declare themselves
+  // duplicates of `/docs`. Each page sets its own self-referencing pair in
+  // `docs/[[...slug]]/page.tsx`; `metadataBase` above turns the relative paths
+  // it returns into absolute URLs.
   openGraph: {
     type: "website",
-    url: "https://docs.mtmux.com",
     siteName: "mtmux docs",
     title: "mtmux docs — tmux in your browser",
     description:
@@ -41,21 +46,26 @@ export const metadata: Metadata = {
     description: "tmux in your browser. One command, any device.",
   },
   robots: { index: true, follow: true },
-  alternates: { canonical: "https://docs.mtmux.com" },
 };
 
+/**
+ * A *reference* to the product entity, not a second description of it.
+ *
+ * mtmux.com owns `#software` (see `apps/site/src/lib/structured-data.ts`),
+ * where the supported systems and the price table are generated from
+ * `packages/config`. The node that used to live here restated both by hand and
+ * had already drifted — it claimed "Linux, macOS" against the site's
+ * "macOS, Linux, WSL", and a single free Offer against the site's Free and Pro.
+ * Two machine-readable descriptions of one product that disagree are worse
+ * than one, so this keeps the `@id` (which is what joins the docs to the
+ * entity) and drops every fact the site already states.
+ */
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
+  "@id": "https://mtmux.com/#software",
   name: "mtmux",
-  description:
-    "tmux in your browser. One command serves your terminal to any device.",
-  applicationCategory: "DeveloperApplication",
-  operatingSystem: "Linux, macOS",
-  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   url: "https://mtmux.com",
-  codeRepository: "https://github.com/GagnDeep/tmuxremote",
-  license: "https://opensource.org/licenses/MIT",
 };
 
 export default function RootLayout({

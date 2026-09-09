@@ -3,20 +3,20 @@ title: Configuration Reference
 description: Every environment variable for the CLI, the relay, the web app and the pairing broker.
 ---
 
-> **Running the CLI?** You almost certainly want
-> [CLI reference](/docs/cli) instead. `mtmux` takes flags — `--port`, `--host`,
-> `--local`, `--token`, `--allowed-paths` — and sets the relay's variables for
-> you. The tables below matter when you deploy the split model or run your own
-> broker.
+<Callout type="info" title="Running the CLI?">
+You almost certainly want the [CLI reference](/docs/cli) instead. `mtmux` takes
+flags — `--port`, `--host`, `--local`, `--token`, `--allowed-paths` — and sets
+the relay's variables for you. The tables below matter when you deploy the split
+model or run your own broker.
+</Callout>
 
 ## CLI
-
-Three variables, and only three.
 
 | Variable | Default | Effect |
 | --- | --- | --- |
 | `MTMUX_CONFIG_DIR` | `~/.mtmux` | Directory holding `config.json` and `server.json` |
-| `MTMUX_API_URL` | `https://api.mtmux.com` | Pairing broker base URL. `--api` overrides it. |
+| `MTMUX_API_URL` | `https://api.mtmux.com` | Pairing broker base URL. `--api` overrides it; `mtmux config set api` stores it. |
+| `MTMUX_APP_URL` | `https://app.mtmux.com` | Web client origin used to build the pairing link and the QR |
 | `MTMUX_BUILD_API_URL` | — | **Build time only.** Bakes a broker origin into the bundled web client. |
 
 `MTMUX_BUILD_API_URL` is read when the CLI is built, not when it is run. Next
@@ -101,8 +101,12 @@ boot rather than running with a quietly wrong abuse limit.
 | `API_PORT` | `14400` | HTTP + WebSocket port |
 | `API_HOST` | `127.0.0.1` | Bind address |
 | `API_CORS_ORIGINS` | `http://localhost:14100` | Comma-separated allowed browser origins |
-| `API_CLAIMS_PER_MINUTE` | `5` | Pairing claims per minute, per address |
+| `API_CLAIMS_PER_MINUTE` | `5` | Claim POSTs per minute, per address. Bounds allocation only — the guess itself is charged below. |
+| `API_SLOT_CLAIMS_PER_MINUTE` | `4` | Claims **attached** per minute for one slot, ignoring the caller's address |
+| `API_GLOBAL_CLAIMS_PER_MINUTE` | `200` | Claims attached per minute service-wide. Derived from the slot space: an attacker must never sweep it faster than codes are reissued. |
 | `API_MAILBOXES_PER_MINUTE` | `10` | New mailboxes per minute, per address |
+| `API_MIN_PROTOCOL` | package default | Lowest pairing protocol version accepted. `0` accepts every client, including one that declares no version. |
+| `API_ADVISORY` | *(empty)* | A line reported by `GET /v1/version` and shown by `mtmux doctor`. Say something urgent to every running CLI without shipping code. |
 | `API_TUNNEL_MAX_BYTES` | `1073741824` (1 GiB) | Bytes forwarded per tunnel, both directions |
 | `API_TUNNEL_MAX_MINUTES` | `720` (12 h) | Tunnel lifetime |
 | `API_TUNNEL_MAX_STREAMS` | `16` | Concurrent streams per tunnel. A denial-of-service bound: a `stream:open` past it is refused, and the tunnel stays up. |
@@ -110,7 +114,17 @@ boot rather than running with a quietly wrong abuse limit.
 The broker **refuses to boot** when `NODE_ENV=production` and `API_CORS_ORIGINS`
 still contains a `localhost` origin.
 
-Both rate limits are part of the security argument, not capacity management —
+### The protocol floor
+
+`GET /v1/version` reports `{ protocol, floor, advisory? }`. A client below
+`floor` gets `426 Upgrade Required` from the pairing routes and a raw
+`HTTP/1.1 426` from the WebSocket upgrade, before any frame is exchanged.
+
+The floor is **your** decision, not ours. `API_MIN_PROTOCOL=0` turns it off
+entirely, which is the right setting for a broker whose clients you control and
+whose upgrade schedule is nobody else's business.
+
+The rate limits are part of the security argument, not capacity management —
 see [How pairing works](/docs/pairing#why-the-secret-is-enough).
 
 ### Reverse DNS and per-device certificates
@@ -187,3 +201,10 @@ request that just succeeded at signing in — points nowhere near the cause.
 
 These, and every variable above that affects a build, are declared in
 `turbo.json`'s `globalEnv` so Turborepo invalidates its cache when they change.
+
+## Next steps
+
+- [CLI reference](/docs/cli) — the flags that set most of these for you
+- [Deployment](/docs/deployment) — which variables each topology needs
+- [Self-hosting](/docs/self-hosting) — running the broker yourself
+- [Security](/docs/security) — the variables that are credentials

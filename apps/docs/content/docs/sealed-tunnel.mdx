@@ -10,10 +10,12 @@ no key that could open it.
 Everything on this page corresponds to code in `packages/crypto/src/`. Nothing
 here is aspirational.
 
-> **Status.** The CPace implementation is checked against the published draft
-> test vectors, which proves the encoding and group maths. It has not yet had an
-> independent security review of the surrounding protocol wiring. The file says
-> so at the top, and so do we.
+<Callout type="warn" title="Status">
+The CPace implementation is checked against the published draft test vectors,
+which proves the encoding and group maths. It has not yet had an independent
+security review of the surrounding protocol wiring. The file says so at the top,
+and so do we.
+</Callout>
 
 ## The shape of it
 
@@ -51,8 +53,8 @@ up with the same high-entropy key, while an observer learns neither.
 
 | Input | Value |
 | --- | --- |
-| `PRS` (password) | The four-digit secret from the pairing code |
-| `CI` (channel identifier) | The two-digit slot |
+| `PRS` (password) | The six-digit secret from the pairing code |
+| `CI` (channel identifier) | The three-digit slot |
 | `sid` (session id) | 16 bytes, chosen by the claimant |
 
 The run is:
@@ -76,12 +78,14 @@ The run is:
    they are.
 
 The broker sees the two 32-byte shares and the associated data. From those the
-four-digit secret cannot be recovered.
+six-digit secret cannot be recovered.
 
-> **Why implement it rather than depend on one.** Every CPace package on npm is
-> pre-1.0 and unaudited, so depending on one would move the trust rather than
-> reduce it. `cpace.test.ts` checks every intermediate against the draft's
-> Appendix B.3 vectors, which is the only reason to trust the file.
+<Callout type="info" title="Why implement it rather than depend on one">
+Every CPace package on npm is pre-1.0 and unaudited, so depending on one would
+move the trust rather than reduce it. `cpace.test.ts` checks every intermediate
+against the draft's Appendix B.3 vectors, which is the only reason to trust the
+file.
+</Callout>
 
 ## Step 2 — the key schedule
 
@@ -109,7 +113,7 @@ Each side sends `HMAC-SHA-256(confirmKey, "mtmux/v1 confirm " + role)` where
 role is `cli` or `browser`, and verifies the other's with a constant-time
 compare.
 
-This is what turns a wrong four-digit guess into an immediate, visible failure
+This is what turns a wrong six-digit guess into an immediate, visible failure
 rather than a silently broken session — and what lets the broker destroy the
 mailbox on a bad guess, so an attacker gets exactly one shot.
 
@@ -119,9 +123,32 @@ Every relay protocol line is sealed with **AES-256-GCM** before it goes near the
 broker.
 
 ```
-wire format:  [ 8-byte BE counter ][ ciphertext ‖ 16-byte GCM tag ]
+first frame of a direction on a stream (counter is always 0):
+    [ 16-byte salt ][ 8-byte BE counter ][ ciphertext ‖ 16-byte GCM tag ]
+every frame after it:
+    [ 8-byte BE counter ][ ciphertext ‖ 16-byte GCM tag ]
+
 nonce (12B):  [ 4-byte direction tag ][ 8-byte BE counter ]
 ```
+
+- **Salt** is 16 random bytes, generated per connection and carried in the clear
+  on the first frame each direction sends. The key that actually seals a frame
+  is `HKDF-SHA-256(sessionKey, salt, label)` — a **per-connection subkey**,
+  under a label that also separates frames from the sealed descriptor.
+
+  This is the fix for a real bug rather than a precaution. Before 0.7.0 both the
+  descriptor and the first frame of a stream were sealed under the same
+  direction key at counter 0, which is AES-GCM nonce reuse: XOR of the two
+  ciphertexts recovers plaintext, and the forbidden-attack recovers the GHASH
+  subkey and with it the ability to *forge*. Every hosted pairing handed the
+  broker that pair. A per-connection subkey means no key is ever used twice at
+  counter 0, and it makes a reconnect a fresh key schedule rather than a reset
+  replay window.
+
+  The salt rides inside the sealed blob, not beside it, for two reasons: it is
+  the only field the broker forwards verbatim, and a broker that minted the salt
+  would be back inside the key schedule. In the clear, it also keeps trial
+  decryption working, which is what lets the broker stay blind.
 
 - **Direction tag** is `"c2s\0"` or `"s2c\0"`. The two directions already use
   separate keys; the tag means they can never collide even so.
@@ -142,8 +169,9 @@ Both ends use WebCrypto (`globalThis.crypto.subtle`), present in browsers and in
 Node 22+, so the browser and the CLI run byte-identical code rather than two
 implementations that have to be kept in agreement.
 
-Fresh sealer and opener counters are created per connection. The maximum
-plaintext per frame is 1 MiB.
+Fresh sealer and opener counters — and, since 0.7.0, a fresh salt and therefore
+a fresh subkey — are created per connection. The maximum plaintext per frame is
+1 MiB.
 
 ## Registering the tunnel
 
@@ -173,8 +201,10 @@ mapping the design denies it.
 So the first frame decides: whichever key schedule authenticates it owns the
 stream. AES-GCM's tag is exactly the right discriminator. A stream no key opens
 is refused rather than forwarded, which is also what stops an unpaired browser
-that guessed a tunnel id from reaching the relay. The keyring is capped at 8
-pairings, oldest evicted first, which bounds both the cost of trial decryption
+that guessed a tunnel id from reaching the relay. Trial decryption derives a
+candidate subkey per keyring entry from the salt on that first frame, so the
+per-connection key costs the agent nothing it was not already doing. The keyring
+is capped at 64 pairings, oldest evicted first, which bounds both the cost of trial decryption
 and the work an unpaired caller can make the agent do.
 
 ## Quotas
@@ -208,3 +238,10 @@ second worker would route a browser to a process that has never heard of its
 pairing.
 
 It holds no key that can open a frame, and it is not on the direct path at all.
+
+## Next steps
+
+- [How pairing works](/docs/pairing) — the nine digits this key schedule starts from
+- [Security](/docs/security) — the credential model around it
+- [Architecture](/docs/architecture) — where the agent and the broker sit
+- [Self-hosting](/docs/self-hosting) — running the broker yourself, or none at all

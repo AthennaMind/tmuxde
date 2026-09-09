@@ -1,0 +1,94 @@
+---
+title: Coding Agents
+description: Reference for running Claude Code, Codex CLI and other terminal agents under mtmux — what survives, what pages you, and what mtmux does not do.
+---
+
+A coding agent is a terminal program. tmux keeps terminal programs alive across
+disconnects, and mtmux serves tmux to a browser. There is no agent integration
+in mtmux, no plugin, and no per-agent configuration — which is why an agent
+released next month works here on the day it ships.
+
+This section is reference material for the setup: what each part is responsible
+for, what survives a dropped connection, and where the configuration for each
+behaviour actually lives.
+
+<Callout type="warn" title="mtmux sends no notifications">
+Nothing in mtmux pushes, buzzes, emails or alerts. It has no notification
+service, no daemon watching your panes, and no channel to your phone that it
+initiates. Everything on [Notifications](/docs/agents/notifications) is
+configuration you own, in your agent, your tmux, your terminal emulator or your
+own push service. mtmux is what you open **after** something else has paged you.
+</Callout>
+
+## What each layer is responsible for
+
+| Layer | Responsibility | Configured in |
+| --- | --- | --- |
+| The agent | Doing the work; emitting its own lifecycle events | The agent's own config — see [Claude Code](/docs/agents/claude-code), [Codex CLI](/docs/agents/codex-cli) |
+| tmux | Keeping the process alive and detached from any terminal | `~/.tmux.conf` |
+| mtmux | Serving that tmux to a browser, and admitting devices | `~/.mtmux/config.json`, flags — see the [CLI reference](/docs/cli) |
+| Your phone or laptop | Reading and answering | Nothing; it is a browser |
+
+The important consequence: **mtmux is not in the loop while the agent runs.**
+Close the tab and the agent carries on, because the agent is a child of tmux and
+tmux is a child of nothing. See [Architecture](/docs/architecture) for how the
+pieces connect.
+
+## The pages in this section
+
+<Cards>
+  <Card
+    title="Claude Code"
+    href="/docs/agents/claude-code"
+    description="Running Claude Code under tmux and reaching it from a browser."
+  />
+  <Card
+    title="Codex CLI"
+    href="/docs/agents/codex-cli"
+    description="The same setup for OpenAI's Codex CLI, and where its notify hook stops."
+  />
+  <Card
+    title="Notifications"
+    href="/docs/agents/notifications"
+    description="The four layers that can page you. mtmux is none of them."
+  />
+  <Card
+    title="Approvals"
+    href="/docs/agents/approvals"
+    description="Answering an agent's permission prompt from a phone, and mtmux's own access requests."
+  />
+  <Card
+    title="Long-running jobs"
+    href="/docs/agents/long-running-jobs"
+    description="Idle timeouts, reconnection, and what happens to input typed while offline."
+  />
+  <Card
+    title="Session persistence"
+    href="/docs/agents/session-persistence"
+    description="Exactly what survives a disconnect, a restart and a reboot."
+  />
+  <Card
+    title="Multi-agent layouts"
+    href="/docs/agents/multi-agent-layouts"
+    description="Several agents in one tmux server, and how to scope what you share."
+  />
+</Cards>
+
+## The shortest complete setup
+
+```bash
+npm install -g mtmux          # once
+tmux new -s agent             # a session for the agent to live in
+# start your agent inside that session, then detach with Ctrl-b d
+mtmux                         # serve this machine's tmux, print a code
+```
+
+Scan the QR or type the nine digits at `app.mtmux.com`. Full walkthrough in
+[Getting started](/docs/getting-started); the code itself is explained in
+[How pairing works](/docs/pairing).
+
+## Next steps
+
+- [Claude Code](/docs/agents/claude-code) — the most common case, end to end
+- [Session persistence](/docs/agents/session-persistence) — what survives what
+- [Introduction](/docs) — what mtmux is, if you arrived here first

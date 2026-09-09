@@ -11,6 +11,34 @@ description: Install the mtmux CLI, serve your tmux, and get a second device ont
 
 You do not need Docker, a reverse proxy, a certificate, or a port forward.
 
+## The short version
+
+<Steps>
+<Step title="Install the CLI on the machine that runs tmux">
+```bash
+npm install -g mtmux
+```
+</Step>
+
+<Step title="Run it">
+```bash
+mtmux
+```
+
+It serves the terminal on port `14100`, opens a sealed tunnel, and prints a QR
+block with a nine-digit code underneath.
+</Step>
+
+<Step title="Scan the QR with the device you want to use">
+The terminal loads — no taps, no typing, no second command. If the camera will
+not cooperate, open `app.mtmux.com` on the device and type the nine digits into
+the field it shows.
+</Step>
+</Steps>
+
+The rest of this page is each of those in detail, plus what to do when one of
+them does not go to plan.
+
 ## Install
 
 ```bash
@@ -56,7 +84,7 @@ Press **Ctrl+C** to stop.
   █ ▄▄▄ █ ▀▄▀▄█ █ ▄▄▄ █    Scan to open your terminal
   █ ███ █ ▀ ▄▄▄ █ ███ █
   █▄▄▄▄▄█ █ ▀ █ █▄▄▄▄▄█    or go to  app.mtmux.com
-  ▄▄▄▄  ▄ ▄▀▀▄▀▄▄▄ ▄▄      and enter  48 29 13
+  ▄▄▄▄  ▄ ▄▀▀▄▀▄▄▄ ▄▄      and enter  492 716 384
 
   Local    http://localhost:14100
   Network  http://192.168.1.5:14100  (wlp3s0)
@@ -71,14 +99,14 @@ already in it, and the terminal loads — no taps, no typing, no second command.
 
 If the camera will not cooperate, go to **app.mtmux.com** on the device and type
 the code into the field it shows. It is grouped for reading aloud,
-so `482913` prints as `48 29 13`.
+so `492716384` prints as `492 716 384`.
 
 This works from your own wifi *and* from cellular in another country. mtmux
 takes the direct path when the device can reach your machine and falls back to a
 relayed tunnel when it cannot — you do not choose, and the switchover is
 invisible.
 
-The QR encodes `https://app.mtmux.com/j#482913`. Everything after the `#` is a
+The QR encodes `https://app.mtmux.com/j#492716384`. Everything after the `#` is a
 URL **fragment**, which browsers never send to a server, so the half of the code
 that matters never reaches anyone's access log. The page strips it from the
 address bar before it does anything else.
@@ -95,7 +123,7 @@ that is the only case left where someone has to authenticate by hand.
 quote them back on the machine.
 
 ```bash
-mtmux pair 482913
+mtmux pair 492716384
 ```
 
 Handy when you are already at the browser, or pairing a machine you reached over
@@ -154,8 +182,8 @@ working.
 To develop the monorepo rather than use the CLI:
 
 ```bash
-git clone https://github.com/GagnDeep/tmuxremote.git
-cd tmuxremote
+git clone https://github.com/mtmux/mtmux.git
+cd mtmux
 pnpm setup     # pnpm install + .env from the template
 pnpm dev       # web + relay on ONE port (14100), same shape as `mtmux start`
 ```
@@ -169,11 +197,12 @@ pnpm dev:pairing   # the hosted-pairing topology, broker included
 pnpm dev:docs      # this docs site on 14102
 ```
 
-See [CONTRIBUTING.md](https://github.com/GagnDeep/tmuxremote/blob/main/CONTRIBUTING.md).
+See [CONTRIBUTING.md](https://github.com/mtmux/mtmux/blob/main/CONTRIBUTING.md).
 
 ## Next steps
 
 - [CLI reference](/docs/cli) — every command and flag
 - [How pairing works](/docs/pairing) — what the code is, and why it is enough
-- [Configuration](/docs/configuration) — every environment variable
+- [Coding agents](/docs/agents) — Claude Code, Codex CLI and long unattended runs
 - [Mobile](/docs/web-app/mobile) — using mtmux from a phone
+- [Configuration](/docs/configuration) — every environment variable

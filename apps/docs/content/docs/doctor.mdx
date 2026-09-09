@@ -7,7 +7,7 @@ description: The first thing to run when something is not working.
 mtmux doctor
 ```
 
-`doctor` answers "why isn't this working?" without a support thread. It runs six
+`doctor` answers "why isn't this working?" without a support thread. It runs eight
 checks in dependency order, so the first failure is the real cause rather than a
 symptom of an earlier one.
 
@@ -17,8 +17,10 @@ symptom of an earlier one.
   ✓ tmux server   2 sessions
   ✓ Port 14100    free
   ✓ Config        /home/you/.mtmux/config.json
+  ✓ mkfifo        available
   ! Broker        https://api.mtmux.com unreachable
     → Check your network, or use `mtmux start --local` for LAN only.
+  ✓ mtmux         no version service
 
   Ready, with 1 caveat.
 ```
@@ -97,8 +99,34 @@ A failure here is **always a warning, never an error**. `mtmux start --local` is
 fully functional without a broker, and calling it a failure would misrepresent
 an offline machine as a broken install.
 
+### mtmux
+
+Reads `<api>/v1/version` and compares this CLI against two numbers the broker
+reports: `minCli`, the version below which that broker refuses to pair, and
+`latest`, the version it would like you on.
+
+Three rules, all of them about not crying wolf:
+
+- **A version it cannot parse is never "too old".** Telling someone to upgrade
+  a CLI that is already current is unfixable advice — the upgrade changes
+  nothing and there is nowhere else to look.
+- **A broker with no opinion produces no line.** Self-hosted brokers that never
+  set `API_LATEST_CLI` or implement `/v1/version` say nothing, and this check
+  reports that as fine.
+- **It is never a failure.** Like the broker check, a warning at most.
+
+`API_ADVISORY` is printed verbatim if the broker sets one. It is the one
+channel that reaches a running CLI without a release — see
+[Configuration](/docs/configuration#the-protocol-floor).
+
 ## When doctor is clean but it still does not work
 
 Then the problem is between the browser and the machine rather than on the
 machine. Work through [Troubleshooting](/docs/troubleshooting), which is
 organised by symptom.
+
+## Next steps
+
+- [Troubleshooting](/docs/troubleshooting) — symptom by symptom, once doctor is clean
+- [CLI reference](/docs/cli) — every command and flag
+- [Configuration](/docs/configuration) — what doctor is checking against

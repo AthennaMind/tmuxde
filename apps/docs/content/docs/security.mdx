@@ -132,18 +132,21 @@ missed the previous pong.
 The full argument is in [How pairing works](/docs/pairing) and
 [The sealed tunnel](/docs/sealed-tunnel). In brief:
 
-- The pairing code is **slot(2) + secret(6)**. The secret never reaches the
+- The pairing code is **slot(3) + secret(6)**. The secret never reaches the
   broker, not even as a hash.
 - Both halves are drawn by **rejection sampling**, so the guessing bound is not
   weakened by modulo bias.
 - A code is **single-use**, and a failed key confirmation destroys the mailbox.
   One wrong guess costs the attacker the whole code, and burning one is visible
   to you.
-- The broker rate-limits claims to **5 per minute per address** and mailboxes to
-  **10 per minute** — this is what stops an attacker spraying claims across every
-  slot.
-- Tunnel traffic is **AES-256-GCM** with per-direction keys and a strictly
-  increasing counter. A replayed or reordered frame is rejected by number; a
+- The broker charges a claim **when it attaches a socket**, and the two ceilings
+  that bound guessing — **4 per minute against one slot** and **200 per minute
+  service-wide** — deliberately ignore the caller's address. A limit that
+  depends on how many addresses an attacker controls is not a limit. The per-IP
+  numbers (5 claims, 10 mailboxes per minute) bound allocation, not guessing.
+- Tunnel traffic is **AES-256-GCM** under a **per-connection subkey**, derived
+  by HKDF from the per-direction session key and a 16-byte salt sent in the
+  clear on each direction's first frame, with a strictly increasing counter. A replayed or reordered frame is rejected by number; a
   tampered one fails authentication and closes the connection.
 - The browser is never told `AUTH_TOKEN`. It either derives a session token from
   the pairing, or needs no token at all on the tunnel path.
@@ -259,11 +262,11 @@ or put the single port behind a reverse proxy that terminates TLS. See
 ## Reporting a vulnerability
 
 Please do not open a public issue. See
-[SECURITY.md](https://github.com/GagnDeep/tmuxremote/blob/main/SECURITY.md).
+[SECURITY.md](https://github.com/mtmux/mtmux/blob/main/SECURITY.md).
 
 ## Next steps
 
-- [How pairing works](/docs/pairing) — why six digits are enough
+- [How pairing works](/docs/pairing) — why nine digits are enough
 - [The sealed tunnel](/docs/sealed-tunnel) — what the broker cannot read, and why
 - [Sharing a session](/docs/sharing) — the one boundary that is a boundary
 - [Recording a session](/docs/recording) — what a `.cast` holds, and what sharing one gives away

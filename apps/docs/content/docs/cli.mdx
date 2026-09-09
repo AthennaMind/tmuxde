@@ -87,8 +87,8 @@ one. Pass `--host 127.0.0.1` if you want loopback only anyway.
   "localUrl": "http://localhost:14100",
   "lanUrl": "http://192.168.1.5:14100",
   "mode": "tunnel",
-  "code": "482913",
-  "joinUrl": "https://app.mtmux.com/j#482913",
+  "code": "492716384",
+  "joinUrl": "https://app.mtmux.com/j#492716384",
   "token": "…",
   "note": null
 }
@@ -127,7 +127,7 @@ The **other** direction. `mtmux start` prints a code for a browser to claim;
 here.
 
 ```bash
-mtmux pair 482913
+mtmux pair 492716384
 ```
 
 Run with no code and it prints those steps rather than guessing.
@@ -218,7 +218,7 @@ into.
   Mode     tunnel + local
   Local    http://localhost:14100
   Network  http://192.168.1.5:14100
-  Invite   https://app.mtmux.com/j#482913
+  Invite   https://app.mtmux.com/j#492716384
   Devices  2  iPhone · Safari, MacBook · Chrome
   Version  0.3.0
 ```
@@ -279,9 +279,11 @@ restarts. The command says so.
 mtmux config get                              # every setting
 mtmux config get reconnectPolicy
 mtmux config set reconnectPolicy confirm
+mtmux config set api https://api.example.com  # your own broker
+mtmux config set api default                  # back to ours
 ```
 
-One setting, deliberately. Everything else this CLI does is either a per-run
+Two settings, deliberately. Everything else this CLI does is either a per-run
 flag or a decision the product should make for you.
 
 **`reconnectPolicy`** — whether a device paired in an earlier run may reconnect
@@ -298,6 +300,20 @@ is what decrypted the frame. The question is policy, not verification.
 
 With no TTY, `confirm` **refuses**. Admitting a device because nobody could be
 asked would be the setting quietly not applying.
+
+**`api`** — the pairing broker this machine uses. Set it once instead of
+exporting `MTMUX_API_URL` or passing `--api` on every invocation. Precedence,
+highest first:
+
+1. `--api <url>`
+2. `MTMUX_API_URL`
+3. `mtmux config set api`
+4. the broker this machine's account signed in against
+5. `https://api.mtmux.com`
+
+`default` (or an empty value) clears it. Only absolute `http(s)` URLs are
+accepted — `http` on purpose, because a self-hosted broker's first home is
+usually the local network.
 
 Override per run with `--confirm-reconnect` or `--trust-reconnect`; the flags
 beat the stored value, and `--trust-reconnect` wins if both are passed.
@@ -352,6 +368,7 @@ Aliased as `mtmux v`.
 | --- | --- |
 | `MTMUX_CONFIG_DIR` | Directory holding `config.json` and `server.json`. Default `~/.mtmux`. |
 | `MTMUX_API_URL` | Pairing broker base URL. Default `https://api.mtmux.com`. `--api` overrides it. |
+| `MTMUX_APP_URL` | Web client origin used to build the pairing link and QR. Default `https://app.mtmux.com`. Point it at your own deployment of `apps/web`. |
 | `MTMUX_BUILD_API_URL` | **Build time only.** Bakes a broker origin into the bundled web client. |
 
 ## Files

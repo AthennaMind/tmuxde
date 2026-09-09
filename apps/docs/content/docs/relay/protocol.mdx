@@ -18,7 +18,7 @@ Everything is JSON-serialised and validated on both ends by `codec.ts`.
 
 ---
 
-# Relay protocol
+## Relay protocol
 
 ## Client → relay
 
@@ -223,7 +223,7 @@ type FileStat = FileEntry & {
 
 ---
 
-# Pairing and tunnel protocol
+## Pairing and tunnel protocol
 
 Defined in `packages/protocol/src/pairing-messages.ts`. Everything the broker
 sees here is either routing metadata or an opaque blob. Nothing in it lets the
@@ -335,3 +335,9 @@ direction. See [The sealed tunnel](/docs/sealed-tunnel).
 2. Add it to the discriminated union.
 3. Handle client messages in `apps/relay/src/message-router.ts`.
 4. Handle server messages in `apps/web/src/hooks/use-websocket.ts`.
+
+## Next steps
+
+- [Relay server](/docs/relay) — the server that speaks the relay half
+- [The sealed tunnel](/docs/sealed-tunnel) — what wraps the pairing half
+- [Architecture](/docs/architecture) — how the two protocols stay separate

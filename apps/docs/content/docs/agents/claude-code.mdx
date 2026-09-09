@@ -1,0 +1,129 @@
+---
+title: Claude Code
+description: Reference for running Claude Code inside tmux and driving it from a browser — setup, the controls you get on a phone, and what survives a disconnect.
+---
+
+Claude Code is a terminal program. Nothing in mtmux knows that — there is no
+Claude Code integration, no detection and no special case. What follows is the
+reference for the ordinary arrangement: Claude Code in a tmux session, mtmux
+serving that tmux.
+
+## Setup
+
+<Steps>
+<Step title="Install mtmux on the machine Claude Code runs on">
+```bash
+npm install -g mtmux
+```
+
+Node 22+ and `tmux` on `PATH` are the only requirements. See
+[Getting started](/docs/getting-started) for the full prerequisite list.
+</Step>
+
+<Step title="Give Claude Code a tmux session of its own">
+```bash
+tmux new -s claude
+```
+
+Start Claude Code inside it. A named session is not cosmetic: it is the handle
+`mtmux share` and `mtmux start --share` take, and it is what you look for in the
+session list on a phone.
+</Step>
+
+<Step title="Serve the machine's tmux">
+```bash
+mtmux
+```
+
+`start` is the default command. It serves every session on this machine's tmux
+server, not just the one you named — see
+[Multi-agent layouts](/docs/agents/multi-agent-layouts) if that is not what you
+want.
+</Step>
+
+<Step title="Pair the device you will actually read it on">
+Scan the QR in the banner, or open `app.mtmux.com` and type the nine digits. Both
+work from another network; mtmux takes a direct path when the device can reach
+the machine and a sealed tunnel when it cannot. The mechanism is in
+[How pairing works](/docs/pairing).
+</Step>
+</Steps>
+
+## What you get on the phone
+
+These are web-client features, not Claude Code features. The full reference is
+in [Mobile](/docs/web-app/mobile); this is the subset that matters while an
+agent is working.
+
+| Need | Control |
+| --- | --- |
+| Read a long response | Pinch to change font size; auto-zoom keeps the active pane readable after a split |
+| Answer a prompt or write a follow-up | The command bar — an auto-resizing text area, `Enter` sends, `Shift+Enter` newlines |
+| Stop it | `^C` is a fixed button on the keyboard toolbar |
+| Read what scrolled past | Copy mode captures the pane read-only, with Copy All |
+| Check what it changed | The [file browser](/docs/web-app/files) opens files in Monaco; file watching raises a reload banner when the agent edits a file you have open |
+| Switch between agents | Swipe left/right, or the Sessions tab |
+
+## Narrowing what the browser can reach
+
+The file browser is bounded by an allow-list, not by the agent's working
+directory:
+
+```bash
+mtmux start --allowed-paths /home/me/projects
+```
+
+<Callout type="warn">
+A paired browser is a shell on the machine, with your user's permissions. It is
+not sandboxed to the agent's repository, and `--allowed-paths` bounds the **file
+browser**, not the terminal. If that is not the boundary you want, share a single
+session read-only instead — see [Approvals](/docs/agents/approvals) and
+[Sharing a session](/docs/sharing). The full credential model is in
+[Security](/docs/security).
+</Callout>
+
+## Hooks, and what they are for here
+
+Claude Code fires its own lifecycle hooks — `Stop` when it finishes responding,
+`Notification` when it is waiting on you. They run a shell command on the
+machine. mtmux neither reads nor writes them, and nothing in mtmux fires when an
+agent finishes.
+
+The division that matters: a hook is what **tells you** something happened;
+mtmux is what you open to **do something about it**. The layer map, including
+what each layer can and cannot observe, is on
+[Notifications](/docs/agents/notifications).
+
+## Several machines
+
+If Claude Code runs on more than one box, an account turns "one code per
+machine" into one dashboard:
+
+```bash
+mtmux login
+mtmux start --name "build box"
+mtmux servers
+```
+
+Optional, permanently. Anonymous pairing is not deprecated and will not be — see
+[Accounts](/docs/accounts).
+
+## What survives a dropped connection
+
+| | Survives? |
+| --- | --- |
+| The Claude Code process and everything in it | yes |
+| Terminal scrollback | yes, on the host |
+| Your place in the session | yes — the client re-attaches |
+| Keystrokes typed while offline | **no** — dropped, never replayed |
+
+The last row is a decision, not a gap: replaying input into a session that has
+moved on is worse than losing it. The longer form, including reboots, is in
+[Session persistence](/docs/agents/session-persistence).
+
+## Next steps
+
+- [Approvals](/docs/agents/approvals) — answering permission prompts remotely
+- [Long-running jobs](/docs/agents/long-running-jobs) — idle timeouts and reconnection
+- [Codex CLI](/docs/agents/codex-cli) — the same arrangement for a different agent
+- [Troubleshooting](/docs/troubleshooting) — when the terminal is blank or the code fails

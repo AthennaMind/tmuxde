@@ -76,17 +76,28 @@ pairing carries on.
 
 ### Pointing the CLI at it
 
-At runtime:
+Once, and it sticks:
 
 ```bash
-MTMUX_API_URL=https://api.example.com mtmux
-MTMUX_API_URL=https://api.example.com mtmux pair 482913
+mtmux config set api https://api.example.com
 ```
 
-Or per-invocation with `--api`:
+That is stored in `~/.mtmux/config.json` and read by every command. Before it
+existed you had to pass the broker on every single invocation, which is not a
+self-hosted product so much as a hosted one with a workaround.
+
+The other two forms still win over it, in this order:
 
 ```bash
-mtmux start --api https://api.example.com
+mtmux start --api https://api.example.com          # this command only
+MTMUX_API_URL=https://api.example.com mtmux        # this process only
+MTMUX_API_URL=https://api.example.com mtmux pair 492716384
+```
+
+If your web client is also your own, point the QR and the pairing link at it:
+
+```bash
+MTMUX_APP_URL=https://app.example.com mtmux
 ```
 
 ### Pointing the browser at it
@@ -116,7 +127,9 @@ Summary:
 | Where the broker URL comes from | When | Scope |
 | --- | --- | --- |
 | `--api <url>` | runtime | one command |
-| `MTMUX_API_URL` | runtime | the CLI's own requests |
+| `MTMUX_API_URL` | runtime | the CLI's own requests, this process |
+| `mtmux config set api` | stored | the CLI's own requests, this machine |
+| `MTMUX_APP_URL` | runtime | the pairing link and QR the CLI prints |
 | `MTMUX_BUILD_API_URL` | build time | the bundled web client inside the CLI |
 | `NEXT_PUBLIC_API_URL` | build time | a separately built web app |
 
@@ -132,6 +145,48 @@ Remember that an account is scoped to the broker that issued it. Signing in to
 `api.mtmux.com` gives you nothing on your own broker, deliberately — sending
 that token anywhere else would be a credential leak.
 
+## `docker compose up` — the supported path
+
+Your own broker and your own web client, talking to each other and to nothing
+of ours:
+
+```bash
+git clone https://github.com/mtmux/mtmux.git
+cd mtmux
+cp .env.example .env
+docker compose up
+```
+
+That is the whole procedure. It comes up **working with `DATABASE_URL` unset**:
+no accounts, no billing, no secrets to manage, anonymous pairing on. That is
+the default mode rather than a degraded one — accounts are optional forever.
+
+| Service | Port | What it is |
+| --- | --- | --- |
+| `api` | 24400 | The pairing broker. Blind by construction. |
+| `web` | 24100 | The browser client, built against *your* broker. |
+| `relay` | 24300 | Opt-in: `docker compose --profile relay up`. The CLI already bundles one. |
+| `docs` | 24102 | Opt-in: `docker compose --profile docs up`. |
+
+Two things to change in `.env` before anyone but you can use it:
+
+```bash
+NEXT_PUBLIC_API_URL=https://api.example.com   # where browsers reach the broker
+API_CORS_ORIGINS=https://app.example.com      # where the client is served from
+```
+
+`NEXT_PUBLIC_API_URL` is a **build argument**, not a runtime one — Next inlines
+it into the client bundle. Change it and rebuild (`docker compose build web`);
+setting it on a running container changes nothing about the bundle already
+being served, which is the most confusing failure in this whole page because
+the site loads and looks fine until someone tries to pair.
+
+Then point your CLI at it, once:
+
+```bash
+mtmux config set api https://api.example.com
+```
+
 ## The split web + relay model
 
 For containers and multi-tenant deployments the web app and relay run as
@@ -139,8 +194,8 @@ separate services. This is the shape `docker-compose.prod.yml` and
 `ecosystem.config.cjs` use.
 
 ```bash
-git clone https://github.com/GagnDeep/tmuxremote.git
-cd tmuxremote
+git clone https://github.com/mtmux/mtmux.git
+cd mtmux
 cp .env.example .env
 ```
 
@@ -180,9 +235,15 @@ ls /tmp/tmux-$(id -u)/
 ### Pre-built images
 
 ```bash
-docker pull ghcr.io/gagndeep/tmuxremote-web:latest
-docker pull ghcr.io/gagndeep/tmuxremote-relay:latest
+docker pull ghcr.io/mtmux/mtmux-api:latest
+docker pull ghcr.io/mtmux/mtmux-web:latest
+docker pull ghcr.io/mtmux/mtmux-relay:latest
 ```
+
+The published `web` image is built against `http://localhost:24400`, because an
+image cannot know your domain. For any deployment where the browser reaches the
+broker at some other address, build it yourself with the argument set — that is
+what the compose file above does.
 
 ## Checklist
 
@@ -195,3 +256,10 @@ docker pull ghcr.io/gagndeep/tmuxremote-relay:latest
   end-to-end regardless, but the direct path is not.
 - Give WebSocket routes a long `proxy_read_timeout`.
 - Read [Security](/docs/security).
+
+## Next steps
+
+- [Deployment](/docs/deployment) — the topologies and the proxy wiring
+- [Configuration](/docs/configuration) — every variable each service reads
+- [Relay server](/docs/relay) — the service you are running
+- [Architecture](/docs/architecture) — what you are taking responsibility for
