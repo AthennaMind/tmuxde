@@ -12,6 +12,9 @@
  * — so there is no light-mode branch here.
  */
 
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
 export const OG_SIZE = { width: 1200, height: 630 } as const;
 
 /** Minimum inset so text survives Slack/iMessage/Twitter crops (centre 1000x524). */
@@ -117,65 +120,44 @@ type OgFont = {
 };
 
 /**
- * Fetches one static weight of a Google font as legacy (non-woff2) `.woff`
- * data — the format the `@vercel/og` font parser bundled with `next/og`
- * supports. Requesting with an old-browser `User-Agent` is the standard way
- * to get `fonts.googleapis.com` to serve `.woff` instead of `.woff2` from its
- * CSS response; see https://github.com/vercel/satori#fonts.
- *
- * Returns `null` on any failure so a font-fetch outage degrades the image
- * (Satori's default sans-serif) instead of failing the build.
- */
-async function fetchGoogleFontWoff(
-  family: string,
-  weight: 400 | 500 | 600,
-): Promise<ArrayBuffer | null> {
-  try {
-    const cssUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(
-      family,
-    )}:wght@${weight}&display=swap`;
-    const css = await fetch(cssUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 6.1; rv:11.0) Gecko/20100101 Firefox/11.0",
-      },
-    }).then((res) => (res.ok ? res.text() : null));
-    if (!css) return null;
-
-    const match = /src: url\(([^)]+)\) format\('woff'\)/.exec(css);
-    if (!match) return null;
-
-    const fontRes = await fetch(match[1]);
-    if (!fontRes.ok) return null;
-    return await fontRes.arrayBuffer();
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Loads the weights the OG cards need: Martian Mono for headings, IBM Plex
- * Mono for terminal chrome and metadata. Fetched fresh per build rather than
- * vendored under `public/`, per this task's brief — a font-fetch failure
- * (offline build environment, Google Fonts outage) degrades gracefully to
- * Satori's default typeface rather than failing the build.
+ * Mono for terminal chrome and metadata.
+ *
+ * These are read from `src/assets/fonts/` rather than fetched from
+ * `fonts.googleapis.com` at build time. The fetch version claimed to degrade
+ * gracefully — it returned `[]` on failure — but Satori throws
+ * "No fonts are loaded" when handed an empty array, so the graceful path was
+ * a build failure. It is also a build that needs the network, which an
+ * offline self-hoster does not have.
+ *
+ * `.woff`, not `.woff2`: that is the format the font parser bundled with
+ * `next/og` reads. See `src/assets/fonts/NOTICE.md`.
  */
-export async function loadOgFonts(): Promise<OgFont[]> {
-  const requests: Array<{ name: string; weight: 400 | 500 | 600 }> = [
-    { name: OG_FONT_DISPLAY, weight: 600 },
-    { name: OG_FONT_DISPLAY, weight: 500 },
-    { name: OG_FONT_MONO, weight: 400 },
-    { name: OG_FONT_MONO, weight: 500 },
-  ];
+const OG_FONT_FILES: Array<{ name: string; weight: 400 | 500 | 600; file: string }> = [
+  { name: OG_FONT_DISPLAY, weight: 600, file: "martian-mono-600.woff" },
+  { name: OG_FONT_DISPLAY, weight: 500, file: "martian-mono-500.woff" },
+  { name: OG_FONT_MONO, weight: 400, file: "ibm-plex-mono-400.woff" },
+  { name: OG_FONT_MONO, weight: 500, file: "ibm-plex-mono-500.woff" },
+];
 
-  const results = await Promise.all(
-    requests.map(async (req) => {
-      const data = await fetchGoogleFontWoff(req.name, req.weight);
-      return data ? { ...req, data, style: "normal" as const } : null;
+export async function loadOgFonts(): Promise<OgFont[]> {
+  const dir = path.join(process.cwd(), "src", "assets", "fonts");
+  return Promise.all(
+    OG_FONT_FILES.map(async ({ name, weight, file }) => {
+      const data = await readFile(path.join(dir, file));
+      return {
+        name,
+        weight,
+        style: "normal" as const,
+        // A Buffer is a view on a pooled ArrayBuffer, so hand Satori the
+        // exact bytes rather than the whole pool.
+        data: data.buffer.slice(
+          data.byteOffset,
+          data.byteOffset + data.byteLength,
+        ) as ArrayBuffer,
+      };
     }),
   );
-
-  return results.filter((font): font is OgFont => font !== null);
 }
 
 /**

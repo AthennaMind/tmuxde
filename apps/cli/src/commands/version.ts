@@ -1,17 +1,16 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { buildInfo } from "../build-info.js";
+import { cliVersion } from "../update-check.js";
 
 const exec = promisify(execFile);
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export async function version() {
-  const pkg = JSON.parse(
-    await readFile(path.resolve(__dirname, "../../package.json"), "utf8"),
-  ) as { version: string };
+  // Deliberately not resolved from this file's own path: esbuild bundles every
+  // command into `dist/bin.js`, so at runtime the source layout is gone and
+  // `package.json` is one level up, not two. `cliVersion` already knows that
+  // and is tested on it.
+  const version = await cliVersion();
   let tmux = "not found";
   try {
     tmux = (await exec("tmux", ["-V"])).stdout.trim();
@@ -19,7 +18,7 @@ export async function version() {
     // tmux not installed
   }
   const build = buildInfo();
-  console.log(`mtmux     ${pkg.version}`);
+  console.log(`mtmux     ${version}`);
   console.log(
     `build     ${build.sha}${build.builtAt ? ` (${build.builtAt})` : ""}`,
   );

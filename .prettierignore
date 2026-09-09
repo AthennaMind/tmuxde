@@ -1,0 +1,15 @@
+# pnpm owns this file and rewrites it on every install. Formatting it fights
+# that: prettier prefers double quotes, pnpm writes single, and the result is a
+# 10,000-line diff on any `pnpm install` that touches a dependency.
+pnpm-lock.yaml
+
+# Generated or vendored — not ours to format.
+node_modules/
+dist/
+.next/
+.next-cli/
+.next-dev/
+.turbo/
+apps/docs/.source/
+packages/db/drizzle/
+apps/site/src/assets/fonts/
