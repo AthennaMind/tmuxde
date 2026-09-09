@@ -30,6 +30,15 @@ function hasTmux(): boolean {
 }
 
 const tmuxAvailable = hasTmux();
+
+/**
+ * These suites drive a real tmux over `execFile`, several round trips per
+ * assertion, against a 12,000-line fixture. Vitest's 5s default is sized for
+ * unit tests; on a cold CI runner one `scrollToPosition` clamp test blew
+ * through it while doing nothing wrong. The timeout is here to catch a hang,
+ * not to police how fast someone else's runner shells out.
+ */
+const TMUX_TEST_TIMEOUT_MS = 30_000;
 const describeTmux = tmuxAvailable ? describe : describe.skip;
 
 const SESSION = "relay-capture-fixture";
@@ -110,7 +119,7 @@ afterAll(() => {
   fs.rmSync(base, { recursive: true, force: true });
 });
 
-describeTmux("capturePane", () => {
+describeTmux("capturePane", { timeout: TMUX_TEST_TIMEOUT_MS }, () => {
   it("has a fixture that would overrun the default 1 MiB maxBuffer", () => {
     const full = tmuxExec(["capture-pane", "-t", SESSION, "-p", "-S", "-"]);
     expect(full.length).toBeGreaterThan(1024 * 1024);
@@ -146,7 +155,7 @@ describeTmux("capturePane", () => {
   });
 });
 
-describeTmux("capturePaneById", () => {
+describeTmux("capturePaneById", { timeout: TMUX_TEST_TIMEOUT_MS }, () => {
   it("is bounded and plain-text by default (copy-mode overlay)", async () => {
     const paneId = tmuxExec([
       "list-panes",
@@ -171,7 +180,7 @@ describeTmux("capturePaneById", () => {
  * against a real tmux rather than a mock: what is being checked is that the
  * argv actually does what it claims on the tmux that ships.
  */
-describeTmux("scrollHistory", () => {
+describeTmux("scrollHistory", { timeout: TMUX_TEST_TIMEOUT_MS }, () => {
   /** Where copy mode is looking, in lines above the live output. */
   function scrollPosition(): number {
     const raw = tmuxExec([
@@ -281,7 +290,7 @@ describeTmux("scrollHistory", () => {
  * These run against a real tmux because the whole claim is about what tmux's
  * format strings actually mean.
  */
-describeTmux("windows and panes", () => {
+describeTmux("windows and panes", { timeout: TMUX_TEST_TIMEOUT_MS }, () => {
   const MULTI = "relay-window-fixture";
 
   beforeAll(() => {

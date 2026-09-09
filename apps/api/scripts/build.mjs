@@ -19,6 +19,13 @@ function run(cmd) {
  */
 async function bootCheck(outfile) {
   const port = 24999;
+  // 30s, not the 4s this used to allow. The point of the check is "does the
+  // bundle run at all", and a cold CI runner importing better-auth, drizzle and
+  // a native better-sqlite3 binding is legitimately slower than a warm laptop —
+  // the first CI run failed here with the process alive, silent, and still
+  // starting. A generous ceiling still catches a bundle that dies on its first
+  // line, because that exits and is reported immediately.
+  const deadline = Date.now() + 30_000;
   const child = spawn(process.execPath, [outfile], {
     cwd: ROOT,
     env: { ...process.env, API_PORT: String(port), API_HOST: "127.0.0.1" },
@@ -29,7 +36,7 @@ async function bootCheck(outfile) {
   child.stderr.on("data", (d) => (output += d));
 
   try {
-    for (let attempt = 0; attempt < 40; attempt++) {
+    while (Date.now() < deadline) {
       if (child.exitCode !== null) {
         throw new Error(`exited with ${child.exitCode}:\n${output}`);
       }
@@ -46,7 +53,13 @@ async function bootCheck(outfile) {
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    throw new Error(`never answered /health:\n${output}`);
+    // Say which of the two failures this was: silence means it never got to
+    // listening, output means it started and something else went wrong.
+    throw new Error(
+      `never answered /health in 30s (process ${
+        child.exitCode === null ? "still running" : `exited ${child.exitCode}`
+      }):\n${output || "  (no output at all)"}`,
+    );
   } finally {
     child.kill("SIGKILL");
   }
