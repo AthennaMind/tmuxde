@@ -25,6 +25,6 @@ export default [
     },
   },
   {
-    ignores: ["node_modules/", "dist/", ".next/", ".next-cli/", ".next-dev/", ".turbo/"],
+    ignores: ["node_modules/", "dist/", ".next/", ".next-*/", ".turbo/"],
   },
 ];

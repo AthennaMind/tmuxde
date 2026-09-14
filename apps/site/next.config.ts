@@ -28,17 +28,34 @@ function publishedCliVersion(): string {
 }
 
 /**
- * Dev and production never share a build directory.
+ * Dev, build and serve each get their own directory. None of the three ever
+ * share a tree.
  *
- * PM2 serves the production build out of `.next` while it keeps running; a
- * `next dev` in the same checkout writes into that same tree and can hand the
- * live server half a build. Development therefore gets `.next-dev`, and
- * NEXT_DIST_DIR stays an explicit override for builds that need their own
- * directory (the CLI's stripped-env build of apps/web uses it).
+ *   .next-dev     `next dev`      — development
+ *   .next-build   `next build`    — where a fresh build lands
+ *   .next-serve   `next start`    — what PM2 actually serves (set via
+ *                                   NEXT_DIST_DIR in ecosystem.config.cjs)
+ *
+ * The build output is deliberately NOT the directory the production server
+ * reads. `next build` rewrites its dist directory in place: it clears the
+ * manifests and chunks before emitting new ones, so building into the tree a
+ * running `next start` is serving leaves that server with a half-build it
+ * cannot require from. On 2026-09-09 a build did exactly that to the live
+ * site — `.next` lost BUILD_ID, every top-level manifest and all of
+ * server/chunks, and /pricing and /agents began throwing ChunkLoadError while
+ * already-resident routes kept answering 200 from memory.
+ *
+ * Separating them means the worst a stray `turbo build` or `pnpm verify` can
+ * do is leave a fresh build sitting unpromoted in `.next-build`. The live site
+ * keeps serving. Promotion is an explicit step: `pnpm run promote`, which
+ * swaps `.next-build` into place and reloads PM2.
+ *
+ * NEXT_DIST_DIR remains the explicit override, and is how the serve directory
+ * is selected (the CLI's stripped-env build of apps/web uses it too).
  */
 const distDir =
   process.env.NEXT_DIST_DIR ||
-  (process.env.NODE_ENV === "development" ? ".next-dev" : ".next");
+  (process.env.NODE_ENV === "development" ? ".next-dev" : ".next-build");
 
 const nextConfig: NextConfig = {
   distDir,

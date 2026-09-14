@@ -9,10 +9,13 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
-    // The dev-server build directory (see `distDir` in next.config.ts). It is
-    // generated output like `.next`, and linting it reports thousands of
-    // problems in code nobody wrote.
-    ".next-dev/**",
+    // Every sibling build directory (see `distDir` in next.config.ts):
+    // .next-dev, .next-build, .next-serve, plus .next-prev and any
+    // .next-broken-* kept around by a promote or a rollback. These are all
+    // generated output like `.next`, and linting them reports thousands of
+    // problems in code nobody wrote. Matched by prefix so a new one added
+    // later cannot quietly reintroduce that noise.
+    ".next-*/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

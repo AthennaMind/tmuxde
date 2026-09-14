@@ -1,17 +1,36 @@
 import type { NextConfig } from "next";
 
 /**
- * Dev and production never share a build directory.
+ * Dev, build and serve each get their own directory. None of the three ever
+ * share a tree.
  *
- * PM2 serves the production build out of `.next` while it keeps running; a
- * `next dev` in the same checkout writes into that same tree and can hand the
- * live server half a build. Development therefore gets `.next-dev`, and
- * NEXT_DIST_DIR stays an explicit override for builds that need their own
- * directory (the CLI's stripped-env build of apps/web uses it).
+ *   .next-dev     `next dev`      — development
+ *   .next-build   `next build`    — where a fresh build lands
+ *   .next-serve   the standalone server PM2 boots
+ *
+ * The build output is deliberately NOT the directory the production process
+ * reads. `next build` clears its dist directory before emitting into it, so
+ * building into a tree that is being served strands that server with a
+ * half-build it cannot require from. On 2026-09-09 a build did exactly that
+ * to the marketing site: `.next` lost BUILD_ID, every top-level manifest and
+ * all of server/chunks, and routes not already resident in memory began
+ * throwing ChunkLoadError.
+ *
+ * apps/web is the one app PM2 boots by standalone server path rather than
+ * `next start`, so its serve directory is named in ecosystem.config.cjs's
+ * `script` field (.next-serve/standalone/apps/web/server.js) rather than by
+ * NEXT_DIST_DIR. prepare-standalone.mjs stages .next/static and public/ into
+ * the build tree before it is promoted. *
+ * So the worst a stray `turbo build` can do is leave a fresh build sitting
+ * unpromoted in `.next-build`; the running process keeps serving. Promotion
+ * is an explicit step: `scripts/promote-build.mjs`.
+ *
+ * NEXT_DIST_DIR remains the explicit override (the CLI's stripped-env build
+ * of apps/web uses it to build into `.next-cli`).
  */
 const distDir =
   process.env.NEXT_DIST_DIR ||
-  (process.env.NODE_ENV === "development" ? ".next-dev" : ".next");
+  (process.env.NODE_ENV === "development" ? ".next-dev" : ".next-build");
 
 const nextConfig: NextConfig = {
   output: "standalone",

@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "next dev --port 14100",
     "build": "next build",
+    "promote": "node ../../scripts/promote-build.mjs apps/web",
     "start": "next start --port 14100",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

@@ -5,7 +5,9 @@ node_modules/
 dist/
 .next/
 .next-cli/
-.next-dev/
+# Every sibling Next build directory: .next-dev, .next-build, .next-serve,
+# .next-prev and any .next-broken-* left by a rollback (see apps/site/next.config.ts).
+.next-*/
 out/
 
 # Turbo

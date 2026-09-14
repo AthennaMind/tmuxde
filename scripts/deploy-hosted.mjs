@@ -13,6 +13,9 @@
  *     not followed by prepare-standalone serves HTML that 404s its own chunks.
  *  3. Rebuilding changes chunk hashes, so the running process must be reloaded
  *     or it serves a tree that no longer matches what it hands out.
+ *  4. The build lands in .next-build while the workers serve .next-serve, so
+ *     it has to be promoted before the reload — otherwise the reload brings
+ *     back the same old tree and nothing appears to have deployed.
  *
  * Between steps 1 and 2 the bundle is checked for the API origin. That guard is
  * the point: every one of these failures produces a page that loads and looks
@@ -24,7 +27,9 @@ import path from "node:path";
 
 const REPO = path.resolve(import.meta.dirname, "..");
 const API_ORIGIN = process.env.API_ORIGIN || "https://api.mtmux.com";
-const STATIC_DIR = path.join(REPO, "apps/web/.next/static/chunks");
+// The freshly built tree, not the one being served: the origin check has to
+// run against what is about to be promoted.
+const STATIC_DIR = path.join(REPO, "apps/web/.next-build/static/chunks");
 const TARGETS = ["mtmux-api", "mtmux-app"];
 
 function run(cmd, env = {}) {
@@ -137,6 +142,11 @@ console.log("  ✓ present");
 
 console.log("→ stage the standalone tree");
 run("pnpm prepare:standalone");
+
+// Promote before reloading, never after: the workers boot from .next-serve,
+// so a reload against an unpromoted build just restarts the old tree.
+console.log("→ promote the build into .next-serve");
+run("node scripts/promote-build.mjs apps/web --no-reload");
 
 console.log("→ reload");
 reloadTargets();

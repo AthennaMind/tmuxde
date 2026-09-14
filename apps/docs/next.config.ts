@@ -2,17 +2,34 @@ import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
 
 /**
- * Dev and production never share a build directory.
+ * Dev, build and serve each get their own directory. None of the three ever
+ * share a tree.
  *
- * PM2 serves the production build out of `.next` while it keeps running; a
- * `next dev` in the same checkout writes into that same tree and can hand the
- * live server half a build. Development therefore gets `.next-dev`, and
- * NEXT_DIST_DIR stays an explicit override for builds that need their own
- * directory (the CLI's stripped-env build of apps/web uses it).
+ *   .next-dev     `next dev`      — development
+ *   .next-build   `next build`    — where a fresh build lands
+ *   .next-serve   `next start` under PM2 (`NEXT_DIST_DIR`)
+ *
+ * The build output is deliberately NOT the directory the production process
+ * reads. `next build` clears its dist directory before emitting into it, so
+ * building into a tree that is being served strands that server with a
+ * half-build it cannot require from. On 2026-09-09 a build did exactly that
+ * to the marketing site: `.next` lost BUILD_ID, every top-level manifest and
+ * all of server/chunks, and routes not already resident in memory began
+ * throwing ChunkLoadError.
+ *
+ * Note this app sets output: "standalone" but PM2 runs `next start` against
+ * it, so `.next-serve` is selected by NEXT_DIST_DIR in ecosystem.config.cjs
+ * the same way the marketing site does it. *
+ * So the worst a stray `turbo build` can do is leave a fresh build sitting
+ * unpromoted in `.next-build`; the running process keeps serving. Promotion
+ * is an explicit step: `scripts/promote-build.mjs`.
+ *
+ * NEXT_DIST_DIR remains the explicit override (the CLI's stripped-env build
+ * of apps/web uses it to build into `.next-cli`).
  */
 const distDir =
   process.env.NEXT_DIST_DIR ||
-  (process.env.NODE_ENV === "development" ? ".next-dev" : ".next");
+  (process.env.NODE_ENV === "development" ? ".next-dev" : ".next-build");
 
 const nextConfig: NextConfig = {
   distDir,

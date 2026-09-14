@@ -9,6 +9,8 @@
     "dev": "next dev --port 14101",
     "build": "next build",
     "start": "next start --port ${PORT:-41317} --hostname ${HOSTNAME:-127.0.0.1}",
+    "promote": "node ../../scripts/promote-build.mjs apps/site",
+    "ship": "pnpm run build && pnpm run promote",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",

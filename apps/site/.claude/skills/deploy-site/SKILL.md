@@ -27,17 +27,46 @@ Run from the **repo root**:
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm --filter @app/site build
-pm2 reload mtmux-web --update-env
+pnpm --filter @app/site ship
+```
+
+`ship` is `next build` followed by `scripts/promote-build.mjs`, which swaps the finished build
+into place and reloads PM2. It is named `ship` rather than `deploy` deliberately: `pnpm deploy`
+is a pnpm builtin, so `pnpm --filter @app/site deploy` would silently run pnpm's own command
+instead of this one. Run the two halves separately if you want to build now and cut over
+later:
+
+```bash
+pnpm --filter @app/site build      # writes .next-build, live site untouched
+pnpm --filter @app/site promote    # swaps it into .next-serve, reloads mtmux-web
 ```
 
 `reload` rather than `restart` is the important part: in cluster mode PM2 starts a replacement
 worker, waits for it to come up, then retires the old one. Nobody sees a dropped request.
 `restart` kills first and asks questions later.
 
-**Always build before reloading.** `next start` serves whatever is in `apps/site/.next` at the
-moment a worker boots. Reloading without a fresh build just restarts the old bundle; reloading
-_during_ a build can serve a half-written one.
+### Three directories, never shared
+
+| Directory     | Written by     | Read by                                  |
+| ------------- | -------------- | ---------------------------------------- |
+| `.next-dev`   | `next dev`     | the dev server                           |
+| `.next-build` | `next build`   | nothing — it is a staging area           |
+| `.next-serve` | `promote` only | `next start` under PM2 (`NEXT_DIST_DIR`) |
+
+Builds do **not** write the directory the live server reads. `next build` clears its dist
+directory before emitting into it, so building into a tree that a running `next start` is
+serving strands that server with a half-build. That is exactly what took `/pricing` and
+`/agents` down on 2026-09-09: `.next` lost `BUILD_ID`, every top-level manifest and all of
+`server/chunks`, while routes already resident in memory kept answering 200 and hid the damage.
+
+So a stray `turbo build`, `pnpm verify`, or an interrupted deploy can no longer hurt the live
+site — the worst case is a fresh build sitting unpromoted in `.next-build`. `promote` refuses
+to swap in a build that is missing any of those manifests, and keeps the outgoing tree as
+`.next-prev` so a bad cutover can be rolled back without rebuilding:
+
+```bash
+mv .next-serve .next-bad && mv .next-prev .next-serve && pm2 reload mtmux-web --update-env
+```
 
 Note `pnpm --filter @app/site build`, not `pnpm build` — the latter is `turbo build` across
 every app in the monorepo, which is slower and not what a site deploy needs.
@@ -47,6 +76,7 @@ every app in the monorepo, which is slower and not what a site deploy needs.
 ```bash
 pnpm install --frozen-lockfile
 pnpm --filter @app/site build
+pnpm --filter @app/site promote --no-reload   # seeds .next-serve
 pm2 start ecosystem.config.cjs --only mtmux-web
 pm2 save        # persist the process list across reboots
 ```
@@ -96,11 +126,11 @@ curl -s localhost:41317/llms.txt | head
 
 **Site is down / 502 from nginx.** Check whether anything is listening: `pm2 status mtmux-web`,
 then `ss -ltn | grep 41317`. If PM2 shows a climbing restart count the app is crash-looping —
-`pm2 logs mtmux-web` will show why. The usual cause is a missing `apps/site/.next` because the
+`pm2 logs mtmux-web` will show why. The usual cause is a missing `apps/site/.next-serve` because the
 build failed but the reload ran anyway.
 
 **Serving an old version.** The build did not run or did not finish. Run
-`pnpm --filter @app/site build` explicitly, watch it succeed, then reload.
+`pnpm --filter @app/site ship` explicitly and watch it succeed.
 
 **A page 404s that should exist.** Check the build output for that route. If it is absent, its
 `generateStaticParams` returned nothing. If it shows `ƒ (Dynamic)` instead of `●`, the page is

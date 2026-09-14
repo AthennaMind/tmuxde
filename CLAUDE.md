@@ -46,10 +46,42 @@ pnpm dev:docs         # Docs site (14102)
 pnpm build            # Build all apps
 pnpm build:hosted     # Build web + api with the production API origin baked in
 pnpm prepare:standalone  # Copy static assets into the Next standalone tree
-pnpm deploy:hosted    # build → verify the origin is in the bundle → stage → pm2 reload
+pnpm deploy:hosted    # build → verify origin in bundle → stage → promote → pm2 reload
 pnpm lint / typecheck / test
 pnpm release          # Bump, commit and tag the CLI
 ```
+
+### Builds never write the directory being served
+
+Each Next app uses three dist directories, and they never overlap:
+
+| Directory     | Written by                  | Read by                  |
+| ------------- | --------------------------- | ------------------------ |
+| `.next-dev`   | `next dev`                  | the dev server           |
+| `.next-build` | `next build`                | nothing — a staging area |
+| `.next-serve` | `scripts/promote-build.mjs` | the production process   |
+
+`next build` clears its dist directory before emitting into it, so building into
+a tree a running server is reading strands that server with a half-build it
+cannot require from. That took `mtmux.com/pricing` and `/agents` down on
+2026-09-09, and the comments in `scripts/deploy-hosted.mjs` record the same
+failure on `apps/web`, where replaced trees left workers 404ing their own
+chunks.
+
+So a stray `turbo build` is now harmless — the worst case is an unpromoted
+build sitting in `.next-build`. Promotion is always explicit:
+
+```bash
+pnpm --filter @app/site ship      # build + promote + reload (site)
+pnpm --filter @app/docs ship      # same for docs
+pnpm deploy:hosted                # apps/web — bakes NEXT_PUBLIC_*, promotes, reloads
+node scripts/promote-build.mjs <apps/site|apps/docs|apps/web> [--no-reload]
+```
+
+`promote` refuses an incomplete build, and keeps the outgoing tree as
+`.next-prev` so a bad cutover rolls back without a rebuild. `apps/web` is the
+one app PM2 boots by standalone server path (`.next-serve/standalone/...`), so
+changing that path needs `pm2 delete` + `pm2 start`, not `reload`.
 
 ## Non-negotiable invariants
 

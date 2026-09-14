@@ -21,10 +21,13 @@ export default [
     ignores: [
       "next-env.d.ts",
       ".next/**",
-      ".next-cli/**",
-      // The dev-server output directory (`distDir` in each app's
-      // next.config.ts). Generated code, same as `.next`.
-      ".next-dev/**",
+      // Every sibling Next output directory (`distDir` in each app's
+      // next.config.ts): .next-cli for the CLI build, .next-dev for the dev
+      // server, .next-build and .next-serve for the build/serve split, plus
+      // .next-prev from a promote. All generated, same as `.next`. Matched by
+      // prefix so a new one cannot quietly start reporting thousands of
+      // problems in code nobody wrote.
+      ".next-*/**",
       ".source/**",
       "out/**",
     ],

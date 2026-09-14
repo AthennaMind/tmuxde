@@ -112,9 +112,14 @@ module.exports = {
       name: "mtmux-app",
       // The standalone server, not `next start`: apps/web builds with
       // output: "standalone" (the CLI needs it), and Next refuses to serve
-      // that tree via `next start`. Run `pnpm prepare:standalone` after a
-      // build — it copies in the static assets the standalone tree omits.
-      script: ".next/standalone/apps/web/server.js",
+      // that tree via `next start`.
+      //
+      // .next-serve, not .next: builds land in .next-build and are swapped in
+      // here by scripts/promote-build.mjs, so a build can never rewrite the
+      // tree these workers are reading. Deploy with `pnpm deploy:hosted`,
+      // which builds with the right NEXT_PUBLIC_* env, stages the standalone
+      // tree, promotes it and reloads every pm2 id.
+      script: ".next-serve/standalone/apps/web/server.js",
       cwd: path.resolve(__dirname, "apps/web"),
       // Two, not "max". This box has 32 cores but shares them with ~20 other
       // services, and Next's own workload here is light — the terminal traffic
@@ -159,6 +164,10 @@ module.exports = {
       env: {
         ...commonEnv,
         PORT: 24102,
+        // The serve directory is deliberately not the build directory:
+        // `next build` writes .next-build, and scripts/promote-build.mjs
+        // swaps it in here. See apps/docs/next.config.ts.
+        NEXT_DIST_DIR: ".next-serve",
       },
     },
     {
@@ -206,6 +215,11 @@ module.exports = {
         PORT: 41317,
         HOSTNAME: "127.0.0.1",
         NEXT_TELEMETRY_DISABLED: "1",
+        // The serve directory is deliberately not the build directory.
+        // `next build` writes .next-build; promoting swaps it in here. A
+        // stray build therefore cannot gut the tree this server is reading
+        // out from under it (see apps/site/next.config.ts).
+        NEXT_DIST_DIR: ".next-serve",
       },
     },
   ],
