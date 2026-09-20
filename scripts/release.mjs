@@ -93,7 +93,16 @@ if (
   execSync(`git commit -m "chore(cli): release v${next}"`, {
     stdio: "inherit",
   });
-  execSync(`git tag v${next}`, { stdio: "inherit" });
+  // Annotated, and that is not a style preference.
+  //
+  // `git tag v0.7.0` makes a *lightweight* tag, and `git push --follow-tags` —
+  // the command printed two lines below, and the only one anybody runs — pushes
+  // annotated tags only. So the release flow's own instruction silently failed
+  // to push the tag it had just made, `.github/workflows/release.yml` never
+  // fired, and nothing reached npm. That is how this repo ended up with
+  // `MIN_PAIR_CLI_VERSION = "0.7.0"` in main while 0.6.3 was the newest thing
+  // published: every attempt to cut it looked like it worked.
+  execSync(`git tag -a v${next} -m "mtmux v${next}"`, { stdio: "inherit" });
   console.log(
     `tagged v${next}${next.includes("-") ? " (pre-release — publishes under the npm 'next' tag)" : ""}.`,
   );
