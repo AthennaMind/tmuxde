@@ -92,6 +92,20 @@ export type RelayRuntime = {
    */
   revokeSessionToken?: (token: string) => void;
   /**
+   * Ask every connected browser whether to admit a new device.
+   *
+   * Resolves `true`/`false` for an answer, and `null` to abstain — nobody is
+   * connected who may answer, or the last one closed the tab. Abstaining hands
+   * the decision back to the TTY prompt and `mtmux approve`; it never makes it.
+   *
+   * Optional like the rest of this block: an older bundle simply has no in-app
+   * channel, and `decideAccess` degrades to the machine's own prompts.
+   */
+  askDeviceApproval?: (
+    req: { sas: string; deviceLabel: string; accountEmail: string },
+    opts?: { timeoutMs?: number; signal?: AbortSignal },
+  ) => Promise<boolean | null>;
+  /**
    * The recorder, for the `/_control/record` endpoint.
    *
    * Optional like everything above it: a bundle that predates recording must

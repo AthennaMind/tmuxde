@@ -370,6 +370,25 @@ export type RearmNotice = {
  */
 let approvals: ApproveControl | null = null;
 
+/**
+ * The in-app approval channel, once the relay runtime is loaded.
+ *
+ * Module-level for exactly the reason `approvals` is, and set at the same
+ * moment: the tunnel agent that closes over `onAccessRequest` is built before
+ * the relay bundle is imported. Null until then, and null forever against a
+ * relay bundle that predates the feature — in which case `decideAccess` falls
+ * back to the TTY and `mtmux approve` unchanged.
+ */
+let askInApp:
+  | ((
+      req: { sas: string; deviceLabel: string; accountEmail: string },
+      opts: { signal: AbortSignal },
+    ) => Promise<boolean | null>)
+  | null = null;
+
+/** How many devices are connected right now, for what the parked notice says. */
+let connectedCount: (() => number) | null = null;
+
 async function startHosted(opts: {
   port: number;
   base: string;
@@ -461,6 +480,15 @@ async function startHosted(opts: {
       // otherwise `no-tty`. See `decideAccess` for why "nobody is waiting" and
       // "they said no" must stay distinguishable.
       const answer = await decideAccess(request, {
+        /**
+         * The phone already holding a session is asked first — at the same
+         * time as everything else, and with the same six digits on screen.
+         *
+         * This is the channel that matters on the product's own premise: if
+         * you are using mtmux, you are by definition not at the machine, and
+         * before this the machine was the only thing that could say yes.
+         */
+        ask: askInApp ? (req, signal) => askInApp!(req, { signal }) : undefined,
         offer: approvals ? (req) => approvals!.offer(req) : undefined,
         // Reached only when the TTY prompt could not ask at all, which is the
         // common case rather than the exotic one: a machine started by systemd,
@@ -468,8 +496,10 @@ async function startHosted(opts: {
         // while the user sits there watching the output, hold the request for
         // the offer window and tell them how to answer it.
         park: approvals
-          ? (req) =>
-              approvals!.offer(req, { park: true }).then((v) => v === true)
+          ? (req, signal) =>
+              approvals!
+                .offer(req, { park: true, signal })
+                .then((v) => v === true)
           : undefined,
         onParked: (req) => {
           clearWaitingLine();
@@ -488,16 +518,33 @@ async function startHosted(opts: {
             `    ${kleur.dim("Code   ")}  ${kleur.bold(formatSas(req.sas))}`,
           );
           console.log("");
-          console.log(
-            kleur.dim(
-              "    Nothing is attached to this terminal, so I cannot ask here.",
-            ),
-          );
-          console.log(
-            kleur.dim("    Run ") +
-              kleur.bold("mtmux approve") +
-              kleur.dim(" in another shell, then compare the code."),
-          );
+          // Two different true things to say, and saying the wrong one is how
+          // a security prompt teaches people to ignore it. "I cannot ask here"
+          // is false the moment a phone is showing the dialog.
+          const asked = connectedCount?.() ?? 0;
+          if (asked > 0) {
+            console.log(
+              kleur.dim(
+                `    Asked the ${asked === 1 ? "device" : `${asked} devices`} already connected — answer there,`,
+              ),
+            );
+            console.log(
+              kleur.dim("    or run ") +
+                kleur.bold("mtmux approve") +
+                kleur.dim(" in another shell. Either way, compare the code."),
+            );
+          } else {
+            console.log(
+              kleur.dim(
+                "    Nothing is attached to this terminal, so I cannot ask here.",
+              ),
+            );
+            console.log(
+              kleur.dim("    Run ") +
+                kleur.bold("mtmux approve") +
+                kleur.dim(" in another shell, then compare the code."),
+            );
+          }
           console.log("");
         },
       });
@@ -1330,6 +1377,12 @@ export async function start(opts: StartOpts) {
    */
   const approveControl = createApproveControl({ authToken: cfg.token });
   approvals = approveControl;
+  // Optional on the runtime, so a bundle that predates in-app approval leaves
+  // this null and the TTY/`mtmux approve` channels carry on alone.
+  askInApp = relay.askDeviceApproval ?? null;
+  connectedCount = relay.connectionSummary
+    ? () => relay.connectionSummary!().count
+    : null;
 
   const recordControl = createRecordControl({
     authToken: cfg.token,

@@ -147,11 +147,19 @@ export async function approve(opts: ApproveOpts): Promise<void> {
     for (const line of renderAccessRequest(answer)) console.log(line);
 
     const approved = await ask();
-    await decide(port, cfg.token, sessionId, answer.id, approved);
+    const landed = await decide(
+      port,
+      cfg.token,
+      sessionId,
+      answer.id,
+      approved,
+    );
     console.log(
-      approved
-        ? kleur.green("  ✓ Approved.\n")
-        : kleur.yellow("  ✗ Refused.\n"),
+      !landed
+        ? kleur.dim("  · Too late — it was already answered elsewhere.\n")
+        : approved
+          ? kleur.green("  ✓ Approved.\n")
+          : kleur.yellow("  ✗ Refused.\n"),
     );
 
     if (!opts.keep) return;
@@ -204,8 +212,8 @@ async function decide(
   sessionId: string,
   id: string,
   approved: boolean,
-): Promise<void> {
-  await fetch(`http://127.0.0.1:${port}${APPROVE_DECIDE_PATH}`, {
+): Promise<boolean> {
+  const res = await fetch(`http://127.0.0.1:${port}${APPROVE_DECIDE_PATH}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -213,11 +221,18 @@ async function decide(
     },
     body: JSON.stringify({ sessionId, id, approved }),
     signal: AbortSignal.timeout(5_000),
-  }).catch(() => {
-    // The daemon times the offer out on its own, and a lost "no" is still a
-    // no. Only a lost "yes" costs the user a retry, which is the right way for
-    // this to fail.
-  });
+  }).catch(() => null);
+  // The daemon times the offer out on its own, and a lost "no" is still a no.
+  // Only a lost "yes" costs the user a retry, which is the right way for this
+  // to fail.
+  //
+  // A 409 is not a lost answer, though — it is an answer that arrived after
+  // the question was already settled, which now happens routinely: the same
+  // request is put to any connected device at the same time, and whoever is
+  // actually looking at a screen gets there first. Reporting it matters
+  // because the alternative is this terminal printing "✓ Approved" for
+  // something it did not approve.
+  return res?.ok === true;
 }
 
 /**

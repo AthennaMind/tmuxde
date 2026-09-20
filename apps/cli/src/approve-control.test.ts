@@ -266,6 +266,32 @@ describe("offering a request", () => {
     expect(await first).toBe(false);
   });
 
+  it("frees the slot when another channel answers first", async () => {
+    // The in-app dialog and this window are raced (`decideAccess`), and the
+    // loser has to let go. Without this the answered question kept the
+    // one-at-a-time slot for the full offer timeout, so the *next* device to
+    // ask was refused outright by a question already decided elsewhere.
+    const windowCtl = new AbortController();
+    void wait("s1", 5, windowCtl.signal).catch(() => {});
+    await settle();
+
+    const raced = new AbortController();
+    const abandoned = control.offer(REQUEST, { signal: raced.signal });
+    await settle();
+    raced.abort();
+    expect(await abandoned).toBe(false);
+
+    // The slot is free: a fresh request is taken rather than refused.
+    const next = control.offer(REQUEST);
+    await settle();
+    expect(await Promise.race([next, Promise.resolve("pending")])).toBe(
+      "pending",
+    );
+
+    windowCtl.abort();
+    expect(await next).toBe(false);
+  });
+
   it("refuses a decision from a session that does not hold the window", async () => {
     const controller = new AbortController();
     const polled = wait("s1", 5, controller.signal);

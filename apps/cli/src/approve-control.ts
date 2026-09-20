@@ -73,6 +73,20 @@ export type OfferOptions = {
    * never the answer to silence.
    */
   park?: boolean;
+  /**
+   * Another channel answered — stop holding the slot.
+   *
+   * The in-app dialog and this window are raced (see `decideAccess`), and only
+   * one of them wins. Without this the loser's request would keep the
+   * one-at-a-time slot for the full offer timeout, so the *next* device to ask
+   * would be refused outright for up to 100 seconds by a question that had
+   * already been answered.
+   *
+   * It resolves the returned promise `false`. That is safe precisely because
+   * the caller has by then discarded it: an abort is not a refusal reaching
+   * anyone, it is a promise nobody is listening to any more.
+   */
+  signal?: AbortSignal;
 };
 
 export type ApproveState = {
@@ -294,11 +308,26 @@ export function createApproveControl(deps: ApproveControlDeps): ApproveControl {
       // than queued behind it, because it would expire before its turn came.
       if (pending) return Promise.resolve(false);
 
+      if (opts.signal?.aborted) return Promise.resolve(false);
+
       return new Promise<boolean>((resolve) => {
         const id = `off-${(counter += 1).toString(36)}`;
         const timer = setTimeout(() => settlePending(false), offerTimeoutMs);
         timer.unref?.();
-        pending = { id, offer: input, settle: resolve, timer };
+        const signal = opts.signal;
+        const onAbort = signal
+          ? () => {
+              // Only if it is still *this* request in the slot. A late abort
+              // must not settle somebody else's question.
+              if (pending?.id === id) settlePending(false);
+            }
+          : null;
+        if (signal && onAbort) signal.addEventListener("abort", onAbort);
+        const settle = (approved: boolean): void => {
+          if (signal && onAbort) signal.removeEventListener("abort", onAbort);
+          resolve(approved);
+        };
+        pending = { id, offer: input, settle, timer };
         flush();
       });
     },

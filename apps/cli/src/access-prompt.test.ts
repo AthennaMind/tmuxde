@@ -44,6 +44,118 @@ describe("renderAccessRequest", () => {
  * its own terminal — which from the outside looks exactly like the feature
  * working.
  */
+/**
+ * The in-app channel, raced against the machine's own.
+ *
+ * Two independent humans may be standing in two places, and the product cannot
+ * know which. Every case below is about who is allowed to answer for whom.
+ */
+describe("decideAccess: the in-app channel", () => {
+  const noTty = async () => ({ approved: false, reason: "no-tty" }) as const;
+  /** Never settles, like a dialog sitting unanswered on a phone. */
+  const pending = () => new Promise<boolean | null>(() => {});
+
+  it("lets the app approve while the machine has nobody to ask", async () => {
+    // The headline case: `mtmux start` under systemd, no approval window, and
+    // a phone in your hand. Before the race this was denied `no-tty` in the
+    // same millisecond, with the dialog still on screen.
+    const result = await decideAccess(REQUEST, {
+      ask: async () => true,
+      prompt: noTty,
+    });
+    expect(result).toEqual({ approved: true });
+  });
+
+  it("does not let `no-tty` beat a human who is still deciding", async () => {
+    // Rule 1. The local chain answers instantly and the phone answers in a
+    // second; the instant answer is "I could not ask", which must never win.
+    let answer: (v: boolean | null) => void = () => {};
+    const result = decideAccess(REQUEST, {
+      ask: () => new Promise<boolean | null>((r) => (answer = r)),
+      prompt: noTty,
+    });
+    await Promise.resolve();
+    answer(true);
+    await expect(result).resolves.toEqual({ approved: true });
+  });
+
+  it("falls back to `no-tty` once the app abstains too", async () => {
+    // Nothing connected. The old behaviour, exactly, and the reason `held` is
+    // kept rather than discarded.
+    const result = await decideAccess(REQUEST, {
+      ask: async () => null,
+      prompt: noTty,
+    });
+    expect(result).toEqual({ approved: false, reason: "no-tty" });
+  });
+
+  it("carries an in-app denial through as a refusal", async () => {
+    const result = await decideAccess(REQUEST, {
+      ask: async () => false,
+      prompt: pending as unknown as () => Promise<never>,
+    });
+    expect(result).toEqual({ approved: false, reason: "refused" });
+  });
+
+  it("lets the machine win when it answers first", async () => {
+    // The app abstaining must not stop the TTY, and a TTY decision is final.
+    const result = await decideAccess(REQUEST, {
+      ask: () => pending(),
+      prompt: async () => ({ approved: true }) as const,
+    });
+    expect(result).toEqual({ approved: true });
+  });
+
+  it("tells the loser to stop", async () => {
+    // Rule 2. Without the abort, approving on a phone left a dead "[y/N]" on
+    // the machine eating keystrokes, and the parked offer slot held for the
+    // full timeout — refusing the *next* device for a question already
+    // answered.
+    let aborted = false;
+    const result = await decideAccess(REQUEST, {
+      ask: async () => true,
+      prompt: (_req, signal) => {
+        signal.addEventListener("abort", () => (aborted = true));
+        return pending() as Promise<never>;
+      },
+    });
+    expect(result).toEqual({ approved: true });
+    expect(aborted).toBe(true);
+  });
+
+  it("does not let a broken app channel deny anything", async () => {
+    // A throw is not an answer. The whole point of the fallback is that a bug
+    // in the dialog cannot become a silent refusal.
+    const result = await decideAccess(REQUEST, {
+      ask: async () => {
+        throw new Error("socket died");
+      },
+      prompt: async () => ({ approved: true }) as const,
+    });
+    expect(result).toEqual({ approved: true });
+  });
+
+  it("still denies when neither channel ever answers", async () => {
+    // Silence is not consent, on either channel or both at once.
+    const result = await decideAccess(REQUEST, {
+      ask: async () => null,
+      prompt: noTty,
+      park: async () => false,
+    });
+    expect(result).toEqual({ approved: false, reason: "timeout" });
+  });
+
+  it("asks the app even when an approval window is open", async () => {
+    // `mtmux approve` and the phone are peers, not a fallback chain: whoever
+    // is actually looking at a screen answers.
+    const result = await decideAccess(REQUEST, {
+      ask: async () => true,
+      offer: () => new Promise<boolean | null>(() => {}),
+    });
+    expect(result).toEqual({ approved: true });
+  });
+});
+
 describe("decideAccess", () => {
   it("prompts when no approval window is open", async () => {
     const prompt = vi.fn(async () => ({ approved: true }) as const);
