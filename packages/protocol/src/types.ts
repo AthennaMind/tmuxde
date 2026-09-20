@@ -49,6 +49,19 @@ export const WindowInfoSchema = z.object({
   layout: z.string(),
   /** tmux's `window_activity_flag`: output arrived while you were elsewhere. */
   activity: z.boolean().optional(),
+  /**
+   * tmux's `window_zoomed_flag` — is one of this window's panes filling it?
+   *
+   * On the window rather than on a pane because that is where tmux keeps it,
+   * and because a window listing is the cheapest thing that can notice a zoom
+   * toggled outside the client (`prefix z` in the user's own terminal). It
+   * carries no pane id on purpose: which pane is zoomed is the active one, and
+   * saying so twice invites the two to disagree.
+   *
+   * Optional, so a relay that predates it is read as "cannot say" rather than
+   * as "not zoomed".
+   */
+  zoomed: z.boolean().optional(),
   dimensions: TerminalSizeSchema.optional(),
 });
 export type WindowInfo = z.infer<typeof WindowInfoSchema>;

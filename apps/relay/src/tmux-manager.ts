@@ -211,7 +211,7 @@ export async function listWindows(session: string): Promise<WindowInfo[]> {
       "-t",
       session,
       "-F",
-      "#{window_id}\t#{window_index}\t#{window_name}\t#{window_active}\t#{window_panes}\t#{window_layout}\t#{window_width}\t#{window_height}\t#{window_activity_flag}",
+      "#{window_id}\t#{window_index}\t#{window_name}\t#{window_active}\t#{window_panes}\t#{window_layout}\t#{window_width}\t#{window_height}\t#{window_activity_flag}\t#{window_zoomed_flag}",
     ]);
 
     return stdout
@@ -229,6 +229,7 @@ export async function listWindows(session: string): Promise<WindowInfo[]> {
           width,
           height,
           activity,
+          zoomed,
         ] = line.split("\t");
         return {
           id: id!,
@@ -238,6 +239,11 @@ export async function listWindows(session: string): Promise<WindowInfo[]> {
           paneCount: parseInt(paneCount!, 10),
           layout: layout!,
           activity: activity === "1",
+          // `window_layout` is identical zoomed and unzoomed — tmux reports the
+          // layout the window will go back to — so this is the only field that
+          // moves when someone presses `prefix z` in their own terminal, and
+          // the only thing a poller can notice it by.
+          zoomed: zoomed === "1",
           dimensions:
             width && height
               ? { cols: parseInt(width, 10), rows: parseInt(height, 10) }

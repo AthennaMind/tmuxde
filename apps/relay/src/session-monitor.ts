@@ -23,10 +23,29 @@ export interface SessionMonitorOptions {
   watchedSessions?: () => string[];
 }
 
-/** Cheap change detector for a window list: order, ids, names, active flag. */
+/**
+ * Cheap change detector for a window list.
+ *
+ * Every field here is one the client draws, and the two at the end were added
+ * because leaving them out made this poller blind to the whole class of change
+ * that does not add or remove a window. Pressing `prefix z` in the user's own
+ * terminal alters neither the window count nor the pane count, so a signature
+ * built from those alone was identical before and after — which is why a pane
+ * unzoomed outside the browser went on being drawn as zoomed until something
+ * else happened to force a fresh listing.
+ *
+ * `layout` is here for the same reason and catches the rest of it: a pane
+ * split, killed or dragged to a new size in another client. Note that tmux
+ * reports the *unzoomed* layout while a window is zoomed, so `layout` cannot
+ * stand in for `zoomed` — both are needed, and neither is redundant.
+ */
 function windowSignature(windows: WindowInfo[]): string {
   return windows
-    .map((w) => `${w.id}:${w.index}:${w.name}:${w.active ? 1 : 0}:${w.paneCount}`)
+    .map(
+      (w) =>
+        `${w.id}:${w.index}:${w.name}:${w.active ? 1 : 0}:${w.paneCount}` +
+        `:${w.zoomed ? 1 : 0}:${w.layout}`,
+    )
     .join("|");
 }
 

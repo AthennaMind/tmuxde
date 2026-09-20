@@ -179,7 +179,7 @@ function canSee(conn: ConnectionState, name: string): boolean {
  * scoping the listing to it is the fix: one reply now describes exactly one
  * window, the one on screen.
  */
-async function currentWindowPanes(
+export async function currentWindowPanes(
   session: string,
 ): Promise<{ panes: PaneInfo[]; windowId: string }> {
   const windowId = await tmux.currentWindowId(session);

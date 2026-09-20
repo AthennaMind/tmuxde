@@ -23,7 +23,7 @@ import { sweepRecordings } from "./recordings-index.js";
 import { isCloneSession, sweepOrphanClones } from "./tmux-clone.js";
 import { createRateLimiter } from "./rate-limiter.js";
 import { createSessionMonitor } from "./session-monitor.js";
-import { routeMessage } from "./message-router.js";
+import { currentWindowPanes, routeMessage } from "./message-router.js";
 import { defaultBrowsePath } from "./file-service.js";
 import { onSessionTokenRevoked } from "./pairing-local.js";
 import * as accessLog from "./access-log.js";
@@ -318,6 +318,30 @@ export function wireConnections(
         ? { type: "window:changed", windows, sessionName: name }
         : null,
     );
+    /*
+     * The pane layout goes with it, and that is not belt-and-braces.
+     *
+     * A window listing says *that* something moved; only a pane listing says
+     * which pane is now active, how big it is and which one is zoomed. Every
+     * client-initiated change already publishes both together through
+     * `announceLayout`, so anything that reaches here came from outside the
+     * browser — `prefix z`, a split in the user's own terminal, a pane that
+     * exited — and those are exactly the cases where the client's picture is
+     * the one that goes stale. Sending the window half alone is what left a
+     * pane drawn as zoomed after it had been unzoomed on the machine.
+     */
+    void currentWindowPanes(name)
+      .then(({ panes, windowId }) => {
+        broadcastWhere((conn) =>
+          conn.attachedSession === name
+            ? { type: "pane:changed", panes, windowId }
+            : null,
+        );
+      })
+      .catch(() => {
+        // The session can die between the poll and this listing. The exit path
+        // tells the client what happened; a pane list cannot.
+      });
   });
 
   monitor.onSessionCreated((session) => {

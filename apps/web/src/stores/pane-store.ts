@@ -35,14 +35,25 @@ export const usePaneStore = create<PaneStore>((set) => ({
   zoomedPaneId: null,
   pendingAutoZoom: false,
   pendingKey: null,
-  setWindows: (windows) => {
-    const activeWin = windows.find((w) => w.active);
-    set({
-      windows,
-      activeWindowId: activeWin?.id ?? null,
-      pendingKey: null,
-    });
-  },
+  setWindows: (windows) =>
+    set((state) => {
+      const activeWin = windows.find((w) => w.active);
+      return {
+        windows,
+        activeWindowId: activeWin?.id ?? null,
+        pendingKey: null,
+        // A window that says it is not zoomed settles the question for every
+        // pane in it, and saying so here is what stops "Unzoom" being offered
+        // for a pane that is already unzoomed. `zoomed` is optional in the
+        // protocol, so an older relay leaves it undefined and the belief is
+        // left exactly as it was — "cannot say" is not "no".
+        //
+        // Safe against the optimistic write in `lib/pane-zoom.ts`: every
+        // window list is published beside the pane list that outranks it, and
+        // the pane list is sent second.
+        zoomedPaneId: activeWin?.zoomed === false ? null : state.zoomedPaneId,
+      };
+    }),
   // `panes` is now a single window's panes and `windowId` is the window tmux is
   // actually showing (see `currentWindowPanes` in the relay's router), so
   // exactly one pane carries `active` and at most one carries `zoomed`. When

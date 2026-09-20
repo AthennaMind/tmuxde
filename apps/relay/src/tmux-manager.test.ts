@@ -400,6 +400,40 @@ describeTmux("windows and panes", { timeout: TMUX_TEST_TIMEOUT_MS }, () => {
       await tmux.zoomPane(MULTI);
       expect(await zoomState(pane!.id)).toBe(!before);
     });
+
+    /*
+     * The window listing has to carry the zoom too, and this is why.
+     *
+     * `window_layout` is byte-identical zoomed and unzoomed — tmux reports the
+     * layout the window will return to — so a change detector built from the
+     * layout, the window count and the pane count cannot see a zoom at all.
+     * That is what let `prefix z` on the machine leave the browser drawing a
+     * pane as zoomed indefinitely: the poll ran, the signature matched, and
+     * nothing was announced.
+     */
+    it("reports zoom on the window, where a layout string cannot", async () => {
+      const [pane] = await splitPanes();
+      await tmux.zoomPane(MULTI, { paneId: pane!.id, desired: true });
+      const zoomedList = await tmux.listWindows(MULTI);
+      const zoomedWindow = zoomedList.find((w) => w.id === pane!.windowId);
+      expect(zoomedWindow?.zoomed).toBe(true);
+
+      await tmux.zoomPane(MULTI, { paneId: pane!.id, desired: false });
+      const flatList = await tmux.listWindows(MULTI);
+      const flatWindow = flatList.find((w) => w.id === pane!.windowId);
+      expect(flatWindow?.zoomed).toBe(false);
+
+      // The point of the test: the field we used to detect changes by did not
+      // move, so only the new one could have told us.
+      expect(flatWindow?.layout).toBe(zoomedWindow?.layout);
+      expect(flatWindow?.paneCount).toBe(zoomedWindow?.paneCount);
+    });
+
+    it("says false for a window with nothing zoomed in it", async () => {
+      const windows = await tmux.listWindows(MULTI);
+      const single = windows.find((w) => w.paneCount === 1);
+      expect(single?.zoomed).toBe(false);
+    });
   });
 
   it("reports the window tmux is actually showing", async () => {
