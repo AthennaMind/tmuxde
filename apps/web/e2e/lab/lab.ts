@@ -107,3 +107,21 @@ export function tmuxSize(session: string): [number, number] {
 export function resetLab(): void {
   inLab(["/lab/seed.sh", "reset"]);
 }
+
+/**
+ * Leave copy mode, if the session is in it.
+ *
+ * The lab is a long-lived server and specs share it, so a test that scrolls
+ * leaves the pane in copy mode for whatever runs next. The first version of
+ * the scroll test asserted `pane_in_mode == 0` as a precondition and failed on
+ * four projects out of five — not because anything was broken, but because the
+ * fifth had already passed.
+ *
+ * Restoring the precondition is the right fix rather than dropping the
+ * assertion: "the drag put tmux into copy mode" only means something if tmux
+ * was not already there.
+ */
+export function exitCopyMode(session: string): void {
+  if (tmuxFormat(session, "#{pane_in_mode}") === "0") return;
+  tmux(["send-keys", "-t", session, "-X", "cancel"]);
+}
