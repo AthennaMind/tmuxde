@@ -14,6 +14,7 @@ import {
   ZoomIn,
   ZoomOut,
   MoreHorizontal,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import { triggerHaptic } from "@repo/ui/components/haptic-button";
@@ -30,6 +31,7 @@ import { noteLeftCopyMode } from "@/lib/copy-mode-belief";
 import { useSessionStore } from "@/stores/session-store";
 import { sendKeySequence } from "@/lib/send-key";
 import { KeySheet } from "./key-sheet";
+import { GestureHelpSheet } from "./gesture-help-sheet";
 
 interface KeyboardToolbarProps {
   className?: string;
@@ -48,6 +50,7 @@ export function KeyboardToolbar({
   const [stickyCtrl, setStickyCtrl] = useState(false);
   const [stickyAlt, setStickyAlt] = useState(false);
   const [keySheetOpen, setKeySheetOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   // Keys that travel to the relay are dead while the socket is down; the purely
   // local ones (search, palette, font size) stay live.
   const connected = useConnectionStore((s) => s.status === "connected");
@@ -146,16 +149,25 @@ export function KeyboardToolbar({
         phone most of it is. What sits here is whichever thing the user most
         needs *right now*, which is not the same button in both states:
 
-         - Normally it is text mode — the composer, where several lines can be
-           written and read back before anything runs. Its only other entry
-           point is the one-line bar above, which is rendered only once a
-           session is attached, so until now there were states with a keyboard
-           toolbar on screen and no way to reach it.
-         - In copy mode it is the way out. Keystrokes sent to a pane in copy
-           mode are copy-mode commands, so until this is tapped the terminal
-           looks focused and silently eats everything typed — including
-           anything sent from the composer, which is why the two swap rather
-           than sit side by side.
+         - Normally it is copy mode — the pane's text, captured into a view you
+           can select out of. On a phone that is the only way to get anything
+           out of the terminal at all: the rendered pane is a WebGL canvas, so
+           there is no text to press-and-hold, and the long press over it now
+           means "this pane's options" instead. Everything else in this row has
+           a second way in — the FAB, the palette, a gesture. Getting text out
+           had one, and it was buried past the fold of a strip most people
+           never realise scrolls.
+         - In tmux's own copy mode it is the way out. Keystrokes sent to a pane
+           in copy mode are copy-mode commands, so until this is tapped the
+           terminal looks focused and silently eats everything typed —
+           including anything sent from the composer, which is why the two swap
+           rather than sit side by side.
+
+        Note that the two are different things wearing one name: the amber chip
+        is tmux's mode, which a drag-to-scroll puts you in, and the button
+        under it opens our own capture-and-select view. They share the slot
+        because they are never both the answer, and because the chip's job is
+        to be unmissable when it applies.
       */}
       <div className="flex shrink-0 items-center border-r border-border px-1">
         {inCopyMode ? (
@@ -170,21 +182,40 @@ export function KeyboardToolbar({
         ) : (
           <button
             className={iconBtnClass}
-            aria-label="Write a command"
-            // Not gated on the socket, like the other purely local actions in
-            // this row: writing a command while the connection is down is how
-            // you have one ready when it comes back.
+            aria-label="Open copy mode"
+            disabled={!connected}
             onClick={() => {
               if (hapticEnabled) triggerHaptic();
-              openComposer();
+              useUiStore.getState().setCopyModeOpen(true);
             }}
           >
-            <Type className="h-4 w-4" />
+            <ScrollText className="h-4 w-4" />
           </button>
         )}
       </div>
 
       <div className="flex flex-1 items-center gap-0.5 overflow-x-auto px-1 py-1 scrollbar-none">
+        {/*
+          The composer, at the head of the strip rather than pinned beside it.
+
+          It was the pinned slot until copy mode took that over, and it gives it
+          up cheaply: the one-line bar above is its other entry point, and this
+          position is still the first thing a thumb reaches. It stays ungated on
+          the socket, like the other purely local actions in this row — writing
+          a command while the connection is down is how you have one ready when
+          it comes back.
+        */}
+        <button
+          className={iconBtnClass}
+          aria-label="Write a command"
+          onClick={() => {
+            if (hapticEnabled) triggerHaptic();
+            openComposer();
+          }}
+        >
+          <Type className="h-4 w-4" />
+        </button>
+
         {/* Signal buttons */}
         <button
           className={iconBtnClass}
@@ -246,12 +277,13 @@ export function KeyboardToolbar({
 
         {/*
           Ways to *go* somewhere come before ways to *do* something to the
-          current pane. Search, the palette and copy mode each change what the
-          screen is showing, and they were sitting behind five keys and two
-          clipboard buttons — on a 390px phone, past the fold of a strip most
-          people never realise scrolls. The splits and the font size moved to
-          the end instead: both are in the FAB, the splits are also in a pane's
-          long-press menu, and the font size is a pinch.
+          current pane. Search and the palette each change what the screen is
+          showing, and they were sitting behind five keys and two clipboard
+          buttons — on a 390px phone, past the fold of a strip most people never
+          realise scrolls. Copy mode used to be the third of them and is now
+          pinned outside this strip entirely. The splits and the font size moved
+          to the end instead: both are in the FAB, the splits are also in a
+          pane's long-press menu, and the font size is a pinch.
         */}
         {/* Search button */}
         {onSearchOpen && (
@@ -270,18 +302,6 @@ export function KeyboardToolbar({
           onClick={() => useCommandStore.getState().setPaletteOpen(true)}
         >
           <Zap className="h-4 w-4" />
-        </button>
-        {/* Copy mode overlay */}
-        <button
-          className={iconBtnClass}
-          aria-label="Open copy mode"
-          disabled={!connected}
-          onClick={() => {
-            useUiStore.getState().setCopyModeOpen(true);
-            if (hapticEnabled) triggerHaptic();
-          }}
-        >
-          <ScrollText className="h-4 w-4" />
         </button>
         <button
           className={iconBtnClass}
@@ -371,10 +391,16 @@ export function KeyboardToolbar({
 
       {/*
         Outside the scrolling strip, so it is always on screen. Every other key
-        in this row can be scrolled past; the way to reach the ones that are not
-        in the row cannot be.
+        in this row can be scrolled past; the ways to reach what is *not* in the
+        row cannot be — and there are two of those, which is why this zone holds
+        two buttons and the other end holds one.
+
+        `?` earns its 44px because most of this app is gestures, and a gesture
+        has no label. A press, a pinch and a drag each do something useful on
+        the terminal above and none of them says so; before this there was no
+        surface anywhere that admitted they existed.
       */}
-      <div className="flex shrink-0 items-center border-l border-border px-1">
+      <div className="flex shrink-0 items-center gap-0.5 border-l border-border px-1">
         <button
           className={iconBtnClass}
           aria-label="More keys"
@@ -386,9 +412,21 @@ export function KeyboardToolbar({
         >
           <MoreHorizontal className="h-4 w-4" />
         </button>
+        <button
+          className={iconBtnClass}
+          aria-label="Gestures and shortcuts"
+          aria-expanded={helpOpen}
+          onClick={() => {
+            if (hapticEnabled) triggerHaptic();
+            setHelpOpen(true);
+          }}
+        >
+          <HelpCircle className="h-4 w-4" />
+        </button>
       </div>
 
       <KeySheet open={keySheetOpen} onOpenChange={setKeySheetOpen} />
+      <GestureHelpSheet open={helpOpen} onOpenChange={setHelpOpen} />
     </div>
   );
 }

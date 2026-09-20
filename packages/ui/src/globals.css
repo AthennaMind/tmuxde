@@ -616,6 +616,21 @@
 }
 
 /*
+ * Suppress iOS Safari's long-press callout.
+ *
+ * A `contextmenu` listener is enough on Android, where the menu is a real
+ * cancellable event. iOS raises its callout — "Copy / Look Up / Share", or the
+ * link sheet — without dispatching one, so there is nothing to `preventDefault`
+ * and the only way to refuse it is this property, declared before the press
+ * happens. It is separate from `select-none-prompt` because the terminal
+ * surface wants exactly one of the two: the callout gone, and selection still
+ * possible so that copying out of xterm keeps working.
+ */
+@utility touch-callout-none {
+  -webkit-touch-callout: none;
+}
+
+/*
  * Hide the native scrollbar on a scroller that has its own affordance.
  *
  * Three horizontal strips have asked for this class since they were written —

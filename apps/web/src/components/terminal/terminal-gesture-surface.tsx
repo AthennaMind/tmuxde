@@ -443,6 +443,31 @@ export function TerminalGestureSurface({
       );
     };
 
+    /*
+     * Refuse the browser's own long-press menu — and only that one.
+     *
+     * A press on the terminal now means "show me this pane's options", and
+     * Android answers the same press with "Copy / Select all / Web search"
+     * drawn over the top of it. Two menus for one gesture is worse than either
+     * alone: the native one steals the touch, so the sheet opens behind
+     * something the user has to dismiss first.
+     *
+     * The test is for a *touch*-originated menu, not for a small screen. A
+     * right-click on a desktop terminal still gets the browser menu, which is
+     * the only way to copy a selection out of a WebGL canvas there, and a
+     * touchscreen laptop keeps both behaviours for the input each was meant
+     * for. `phase` covers the common case (the finger is still down when the
+     * menu is raised); `pointerType` covers the browsers that raise it after
+     * the touch has already ended.
+     */
+    const onContextMenu = (e: MouseEvent) => {
+      const fromTouch =
+        stateRef.current.phase !== "idle" ||
+        (e as PointerEvent).pointerType === "touch";
+      if (!fromTouch || !e.cancelable) return;
+      e.preventDefault();
+    };
+
     // Capture so these run before xterm's own listeners, non-passive so
     // `preventDefault` is allowed at all.
     const opts = { capture: true, passive: false } as const;
@@ -450,12 +475,14 @@ export function TerminalGestureSurface({
     el.addEventListener("touchmove", onMove, opts);
     el.addEventListener("touchend", onEnd, opts);
     el.addEventListener("touchcancel", onCancel, opts);
+    el.addEventListener("contextmenu", onContextMenu, opts);
 
     return () => {
       el.removeEventListener("touchstart", onStart, opts);
       el.removeEventListener("touchmove", onMove, opts);
       el.removeEventListener("touchend", onEnd, opts);
       el.removeEventListener("touchcancel", onCancel, opts);
+      el.removeEventListener("contextmenu", onContextMenu, opts);
       clearHold();
       if (fontRaf.current !== null) cancelAnimationFrame(fontRaf.current);
       fontRaf.current = null;
@@ -466,7 +493,14 @@ export function TerminalGestureSurface({
   return (
     <div
       ref={containerRef}
-      className={cn("touch-none transition-opacity duration-75", className)}
+      className={cn(
+        // `touch-callout-none` is the iOS half of the same refusal the
+        // `contextmenu` listener performs above: Safari raises its callout
+        // without dispatching an event, so there is nothing to cancel and it
+        // has to be declined in CSS ahead of time.
+        "touch-none touch-callout-none transition-opacity duration-75",
+        className,
+      )}
     >
       {children}
     </div>
