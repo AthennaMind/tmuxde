@@ -25,6 +25,18 @@ RUN pnpm install --frozen-lockfile
 # it serves a pair page that renders "not configured", and no environment
 # variable on the running container can fix it.
 FROM installer AS builder
+# Build into `.next`, which is the one place nothing else writes.
+#
+# `apps/web/next.config.ts` defaults production builds to `.next-build`, a
+# staging directory that `scripts/promote-build.mjs` later moves into
+# `.next-serve` — the split that exists because `next build` clears its own
+# dist directory and so cannot be pointed at a tree a live server is reading.
+# None of that applies in an image: the build and the runner are separate
+# stages, nothing is serving, and there is nothing to promote. But the runner
+# below copies from `.next/standalone`, and when the default moved the copy
+# was never updated, so every image build since has failed on a path that no
+# longer exists. `NEXT_DIST_DIR` is the config's own documented override.
+ENV NEXT_DIST_DIR=.next
 ARG NEXT_PUBLIC_API_URL=""
 ARG NEXT_PUBLIC_RELAY_URL=""
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL

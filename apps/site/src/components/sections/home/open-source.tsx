@@ -40,7 +40,7 @@ import { siteConfig } from "@/config/site";
 /** The three degrees, keyed to `home.openSource.degrees.*`. */
 const DEGREES = [
   { key: "cli", command: "npm i -g mtmux" },
-  { key: "local", command: "mtmux start --local" },
+  { key: "local", command: "mtmux start" },
   { key: "broker", command: "docker compose up" },
 ] as const;
 

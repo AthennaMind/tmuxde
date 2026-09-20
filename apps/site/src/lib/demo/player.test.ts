@@ -203,8 +203,15 @@ describe("the phone", () => {
   });
 
   it("is only marked paired from the attach chapter onwards", () => {
-    expect(settledFrame(cast, 1).phone.paired).toBe(false);
-    expect(settledFrame(cast, 2).phone.paired).toBe(true);
+    // Indexed by name, not by number. This used to read `2`, and inserting the
+    // approval chapter ahead of `attach` silently made it an assertion about a
+    // different moment — which is the failure mode a positional index has.
+    const at = (id: (typeof CHAPTERS)[number]) => CHAPTERS.indexOf(id);
+    expect(settledFrame(cast, at("pair")).phone.paired).toBe(false);
+    // Still not paired while the machine is being asked: that is the whole
+    // point of the chapter.
+    expect(settledFrame(cast, at("approve")).phone.paired).toBe(false);
+    expect(settledFrame(cast, at("attach")).phone.paired).toBe(true);
     expect(frameAt(cast, cast.duration).phone.paired).toBe(true);
   });
 });
@@ -240,6 +247,33 @@ describe("banner fidelity", () => {
     // assertion above, which is the point.
     expect(siteConfig.version).not.toBe("");
     expect(siteConfig.appHost).not.toBe("");
+  });
+});
+
+/**
+ * The same fence, for the gate.
+ *
+ * `access-prompt.ts` asks "Let it in? [y/N]" with no digits on a code pairing,
+ * deliberately: the nine-digit code was the shared secret, so there is nothing
+ * left to compare. If this demo ever grows a six-digit comparison here it is
+ * showing a check the product does not perform, which is worse than showing
+ * nothing.
+ */
+describe("approval fidelity", () => {
+  const settled = settledFrame(cast, CHAPTERS.indexOf("approve"))
+    .rows.map(flat)
+    .join("\n");
+
+  it.each([
+    ["the question", "Let it in?"],
+    ["the default, which is no", "[y/N]"],
+    ["who is asking", "Safari on iPhone"],
+  ])("keeps %s", (_label, text) => {
+    expect(settled).toContain(text);
+  });
+
+  it("shows no digits to compare, because there are none", () => {
+    expect(settled).not.toContain("Matches what your browser shows?");
   });
 });
 

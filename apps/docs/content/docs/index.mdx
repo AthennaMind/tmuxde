@@ -63,14 +63,14 @@ for the details, both of which are checkable against `packages/crypto`.
 | Shape | Command | When |
 | --- | --- | --- |
 | **CLI, single port** | `mtmux` | The normal case. One process serves the web UI and the relay WebSocket (same-origin at `/_relay`) on one port. |
-| **CLI, LAN only** | `mtmux start --local` | You would rather no traffic left the building. Contacts no broker at all. |
+| **CLI, LAN only** | `mtmux start` | The default. Serves this network and contacts no broker at all. |
 | **Split web + relay** | `pnpm dev:split`, Docker, PM2 | Container and multi-tenant deployments where the web app and relay are separate services. See [Deployment](/docs/deployment). |
 
 ## Nothing here is mandatory
 
 An account is optional — anonymous pairing keeps working forever, and
 [Accounts](/docs/accounts) explains exactly what signing in adds. The hosted
-broker is optional too: `--local` skips it, and you can point the CLI at your own
+broker is optional too: it is only reached when you ask with `--hosted`, and you can point the CLI at your own
 with `MTMUX_API_URL`. See [Self-hosting](/docs/self-hosting).
 
 ## Next steps

@@ -69,10 +69,10 @@ thing. On start the CLI:
    `127.0.0.1` if it does not.
 4. Serves the web client and the relay WebSocket on one port (`14100`), with the
    socket same-origin at `/_relay`.
-5. Opens a sealed tunnel and arms a pairing code, unless you passed
-   `--local`.
+5. With `--hosted` (or `reach = hosted`), opens a sealed tunnel and arms a
+   pairing code. On its own it contacts nothing.
 6. Re-admits every device that paired with this machine before.
-7. Prints the banner and opens a browser on this machine.
+7. Prints the banner.
 
 Press **Ctrl+C** to stop.
 
@@ -133,7 +133,7 @@ address bar before it does anything else.
 
 `--no-qr` drops the QR block and keeps the digits, which is what you want in a
 terminal that mangles block characters. When there is neither a code nor a QR —
-`--local --no-qr` — the banner falls back to printing the auth token, because
+`--no-qr` on a local server — the banner falls back to printing the auth token, because
 that is the only case left where someone has to authenticate by hand.
 
 ### If the browser is already open
@@ -159,7 +159,9 @@ Reloading the browser does not force a re-pair either.
 ## Common flags
 
 ```bash
-mtmux start --local                  # LAN and loopback only; contacts no broker
+mtmux start                          # this network only; contacts no broker
+mtmux start --hosted                 # + a tunnel and a code for app.mtmux.com
+mtmux config set reach hosted        # make --hosted the default here
 mtmux start -p 9000                  # different port
 mtmux start -n "build box"           # name this machine in the dashboard
 mtmux start --open                   # also open a browser here
@@ -167,7 +169,7 @@ mtmux start --no-qr                  # code without the QR block
 mtmux start --json                   # machine-readable startup record
 ```
 
-`mtmux local` is an alias for `mtmux start --local`. The full list is in the
+`mtmux local` forces the local path whatever `reach` says. The full list is in the
 [CLI reference](/docs/cli).
 
 ## Managing the token

@@ -18,8 +18,8 @@ flags.
 | Command | What it does |
 | --- | --- |
 | `mtmux` | Alias for `mtmux start` — the command you actually use |
-| `mtmux start` | Serve this machine's tmux, open a sealed tunnel, print a QR + pairing code |
-| `mtmux local` | Alias for `mtmux start --local` |
+| `mtmux start` | Serve this machine's tmux on this network. `--hosted` also opens a sealed tunnel and prints a QR + pairing code |
+| `mtmux local` | Serve this network only, whatever `reach` is set to |
 | `mtmux pair [code]` | The other direction: join a pairing a browser started |
 | `mtmux share <session>` | Share one tmux session without sharing the machine |
 | `mtmux record <session>` | Capture a session or pane to a `.cast` on this machine |
@@ -53,7 +53,8 @@ mtmux start [options]
 | --- | --- | --- |
 | `-p, --port <number>` | `14100` | HTTP + WebSocket port |
 | `-h, --host <address>` | `0.0.0.0` on a LAN, else `127.0.0.1` | Bind address. An explicit value always wins. |
-| `--local` | off | LAN and loopback only — never contact a broker |
+| `--local` | on unless `reach` says otherwise | LAN and loopback only — never contact a broker. Beats everything. |
+| `--hosted` | off | Also open a tunnel and print a code for app.mtmux.com |
 | `--no-qr` | QR shown | Print the code without the QR block |
 | `-n, --name <label>` | this machine's hostname | What to call this machine in the dashboard |
 | `-t, --token <value>` | the stored token | Override the auth token for this run only |
@@ -279,12 +280,27 @@ restarts. The command says so.
 mtmux config get                              # every setting
 mtmux config get reconnectPolicy
 mtmux config set reconnectPolicy confirm
+mtmux config set reach hosted                 # tunnel by default on this box
 mtmux config set api https://api.example.com  # your own broker
 mtmux config set api default                  # back to ours
 ```
 
-Two settings, deliberately. Everything else this CLI does is either a per-run
+Three settings, deliberately. Everything else this CLI does is either a per-run
 flag or a decision the product should make for you.
+
+**`reach`** — how far `mtmux start` goes when nobody says.
+
+| Value | Meaning |
+| --- | --- |
+| `local` (default) | Serve the LAN and loopback. Contact nothing. |
+| `hosted` | Also open a sealed tunnel and print a code for app.mtmux.com. |
+
+`--local` and `--hosted` both beat this for one run, and `--local` beats
+`--hosted` — an explicit "not now" should win over a preference set weeks ago.
+This default used to be `hosted`. Reaching the internet is the more useful
+behaviour *and* the one with consequences, and a default is whatever happens to
+someone who typed the shortest command in the product without reading what it
+did.
 
 **`reconnectPolicy`** — whether a device paired in an earlier run may reconnect
 without being asked.

@@ -105,11 +105,11 @@ the hop. We say so rather than calling the whole product "end-to-end encrypted".
 
 mtmux is self-hosted by default and there are three degrees of independence:
 
-| You want                            | Command               | Talks to our servers                            |
-| ----------------------------------- | --------------------- | ----------------------------------------------- |
-| Your machine, your tmux, your token | `mtmux`               | Only the pairing broker, and only in ciphertext |
-| Nothing leaves the building         | `mtmux start --local` | **Never**                                       |
-| Your own broker and web client too  | `docker compose up`   | **Never**                                       |
+| You want                            | Command             | Talks to our servers                            |
+| ----------------------------------- | ------------------- | ----------------------------------------------- |
+| Your machine, your tmux, your token | `mtmux`             | Only the pairing broker, and only in ciphertext |
+| Nothing leaves the building         | `mtmux start`       | **Never** — this is the default                 |
+| Your own broker and web client too  | `docker compose up` | **Never**                                       |
 
 ```bash
 mtmux config set api https://api.example.com   # point every command at your broker
@@ -146,7 +146,9 @@ default mode, not a degraded one. [Self-hosting →](https://docs.mtmux.com/docs
 
 ```bash
 mtmux                          # serve, print a code, open a browser
-mtmux start --local            # LAN and loopback only, no broker
+mtmux start --hosted           # + a tunnel and a code for app.mtmux.com
+mtmux config set reach hosted  # make that the default on this machine
+mtmux start --local            # LAN and loopback only, whatever reach says
 mtmux start --port 8080        # different port
 mtmux start --open             # also open a browser here
 mtmux pair 492716384           # join a pairing the browser started
@@ -195,18 +197,19 @@ mtmux.example.com {
 
 ## Configuration
 
-| Flag                      | Default                              | Description                                          |
-| ------------------------- | ------------------------------------ | ---------------------------------------------------- |
-| `-p, --port <n>`          | `14100`                              | HTTP + WS port                                       |
-| `-h, --host <addr>`       | `0.0.0.0` on a LAN, else `127.0.0.1` | Bind address. An explicit value always wins.         |
-| `--local`                 | off                                  | LAN and loopback only — never contact a broker       |
-| `--api <url>`             | `https://api.mtmux.com`              | Pairing broker, for this command only                |
-| `-n, --name <label>`      | hostname                             | What to call this machine in the dashboard           |
-| `--no-qr`                 | QR shown                             | Print the code without the QR block                  |
-| `-t, --token <value>`     | auto                                 | Override the auth token for this run                 |
-| `--allowed-paths <paths>` | `$HOME`                              | Comma-separated path allow-list for the file browser |
-| `--open`                  | off                                  | Also open a browser on this machine                  |
-| `--json`                  | off                                  | Machine-readable startup record                      |
+| Flag                      | Default                              | Description                                           |
+| ------------------------- | ------------------------------------ | ----------------------------------------------------- |
+| `-p, --port <n>`          | `14100`                              | HTTP + WS port                                        |
+| `-h, --host <addr>`       | `0.0.0.0` on a LAN, else `127.0.0.1` | Bind address. An explicit value always wins.          |
+| `--local`                 | on unless `reach` says otherwise     | LAN and loopback only — never contact a broker        |
+| `--hosted`                | off                                  | Also open a tunnel and print a code for app.mtmux.com |
+| `--api <url>`             | `https://api.mtmux.com`              | Pairing broker, for this command only                 |
+| `-n, --name <label>`      | hostname                             | What to call this machine in the dashboard            |
+| `--no-qr`                 | QR shown                             | Print the code without the QR block                   |
+| `-t, --token <value>`     | auto                                 | Override the auth token for this run                  |
+| `--allowed-paths <paths>` | `$HOME`                              | Comma-separated path allow-list for the file browser  |
+| `--open`                  | off                                  | Also open a browser on this machine                   |
+| `--json`                  | off                                  | Machine-readable startup record                       |
 
 There is deliberately **no fixed default host**: mtmux binds `0.0.0.0` when the machine has a usable private address on a real interface (container bridges and VPN overlays don't count) and `127.0.0.1` when it doesn't. You do not need `--host 0.0.0.0` to reach it from your phone.
 

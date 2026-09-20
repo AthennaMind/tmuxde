@@ -51,7 +51,11 @@
       },
       "pair": {
         "title": "Run it",
-        "description": "It serves this machine's tmux and dials out to open a sealed tunnel, then prints a QR and a nine-digit code. No config file, nothing to forward, no account."
+        "description": "<cmd>mtmux</cmd> on its own serves this machine's tmux and contacts nobody. <cmd>--hosted</cmd> also dials out to open a sealed tunnel and prints a QR and a nine-digit code. No config file, nothing to forward, no account."
+      },
+      "approve": {
+        "title": "Say yes",
+        "description": "Typing the code is not the approval. The machine asks — in its own terminal, in <cmd>mtmux approve</cmd>, or in the app on a phone you already have connected — and nobody answering means no."
       },
       "attach": {
         "title": "You're attached",
@@ -173,8 +177,8 @@
         "description": "It runs on your machine, talks to your tmux, and holds its own token. Nothing is uploaded and no account is created. For one machine this is the whole answer."
       },
       "local": {
-        "title": "Or contact no broker at all",
-        "description": "<cmd>--local</cmd> serves your LAN and loopback and dials nothing — by choice, not by the tunnel quietly failing. Put your own reverse proxy in front of the single port and you are reachable from anywhere without us."
+        "title": "Contacting no broker is the default",
+        "description": "<cmd>mtmux start</cmd> serves your LAN and loopback and dials nothing. Reaching the internet is the thing you opt into, with <cmd>--hosted</cmd>, and not the thing that happens to you for typing the shortest command. Put your own reverse proxy in front of the single port and you are reachable from anywhere without us."
       },
       "broker": {
         "title": "Or run the pairing broker too",

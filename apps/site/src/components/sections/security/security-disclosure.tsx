@@ -31,7 +31,7 @@ export async function SecurityDisclosure() {
           <TerminalWindow chrome={false}>
             <Line>
               <Prompt />
-              mtmux start <Tok kind="flag">--local</Tok>
+              mtmux start <Tok kind="comment"># no broker, by default</Tok>
             </Line>
             <Line>
               <Prompt />

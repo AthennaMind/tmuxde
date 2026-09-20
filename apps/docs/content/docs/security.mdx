@@ -12,7 +12,7 @@ authentication model as implemented, not as intended.
 | --- | --- | --- | --- |
 | **`AUTH_TOKEN`** | Forever, until rotated | `~/.mtmux/config.json`, mode `0600` | Generated on first run — 32 random bytes |
 | **Session token** | 24 hours in the relay; a pairing-derived one is replayed on restart | Relay memory; pairing-derived ones also in `~/.mtmux/config.json` | Redeeming a LAN nonce, or derived from a pairing |
-| **Pairing nonce** | 24 hours as `mtmux start` issues it | Nowhere on disk | The QR in `--local` mode |
+| **Pairing nonce** | 24 hours as `mtmux start` issues it | Nowhere on disk | The QR on a local server |
 
 The point of the second and third is that **the long-lived token never has to be
 typed, and never crosses the network.**

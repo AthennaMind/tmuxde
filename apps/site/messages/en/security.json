@@ -97,7 +97,7 @@
   },
   "escapeHatches": {
     "title": "Don't trust the broker? Don't use it.",
-    "prose": "Two escape hatches. <cmd>--local</cmd> serves your LAN and loopback and contacts no broker at all — it is not a degraded mode, it is the same server without the tunnel. Or run the broker yourself and point the CLI at it.",
+    "prose": "You already are not using it. <cmd>mtmux start</cmd> serves your LAN and loopback and contacts no broker at all — not a degraded mode, the same server without the tunnel. The broker is reached only when you ask with <cmd>--hosted</cmd>, and you can run it yourself and point the CLI at yours.",
     "devicesComment": "device ids + last seen"
   },
   "disclosure": {

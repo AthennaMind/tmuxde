@@ -19,7 +19,7 @@ symptom of an earlier one.
   ✓ Config        /home/you/.mtmux/config.json
   ✓ mkfifo        available
   ! Broker        https://api.mtmux.com unreachable
-    → Check your network, or use `mtmux start --local` for LAN only.
+    → Check your network, or drop `--hosted` and serve this network only.
   ✓ mtmux         no version service
 
   Ready, with 1 caveat.
@@ -95,7 +95,7 @@ Checks the permissions on `~/.mtmux/config.json` (or `$MTMUX_CONFIG_DIR/config.j
 
 Fetches `<api>/health` with a 5-second timeout and reports the round trip.
 
-A failure here is **always a warning, never an error**. `mtmux start --local` is
+A failure here is **always a warning, never an error**. `mtmux start` without `--hosted` is
 fully functional without a broker, and calling it a failure would misrepresent
 an offline machine as a broken install.
 

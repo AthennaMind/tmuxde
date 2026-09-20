@@ -30,7 +30,7 @@
  * Run: node .github/assets/build-demo.mjs
  */
 import { createRequire } from "node:module";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -42,8 +42,18 @@ const ErrorCorrectLevel = require("qrcode-terminal/vendor/QRCode/QRErrorCorrectL
 const QR_TARGET = "https://mtmux.com";
 /** The digits the banner prints beside the code. An example, and labelled one. */
 const EXAMPLE_CODE = "492 716 384";
-/** Kept in step with `apps/cli/package.json`; only ever shown, never parsed. */
-const VERSION = "0.6.3";
+/**
+ * Read, not transcribed.
+ *
+ * This used to be a literal with a comment asking whoever bumped the CLI to
+ * remember this file too. Nobody did — it said 0.6.3 through two minor
+ * releases, so the README's hero image advertised a version npm had not served
+ * for weeks. A constant that must be kept in step with a file three
+ * directories away is a constant that will drift; read the file.
+ */
+const VERSION = JSON.parse(
+  readFileSync(path.join(here, "../../apps/cli/package.json"), "utf8"),
+).version;
 
 const MONO =
   "ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono',monospace";
@@ -86,7 +96,7 @@ for (let row = 0; row < modules; row++) {
 
 /* ── the phone ────────────────────────────────────────────────────────── */
 
-const PHONE = { x: 892, y: 170, w: 308, h: 462 };
+const PHONE = { x: 892, y: 214, w: 308, h: 462 };
 
 /** The `serve` window, verbatim from the site's demo. */
 const PANE = [
@@ -128,7 +138,7 @@ const paneLines = PANE.map(
 
 /* ── the page ─────────────────────────────────────────────────────────── */
 
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="A terminal running mtmux beside a phone browser: the terminal prints a QR and a nine-digit pairing code, and the phone is attached to the same tmux session, showing the dev server window">
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="900" viewBox="0 0 1280 900" role="img" aria-label="A terminal running mtmux beside a phone browser: the terminal prints a QR and a nine-digit pairing code, asks whether to let the device in, and the phone is attached to the same tmux session, showing the dev server window">
   <title>mtmux — one command in the terminal, the same tmux session on a phone</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -141,11 +151,11 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" v
     </linearGradient>
   </defs>
 
-  <rect width="1280" height="800" fill="url(#bg)"/>
+  <rect width="1280" height="900" fill="url(#bg)"/>
   <rect x="0" y="0" width="1280" height="2" fill="url(#glow)"/>
 
   <!-- ── the machine ── -->
-  <rect x="64" y="76" width="700" height="620" rx="14" fill="${INK}" stroke="#332c27" stroke-width="1.5"/>
+  <rect x="64" y="76" width="700" height="728" rx="14" fill="${INK}" stroke="#332c27" stroke-width="1.5"/>
   <path d="M64 90a14 14 0 0 1 14-14h672a14 14 0 0 1 14 14v28H64z" fill="#191512"/>
   <circle cx="92" cy="97" r="5.5" fill="#4a403a"/>
   <circle cx="112" cy="97" r="5.5" fill="#4a403a"/>
@@ -154,7 +164,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" v
 
   <g font-family="${MONO}" font-size="17">
     <text x="96" y="158" fill="${DIM}">$</text>
-    <text x="118" y="158" fill="${PAPER}">mtmux</text>
+    <text x="118" y="158" fill="${PAPER}">mtmux --hosted</text>
     <text x="96" y="204" fill="${ACCENT}">&#8250;</text>
     <text x="122" y="204" fill="${PAPER}">mtmux</text>
     <text x="196" y="204" fill="${DIM}">${VERSION}</text>
@@ -186,8 +196,30 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" v
     <text x="184" y="580" fill="${PAPER}">http://192.168.1.24:14100</text>
     <text x="464" y="580" fill="${DIM}">(en0)</text>
     <text x="96" y="624" fill="${DIM}">Waiting for a device…   Ctrl+C to stop.</text>
-    <text x="96" y="664" fill="${OK}">iPhone attached</text>
-    <text x="280" y="664" fill="${LINK}">sealed tunnel</text>
+  </g>
+
+  <!--
+    The gate, which is the part of this flow a picture is most likely to leave
+    out and the part that most changes what the product *is*. Entering the code
+    does not let a device in; a human does. Showing "Waiting…" and then
+    "attached" with nothing between them would be advertising the behaviour
+    this release deliberately stopped having.
+
+    No six digits on this line, and that is the honest rendering: the code the
+    browser typed was the shared secret, so there is nothing left to compare.
+  -->
+  <g font-family="${MONO}" font-size="16">
+    <text x="96" y="672" fill="${PAPER}">A device just entered this machine&#8217;s pairing code</text>
+    <text x="96" y="702" fill="${DIM}">Device</text>
+    <text x="184" y="702" fill="${PAPER}">Safari on iPhone</text>
+    <text x="96" y="732" fill="${PAPER}">Let it in?</text>
+    <text x="188" y="732" fill="${MID}">[y/N]</text>
+    <text x="242" y="732" fill="${ACCENT}">y</text>
+  </g>
+
+  <g font-family="${MONO}" font-size="16">
+    <text x="96" y="772" fill="${OK}">iPhone attached</text>
+    <text x="280" y="772" fill="${LINK}">sealed tunnel</text>
   </g>
 
   <!-- ── the phone ── -->
@@ -216,7 +248,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" v
   </g>
   <text x="${PHONE.x + PHONE.w / 2}" y="${PHONE.y + 428}" text-anchor="middle" font-family="${MONO}" font-size="12" fill="${DIM}">same tmux server · no SSH key here</text>
 
-  <text x="640" y="762" text-anchor="middle" font-family="${SANS}" font-size="22" fill="${MID}">One command on the machine. Scan the code. The phone is on the same tmux server.</text>
+  <text x="640" y="862" text-anchor="middle" font-family="${SANS}" font-size="22" fill="${MID}">One command on the machine. Scan the code, say yes, and the phone is on the same tmux server.</text>
 </svg>
 `;
 

@@ -322,7 +322,14 @@ export async function promptForAccess(
         else deps.signal.addEventListener("abort", onAbort);
       }
       rl.question(
-        kleur.bold("  Matches what your browser shows?") + " [y/N] ",
+        // Two questions, because there are two facts to establish and only one
+        // of them is checkable. With digits, the human is comparing: the only
+        // way the two screens disagree is if something sat in the middle. With
+        // no digits, the code *was* the secret and there is nothing to compare,
+        // so the only honest question is whether this is you.
+        kleur.bold(
+          req.sas ? "  Matches what your browser shows?" : "  Let it in?",
+        ) + " [y/N] ",
         (value) => {
           clearTimeout(timer);
           resolve(value);

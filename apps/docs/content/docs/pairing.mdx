@@ -96,7 +96,7 @@ reached over SSH, or when you want `--tunnel-only`.
 
 ## On your own network, with no broker at all
 
-`mtmux start --local` contacts no broker. The QR then encodes a LAN sign-in URL
+`mtmux start` contacts no broker unless you ask for one. The QR then encodes a LAN sign-in URL
 instead of a pairing code:
 
 ```
@@ -344,7 +344,7 @@ should not un-pair every device you own.
 
 ## Self-hosting the broker
 
-None of this requires ours. `mtmux start --local` contacts no broker at all, and
+None of this requires ours. `mtmux start` contacts no broker at all by default, and
 a machine with no route to one degrades to exactly that behaviour. To run your
 own, see [Self-hosting](/docs/self-hosting#the-pairing-broker).
 

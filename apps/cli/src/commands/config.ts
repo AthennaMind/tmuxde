@@ -32,6 +32,18 @@ const SETTINGS: Record<string, Setting> = {
     help: "Whether a previously paired device may reconnect without being asked.",
   },
 
+  reach: {
+    describe: async () => configStore.getReach(),
+    set: async (value) => {
+      if (!configStore.isReach(value)) {
+        throw new Error(`Not a reach: ${value}`);
+      }
+      await configStore.setReach(value);
+    },
+    values: ["local", "hosted"],
+    help: "Whether `mtmux start` opens a tunnel, or serves this network only.",
+  },
+
   api: {
     describe: async () =>
       (await configStore.getApiBase()) ?? `${DEFAULT_API_BASE} (default)`,

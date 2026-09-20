@@ -58,6 +58,7 @@ type StartFlags = {
   open: boolean;
   allowedPaths?: string;
   local?: boolean;
+  hosted?: boolean;
   qr: boolean;
   name?: string;
   api?: string;
@@ -73,7 +74,11 @@ const toStartOpts = (opts: StartFlags, local: boolean): StartOpts => ({
   token: opts.token,
   open: opts.open,
   allowedPaths: opts.allowedPaths,
-  local: local || opts.local === true,
+  // Tri-state on purpose. `undefined` means "nobody said", which is the only
+  // value the stored `reach` setting is allowed to answer — an explicit
+  // `--local` or `--hosted` must beat it in both directions.
+  local: local || opts.local === true ? true : undefined,
+  hosted: opts.hosted === true,
   qr: opts.qr,
   name: opts.name,
   api: opts.api,
@@ -87,11 +92,19 @@ const toStartOpts = (opts: StartFlags, local: boolean): StartOpts => ({
 /**
  * `start` is the default command, so `mtmux` on its own does the useful thing.
  *
- * It serves the terminal *and* opens a sealed tunnel, because the common case
- * is a phone that is not on the same network as the machine. `--local` opts out
- * of the tunnel entirely for people who would rather no traffic left the
- * building — and when the broker simply cannot be reached, `start` degrades to
- * exactly that rather than failing.
+ * It serves this network and contacts nobody. `--hosted` also opens a sealed
+ * tunnel and prints a code for app.mtmux.com, which is what you want when the
+ * phone is not on the same wifi — and `mtmux config set reach hosted` makes
+ * that the default for this machine, so it is one decision rather than a flag
+ * you retype forever.
+ *
+ * The default used to be the other way round. Reaching the internet is the
+ * more useful behaviour *and* the one with consequences, and a default is
+ * whatever happens to someone who typed the shortest command in the product
+ * without reading what it does. Going out to a broker should be a thing you
+ * asked for. `--local` still exists and still wins over everything, because an
+ * explicit "not now" has to beat a stored preference. When the broker cannot
+ * be reached, `--hosted` still degrades to exactly this rather than failing.
  */
 program
   .command("start", { isDefault: true })
@@ -104,6 +117,7 @@ program
     "bind address (default: 0.0.0.0 on a LAN, else 127.0.0.1)",
   )
   .option("--local", "LAN and loopback only — never contact a broker")
+  .option("--hosted", "also open a tunnel and print a code for app.mtmux.com")
   .option("--no-qr", "print the code without the QR block")
   .option("-n, --name <label>", "what to call this machine")
   .option("-t, --token <value>", "override the auth token for this run")
@@ -124,9 +138,17 @@ program
   .option("--files <level>", "with --share: none | ro | rw (default: none)")
   .action((opts: StartFlags) => start(toStartOpts(opts, false)));
 
+/**
+ * Kept, although `start` now does this by default.
+ *
+ * It costs nothing and it says what it means at the call site — in a systemd
+ * unit or a README, `mtmux local` is self-documenting in a way that relying on
+ * a default is not, and it stays correct if this machine's `reach` is later
+ * set to `hosted`.
+ */
 program
   .command("local")
-  .description("Serve on this network only, with no tunnel")
+  .description("Serve on this network only, whatever `reach` is set to")
   .option("-p, --port <number>", "port", (v) => parseInt(v, 10), 14100)
   .option("-h, --host <address>", "bind address")
   .option("--no-qr", "print without the QR block")

@@ -233,7 +233,13 @@ export type StartOpts = {
   allowedPaths?: string;
   /** LAN and loopback only. Never contacts a broker, by choice rather than by
    * accident — which is a different thing from the tunnel merely failing. */
-  local: boolean;
+  /**
+   * `true` for an explicit `--local`; `undefined` means the stored `reach`
+   * setting decides. Resolved once, early, into `localOnly`.
+   */
+  local?: boolean;
+  /** An explicit `--hosted`, which beats the stored setting but not `--local`. */
+  hosted?: boolean;
   qr: boolean;
   name?: string;
   api?: string;
@@ -1402,8 +1408,22 @@ export async function start(opts: StartOpts) {
    * contact. `--json` never asks either, because the document it prints is a
    * contract and an advisory is not part of it.
    */
+  /**
+   * How far this run reaches, resolved once so nothing downstream has to know
+   * the precedence.
+   *
+   * `--local` first, because an explicit "not now" must beat a preference set
+   * weeks ago. Then `--hosted`. Then the stored setting. Then the default,
+   * which is local.
+   */
+  const localOnly = opts.local
+    ? true
+    : opts.hosted
+      ? false
+      : (await configStore.getReach()) !== "hosted";
+
   const updateCheck =
-    opts.local || opts.json
+    localOnly || opts.json
       ? Promise.resolve(null)
       : fetchBrokerVersion(base).catch(() => null);
 
@@ -1680,7 +1700,7 @@ export async function start(opts: StartOpts) {
     });
   };
 
-  if (!opts.local) {
+  if (!localOnly) {
     try {
       hosted = await startHosted({
         buildGrant,
@@ -1808,6 +1828,21 @@ export async function start(opts: StartOpts) {
     }
   }
 
+  /**
+   * The one line that keeps a local-by-default server from being a dead end.
+   *
+   * Only when this run was local *by default* — not when someone typed
+   * `--local`, who has already made this decision and does not need it
+   * explained, and not when a tunnel was asked for and failed, where `note`
+   * already says what happened and telling them to pass the flag they just
+   * passed would be nonsense.
+   */
+  const hint =
+    localOnly && !opts.local
+      ? `On another network?  ${kleur.bold("mtmux start --hosted")}` +
+        kleur.dim(`   ·   always:  mtmux config set reach hosted`)
+      : null;
+
   const lanQrPayload = hosted ? null : armLanNonce();
 
   if (opts.json) {
@@ -1841,6 +1876,7 @@ export async function start(opts: StartOpts) {
       showQr: opts.qr,
       token: cfg.token,
       note,
+      hint,
     });
   }
 

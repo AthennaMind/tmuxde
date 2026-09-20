@@ -59,6 +59,15 @@ export type BannerOpts = {
   token?: string;
   /** A dim line under the addresses — degradation notices go here. */
   note?: string | null;
+  /**
+   * How to do the thing this run deliberately did not do.
+   *
+   * Separate from `note` because the two say opposite things: a note explains
+   * that something went wrong, a hint explains that nothing did and here is
+   * the next step. Printed under the note when both are present, which is the
+   * order they read in — what happened, then what to do about it.
+   */
+  hint?: string | null;
   /** Terminal width; injectable so the layout can be tested. */
   columns?: number;
 };
@@ -222,6 +231,11 @@ export function renderBannerLines(opts: BannerOpts): string[] {
   if (opts.note) {
     out.push("");
     out.push(INDENT + kleur.dim(opts.note));
+  }
+
+  if (opts.hint) {
+    out.push("");
+    out.push(INDENT + kleur.dim(opts.hint));
   }
 
   // The token is a fallback, not a feature. It only earns space when there is

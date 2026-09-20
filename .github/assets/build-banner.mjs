@@ -100,7 +100,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" v
 
   <g font-family="${MONO}" font-size="21">
     <text x="162" y="186" fill="${DIM}">$</text>
-    <text x="188" y="186" fill="${PAPER}">npm install -g mtmux &amp;&amp; mtmux</text>
+    <text x="188" y="186" fill="${PAPER}">npm install -g mtmux &amp;&amp; mtmux --hosted</text>
     <text x="162" y="232" fill="${ACCENT}">&#8250;</text>
     <text x="188" y="232" fill="${PAPER}">serving your tmux on one port</text>
   </g>

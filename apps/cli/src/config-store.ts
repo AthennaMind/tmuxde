@@ -133,7 +133,45 @@ export type Config = {
    * `mtmux approve` exists for.
    */
   reconnectPolicy?: ReconnectPolicy;
+  /**
+   * Whether this machine opens a tunnel by default. See `Reach`.
+   *
+   * Absent means `local`, which is also what a config written by an older
+   * version means. Upgrading therefore *narrows* what a machine does on its
+   * own, which is the safe direction for a default to move in.
+   */
+  reach?: Reach;
 };
+
+/**
+ * How far `mtmux start` reaches when nobody says.
+ *
+ * `local` serves the LAN and loopback and contacts nothing. `hosted` also
+ * opens a sealed tunnel and prints a code for app.mtmux.com, so a phone on
+ * cellular in another country can pair.
+ *
+ * The default is `local`, and it used to be `hosted`. Reaching the internet is
+ * the more useful behaviour and it is also the one with consequences, so it is
+ * not a thing to do because somebody typed the shortest command in the product
+ * without reading what it did. `--hosted` is one flag, and
+ * `mtmux config set reach hosted` makes it the default for this machine.
+ */
+export type Reach = "local" | "hosted";
+
+export const DEFAULT_REACH: Reach = "local";
+
+export function isReach(value: unknown): value is Reach {
+  return value === "local" || value === "hosted";
+}
+
+export async function getReach(): Promise<Reach> {
+  const stored = (await load()).reach;
+  return isReach(stored) ? stored : DEFAULT_REACH;
+}
+
+export async function setReach(reach: Reach): Promise<Config> {
+  return write({ ...(await load()), reach });
+}
 
 export type ReconnectPolicy = "trust" | "confirm";
 

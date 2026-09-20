@@ -23,7 +23,7 @@
 
   <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono',monospace" font-size="21">
     <text x="162" y="186" fill="#7d6f66">$</text>
-    <text x="188" y="186" fill="#f3ede8">npm install -g mtmux &amp;&amp; mtmux</text>
+    <text x="188" y="186" fill="#f3ede8">npm install -g mtmux &amp;&amp; mtmux --hosted</text>
     <text x="162" y="232" fill="#e87958">&#8250;</text>
     <text x="188" y="232" fill="#f3ede8">serving your tmux on one port</text>
   </g>

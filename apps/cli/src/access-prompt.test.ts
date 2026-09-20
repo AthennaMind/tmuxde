@@ -42,6 +42,22 @@ describe("renderAccessRequest", () => {
    * pairing code — would be asking the human to check something that cannot
    * fail, which is how a security prompt turns into a keypress.
    */
+  it("asks to let it in, not whether digits match, when there are none", async () => {
+    // The question the human is asked has to match the fact they can actually
+    // check. "Do these match?" against a blank space is a prompt that can only
+    // be answered by guessing what it meant.
+    const { input, output } = tty("n");
+    const written: string[] = [];
+    output.on("data", (chunk: Buffer) => written.push(chunk.toString()));
+    await promptForAccess(
+      { deviceLabel: "Safari on iPhone", accountEmail: "", via: "code" },
+      { input, output },
+    );
+    const text = written.join("");
+    expect(text).toContain("Let it in?");
+    expect(text).not.toContain("Matches what your browser shows?");
+  });
+
   it("asks a different question, with no Code row, when there are no digits", () => {
     const text = renderAccessRequest({
       deviceLabel: "Safari on iPhone",

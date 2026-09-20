@@ -28,7 +28,14 @@ const GROUPED = "492 716 384";
 const INDENT = "  ";
 
 /** Chapter ids. Also the keys the rail's labels are looked up under. */
-export const CHAPTERS = ["install", "pair", "attach", "move", "agent"] as const;
+export const CHAPTERS = [
+  "install",
+  "pair",
+  "approve",
+  "attach",
+  "move",
+  "agent",
+] as const;
 export type ChapterId = (typeof CHAPTERS)[number];
 
 /**
@@ -71,7 +78,7 @@ const steps: Step[] = [
 
   // ── 2. Pair ─────────────────────────────────────────────────────────────
   { k: "mark", chapter: "pair" },
-  { k: "type", text: "$ mtmux", ms: 400 },
+  { k: "type", text: "$ mtmux --hosted", ms: 400 },
   { k: "wait", ms: 180 },
   {
     k: "out",
@@ -117,7 +124,47 @@ const steps: Step[] = [
   ]),
   { k: "wait", ms: 700 },
 
-  // ── 3. Attach ───────────────────────────────────────────────────────────
+  // ── 3. Approve ──────────────────────────────────────────────────────────
+  //
+  // The beat this demo used to skip, back when the code *was* the approval.
+  // Leaving it out now would be showing a product that lets a device in
+  // because somebody typed nine digits, which is exactly the behaviour 0.7.1
+  // removed. No digits on the question: the code was the shared secret, so
+  // there is nothing left to compare.
+  { k: "mark", chapter: "approve" },
+  {
+    k: "out",
+    ms: 300,
+    rows: [
+      [],
+      [
+        {
+          text: INDENT + "A device just entered this machine's pairing code",
+          tone: "strong",
+        },
+      ],
+      [
+        { text: INDENT + "Device  ", tone: "faint" },
+        { text: "Safari on iPhone" },
+      ],
+    ],
+  },
+  { k: "wait", ms: 900 },
+  {
+    k: "out",
+    ms: 260,
+    rows: [
+      [],
+      [
+        { text: INDENT + "Let it in?", tone: "strong" },
+        { text: " [y/N] ", tone: "faint" },
+        { text: "y", kind: "keyword" },
+      ],
+    ],
+  },
+  { k: "wait", ms: 800 },
+
+  // ── 4. Attach ───────────────────────────────────────────────────────────
   { k: "mark", chapter: "attach" },
   { k: "phone", patch: { paired: true }, ms: 240 },
   {
@@ -135,7 +182,7 @@ const steps: Step[] = [
   { k: "swipe", to: "editor", dir: 1, ms: 380 },
   { k: "wait", ms: 1000 },
 
-  // ── 4. Move between windows ─────────────────────────────────────────────
+  // ── 5. Move between windows ─────────────────────────────────────────────
   { k: "mark", chapter: "move" },
   { k: "swipe", to: "server", dir: 1, ms: 360 },
   { k: "wait", ms: 1000 },
@@ -145,7 +192,7 @@ const steps: Step[] = [
   { k: "swipe", to: "server", dir: -1, ms: 360 },
   { k: "wait", ms: 800 },
 
-  // ── 5. The agent keeps running ──────────────────────────────────────────
+  // ── 6. The agent keeps running ──────────────────────────────────────────
   { k: "mark", chapter: "agent" },
   { k: "swipe", to: "agent", dir: 1, ms: 360 },
   {
