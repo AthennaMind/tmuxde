@@ -8,11 +8,11 @@ authentication model as implemented, not as intended.
 
 ## Three credentials, not one
 
-| Credential        | Lifetime                                                            | Where it lives                                                    | How you get one                                  |
-| ----------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------ |
-| **`AUTH_TOKEN`**  | Forever, until rotated                                              | `~/.mtmux/config.json`, mode `0600`                               | Generated on first run — 32 random bytes         |
+| Credential | Lifetime | Where it lives | How you get one |
+| --- | --- | --- | --- |
+| **`AUTH_TOKEN`** | Forever, until rotated | `~/.mtmux/config.json`, mode `0600` | Generated on first run — 32 random bytes |
 | **Session token** | 24 hours in the relay; a pairing-derived one is replayed on restart | Relay memory; pairing-derived ones also in `~/.mtmux/config.json` | Redeeming a LAN nonce, or derived from a pairing |
-| **Pairing nonce** | 24 hours as `mtmux start` issues it                                 | Nowhere on disk                                                   | The QR on a local server                         |
+| **Pairing nonce** | 24 hours as `mtmux start` issues it | Nowhere on disk | The QR on a local server |
 
 The point of the second and third is that **the long-lived token never has to be
 typed, and never crosses the network.**
@@ -48,16 +48,16 @@ Scoped, short-lived credentials that stand in for `AUTH_TOKEN`.
   out.
 - A **pairing-derived** token is also written to `~/.mtmux/config.json` against
   its peer record, and `mtmux start` replays it on boot. Restarting mtmux does
-  _not_ sign that device out — it stays trusted until it goes 90 days unseen or
+  *not* sign that device out — it stays trusted until it goes 90 days unseen or
   you revoke it. This is the point of pairing, and it means a restart is no
   longer a blunt revocation tool for those devices. It adds no secret to a file
   that was not already holding the machine's auth token and Ed25519 secret key.
 
 <Callout type="warn" title='Be precise about "scoped"'>
-  These tokens are scoped in *time* and to a single pairing. They are **not**
-  scoped by capability: a session token authenticates the WebSocket exactly as
-  `AUTH_TOKEN` does and can perform every operation the protocol offers. Treat
-  one as equivalent to the machine token for the 24 hours it lives.
+These tokens are scoped in *time* and to a single pairing. They are **not**
+scoped by capability: a session token authenticates the WebSocket exactly as
+`AUTH_TOKEN` does and can perform every operation the protocol offers. Treat one
+as equivalent to the machine token for the 24 hours it lives.
 </Callout>
 
 ### Pairing nonces
@@ -69,8 +69,8 @@ The mechanism behind "no token to type" on your own network.
 - Only one is live at a time — issuing a new one clears the previous.
 - Redeemed at `POST /_pair/local`. `GET` is refused with `405`, on purpose: a
   `GET` would put the nonce in access logs and `Referer` headers.
-- An unknown, spent or expired nonce gets a generic `401` — _"Pairing code is
-  invalid or already used"_ — and the log line carries no nonce material.
+- An unknown, spent or expired nonce gets a generic `401` — *"Pairing code is
+  invalid or already used"* — and the log line carries no nonce material.
 - It travels in the URL **fragment** (`/login#n=…`), which browsers never send
   to a server.
 
@@ -97,7 +97,7 @@ Per remote address, in memory.
 - The first **4** failures are free.
 - From the **5th**, a lockout starts at **30 seconds** and doubles on every
   further failure, up to **15 minutes**.
-- During a lockout, _even a correct token is refused_ — otherwise the lockout
+- During a lockout, *even a correct token is refused* — otherwise the lockout
   would be a free oracle telling an attacker when they had guessed right.
 - One success wipes that address's history entirely.
 - The client is told `retryAfterMs`, then disconnected. Reconnecting is allowed;
@@ -112,13 +112,13 @@ Two caveats worth knowing:
 
 ## Connection limits
 
-| Limit                                       | Value                              |
-| ------------------------------------------- | ---------------------------------- |
-| Total concurrent connections                | 100                                |
-| Concurrent connections per address          | 10                                 |
-| Max WebSocket frame                         | 1 MiB                              |
-| Inbound messages per second, per connection | `WS_RATE_LIMIT`, default 100       |
-| Idle disconnect                             | `IDLE_TIMEOUT_MINUTES`, default 30 |
+| Limit | Value |
+| --- | --- |
+| Total concurrent connections | 100 |
+| Concurrent connections per address | 10 |
+| Max WebSocket frame | 1 MiB |
+| Inbound messages per second, per connection | `WS_RATE_LIMIT`, default 100 |
+| Idle disconnect | `IDLE_TIMEOUT_MINUTES`, default 30 |
 
 Over-cap upgrades are closed with WebSocket code **1013 Try Again Later**.
 Exceeding the message rate drops that message with a `RATE_LIMITED` error rather
@@ -228,7 +228,7 @@ running `mtmux` on the machine and typing one code. Nothing on the machine is
 lost — the tmux sessions never stopped.
 
 Individual sessions can be marked **"require unlock to open"**, which re-asks for
-the PIN even on an already-unlocked device. The flag lives _inside_ the encrypted
+the PIN even on an already-unlocked device. The flag lives *inside* the encrypted
 record, so a locked device cannot be inspected to learn which sessions were worth
 protecting. It is a privacy control against someone in the room, not a server-side
 boundary — anyone with a devtools console on an unlocked device can drive the

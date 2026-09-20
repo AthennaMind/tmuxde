@@ -8,13 +8,13 @@ description: The PM2 topology the hosted service actually runs, plus Docker and 
 Choosing the wrong reverse-proxy wiring for your model is the most common
 misconfiguration here, so pick one and do not mix them.
 
-|                         | CLI, single port         | Split web + relay        |
-| ----------------------- | ------------------------ | ------------------------ |
-| Command                 | `mtmux`                  | Docker / PM2             |
-| Processes               | 1                        | 2+                       |
-| WebSocket               | same-origin at `/_relay` | separate service         |
-| `NEXT_PUBLIC_RELAY_URL` | **unset**                | required                 |
-| Proxy                   | everything to one port   | `/ws` → relay, `/` → web |
+| | CLI, single port | Split web + relay |
+| --- | --- | --- |
+| Command | `mtmux` | Docker / PM2 |
+| Processes | 1 | 2+ |
+| WebSocket | same-origin at `/_relay` | separate service |
+| `NEXT_PUBLIC_RELAY_URL` | **unset** | required |
+| Proxy | everything to one port | `/ws` → relay, `/` → web |
 
 In short: `/_relay` with no `NEXT_PUBLIC_RELAY_URL` is CLI mode; `/ws` plus
 `NEXT_PUBLIC_RELAY_URL` is the split model. For a single machine, use the CLI —
@@ -25,13 +25,13 @@ see [Getting started](/docs/getting-started).
 `ecosystem.config.cjs` is the real thing this repository deploys, and it is
 worth reading rather than paraphrasing. It defines **five** PM2 apps.
 
-| App           | Script                                         | Port  | Mode    | Instances |
-| ------------- | ---------------------------------------------- | ----- | ------- | --------- |
-| `mtmux-api`   | `apps/api/dist/index.js`                       | 24400 | fork    | 1         |
-| `mtmux-relay` | `apps/relay/dist/index.js`                     | 24300 | fork    | 1         |
-| `mtmux-app`   | `apps/web/.next/standalone/apps/web/server.js` | 24100 | cluster | 2         |
-| `mtmux-docs`  | `next start --port 24102` in `apps/docs`       | 24102 | fork    | 1         |
-| `mtmux-web`   | `next start --port 41317` in `apps/site`       | 41317 | cluster | 2         |
+| App | Script | Port | Mode | Instances |
+| --- | --- | --- | --- | --- |
+| `mtmux-api` | `apps/api/dist/index.js` | 24400 | fork | 1 |
+| `mtmux-relay` | `apps/relay/dist/index.js` | 24300 | fork | 1 |
+| `mtmux-app` | `apps/web/.next/standalone/apps/web/server.js` | 24100 | cluster | 2 |
+| `mtmux-docs` | `next start --port 24102` in `apps/docs` | 24102 | fork | 1 |
+| `mtmux-web` | `next start --port 41317` in `apps/site` | 41317 | cluster | 2 |
 
 Everything runs plain HTTP on loopback; TLS terminates at the edge and nginx
 proxies to these ports. `app.mtmux.com` fronts `mtmux-app`, `api.mtmux.com`
@@ -80,7 +80,7 @@ pm2 reload mtmux-api mtmux-app --update-env
   into `apps/web` — Next inlines those at build time — so the pair page renders
   "not configured" and the CSP blocks the broker. It also picks up
   `NEXT_PUBLIC_RELAY_URL` from `.env`, pointing every visitor at
-  `ws://localhost:14300` on their _own_ machine. So the build must carry
+  `ws://localhost:14300` on their *own* machine. So the build must carry
   explicit env:
 
   ```bash
@@ -108,7 +108,7 @@ Verify with `curl -s https://api.mtmux.com/health`.
 0.7.0 raised the pairing protocol floor, and any future break works the same
 way. The order is not interchangeable:
 
-1. **Publish the CLI to npm first.** A new CLI pairs happily with the _old_
+1. **Publish the CLI to npm first.** A new CLI pairs happily with the *old*
    broker — Zod strips the version field it does not know and the socket query
    is ignored — so there is no window where the published CLI cannot work.
 2. **Deploy the broker and the web client together.** The browser bundle is
@@ -284,13 +284,13 @@ bucket. The broker reads only the left-most entry, and only the address.
 
 ## Ports
 
-|                | Dev   | Hosted |
-| -------------- | ----- | ------ |
-| Web client     | 14100 | 24100  |
-| Docs           | 14102 | 24102  |
-| Relay          | 14300 | 24300  |
-| Broker         | 14400 | 24400  |
-| Marketing site | —     | 41317  |
+| | Dev | Hosted |
+| --- | --- | --- |
+| Web client | 14100 | 24100 |
+| Docs | 14102 | 24102 |
+| Relay | 14300 | 24300 |
+| Broker | 14400 | 24400 |
+| Marketing site | — | 41317 |
 
 Distinct ranges so dev and production can coexist on one host.
 

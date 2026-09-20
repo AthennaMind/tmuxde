@@ -124,14 +124,14 @@ pnpm prepare:standalone
 
 Summary:
 
-| Where the broker URL comes from | When       | Scope                                  |
-| ------------------------------- | ---------- | -------------------------------------- |
-| `--api <url>`                   | runtime    | one command                            |
-| `MTMUX_API_URL`                 | runtime    | the CLI's own requests, this process   |
-| `mtmux config set api`          | stored     | the CLI's own requests, this machine   |
-| `MTMUX_APP_URL`                 | runtime    | the pairing link and QR the CLI prints |
-| `MTMUX_BUILD_API_URL`           | build time | the bundled web client inside the CLI  |
-| `NEXT_PUBLIC_API_URL`           | build time | a separately built web app             |
+| Where the broker URL comes from | When | Scope |
+| --- | --- | --- |
+| `--api <url>` | runtime | one command |
+| `MTMUX_API_URL` | runtime | the CLI's own requests, this process |
+| `mtmux config set api` | stored | the CLI's own requests, this machine |
+| `MTMUX_APP_URL` | runtime | the pairing link and QR the CLI prints |
+| `MTMUX_BUILD_API_URL` | build time | the bundled web client inside the CLI |
+| `NEXT_PUBLIC_API_URL` | build time | a separately built web app |
 
 ### Accounts on your broker
 
@@ -161,12 +161,12 @@ That is the whole procedure. It comes up **working with `DATABASE_URL` unset**:
 no accounts, no billing, no secrets to manage, anonymous pairing on. That is
 the default mode rather than a degraded one — accounts are optional forever.
 
-| Service | Port  | What it is                                                                |
-| ------- | ----- | ------------------------------------------------------------------------- |
-| `api`   | 24400 | The pairing broker. Blind by construction.                                |
-| `web`   | 24100 | The browser client, built against _your_ broker.                          |
+| Service | Port | What it is |
+| --- | --- | --- |
+| `api` | 24400 | The pairing broker. Blind by construction. |
+| `web` | 24100 | The browser client, built against *your* broker. |
 | `relay` | 24300 | Opt-in: `docker compose --profile relay up`. The CLI already bundles one. |
-| `docs`  | 24102 | Opt-in: `docker compose --profile docs up`.                               |
+| `docs` | 24102 | Opt-in: `docker compose --profile docs up`. |
 
 Two things to change in `.env` before anyone but you can use it:
 

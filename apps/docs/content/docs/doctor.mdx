@@ -25,20 +25,20 @@ symptom of an earlier one.
   Ready, with 1 caveat.
 ```
 
-| Flag                  | Default                 | Description           |
-| --------------------- | ----------------------- | --------------------- |
-| `-p, --port <number>` | `14100`                 | Which port to check   |
-| `--api <url>`         | `https://api.mtmux.com` | Which broker to probe |
+| Flag | Default | Description |
+| --- | --- | --- |
+| `-p, --port <number>` | `14100` | Which port to check |
+| `--api <url>` | `https://api.mtmux.com` | Which broker to probe |
 
 ## Reading the output
 
 Three levels, and the distinction matters:
 
-| Glyph | Meaning                                                |
-| ----- | ------------------------------------------------------ |
-| `✓`   | Fine — move on.                                        |
-| `!`   | The hosted path is unavailable, but local still works. |
-| `✗`   | Nothing will work until this is fixed.                 |
+| Glyph | Meaning |
+| --- | --- |
+| `✓` | Fine — move on. |
+| `!` | The hosted path is unavailable, but local still works. |
+| `✗` | Nothing will work until this is fixed. |
 
 Anything at `✗` sets the exit code to `1`. Warnings alone exit `0`, so `doctor`
 is safe in a script that only wants to know whether mtmux can run at all.

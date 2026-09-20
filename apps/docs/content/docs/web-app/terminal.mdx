@@ -7,13 +7,13 @@ description: Rendering, themes, search and keyboard shortcuts.
 
 The terminal is [xterm.js](https://xtermjs.org/) with these addons:
 
-| Addon                                         | Always on?                         |
-| --------------------------------------------- | ---------------------------------- |
-| **Fit** — sizes the terminal to its container | yes                                |
-| **Search** — finds text in scrollback         | yes                                |
-| **Unicode 11** — emoji and wide characters    | yes                                |
-| **Web Links** — clickable URLs in output      | yes                                |
-| **WebGL** — GPU-accelerated rendering         | only when GPU rendering is enabled |
+| Addon | Always on? |
+| --- | --- |
+| **Fit** — sizes the terminal to its container | yes |
+| **Search** — finds text in scrollback | yes |
+| **Unicode 11** — emoji and wide characters | yes |
+| **Web Links** — clickable URLs in output | yes |
+| **WebGL** — GPU-accelerated rendering | only when GPU rendering is enabled |
 
 GPU rendering is **on by default** and can be turned off in Settings. The
 setting is read once when the terminal initialises, so toggling it applies after
@@ -38,28 +38,28 @@ that does not notice ends up drawing under it.
 Open it from the toolbar on desktop, or the search button in the mobile keyboard
 toolbar.
 
-| Key           | Action         |
-| ------------- | -------------- |
-| `Enter`       | Next match     |
+| Key | Action |
+| --- | --- |
+| `Enter` | Next match |
 | `Shift+Enter` | Previous match |
-| `Escape`      | Close          |
+| `Escape` | Close |
 
 ## Keyboard shortcuts
 
 These are bound by the app. Everything else goes through to the PTY.
 
-| Shortcut              | Action                       |
-| --------------------- | ---------------------------- |
-| `Ctrl/Cmd` `+` or `=` | Increase font size           |
-| `Ctrl/Cmd` `-`        | Decrease font size           |
-| `Ctrl/Cmd` `0`        | Reset font size              |
-| `Ctrl/Cmd` `B`        | Toggle the sidebar           |
-| `Ctrl/Cmd` `E`        | Switch to the Files tab      |
-| `Ctrl/Cmd` `K`        | Command palette              |
-| `?`                   | Keyboard shortcuts dialog    |
-| `Ctrl/Cmd` `S`        | Save, inside the file editor |
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl/Cmd` `+` or `=` | Increase font size |
+| `Ctrl/Cmd` `-` | Decrease font size |
+| `Ctrl/Cmd` `0` | Reset font size |
+| `Ctrl/Cmd` `B` | Toggle the sidebar |
+| `Ctrl/Cmd` `E` | Switch to the Files tab |
+| `Ctrl/Cmd` `K` | Command palette |
+| `?` | Keyboard shortcuts dialog |
+| `Ctrl/Cmd` `S` | Save, inside the file editor |
 
-`Ctrl+C`, `Ctrl+D`, `Ctrl+L` and `Ctrl+Z` are _not_ app shortcuts — they pass
+`Ctrl+C`, `Ctrl+D`, `Ctrl+L` and `Ctrl+Z` are *not* app shortcuts — they pass
 straight through to the shell, which is why they behave exactly as they do in a
 local terminal.
 
@@ -81,15 +81,15 @@ therefore need a secure context or localhost.
 
 Persisted to `localStorage` and applied per browser:
 
-| Setting          | Range                                                      | Default                                                |
-| ---------------- | ---------------------------------------------------------- | ------------------------------------------------------ |
-| Font size        | 8–24, further clamped so at least ~20 columns stay visible | 14 (13 on 769–1024px)                                  |
-| Font family      | —                                                          | JetBrains Mono → Fira Code → Cascadia Code → monospace |
-| Terminal theme   | the set in `@repo/ui`                                      | Dracula                                                |
-| Cursor style     | block, underline, bar                                      | block                                                  |
-| Cursor blink     | on/off                                                     | on                                                     |
-| Scrollback lines | 100 – 50,000                                               | 5,000                                                  |
-| GPU rendering    | on/off (applies after reload)                              | on                                                     |
+| Setting | Range | Default |
+| --- | --- | --- |
+| Font size | 8–24, further clamped so at least ~20 columns stay visible | 14 (13 on 769–1024px) |
+| Font family | — | JetBrains Mono → Fira Code → Cascadia Code → monospace |
+| Terminal theme | the set in `@repo/ui` | Dracula |
+| Cursor style | block, underline, bar | block |
+| Cursor blink | on/off | on |
+| Scrollback lines | 100 – 50,000 | 5,000 |
+| GPU rendering | on/off (applies after reload) | on |
 
 There is no font-family picker in the UI; the stack above is what you get.
 

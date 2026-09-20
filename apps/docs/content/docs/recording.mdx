@@ -91,11 +91,11 @@ Two per recording, one across all of them. These are safety limits, not plan
 limits — recordings are files on your own disk and cost us nothing, so nothing
 here is metered and nothing here needs an account.
 
-| Limit         | Value   | Why                                                                                       |
-| ------------- | ------- | ----------------------------------------------------------------------------------------- |
-| Size          | 16 MiB  | Seeking is linear in bytes (see below). Past this, scrubbing stops feeling instant.       |
-| Duration      | 4 hours | Long enough for the agent run this exists for; not open-ended.                            |
-| Total on disk | 1 GiB   | Swept oldest-first at startup, so a `record` left running in July does not fill the disk. |
+| Limit | Value | Why |
+| --- | --- | --- |
+| Size | 16 MiB | Seeking is linear in bytes (see below). Past this, scrubbing stops feeling instant. |
+| Duration | 4 hours | Long enough for the agent run this exists for; not open-ended. |
+| Total on disk | 1 GiB | Swept oldest-first at startup, so a `record` left running in July does not fill the disk. |
 
 A recording that hits a limit stops **cleanly** and says so, in the CLI and in
 the browser. A recording that silently stopped growing would read as a bug.
@@ -141,7 +141,7 @@ not. The grant's scope names recordings and nothing else, so the connection can
 attach to no session, send no input and read no files — the relay refuses every
 message type outside listing and fetching, whatever the client asks for.
 
-What it is _not_ is recall. Once the bytes are in someone's browser they are
+What it is *not* is recall. Once the bytes are in someone's browser they are
 theirs; `mtmux share revoke` stops future fetches and nothing more.
 
 The broker still sees nothing. The `.cast` leaves your machine only as

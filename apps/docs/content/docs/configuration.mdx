@@ -4,20 +4,20 @@ description: Every environment variable for the CLI, the relay, the web app and 
 ---
 
 <Callout type="info" title="Running the CLI?">
-  You almost certainly want the [CLI reference](/docs/cli) instead. `mtmux`
-  takes flags — `--port`, `--host`, `--local`/`--hosted`, `--token`,
-  `--allowed-paths` — and sets the relay's variables for you. The tables below
-  matter when you deploy the split model or run your own broker.
+You almost certainly want the [CLI reference](/docs/cli) instead. `mtmux` takes
+flags — `--port`, `--host`, `--local`/`--hosted`, `--token`, `--allowed-paths` — and sets
+the relay's variables for you. The tables below matter when you deploy the split
+model or run your own broker.
 </Callout>
 
 ## CLI
 
-| Variable              | Default                 | Effect                                                                           |
-| --------------------- | ----------------------- | -------------------------------------------------------------------------------- |
-| `MTMUX_CONFIG_DIR`    | `~/.mtmux`              | Directory holding `config.json` and `server.json`                                |
-| `MTMUX_API_URL`       | `https://api.mtmux.com` | Pairing broker base URL. `--api` overrides it; `mtmux config set api` stores it. |
-| `MTMUX_APP_URL`       | `https://app.mtmux.com` | Web client origin used to build the pairing link and the QR                      |
-| `MTMUX_BUILD_API_URL` | —                       | **Build time only.** Bakes a broker origin into the bundled web client.          |
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `MTMUX_CONFIG_DIR` | `~/.mtmux` | Directory holding `config.json` and `server.json` |
+| `MTMUX_API_URL` | `https://api.mtmux.com` | Pairing broker base URL. `--api` overrides it; `mtmux config set api` stores it. |
+| `MTMUX_APP_URL` | `https://app.mtmux.com` | Web client origin used to build the pairing link and the QR |
+| `MTMUX_BUILD_API_URL` | — | **Build time only.** Bakes a broker origin into the bundled web client. |
 
 `MTMUX_BUILD_API_URL` is read when the CLI is built, not when it is run. Next
 inlines `NEXT_PUBLIC_*` at build time, so a CLI that should talk to your broker
@@ -32,17 +32,17 @@ not.
 Read once at import, validated with Zod, and a bad value stops the process
 rather than being quietly ignored. In CLI mode `mtmux start` sets these itself.
 
-| Variable               | Default                   | Description                                                         |
-| ---------------------- | ------------------------- | ------------------------------------------------------------------- |
-| `RELAY_PORT`           | `14300`                   | WebSocket server port                                               |
-| `RELAY_HOST`           | `127.0.0.1`               | Bind address                                                        |
-| `AUTH_TOKEN`           | `change-me-in-production` | Token clients must present as their first message                   |
-| `ALLOWED_PATHS`        | `/home`                   | Comma-separated directories the file browser may touch              |
-| `TMUX_SOCKET`          | —                         | Explicit tmux socket path                                           |
-| `TMUX_DEFAULT_SHELL`   | `/bin/bash`               | Shell for newly created sessions                                    |
-| `WS_RATE_LIMIT`        | `100`                     | Inbound messages per second, per connection                         |
-| `IDLE_TIMEOUT_MINUTES` | `30`                      | Idle disconnect. `0` disables the reaper.                           |
-| `CORS_ORIGINS`         | `http://localhost:14100`  | Comma-separated allowed origins. Empty means no origin restriction. |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `RELAY_PORT` | `14300` | WebSocket server port |
+| `RELAY_HOST` | `127.0.0.1` | Bind address |
+| `AUTH_TOKEN` | `change-me-in-production` | Token clients must present as their first message |
+| `ALLOWED_PATHS` | `/home` | Comma-separated directories the file browser may touch |
+| `TMUX_SOCKET` | — | Explicit tmux socket path |
+| `TMUX_DEFAULT_SHELL` | `/bin/bash` | Shell for newly created sessions |
+| `WS_RATE_LIMIT` | `100` | Inbound messages per second, per connection |
+| `IDLE_TIMEOUT_MINUTES` | `30` | Idle disconnect. `0` disables the reaper. |
+| `CORS_ORIGINS` | `http://localhost:14100` | Comma-separated allowed origins. Empty means no origin restriction. |
 
 ### Two startup guards
 
@@ -75,10 +75,10 @@ write, 10 MB for an upload.
 
 ## Web app
 
-| Variable                | Default | Description                                                                                                        |
-| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_RELAY_URL` | —       | Relay WebSocket URL. **Split model only** — leave unset in CLI mode, where the socket is same-origin at `/_relay`. |
-| `NEXT_PUBLIC_API_URL`   | —       | Pairing broker origin the browser should use.                                                                      |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `NEXT_PUBLIC_RELAY_URL` | — | Relay WebSocket URL. **Split model only** — leave unset in CLI mode, where the socket is same-origin at `/_relay`. |
+| `NEXT_PUBLIC_API_URL` | — | Pairing broker origin the browser should use. |
 
 Both are inlined at build time. Setting them on a running process changes
 nothing about the bundle already being served — which is why
@@ -96,20 +96,20 @@ NEXT_PUBLIC_RELAY_URL=wss://terminal.example.com/ws
 `apps/api`. Same fail-fast shape as the relay: a misconfigured broker refuses to
 boot rather than running with a quietly wrong abuse limit.
 
-| Variable                       | Default                  | Description                                                                                                                           |
-| ------------------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `API_PORT`                     | `14400`                  | HTTP + WebSocket port                                                                                                                 |
-| `API_HOST`                     | `127.0.0.1`              | Bind address                                                                                                                          |
-| `API_CORS_ORIGINS`             | `http://localhost:14100` | Comma-separated allowed browser origins                                                                                               |
-| `API_CLAIMS_PER_MINUTE`        | `5`                      | Claim POSTs per minute, per address. Bounds allocation only — the guess itself is charged below.                                      |
-| `API_SLOT_CLAIMS_PER_MINUTE`   | `4`                      | Claims **attached** per minute for one slot, ignoring the caller's address                                                            |
-| `API_GLOBAL_CLAIMS_PER_MINUTE` | `200`                    | Claims attached per minute service-wide. Derived from the slot space: an attacker must never sweep it faster than codes are reissued. |
-| `API_MAILBOXES_PER_MINUTE`     | `10`                     | New mailboxes per minute, per address                                                                                                 |
-| `API_MIN_PROTOCOL`             | package default          | Lowest pairing protocol version accepted. `0` accepts every client, including one that declares no version.                           |
-| `API_ADVISORY`                 | _(empty)_                | A line reported by `GET /v1/version` and shown by `mtmux doctor`. Say something urgent to every running CLI without shipping code.    |
-| `API_TUNNEL_MAX_BYTES`         | `1073741824` (1 GiB)     | Bytes forwarded per tunnel, both directions                                                                                           |
-| `API_TUNNEL_MAX_MINUTES`       | `720` (12 h)             | Tunnel lifetime                                                                                                                       |
-| `API_TUNNEL_MAX_STREAMS`       | `16`                     | Concurrent streams per tunnel. A denial-of-service bound: a `stream:open` past it is refused, and the tunnel stays up.                |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `API_PORT` | `14400` | HTTP + WebSocket port |
+| `API_HOST` | `127.0.0.1` | Bind address |
+| `API_CORS_ORIGINS` | `http://localhost:14100` | Comma-separated allowed browser origins |
+| `API_CLAIMS_PER_MINUTE` | `5` | Claim POSTs per minute, per address. Bounds allocation only — the guess itself is charged below. |
+| `API_SLOT_CLAIMS_PER_MINUTE` | `4` | Claims **attached** per minute for one slot, ignoring the caller's address |
+| `API_GLOBAL_CLAIMS_PER_MINUTE` | `200` | Claims attached per minute service-wide. Derived from the slot space: an attacker must never sweep it faster than codes are reissued. |
+| `API_MAILBOXES_PER_MINUTE` | `10` | New mailboxes per minute, per address |
+| `API_MIN_PROTOCOL` | package default | Lowest pairing protocol version accepted. `0` accepts every client, including one that declares no version. |
+| `API_ADVISORY` | *(empty)* | A line reported by `GET /v1/version` and shown by `mtmux doctor`. Say something urgent to every running CLI without shipping code. |
+| `API_TUNNEL_MAX_BYTES` | `1073741824` (1 GiB) | Bytes forwarded per tunnel, both directions |
+| `API_TUNNEL_MAX_MINUTES` | `720` (12 h) | Tunnel lifetime |
+| `API_TUNNEL_MAX_STREAMS` | `16` | Concurrent streams per tunnel. A denial-of-service bound: a `stream:open` past it is refused, and the tunnel stays up. |
 
 The broker **refuses to boot** when `NODE_ENV=production` and `API_CORS_ORIGINS`
 still contains a `localhost` origin.
@@ -132,14 +132,14 @@ see [How pairing works](/docs/pairing#why-the-secret-is-enough).
 An unfinished feature, off unless configured. Pairing and the tunnel work fine
 without it; only the direct path would benefit.
 
-| Variable               | Default                  | Description                                       |
-| ---------------------- | ------------------------ | ------------------------------------------------- |
-| `CLOUDFLARE_API_TOKEN` | —                        | Token for DNS record management                   |
-| `CLOUDFLARE_ZONE_ID`   | —                        | Zone to write records into                        |
-| `DNS_ZONE`             | —                        | The zone name                                     |
-| `ACME_ENABLED`         | `false`                  | Additional explicit gate for certificate issuance |
-| `ACME_DIRECTORY`       | Let's Encrypt production | ACME directory URL                                |
-| `ACME_EMAIL`           | —                        | Contact address for the ACME account              |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `CLOUDFLARE_API_TOKEN` | — | Token for DNS record management |
+| `CLOUDFLARE_ZONE_ID` | — | Zone to write records into |
+| `DNS_ZONE` | — | The zone name |
+| `ACME_ENABLED` | `false` | Additional explicit gate for certificate issuance |
+| `ACME_DIRECTORY` | Let's Encrypt production | ACME directory URL |
+| `ACME_EMAIL` | — | Contact address for the ACME account |
 
 Reverse DNS turns on only when all three of `CLOUDFLARE_API_TOKEN`,
 `CLOUDFLARE_ZONE_ID` and `DNS_ZONE` are set. Certificate issuance additionally
@@ -161,22 +161,22 @@ process that owns its own file. A database that fails to open is logged and
 swallowed — booting without accounts is a working broker, and refusing to boot
 would take pairing down over a feature the operator may not use.
 
-| Variable                       | Default                            | Description                                                          |
-| ------------------------------ | ---------------------------------- | -------------------------------------------------------------------- |
-| `DATABASE_URL`                 | —                                  | SQLite file for accounts. Empty disables accounts entirely.          |
-| `BETTER_AUTH_URL`              | derived from `API_HOST`/`API_PORT` | Public origin of the API, and the issuer sessions are signed against |
-| `BETTER_AUTH_SECRET`           | a development sentinel             | Session signing secret                                               |
-| `APP_ORIGIN`                   | `http://localhost:14100`           | Public origin of the browser app                                     |
-| `AUTH_COOKIE_DOMAIN`           | —                                  | e.g. `.mtmux.com`, so `app.` and `api.` share a session              |
-| `AUTH_TRUSTED_ORIGINS`         | `APP_ORIGIN` + `API_CORS_ORIGINS`  | CSRF allow-list, separate from CORS                                  |
-| `SERVER_ONLINE_WINDOW_SECONDS` | `90`                               | How recently a server must have beaten to count as online            |
-| `ACCOUNT_REQUESTS_PER_MINUTE`  | `120`                              | Per-user sliding window                                              |
-| `ACCOUNT_WRITES_PER_MINUTE`    | `30`                               | Per-user sliding window for writes                                   |
-| `DODO_PAYMENTS_API_KEY`        | —                                  | Billing provider key                                                 |
-| `DODO_ENVIRONMENT`             | `test_mode`                        | `test_mode` or `live_mode`                                           |
-| `DODO_WEBHOOK_KEY`             | —                                  | Webhook signature key                                                |
-| `DODO_PRODUCT_PRO_MONTHLY`     | —                                  | Product id                                                           |
-| `DODO_PRODUCT_PRO_YEARLY`      | —                                  | Product id                                                           |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DATABASE_URL` | — | SQLite file for accounts. Empty disables accounts entirely. |
+| `BETTER_AUTH_URL` | derived from `API_HOST`/`API_PORT` | Public origin of the API, and the issuer sessions are signed against |
+| `BETTER_AUTH_SECRET` | a development sentinel | Session signing secret |
+| `APP_ORIGIN` | `http://localhost:14100` | Public origin of the browser app |
+| `AUTH_COOKIE_DOMAIN` | — | e.g. `.mtmux.com`, so `app.` and `api.` share a session |
+| `AUTH_TRUSTED_ORIGINS` | `APP_ORIGIN` + `API_CORS_ORIGINS` | CSRF allow-list, separate from CORS |
+| `SERVER_ONLINE_WINDOW_SECONDS` | `90` | How recently a server must have beaten to count as online |
+| `ACCOUNT_REQUESTS_PER_MINUTE` | `120` | Per-user sliding window |
+| `ACCOUNT_WRITES_PER_MINUTE` | `30` | Per-user sliding window for writes |
+| `DODO_PAYMENTS_API_KEY` | — | Billing provider key |
+| `DODO_ENVIRONMENT` | `test_mode` | `test_mode` or `live_mode` |
+| `DODO_WEBHOOK_KEY` | — | Webhook signature key |
+| `DODO_PRODUCT_PRO_MONTHLY` | — | Product id |
+| `DODO_PRODUCT_PRO_YEARLY` | — | Product id |
 
 Two guards fire when `NODE_ENV=production` **and** `DATABASE_URL` is set:
 
@@ -194,10 +194,10 @@ request that just succeeded at signing in — points nowhere near the cause.
 
 ## Cross-cutting
 
-| Variable        | Description                                            |
-| --------------- | ------------------------------------------------------ |
-| `NODE_ENV`      | `production` turns on the CORS and secret guards above |
-| `NEXT_DIST_DIR` | Overrides Next's build output directory                |
+| Variable | Description |
+| --- | --- |
+| `NODE_ENV` | `production` turns on the CORS and secret guards above |
+| `NEXT_DIST_DIR` | Overrides Next's build output directory |
 
 These, and every variable above that affects a build, are declared in
 `turbo.json`'s `globalEnv` so Turborepo invalidates its cache when they change.

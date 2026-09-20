@@ -52,14 +52,14 @@ Every limit in the product lives in one table, `packages/config/src/plans.ts`,
 so pricing is a diff to one file rather than a hunt through the broker for a
 hard-coded number.
 
-|                             | Free      | Pro                    |
-| --------------------------- | --------- | ---------------------- |
-| Registered servers          | 1         | unlimited              |
-| Trusted browsers per server | 3         | unlimited              |
-| Relayed traffic per month   | 5 GB      | 200 GB                 |
-| Tunnel session length       | unlimited | unlimited              |
-| Rename a server             | —         | yes                    |
-| Price                       | free      | $10/month or $100/year |
+| | Free | Pro |
+| --- | --- | --- |
+| Registered servers | 1 | unlimited |
+| Trusted browsers per server | 3 | unlimited |
+| Relayed traffic per month | 5 GB | 200 GB |
+| Tunnel session length | unlimited | unlimited |
+| Rename a server | — | yes |
+| Price | free | $10/month or $100/year |
 
 **Free is generous on purpose.** The thing that costs money is relayed bytes, so
 that is what is metered — and the local and LAN paths never touch the hosted
@@ -147,17 +147,17 @@ pairing needs to configure nothing here at all.
 
 The broker serves these when `DATABASE_URL` is set:
 
-| Route                              | Purpose                                                                  |
-| ---------------------------------- | ------------------------------------------------------------------------ |
-| `/api/auth/*`                      | better-auth, including the device-authorization grant `mtmux login` uses |
-| `GET /v1/me`                       | The signed-in account and its plan                                       |
-| `GET /v1/servers`                  | Machines on the account                                                  |
-| `POST /v1/servers/register`        | Claim a registry row for a machine                                       |
-| `POST /v1/servers/:id/heartbeat`   | Liveness                                                                 |
-| `PATCH` / `DELETE /v1/servers/:id` | Rename or remove a machine                                               |
-| `GET /v1/billing`                  | Plan and usage                                                           |
-| `POST /v1/billing/checkout`        | Start a checkout                                                         |
-| `POST /v1/billing/portal`          | Open the billing portal                                                  |
+| Route | Purpose |
+| --- | --- |
+| `/api/auth/*` | better-auth, including the device-authorization grant `mtmux login` uses |
+| `GET /v1/me` | The signed-in account and its plan |
+| `GET /v1/servers` | Machines on the account |
+| `POST /v1/servers/register` | Claim a registry row for a machine |
+| `POST /v1/servers/:id/heartbeat` | Liveness |
+| `PATCH` / `DELETE /v1/servers/:id` | Rename or remove a machine |
+| `GET /v1/billing` | Plan and usage |
+| `POST /v1/billing/checkout` | Start a checkout |
+| `POST /v1/billing/portal` | Open the billing portal |
 
 Configuration — `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`,
 `APP_ORIGIN`, `AUTH_COOKIE_DOMAIN` and the `DODO_*` billing keys — is documented

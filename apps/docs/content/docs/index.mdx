@@ -50,7 +50,7 @@ relayed tunnel when it cannot, without asking you.
 The code is `slot(3) + secret(6)`. The last six digits are the password for a
 PAKE and **never reach the broker**, not even as a hash; everything afterwards
 is AES-256-GCM under keys neither the broker nor anyone else on the path holds.
-The QR puts the code in a URL _fragment_, which browsers never send to a server.
+The QR puts the code in a URL *fragment*, which browsers never send to a server.
 
 Already at the browser instead of the terminal? `mtmux pair <code>` runs the
 same handshake from the other end.
@@ -60,10 +60,10 @@ for the details, both of which are checkable against `packages/crypto`.
 
 ## Three ways to run it
 
-| Shape                 | Command                       | When                                                                                                                          |
-| --------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **CLI, single port**  | `mtmux`                       | The normal case. One process serves the web UI and the relay WebSocket (same-origin at `/_relay`) on one port.                |
-| **CLI, LAN only**     | `mtmux start`                 | The default. Serves this network and contacts no broker at all.                                                               |
+| Shape | Command | When |
+| --- | --- | --- |
+| **CLI, single port** | `mtmux` | The normal case. One process serves the web UI and the relay WebSocket (same-origin at `/_relay`) on one port. |
+| **CLI, LAN only** | `mtmux start` | The default. Serves this network and contacts no broker at all. |
 | **Split web + relay** | `pnpm dev:split`, Docker, PM2 | Container and multi-tenant deployments where the web app and relay are separate services. See [Deployment](/docs/deployment). |
 
 ## Nothing here is mandatory

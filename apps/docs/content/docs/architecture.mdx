@@ -85,20 +85,20 @@ reverse proxy routes a dedicated `/ws` location to it. See
 
 ## Repository map
 
-| Path                | What it is                                                                                                                                           |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/cli`          | The published **`mtmux`** package. Bundles web + relay into one process. Also hosts `scripts/dev.mjs`, the single-port dev server behind `pnpm dev`. |
-| `apps/web`          | Terminal web client — Next.js 16, React 19, xterm.js. Port 14100.                                                                                    |
-| `apps/relay`        | WebSocket relay to tmux via PTY. Served at `/_relay` in CLI mode; port 14300 in split mode.                                                          |
-| `apps/api`          | The blind pairing broker and tunnel relay. Port 14400 by default.                                                                                    |
-| `apps/docs`         | This site. Next.js + Fumadocs, port 14102.                                                                                                           |
-| `apps/site`         | The marketing site at mtmux.com.                                                                                                                     |
-| `packages/protocol` | Zod message schemas — relay protocol _and_ pairing/tunnel protocol.                                                                                  |
-| `packages/crypto`   | CPace, the HKDF key schedule, sealed frames, device keys, pairing codes.                                                                             |
-| `packages/db`       | Database schema for the hosted accounts layer.                                                                                                       |
-| `packages/ui`       | shadcn/ui components + terminal themes.                                                                                                              |
-| `packages/logger`   | Pino logger.                                                                                                                                         |
-| `packages/config`   | Shared env + constants.                                                                                                                              |
+| Path | What it is |
+| --- | --- |
+| `apps/cli` | The published **`mtmux`** package. Bundles web + relay into one process. Also hosts `scripts/dev.mjs`, the single-port dev server behind `pnpm dev`. |
+| `apps/web` | Terminal web client — Next.js 16, React 19, xterm.js. Port 14100. |
+| `apps/relay` | WebSocket relay to tmux via PTY. Served at `/_relay` in CLI mode; port 14300 in split mode. |
+| `apps/api` | The blind pairing broker and tunnel relay. Port 14400 by default. |
+| `apps/docs` | This site. Next.js + Fumadocs, port 14102. |
+| `apps/site` | The marketing site at mtmux.com. |
+| `packages/protocol` | Zod message schemas — relay protocol *and* pairing/tunnel protocol. |
+| `packages/crypto` | CPace, the HKDF key schedule, sealed frames, device keys, pairing codes. |
+| `packages/db` | Database schema for the hosted accounts layer. |
+| `packages/ui` | shadcn/ui components + terminal themes. |
+| `packages/logger` | Pino logger. |
+| `packages/config` | Shared env + constants. |
 
 Everything is ESM (`"type": "module"`), internal packages are `@repo/*` and apps
 are `@app/*` — except the CLI, whose package name is its npm name, `mtmux`.
@@ -131,17 +131,17 @@ relay's point of view.
 
 State lives in Zustand stores under `apps/web/src/stores/`:
 
-| Store              | Holds                                           | Persisted |
-| ------------------ | ----------------------------------------------- | --------- |
-| `connection-store` | Status, latency, reconnect count, server info   | No        |
-| `session-store`    | Session list, active session, open desktop tabs | No        |
-| `pane-store`       | Windows, panes, active and zoomed pane          | No        |
-| `terminal-store`   | Font, theme, cursor, scrollback, GPU rendering  | Yes       |
-| `file-store`       | Current path, entries, editor and viewer state  | No        |
-| `command-store`    | Command history and snippets                    | Yes       |
-| `settings-store`   | Toolbar keys, gestures, haptics, auto-zoom      | Yes       |
-| `ui-store`         | Mobile tab, sheets, overlays, sidebar           | No        |
-| `alert-store`      | The in-app alert queue                          | No        |
+| Store | Holds | Persisted |
+| --- | --- | --- |
+| `connection-store` | Status, latency, reconnect count, server info | No |
+| `session-store` | Session list, active session, open desktop tabs | No |
+| `pane-store` | Windows, panes, active and zoomed pane | No |
+| `terminal-store` | Font, theme, cursor, scrollback, GPU rendering | Yes |
+| `file-store` | Current path, entries, editor and viewer state | No |
+| `command-store` | Command history and snippets | Yes |
+| `settings-store` | Toolbar keys, gestures, haptics, auto-zoom | Yes |
+| `ui-store` | Mobile tab, sheets, overlays, sidebar | No |
+| `alert-store` | The in-app alert queue | No |
 
 ## Relay structure
 
@@ -176,31 +176,31 @@ apps/api/src/
 
 Pairing and tunnelling — always available:
 
-| Route                 | Method | Purpose                                                    |
-| --------------------- | ------ | ---------------------------------------------------------- |
-| `/health`             | GET    | Liveness                                                   |
-| `/v1/discover`        | GET    | Tell a machine what public address it appears to come from |
-| `/v1/pair/new`        | POST   | Park a mailbox, get a slot                                 |
-| `/v1/pair/claim`      | POST   | Quote a slot, get a claim handle                           |
-| `/v1/pair/:mailboxId` | WS     | The mailbox holder's socket                                |
-| `/v1/claim/:claimId`  | WS     | The claimant's socket                                      |
-| `/v1/agent`           | WS     | A CLI registering its reverse tunnel                       |
-| `/v1/tunnel/:id`      | WS     | A browser opening a stream on one                          |
+| Route | Method | Purpose |
+| --- | --- | --- |
+| `/health` | GET | Liveness |
+| `/v1/discover` | GET | Tell a machine what public address it appears to come from |
+| `/v1/pair/new` | POST | Park a mailbox, get a slot |
+| `/v1/pair/claim` | POST | Quote a slot, get a claim handle |
+| `/v1/pair/:mailboxId` | WS | The mailbox holder's socket |
+| `/v1/claim/:claimId` | WS | The claimant's socket |
+| `/v1/agent` | WS | A CLI registering its reverse tunnel |
+| `/v1/tunnel/:id` | WS | A browser opening a stream on one |
 
 Accounts and billing — **optional**, and answering `503` when `DATABASE_URL` is
 unset:
 
-| Route                       | Method        | Purpose                                                                    |
-| --------------------------- | ------------- | -------------------------------------------------------------------------- |
-| `/api/auth/*`               | —             | better-auth, including the device-authorization grant behind `mtmux login` |
-| `/v1/me`                    | GET           | The signed-in account and its plan                                         |
-| `/v1/servers`               | GET           | Machines on the account                                                    |
-| `/v1/servers/register`      | POST          | Claim a registry row for this machine                                      |
-| `/v1/servers/:id/heartbeat` | POST          | Liveness, every 30 s from a signed-in server                               |
-| `/v1/servers/:id`           | PATCH, DELETE | Rename or remove a machine                                                 |
-| `/v1/billing`               | GET           | Current plan and usage                                                     |
-| `/v1/billing/checkout`      | POST          | Start a checkout                                                           |
-| `/v1/billing/portal`        | POST          | Open the billing portal                                                    |
+| Route | Method | Purpose |
+| --- | --- | --- |
+| `/api/auth/*` | — | better-auth, including the device-authorization grant behind `mtmux login` |
+| `/v1/me` | GET | The signed-in account and its plan |
+| `/v1/servers` | GET | Machines on the account |
+| `/v1/servers/register` | POST | Claim a registry row for this machine |
+| `/v1/servers/:id/heartbeat` | POST | Liveness, every 30 s from a signed-in server |
+| `/v1/servers/:id` | PATCH, DELETE | Rename or remove a machine |
+| `/v1/billing` | GET | Current plan and usage |
+| `/v1/billing/checkout` | POST | Start a checkout |
+| `/v1/billing/portal` | POST | Open the billing portal |
 
 These are dispatched before the pairing routes and fall through to them when the
 path is not one of theirs. A broker with accounts off still serves every route

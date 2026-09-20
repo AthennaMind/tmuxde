@@ -66,13 +66,14 @@ mtmux start --host 0.0.0.0
   live only in relay memory. Scan the new code. Devices paired with a
   code are re-admitted automatically and are not affected.
 - After 5 failed attempts from one address, further attempts are refused for 30
-  seconds, doubling up to 15 minutes — _including correct ones_. Wait it out.
+  seconds, doubling up to 15 minutes — *including correct ones*. Wait it out.
 
 ### The socket connects and immediately closes
 
 - Nothing was sent within 5 seconds. The **first** message on the socket must be
   `auth`.
-- Or you hit the connection cap: 100 total, 10 per address, closed with code 1013.
+- Or you hit the connection cap: 100 total, 10 per address, closed with code
+  1013.
 
 ### It keeps reconnecting
 

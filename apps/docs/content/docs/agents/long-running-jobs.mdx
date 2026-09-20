@@ -11,7 +11,7 @@ that time.
 
 The agent is a child of tmux, and tmux is a child of nothing. Closing the tab,
 losing signal, putting the phone in a pocket and flying somewhere all detach a
-_client_; none of them touch the process. The relay attaches an ordinary tmux
+*client*; none of them touch the process. The relay attaches an ordinary tmux
 client on your behalf and detaching it is a normal tmux operation.
 
 This is also why there is no "keep alive" setting to find: nothing is being kept
@@ -22,9 +22,9 @@ alive.
 The relay closes a connection that has been silent for a while. It reaps the
 **connection**, never the session.
 
-| Variable               | Default | Effect                                                                            |
-| ---------------------- | ------- | --------------------------------------------------------------------------------- |
-| `IDLE_TIMEOUT_MINUTES` | `30`    | Minutes of silence before the socket is closed. `0` disables the reaper entirely. |
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `IDLE_TIMEOUT_MINUTES` | `30` | Minutes of silence before the socket is closed. `0` disables the reaper entirely. |
 
 Watching an agent work is, from the socket's point of view, silence — output
 flows one way and you type nothing. If you want a session to survive hours of
@@ -37,17 +37,17 @@ topologies are in [Deployment](/docs/deployment).
 
 ## What reconnection does and does not restore
 
-|                                            | On reconnect                                |
-| ------------------------------------------ | ------------------------------------------- |
-| The agent process                          | Untouched — it never knew                   |
-| Scrollback                                 | Intact, on the host                         |
-| Your position in the session               | Re-attached                                 |
+| | On reconnect |
+| --- | --- |
+| The agent process | Untouched — it never knew |
+| Scrollback | Intact, on the host |
+| Your position in the session | Re-attached |
 | Keystrokes typed while the socket was down | **Dropped.** Never buffered, never replayed |
 
 <Callout type="warn" title="Input typed offline is discarded on purpose">
-  Replaying keystrokes into a session that has moved on is worse than losing
-  them — a `y` meant for one prompt lands on whatever prompt exists by the time
-  the socket comes back. Check the pane before you type after a reconnect.
+Replaying keystrokes into a session that has moved on is worse than losing them
+— a `y` meant for one prompt lands on whatever prompt exists by the time the
+socket comes back. Check the pane before you type after a reconnect.
 </Callout>
 
 ## Watching without a browser open

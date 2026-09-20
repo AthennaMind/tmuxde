@@ -19,24 +19,21 @@ mtmux                          # serves all three
 Sessions, not windows, because the session name is the unit everything else
 takes:
 
-| It is the handle for                  | Where                                                                        |
-| ------------------------------------- | ---------------------------------------------------------------------------- |
-| The card you tap in the client        | The Sessions tab — see [Sessions, windows and panes](/docs/web-app/sessions) |
-| What swipe-to-switch cycles through   | [Mobile](/docs/web-app/mobile)                                               |
-| The argument to `mtmux share`         | [Sharing a session](/docs/sharing)                                           |
-| The argument to `mtmux start --share` | [CLI reference](/docs/cli)                                                   |
+| It is the handle for | Where |
+| --- | --- |
+| The card you tap in the client | The Sessions tab — see [Sessions, windows and panes](/docs/web-app/sessions) |
+| What swipe-to-switch cycles through | [Mobile](/docs/web-app/mobile) |
+| The argument to `mtmux share` | [Sharing a session](/docs/sharing) |
+| The argument to `mtmux start --share` | [CLI reference](/docs/cli) |
 
 Panes inside a session are for things that belong together — an agent and the
 test watcher it is chasing. Two unrelated agents in two panes of one window
 means you can never hand one of them to somebody without handing over both.
 
-<Callout
-  type="info"
-  title="Name them for what they are doing, not what they are"
->
-  Three sessions called `claude`, `claude2` and `claude3` are indistinguishable
-  on a phone screen, which is the screen this is for. `api-refactor` and
-  `flaky-test` are not.
+<Callout type="info" title="Name them for what they are doing, not what they are">
+Three sessions called `claude`, `claude2` and `claude3` are indistinguishable on
+a phone screen, which is the screen this is for. `api-refactor` and `flaky-test`
+are not.
 </Callout>
 
 ## Switching between them on a phone
@@ -71,12 +68,11 @@ mtmux start --share flaky-test,api-refactor --read-only
 ```
 
 <Callout type="warn" title="Read-write sharing is not a security boundary">
-  A read-write share is a shell in that session, and a shell can start anything.
-  `--read-only` is the mode that is a boundary. Read the paragraph mtmux prints
-  above the code — and [Sharing a session](/docs/sharing) — before handing one
-  to someone you would not hand the machine to. A read-only participant also
-  cannot answer an agent's permission prompt; see
-  [Approvals](/docs/agents/approvals).
+A read-write share is a shell in that session, and a shell can start anything.
+`--read-only` is the mode that is a boundary. Read the paragraph mtmux prints
+above the code — and [Sharing a session](/docs/sharing) — before handing one to
+someone you would not hand the machine to. A read-only participant also cannot
+answer an agent's permission prompt; see [Approvals](/docs/agents/approvals).
 </Callout>
 
 ## Several machines rather than several sessions
