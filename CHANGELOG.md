@@ -11,6 +11,8 @@ release that shipped them.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-20
+
 ### Breaking — the 0.7.0 clean break
 
 0.7.0 changes the pairing code, the frame key schedule and the wire version
