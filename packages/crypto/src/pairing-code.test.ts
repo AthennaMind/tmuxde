@@ -69,19 +69,37 @@ describe("code generation", () => {
 
   it("is not obviously biased across the slot range", () => {
     const counts = new Map<string, number>();
-    // Ten draws per slot on average. Fewer and the per-slot band below is
-    // noise; the point is that no slot is systematically favoured, which is
-    // what a `% SLOT_COUNT` fold would break.
+    // Twenty draws per slot on average, which is what makes the statistic
+    // below meaningful: the point is that no slot is systematically favoured,
+    // which is what a `% SLOT_COUNT` fold would break.
     const draws = 20_000;
     for (let i = 0; i < draws; i++) {
       const slot = generateSlot();
       counts.set(slot, (counts.get(slot) ?? 0) + 1);
     }
     expect(counts.size).toBe(SLOT_COUNT);
+
+    /*
+     * One statistic over the whole distribution, not a band per slot.
+     *
+     * This used to assert `count > 20 / 4` for each of the thousand slots
+     * independently. Each of those has a ~7.2e-5 chance of tripping on a
+     * perfectly uniform generator, and a thousand of them compound: **7% of
+     * runs failed**, on correct code. It duly took down a release. A test of
+     * randomness that cries wolf one run in fourteen teaches people to re-run
+     * CI until it passes, which is the opposite of what it is for.
+     *
+     * Pearson's chi-square with 999 degrees of freedom has mean 999 and
+     * standard deviation √(2·999) ≈ 44.7. The threshold below is ten standard
+     * deviations out — far beyond anything chance produces, and still nowhere
+     * near what a generator favouring some slots over others would score.
+     */
+    const expected = draws / SLOT_COUNT;
+    let chiSquare = 0;
     for (const count of counts.values()) {
-      expect(count).toBeGreaterThan(draws / SLOT_COUNT / 4);
-      expect(count).toBeLessThan((draws / SLOT_COUNT) * 4);
+      chiSquare += (count - expected) ** 2 / expected;
     }
+    expect(chiSquare).toBeLessThan(SLOT_COUNT + 10 * Math.sqrt(2 * SLOT_COUNT));
   });
 });
 
@@ -133,7 +151,9 @@ describe("formatting", () => {
     expect(() => formatCodeForDisplay("49271638")).toThrow(
       /Invalid pairing code/,
     );
-    expect(() => formatCodeForDisplay("492716")).toThrow(/Invalid pairing code/);
+    expect(() => formatCodeForDisplay("492716")).toThrow(
+      /Invalid pairing code/,
+    );
   });
 });
 
