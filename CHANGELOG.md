@@ -29,7 +29,7 @@ the hosted broker must be on 0.7.0 or later.
 - **The pairing protocol carries a version.** `PairNewRequest`,
   `PairClaimRequest` and `PairRequestBody` all require `v`, and the pairing
   sockets carry `?v=`. Below the broker's floor, HTTP answers `426 Upgrade
-  Required` and the WebSocket upgrade answers a raw `HTTP/1.1 426` before any
+Required` and the WebSocket upgrade answers a raw `HTTP/1.1 426` before any
   frame is sent.
 
 **Upgrading.** `npm i -g mtmux@latest`. A running 0.6.x CLI keeps its current
@@ -43,6 +43,22 @@ Nothing is lost; the update restores it.
 answers to nobody's release schedule.
 
 ### Added
+
+- **Approve a new device from the app.** A browser asking to join a machine now
+  raises a prompt on any device already paired with it, showing the device, the
+  account and the six-digit SAS to compare — Approve or Deny, one tap. The TTY
+  prompt in `mtmux start` and `mtmux approve` are unchanged and are asked at the
+  same time; whoever answers first decides, and the losing channel is told to
+  stop rather than left holding a dead prompt.
+
+  This closes the gap the product's own premise created: every approval path
+  before it assumed you could reach a keyboard on the host, which is precisely
+  what mtmux exists to avoid.
+
+  Nothing about what silence means changed. On every channel, in every
+  combination, an unanswered request is denied when it expires. A read-only or
+  single-session share is never shown the question and cannot answer it —
+  admitting a device grants more than such a share holds.
 
 - **Scan-to-connect.** `app.mtmux.com/j` claims the code `mtmux start` prints,
   read from the URL fragment so it never reaches a server. Scanning the QR now
