@@ -90,6 +90,16 @@ release that shipped them.
   touch-originated menus only: a right-click on a desktop terminal still gets
   the browser's menu, which is the only way to copy a selection out of a
   canvas there.
+- **"Jump to latest output" was covered by the tmux FAB on a phone.** Both
+  drew a 44px circle at `right-5` along the bottom of the terminal pane, and
+  the FAB won — leaving a 4px sliver of the one control that gets you out of
+  the history, which is to say leaving none of it. It has moved one target to
+  the FAB's left, and grown from the 36px it shipped at to the 44px floor: a
+  miss there lands on the gesture surface and scrolls the history further,
+  which is the opposite of what was asked for. It is also no longer a
+  focusable control inside the rail's own `role="scrollbar"` — a screen
+  reader reached a button whose parent claimed to be a scrollbar — but a
+  sibling of it.
 
 ## [0.7.2] — 2026-09-20
 

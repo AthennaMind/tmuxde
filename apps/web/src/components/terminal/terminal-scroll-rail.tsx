@@ -273,41 +273,66 @@ export function TerminalScrollRail({
   if (!sessionName || !known) return null;
 
   return (
-    <div
-      role="scrollbar"
-      aria-label="Terminal history"
-      aria-orientation="vertical"
-      aria-valuemin={0}
-      aria-valuemax={Math.max(0, historySize)}
-      aria-valuenow={Math.max(0, historySize - shown)}
-      tabIndex={0}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      onWheel={handleWheel}
-      onKeyDown={handleKeyDown}
-      onMouseEnter={requestScrollState}
-      className={cn(
-        // `touch-none` for the same reason every scrollbar has it: the drag is
-        // ours, and letting the UA start a pan first makes preventDefault a
-        // no-op on iOS. It is also why this is a *sibling* of the gesture
-        // surface — `touch-action` cannot be given back inside one.
-        "group absolute inset-y-0 right-0 z-[var(--z-banner)] flex w-4 touch-none",
-        "select-none justify-center py-0.5",
-        hasHistory ? "cursor-pointer" : "cursor-default",
-        className,
-      )}
-      data-gesture-passthrough
-    >
+    <>
+      <div
+        role="scrollbar"
+        aria-label="Terminal history"
+        aria-orientation="vertical"
+        aria-valuemin={0}
+        aria-valuemax={Math.max(0, historySize)}
+        aria-valuenow={Math.max(0, historySize - shown)}
+        tabIndex={0}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onWheel={handleWheel}
+        onKeyDown={handleKeyDown}
+        onMouseEnter={requestScrollState}
+        className={cn(
+          // `touch-none` for the same reason every scrollbar has it: the drag is
+          // ours, and letting the UA start a pan first makes preventDefault a
+          // no-op on iOS. It is also why this is a *sibling* of the gesture
+          // surface — `touch-action` cannot be given back inside one.
+          "group absolute inset-y-0 right-0 z-[var(--z-banner)] flex w-4 touch-none",
+          "select-none justify-center py-0.5",
+          hasHistory ? "cursor-pointer" : "cursor-default",
+          className,
+        )}
+        data-gesture-passthrough
+      >
+        <div
+          ref={measureTrack}
+          className="relative w-1.5 rounded-full bg-border/40 transition-colors group-hover:bg-border/70"
+        >
+          <div
+            className={cn(
+              "absolute inset-x-0 rounded-full transition-colors",
+              dragPosition !== null
+                ? "bg-primary"
+                : shown > 0
+                  ? "bg-primary/70"
+                  : "bg-border group-hover:bg-muted-foreground/60",
+            )}
+            style={{ top: thumbTopPx, height: thumbPx }}
+          />
+        </div>
+      </div>
       {/*
-        Back to the live end, in one tap.
-        
-        Getting out of the history was previously a drag all the way down the
-        rail, or enough flings to reach the bottom — and on a phone, with a
-        thumb, over a network round trip per burst. Only rendered while the
-        view is actually in the past, so it costs nothing the rest of the time.
-      */}
+      Back to the live end, in one tap.
+
+      Getting out of the history was previously a drag all the way down the
+      rail, or enough flings to reach the bottom — and on a phone, with a
+      thumb, over a network round trip per burst. Only rendered while the view
+      is actually in the past, so it costs nothing the rest of the time.
+
+      A **sibling** of the rail, not a child of it. The rail is a focusable
+      `role="scrollbar"`, and a focusable control inside one is axe's
+      `nested-interactive` — a screen reader reaches a button that its own
+      parent claims is a scrollbar. Both are absolutely positioned against the
+      same pane, so moving it out changes where it sits in the tree and
+      nothing about where it sits on screen.
+    */}
       {shown > 0 && (
         <button
           type="button"
@@ -317,27 +342,24 @@ export function TerminalScrollRail({
             event.stopPropagation();
             scrollToPosition(0);
           }}
-          className="absolute bottom-2 right-5 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:text-foreground"
+          data-gesture-passthrough
+          /*
+           * 44px at `right-20`, not 36px at `right-5`.
+           *
+           * `right-5` is where the tmux FAB sits — `bottom-3 right-5`, the
+           * same 44px circle, at a higher z — so on a phone this button was
+           * covered by it with a 4px sliver showing. The one control that
+           * gets you out of the history was, in practice, untappable there,
+           * and a miss lands on the gesture surface and scrolls the history
+           * further, which is the opposite of what was asked for. It now sits
+           * one target to the FAB's left, on its baseline, clear of the split
+           * menu that opens above it.
+           */
+          className="absolute bottom-3 right-20 z-[var(--z-banner)] flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/90 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:text-foreground"
         >
           <ChevronDown className="h-4 w-4" />
         </button>
       )}
-      <div
-        ref={measureTrack}
-        className="relative w-1.5 rounded-full bg-border/40 transition-colors group-hover:bg-border/70"
-      >
-        <div
-          className={cn(
-            "absolute inset-x-0 rounded-full transition-colors",
-            dragPosition !== null
-              ? "bg-primary"
-              : shown > 0
-                ? "bg-primary/70"
-                : "bg-border group-hover:bg-muted-foreground/60",
-          )}
-          style={{ top: thumbTopPx, height: thumbPx }}
-        />
-      </div>
-    </div>
+    </>
   );
 }
