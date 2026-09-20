@@ -1,4 +1,5 @@
 import { test, expect } from "./fixtures";
+import { logicalLines } from "./lab";
 
 /**
  * The first test in this repo that drives the terminal against a real tmux.
@@ -12,20 +13,46 @@ test.describe("the lab is wired up", { tag: "@terminal" }, () => {
   test("attaches to a session and echoes what is typed", async ({ lab }) => {
     const term = await lab.open("idle");
 
-    await term.type("echo mtmux-lab-is-alive\n");
+    /*
+     * A marker unique to this run, and not a fixed string.
+     *
+     * `idle` is one long-lived shell shared by every project in the sweep, so
+     * its scrollback still holds what the previous four typed. A constant
+     * marker counted against history would pass on somebody else's echo — the
+     * test would go green with the pty broken.
+     */
+    const marker = `mtmux-lab-alive-${Date.now().toString(36)}`;
+    await term.type(`echo ${marker}\n`);
 
-    const snap = await term.waitFor(
-      (s) =>
-        s.lines.filter((l) => l.includes("mtmux-lab-is-alive")).length >= 2,
+    // The *rendered* half: the output reached xterm and is on screen.
+    await term.waitFor(
+      (s) => logicalLines(s).some((l) => l.includes(marker)),
       "the command echoed but never produced output",
     );
 
-    // Two occurrences: the line as typed at the prompt, and the line `echo`
-    // printed. One would mean the keystrokes reached tmux but the shell did
-    // not run — which is a different failure entirely.
-    expect(
-      snap.lines.filter((l) => l.includes("mtmux-lab-is-alive")).length,
-    ).toBeGreaterThanOrEqual(2);
+    /*
+     * The *shell ran it* half, asked of tmux rather than of the viewport.
+     *
+     * Two occurrences — the line as typed at the prompt, and the line `echo`
+     * printed. One would mean the keystrokes reached tmux but the shell did
+     * not run, which is a different failure entirely.
+     *
+     * Counted from `capture-pane`, with history, and not from the rendered
+     * grid. Counting rows on screen was really asserting a viewport size: the
+     * lab is one long-lived tmux server shared by five projects, so `idle`
+     * arrives at whatever size the last client left it — 88x4 at one point in
+     * a full sweep — and on a short enough grid the typed line has already
+     * scrolled off by the time the output lands. The terminal was rendering
+     * perfectly and the assertion was about geometry. That is the same mistake
+     * the unicode test below records, in a different disguise.
+     */
+    await expect(async () => {
+      const history = term.capture({ lines: 200 });
+      expect(
+        history.split("\n").filter((l) => l.includes(marker)).length,
+        "the keystrokes reached tmux but the shell never ran the command",
+      ).toBeGreaterThanOrEqual(2);
+    }).toPass({ timeout: 5_000 });
   });
 
   test("renders exactly what tmux says it should", async ({ lab }) => {

@@ -5,7 +5,13 @@ import {
   type Locator,
 } from "@playwright/test";
 import type { TerminalSnapshot } from "@/components/terminal/terminal-handle";
-import { LAB_TOKEN, capturePane, tmuxSize, type LabSession } from "./lab";
+import {
+  LAB_TOKEN,
+  capturePane,
+  logicalLines,
+  tmuxSize,
+  type LabSession,
+} from "./lab";
 
 /**
  * The lab fixture: a browser attached to a real tmux session in the container.
@@ -274,8 +280,11 @@ function makeTerminal(page: Page, root: Locator, session: string): LabTerminal {
       // The round trip is browser → relay → tmux → pty → back, so the echo is
       // the only proof the input actually landed. Asserting on the local
       // keystroke would pass against a dead socket.
+      // Against *logical* lines, not rows: at 47 columns the echo of anything
+      // longer than a word spans two rows and no single row holds it. See
+      // `logicalLines`.
       await terminal.waitFor(
-        (snap) => snap.lines.some((l) => l.includes(expected)),
+        (snap) => logicalLines(snap).some((l) => l.includes(expected)),
         `typed ${JSON.stringify(text)} into "${session}" and it never echoed back`,
       );
     },

@@ -111,6 +111,32 @@ asserts the CSS contract. Everything below is the part that needs a phone.
 - [ ] Do nothing instead. It denies on timeout, and the browser offers "Ask
       again" — not the refusal copy.
 
+## Approving a device from the app
+
+Automated in `e2e/lab/device-approval.spec.ts` at five viewports on two engines,
+against the real relay — except the two halves no emulator has. Both are here
+for a stated reason, not skipped.
+
+- [ ] Pair a phone. On a second browser, press "Pair this device" in the
+      dashboard for the same machine.
+- [ ] The phone shows the prompt _without being touched_, over whatever was on
+      screen. **Why manual:** the lab injects the question into a live client;
+      it cannot produce a real CPace exchange, because it has no broker and no
+      second browser.
+- [ ] The six digits on the phone match the six in the requesting browser.
+      Deny, and confirm the requesting browser says so rather than sitting
+      there.
+- [ ] Repeat and approve. The new device lands in the session; the phone shows
+      the confirmation, not a stale dialog.
+- [ ] With `mtmux start` attached to a terminal, raise a request and answer it
+      on the phone. The terminal's `[y/N]` closes by itself and the shell takes
+      keystrokes again. **Why manual:** the abort path is unit-tested, but
+      "stdin was actually given back" is a property of a real TTY.
+- [ ] Two phones connected: answer on one, and the other's dialog closes
+      itself.
+- [ ] Raise a request and lock the phone until it expires. Unlock: the dialog is
+      gone and a notice says it was denied.
+
 ## The re-armed code
 
 - [ ] `mtmux start`. Confirm stdout holds the banner and nothing else; the

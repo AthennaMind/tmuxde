@@ -73,6 +73,18 @@ export interface TerminalSnapshot {
   viewportY: number;
   /** The viewport's rows, trailing whitespace trimmed, top to bottom. */
   lines: string[];
+  /**
+   * Per row: is this the continuation of the row above it?
+   *
+   * Parallel to `lines`, and the first entry is always false. Without it a
+   * reader cannot tell a line the terminal wrapped from two separate lines —
+   * which at a phone's 47 columns is most of them, and which made a helper
+   * searching for typed text fail against a terminal that had rendered it
+   * perfectly. Kept as a parallel array rather than folded into `lines`
+   * because `fidelity.ts` diffs row-for-row against `capture-pane` *without*
+   * `-J`: joining here would destroy the one thing that check exists to see.
+   */
+  wrapped: boolean[];
 }
 
 let mounted: TerminalHandle | null = null;

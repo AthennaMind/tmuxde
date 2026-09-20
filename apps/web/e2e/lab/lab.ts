@@ -185,3 +185,33 @@ export function outputProgress(session: string): number {
   }
   return Number(tmuxFormat(session, "#{history_size}"));
 }
+
+/**
+ * The viewport as *logical* lines, with the terminal's own wrapping undone.
+ *
+ * A row is not a line. At a phone's 47 columns `echo mtmux-lab-alive-mu9dwiof`
+ * occupies two rows, and no single row contains it — so a helper that searched
+ * the rows for what it had just typed timed out against a terminal that had
+ * rendered every character correctly, on exactly the two projects narrow enough
+ * to wrap. It read as "the keystrokes never arrived".
+ *
+ * Joined on `isWrapped`, which xterm sets on the continuation row, rather than
+ * by concatenating everything: joining blindly would merge two genuinely
+ * separate lines and hand back a match that was never on screen.
+ *
+ * Deliberately not used by `fidelity.ts`. That diffs row-for-row against
+ * `capture-pane` *without* `-J`, because a line the client re-wrapped somewhere
+ * tmux did not is precisely the defect it exists to catch. Unwrapping is right
+ * for "did this text appear" and wrong for "is this laid out correctly".
+ */
+export function logicalLines(snap: {
+  lines: string[];
+  wrapped: boolean[];
+}): string[] {
+  const out: string[] = [];
+  snap.lines.forEach((line, i) => {
+    if (i > 0 && snap.wrapped[i]) out[out.length - 1] += line;
+    else out.push(line);
+  });
+  return out;
+}

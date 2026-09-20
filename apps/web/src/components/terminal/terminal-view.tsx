@@ -203,10 +203,12 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
               scrollback: 0,
               viewportY: 0,
               lines: [],
+              wrapped: [],
             };
           }
           const buf = term.buffer.active;
           const lines: string[] = [];
+          const wrapped: boolean[] = [];
           for (let y = 0; y < term.rows; y++) {
             // `buf.viewportY + y`, not `y`: `getLine` indexes the whole buffer
             // including scrollback, so reading from zero returns the oldest
@@ -215,6 +217,10 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
             lines.push(
               (line?.translateToString(true) ?? "").replace(/\s+$/, ""),
             );
+            // Whether this row is the continuation of the one above it. A
+            // reader that does not know cannot tell a line the terminal wrapped
+            // from two separate lines, which at 47 columns is most of them.
+            wrapped.push(line?.isWrapped === true);
           }
           return {
             cols: term.cols,
@@ -224,6 +230,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
             scrollback: buf.baseY,
             viewportY: buf.viewportY,
             lines,
+            wrapped,
           };
         },
       }),
