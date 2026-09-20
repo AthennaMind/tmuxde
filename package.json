@@ -21,6 +21,7 @@
     "dev:restart": "./scripts/kill-ports.sh && pnpm dev",
     "docker:dev": "docker compose up -d",
     "docker:prod": "docker compose -f docker-compose.prod.yml up -d",
+    "lab": "node scripts/lab.mjs",
     "setup": "./scripts/setup.sh",
     "start": "turbo start",
     "start:prod": "pnpm build && pm2 start ecosystem.config.cjs",

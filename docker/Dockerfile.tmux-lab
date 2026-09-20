@@ -1,0 +1,92 @@
+# The mtmux lab — a deterministic tmux population, behind the real relay.
+#
+# This is a **test fixture**. Nothing here ships to a user, nothing here is
+# referenced by `apps/cli`, and `docker-compose.yml` does not know it exists.
+#
+# ## Why it starts FROM the relay image
+#
+# The point of the lab is to drive the relay people actually run, not a
+# lookalike assembled for testing. `docker/Dockerfile.relay` already installs
+# tmux (line 7) and already builds and runs the real thing with a healthcheck,
+# so the lab is that image plus a seed step. `scripts/lab.mjs` builds and tags
+# it first; `RELAY_IMAGE` is how this file finds it.
+#
+# ## Why tmux lives *inside*
+#
+# The `relay` service in `docker-compose.yml` mounts the host's socket inward:
+#
+#     - /tmp/tmux-1000:/tmp/tmux-1000
+#
+# That binds the container's tmux client to the *host's* tmux server protocol.
+# This box runs 3.2a and bookworm ships 3.3a, and a protocol mismatch does not
+# degrade — it refuses to talk at all. The lab inverts it: tmux and the relay
+# are both in here, nothing is mounted, and the host runs only the Next client
+# Playwright drives. That is the split model `pnpm dev:split` already supports
+# and CLAUDE.md calls "the Docker/PM2 shape" — a supported configuration, not a
+# test-only contraption — and it makes the rig hermetic and version-proof.
+ARG RELAY_IMAGE=mtmux-relay:lab
+FROM ${RELAY_IMAGE} AS lab
+
+USER root
+
+# `python3` is already in the relay base stage; these are what the output
+# profiles need. `locales` is not optional — the `unicode` profile is the whole
+# reason the client loads `Unicode11Addon`, and it degrades to mojibake under
+# the POSIX locale, which would make the fidelity detector assert against a
+# broken baseline rather than a real one.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  procps \
+  less \
+  vim-tiny \
+  ncurses-bin \
+  ncurses-term \
+  locales \
+  && sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
+  && locale-gen en_US.UTF-8 \
+  && rm -rf /var/lib/apt/lists/*
+
+# Pinned so `tmux-manager.ts`'s `select-pane -Z` probe (lines 291-311, cached
+# after the first call, needs >= 3.1) cannot be silently turned off by a future
+# base-image bump. The build fails loudly instead.
+RUN set -eu; \
+  v="$(tmux -V | sed 's/^tmux //')"; \
+  major="${v%%.*}"; rest="${v#*.}"; minor="$(printf '%s' "$rest" | tr -cd '0-9')"; \
+  if [ "$major" -lt 3 ] || { [ "$major" -eq 3 ] && [ "${minor:-0}" -lt 1 ]; }; then \
+    echo "lab needs tmux >= 3.1 for pane zoom; base image has $v" >&2; exit 1; \
+  fi; \
+  echo "tmux $v"
+
+COPY docker/tmux-lab/tmux.conf /lab/tmux.conf
+COPY docker/tmux-lab/gen.py /lab/gen.py
+COPY docker/tmux-lab/seed.sh /lab/seed.sh
+COPY docker/tmux-lab/entrypoint.sh /lab/entrypoint.sh
+
+# `/run/lab` holds the private socket; `/lab/work` is the seeded working tree
+# the file-tree surfaces browse. Both must be writable by the unprivileged
+# `relay` user the base image already created.
+RUN chmod +x /lab/seed.sh /lab/entrypoint.sh /lab/gen.py \
+  && mkdir -p /run/lab /lab/work \
+  && chown -R relay:relay /run/lab /lab
+
+USER relay
+
+ENV HOME=/lab \
+  LANG=en_US.UTF-8 \
+  LC_ALL=en_US.UTF-8 \
+  TERM=xterm-256color \
+  LAB_SOCKET=/run/lab/tmux.sock \
+  TMUX_SOCKET=/run/lab/tmux.sock \
+  TMUX_DEFAULT_SHELL=/bin/bash \
+  RELAY_HOST=0.0.0.0 \
+  RELAY_PORT=24300 \
+  ALLOWED_PATHS=/lab
+
+EXPOSE 24300
+
+# Deliberately stricter than the relay image's own healthcheck. A suite that
+# starts before seeding finishes is a flaky suite, so "healthy" here means the
+# HTTP server answers *and* every expected session exists.
+HEALTHCHECK --interval=3s --timeout=5s --start-period=90s --retries=40 \
+  CMD /lab/seed.sh check
+
+ENTRYPOINT ["/lab/entrypoint.sh"]

@@ -1,0 +1,66 @@
+# The lab, as one service. Driven by `node scripts/lab.mjs`, never by hand.
+#
+# Kept out of the repo-root `docker-compose.yml` deliberately: that file is the
+# *supported self-hosted deployment* and its comments say so. A test fixture
+# appearing in it -- even behind a profile -- invites somebody to run it and
+# conclude the product ships a box full of fake sessions.
+#
+# ## Ports
+#
+# CLAUDE.md invariant 8 makes 14100, 24100, 24400, 24102 and 41317 load-bearing;
+# nginx points at them and PM2 is holding several of them on this box right now.
+# The lab therefore uses 24390 for the relay and 14190 for the web client, both
+# clear of the supported set *and* of the relay container's own 24300.
+name: mtmux-lab
+
+services:
+  lab:
+    # No `build:` block, and `pull_policy: never`. Both images are built by
+    # `scripts/lab.mjs`, in order, with plain `docker build`.
+    #
+    # This is not a style preference. `Dockerfile.tmux-lab` starts `FROM` the
+    # relay image, and on this box `docker compose build` runs on a
+    # `docker-container` buildx builder, which has its own cache and cannot see
+    # the local image store -- so it resolved `mtmux-relay:lab` as a Docker Hub
+    # repository and failed with "pull access denied" for an image that has
+    # never been published and never will be. `docker build` on the default
+    # driver does see it. Letting compose build would put that landmine back.
+    image: mtmux-lab:latest
+    pull_policy: never
+    # Loopback only. The lab holds a well-known token by design, which is
+    # harmless on 127.0.0.1 and reckless on 0.0.0.0.
+    ports:
+      - "127.0.0.1:${LAB_RELAY_PORT:-24390}:24300"
+    environment:
+      # The relay binds all interfaces *inside* the container; the publish rule
+      # above is what decides who can reach it.
+      RELAY_HOST: 0.0.0.0
+      RELAY_PORT: 24300
+      # Fixed, and fixed on purpose: the Playwright fixture seeds the same
+      # string into `localStorage` under `mtmux-token`. Non-default because
+      # `config.ts` refuses the default token on a non-loopback bind.
+      AUTH_TOKEN: ${LAB_AUTH_TOKEN:-mtmux-lab-token-not-for-production}
+      # Without this the relay's default (`http://localhost:14100`) refuses the
+      # lab's own web origin, and every socket dies at the handshake. This is
+      # the first thing to check when the terminal will not attach.
+      CORS_ORIGINS: >-
+        http://127.0.0.1:${LAB_WEB_PORT:-14190},http://localhost:${LAB_WEB_PORT:-14190}
+      TMUX_SOCKET: /run/lab/tmux.sock
+      LAB_SOCKET: /run/lab/tmux.sock
+      ALLOWED_PATHS: /lab
+      # The firehose is the profile most likely to trip `ws-client.ts`'s
+      # zombie detector (a forced reconnect above 1 MiB buffered). Tunable so a
+      # slower CI runner can be told to produce less without editing the image.
+      LAB_FIREHOSE_LPS: ${LAB_FIREHOSE_LPS:-5000}
+      LAB_SCROLLBACK_LINES: ${LAB_SCROLLBACK_LINES:-50000}
+      NODE_ENV: development
+    # No volumes at all, anywhere. Every run starts from an empty container,
+    # which is what makes `lab.mjs reset` mean the same thing twice -- and it
+    # is also the inversion this rig exists for: the supported `relay` service
+    # mounts the *host's* tmux socket inward and inherits the host's tmux
+    # protocol version with it. Nothing here touches the host.
+    #
+    # `/run/lab` is created and chowned to `relay` in the image rather than
+    # mounted, so the socket path needs no uid guessing.
+    init: true
+    stop_grace_period: 3s
