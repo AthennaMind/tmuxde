@@ -67,3 +67,6 @@ playwright-report/
 
 # Local screenshot scratch helper.
 .shot.mjs
+
+# Lab sweep output — regenerated on every run.
+apps/web/lab-report/

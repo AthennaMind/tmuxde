@@ -52,6 +52,16 @@ export interface LabTerminal {
 export interface LabFixture {
   /** Sign in and attach to a seeded session. Resolves once output is flowing. */
   open(session: LabSession): Promise<LabTerminal>;
+  /**
+   * Move to another session by reloading into it.
+   *
+   * Not the same thing as clicking a session tab, and both are worth having:
+   * this is the cold path — a phone coming back to the app and landing where
+   * it left off — and it is the only one that re-runs mount, the fit ladder
+   * and the attach handshake. The warm path is driven through the UI by
+   * `navigator.ts`, because that is where the switch *chrome* is under test.
+   */
+  switchTo(session: LabSession): Promise<LabTerminal>;
   /** Console errors, page errors and failed requests seen so far, in order. */
   readonly problems: string[];
 }
@@ -134,6 +144,36 @@ export const test = base.extend<{ lab: LabFixture }>({
           ATTACH_TIMEOUT,
         );
 
+        return terminal;
+      },
+
+      async switchTo(session) {
+        /*
+         * Navigate to the session's own route, not reload with a different
+         * `mtmux-last-session`.
+         *
+         * Once a session is attached the URL is `/s/<name>`, and that page
+         * writes `mtmux-last-session` back on mount — so seeding the key and
+         * reloading lands on the session you were already on, every time. The
+         * route is also the honest cold path: it is what a bookmark, a shared
+         * link and the back button all produce.
+         */
+        await page.goto(`/s/${encodeURIComponent(session)}`);
+
+        const root = page.getByRole("group", {
+          name: `Terminal, session ${session}`,
+        });
+        await expect(
+          root,
+          `the terminal never attached to "${session}" after a reload`,
+        ).toBeVisible({ timeout: ATTACH_TIMEOUT });
+
+        const terminal = makeTerminal(page, root, session);
+        await terminal.waitFor(
+          (snap) => snap.lines.some((l) => l.trim().length > 0),
+          `"${session}" attached but never rendered anything`,
+          ATTACH_TIMEOUT,
+        );
         return terminal;
       },
     };
