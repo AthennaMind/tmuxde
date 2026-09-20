@@ -20,6 +20,7 @@ import {
 import { MAX_PEERS_PER_SLOT, type SealedDescriptor } from "@repo/protocol";
 import { deviceLabel } from "./device-label";
 import {
+  describeUnreachable,
   joinPairing,
   requestAccess,
   startPairing,
@@ -878,5 +879,54 @@ describe("requestAccess", () => {
     // The prose must not name a command — which recovery applies depends on the
     // machine's CLI version, and only the caller knows that.
     expect(failed.message).not.toMatch(/mtmux approve/);
+  });
+});
+
+describe("describeUnreachable", () => {
+  /*
+   * A claim from a page `mtmux start` served itself is refused by the broker's
+   * CORS allow-list before it leaves the browser, and a CORS refusal reaches
+   * `fetch` as the same opaque TypeError an offline machine produces. The old
+   * message guessed between them and guessed wrong: it blamed a service that
+   * was running and left the user reloading a page that could never work.
+   *
+   * The allow-list is not the bug. `apps/api/src/config.ts` refuses to boot in
+   * production with localhost in `API_CORS_ORIGINS`, on purpose. So the answer
+   * is to say where claiming *does* work, which this page can name exactly.
+   */
+  it("names both origins when the page is not the app", () => {
+    const message = describeUnreachable(
+      "https://api.mtmux.com",
+      "http://localhost:39500",
+    );
+    expect(message).toContain("localhost:39500");
+    expect(message).toContain("app.mtmux.com");
+    expect(message).toContain("token");
+  });
+
+  it("says only the plain sentence on the app itself", () => {
+    expect(
+      describeUnreachable("https://api.mtmux.com", "https://app.mtmux.com"),
+    ).toBe("Could not reach the pairing service.");
+  });
+
+  /*
+   * A single-origin self-host serves the broker and the app from one place, so
+   * the `api.` → `app.` swap is a no-op and the two match. Telling that
+   * operator to go and use a different host would be inventing one.
+   */
+  it("does not invent a second origin for a single-origin deployment", () => {
+    expect(
+      describeUnreachable(
+        "https://mtmux.example.com",
+        "https://mtmux.example.com",
+      ),
+    ).toBe("Could not reach the pairing service.");
+  });
+
+  it("has nothing to compare on the server", () => {
+    expect(describeUnreachable("https://api.mtmux.com", null)).toBe(
+      "Could not reach the pairing service.",
+    );
   });
 });

@@ -118,6 +118,84 @@ function wsBase(apiBase: string): string {
   return apiBase.replace(/^http/, "ws");
 }
 
+/**
+ * "Could not reach the pairing service", and the reason it is usually not the
+ * network.
+ *
+ * A claim from a page `mtmux start` served itself — `http://localhost:39500`,
+ * a LAN address, a self-hosted origin — is refused by the broker's CORS
+ * allow-list before it leaves the browser, and a CORS refusal reaches `fetch`
+ * as the same opaque `TypeError` an offline machine produces. So the two are
+ * indistinguishable here and the old message guessed, badly: it blamed a
+ * service that was running, and left the user reloading.
+ *
+ * The allow-list is not an oversight to be widened. `apps/api/src/config.ts`
+ * refuses to boot in production with localhost in `API_CORS_ORIGINS`, which is
+ * a deliberate decision about what may talk to the broker from a browser. The
+ * honest answer is therefore not to make this work, it is to say where it does
+ * work — which the terminal has already printed, and which this page can name
+ * exactly, because it knows both origins.
+ *
+ * Decided from the two origins rather than from `servesRelay()`. That probe is
+ * documented as cosmetic and must stay that way; this is a fact — the page was
+ * or was not served by the app origin — and needs no probe to establish.
+ */
+function unreachable(apiBase: string): string {
+  return describeUnreachable(
+    apiBase,
+    typeof window === "undefined" ? null : window.location.origin,
+  );
+}
+
+/**
+ * The pure half, so the wording can be asserted.
+ *
+ * `pageOrigin` is null on the server, where there is no page and nothing to
+ * compare — the bare sentence is then the only honest thing to say.
+ */
+export function describeUnreachable(
+  apiBase: string,
+  pageOrigin: string | null,
+): string {
+  const base = "Could not reach the pairing service.";
+  const app = appOriginFor(apiBase);
+  if (!pageOrigin || !app || pageOrigin === app) return base;
+  return (
+    `${base} This page is served by ${hostOf(pageOrigin)}, and codes are ` +
+    `claimed at ${hostOf(app)} — open the link your terminal printed. ` +
+    `To use this address instead, sign in with the token it shows.`
+  );
+}
+
+function hostOf(origin: string): string {
+  try {
+    return new URL(origin).host;
+  } catch {
+    return origin;
+  }
+}
+
+/**
+ * The app origin that goes with a broker origin.
+ *
+ * The same `api.` → `app.` swap `apps/cli/src/commands/start.ts` performs when
+ * it builds the QR, and for the same reason: the broker relays sealed frames,
+ * the app renders the join page, and on the hosted service they are separate
+ * origins on purpose. A self-hosted deployment may serve both from one origin,
+ * where the swap is a no-op and the comparison above simply matches.
+ */
+function appOriginFor(apiBase: string): string | null {
+  try {
+    return new URL(
+      apiBase.includes("//api.")
+        ? apiBase.replace("//api.", "//app.")
+        : apiBase,
+    ).origin;
+  } catch {
+    return null;
+  }
+}
+
 /** Appended to every socket URL. See `wsBase`. */
 const V = `?v=${PROTOCOL_VERSION}`;
 
@@ -178,7 +256,7 @@ export function startPairing(opts: BrowserPairingOptions): PairingHandle {
         ttlMs?: number;
       });
     } catch {
-      fail("Could not reach the pairing service.");
+      fail(unreachable(opts.apiBase));
       return;
     }
     if (cancelled) return;
@@ -430,7 +508,7 @@ export function joinPairing(opts: JoinPairingOptions): PairingHandle {
       }
       ({ claimId } = (await res.json()) as { claimId: string });
     } catch {
-      fail("Could not reach the pairing service.");
+      fail(unreachable(opts.apiBase));
       return;
     }
     if (cancelled) return;
@@ -748,7 +826,7 @@ export function requestAccess(opts: RequestAccessOptions): PairingHandle {
       }
       ({ requestId } = (await res.json()) as { requestId: string });
     } catch {
-      fail("Could not reach the pairing service.");
+      fail(unreachable(opts.apiBase));
       return;
     }
     if (cancelled) return;

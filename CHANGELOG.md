@@ -76,6 +76,14 @@ release that shipped them.
   its six-digit half, the PAKE password, in the address bar and in history.
   Arriving with an unreadable code is also answered now, with the lengths
   that are accepted, instead of with a blank field and no explanation.
+- **"Could not reach the pairing service" now says why, when it can.** A code
+  entered on a page `mtmux start` served itself is refused by the broker's
+  CORS allow-list before it leaves the browser, and a CORS refusal arrives at
+  `fetch` as the same opaque error an offline machine produces — so the
+  message blamed a service that was running and left people reloading. It now
+  names both origins and points at the two routes that do work: the link the
+  terminal printed, or the token for this address. The allow-list itself is
+  deliberate; the broker refuses to boot in production with localhost in it.
 - **The browser's own long-press menu no longer fights the pane menu.**
   Android answered a press on the terminal with "Copy / Select all / Web
   search" drawn over the sheet, stealing the touch on the way. Refused for
