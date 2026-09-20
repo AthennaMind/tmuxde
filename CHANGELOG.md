@@ -11,6 +11,51 @@ release that shipped them.
 
 ## [Unreleased]
 
+### Added
+
+- **A live device panel in `mtmux start`.** The command used to append an
+  event log — "✓ iPhone connected", "· iPhone disconnected" — which answers
+  "what happened" but never "who is on this machine right now". The bottom of
+  the screen is now a table of the connections that exist, with their age,
+  idle time, session and share scope, and two verbs: `c` closes a socket (it
+  may reconnect) and `r` revokes the device (it must pair again). `?` lists
+  the keys, `n` arms a fresh code, `l` reprints the banner, `q` quits. One
+  writer owns the cursor, so the panel is redrawn rather than restated and the
+  scrollback holds only log lines. Off a TTY — a pipe, a service unit,
+  `--json`, a terminal under twelve rows — nothing changes and the output
+  stays the plain append-only log it was.
+- **Long-press a pane on a phone for its own options.** Zoom, focus, resize,
+  split and kill, aimed at the pane under the finger rather than at whichever
+  one tmux considers active — which is what every other pane control in the
+  app is limited to. Only the kill asks for confirmation. The gesture has a
+  switch in Settings, and a press that has started to drag is still a scroll.
+
+### Changed
+
+- **`mtmux start` serves this network by default.** The tunnel to
+  `app.mtmux.com` is now opt-in: `mtmux start --hosted` for once, or
+  `mtmux config set reach hosted` for always. Most sessions are a laptop and a
+  phone on the same Wi-Fi, and that case never needed to leave the building.
+  `--local` still means exactly what it did.
+- **The mobile bottom bar has a pinned start.** Everything in the keyboard
+  toolbar sat in one horizontally scrolling strip, so on a 390px phone the
+  important things were past a fold most people never find. Text mode — the
+  composer, where a command can be read back before it runs — is now pinned
+  and always on screen, and in copy mode that slot becomes the way out of it.
+  Search, the command palette and copy mode moved ahead of the clipboard
+  buttons; the splits and the font size moved to the end, since both are in
+  the FAB and the font size is also a pinch.
+
+### Fixed
+
+- **Zoom no longer undoes itself.** `pane:zoom` was a bare toggle against
+  whatever pane tmux considered active, and the button that sends it only
+  updates when the relay's layout announcement lands — so two taps inside one
+  round trip applied two toggles and nothing appeared to happen. It could also
+  zoom a pane other than the one tapped. The message now names the pane and
+  the state wanted, which makes it idempotent; asking to zoom a second pane
+  while one is already zoomed moves the zoom instead of cancelling it.
+
 ## [0.7.1] — 2026-09-20
 
 ### Changed
