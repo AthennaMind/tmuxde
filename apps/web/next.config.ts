@@ -45,6 +45,26 @@ const nextConfig: NextConfig = {
   // tab — the app is unusable on mobile in dev. Dev-only surface, so turning it
   // off costs nothing and makes `pnpm dev` honest about the mobile layout.
   devIndicators: false,
+  /**
+   * `next dev` serves its own chunks and its HMR socket cross-origin-guarded,
+   * and 127.0.0.1 is a different origin from the localhost it binds.
+   *
+   * Playwright's `baseURL` is `http://127.0.0.1:<port>`, so every spec loaded
+   * a page whose dev resources Next refused:
+   *
+   *     Blocked cross-origin request to Next.js dev resource /_next/webpack-hmr
+   *     from "127.0.0.1"
+   *
+   * The page server-renders and then never hydrates — so the app sits on
+   * `LockGate`'s "Checking whether this device is locked" spinner forever,
+   * because the effect that would clear it belongs to a React tree that was
+   * never brought to life. Five of the seven specs in
+   * `e2e/mobile-command-bar.spec.ts` fail on it today, and the reason nobody
+   * noticed is that `.github/workflows/ci.yml` has no Playwright job at all.
+   *
+   * Dev-only: `allowedDevOrigins` governs `next dev` and nothing else.
+   */
+  allowedDevOrigins: ["127.0.0.1"],
   transpilePackages: ["@repo/ui", "@repo/protocol", "@repo/crypto"],
   serverExternalPackages: ["pino", "pino-pretty"],
   // Monaco's codicon.ttf used to need an explicit webpack `asset/resource`
