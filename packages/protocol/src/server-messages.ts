@@ -246,6 +246,57 @@ export const DevicePairedMessage = z.object({
   at: z.number().int().positive(),
 });
 
+/**
+ * A browser somewhere is asking to be let onto this machine. Decide.
+ *
+ * The one message in the protocol that is a *question*, and the only one whose
+ * absence of an answer means something. It carries exactly what a human needs
+ * to answer it and nothing that would help anyone who should not be answering
+ * it: a coarse device label, the account that asked, and the six-digit SAS to
+ * compare against what that browser is showing on its own screen.
+ *
+ * The SAS is not a secret and this is not a leak. It is a *comparison* value
+ * derived from a key exchange that has already happened; knowing it lets you
+ * confirm a pairing you are already being asked about, and nothing else. It
+ * goes only to connections holding the full grant — see `POLICY` for the other
+ * half of that rule — because a read-only share must not be able to widen
+ * itself into "I can admit new devices".
+ *
+ * `expiresAt` is the wall clock the request dies at, so a tab that was in the
+ * background can tell a live question from a stale one without asking.
+ */
+export const DeviceApprovalRequestMessage = z.object({
+  type: z.literal("device:approval-request"),
+  /** Opaque, server-minted. Echoed back in `device:approve`. */
+  id: z.string().min(1).max(64),
+  /** Coarse, e.g. "Chrome on iOS". Never a full user-agent. */
+  deviceLabel: z.string().max(128),
+  /** The account that pressed the button, or "" when anonymous. */
+  accountEmail: z.string().max(254),
+  /** Six digits. Compared against the requesting browser's own screen. */
+  sas: z.string().max(16),
+  expiresAt: z.number().int().positive(),
+});
+
+/**
+ * That question is closed — stop asking.
+ *
+ * Fans out to every connection that was shown the request, including the one
+ * that answered it, so a second phone's dialog closes itself rather than
+ * sitting there offering a decision that can no longer be made. `approved`
+ * reports what actually happened so the notice can say something true.
+ */
+export const DeviceApprovalResolvedMessage = z.object({
+  type: z.literal("device:approval-resolved"),
+  id: z.string().min(1).max(64),
+  approved: z.boolean(),
+  /**
+   * How it ended. `expired` and `withdrawn` are both "nobody said yes", and
+   * they are distinguished because only one of them is the human's fault.
+   */
+  reason: z.enum(["decided", "expired", "withdrawn"]),
+});
+
 export const RecordingStartedMessage = z.object({
   type: z.literal("recording:started"),
   recording: RecordingInfo,
@@ -312,6 +363,8 @@ export const ServerMessage = z.discriminatedUnion("type", [
   TmuxScrollStateMessage,
   SessionWindowsResponse,
   DevicePairedMessage,
+  DeviceApprovalRequestMessage,
+  DeviceApprovalResolvedMessage,
   RecordingStartedMessage,
   RecordingStoppedMessage,
   RecordingListResponse,
@@ -321,6 +374,12 @@ export const ServerMessage = z.discriminatedUnion("type", [
 
 export type ServerMessage = z.infer<typeof ServerMessage>;
 export type DevicePairedMessage = z.infer<typeof DevicePairedMessage>;
+export type DeviceApprovalRequestMessage = z.infer<
+  typeof DeviceApprovalRequestMessage
+>;
+export type DeviceApprovalResolvedMessage = z.infer<
+  typeof DeviceApprovalResolvedMessage
+>;
 export type AuthSuccessMessage = z.infer<typeof AuthSuccessMessage>;
 export type AuthFailureMessage = z.infer<typeof AuthFailureMessage>;
 export type PongMessage = z.infer<typeof PongMessage>;

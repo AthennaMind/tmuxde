@@ -347,6 +347,24 @@ export const RecordingFetchMessage = z.object({
   offset: z.number().int().nonnegative().default(0),
 });
 
+/**
+ * The human's answer to `device:approval-request`.
+ *
+ * `approved` is a boolean and not an enum of one value, because a denial has
+ * to be sendable: a browser that says no must be able to say it *now*, rather
+ * than closing the dialog and leaving the requester to sit out the timeout.
+ * Silence still denies — that is what the timeout is for — but an explicit no
+ * is faster and kinder, and it is the answer people actually give.
+ *
+ * Restricted to full-grant connections by `POLICY`. A read-only share that
+ * could admit devices would be a share that could grant more than it holds.
+ */
+export const DeviceApproveMessage = z.object({
+  type: z.literal("device:approve"),
+  id: z.string().min(1).max(64),
+  approved: z.boolean(),
+});
+
 export const ClientMessage = z.discriminatedUnion("type", [
   AuthMessage,
   PingMessage,
@@ -403,6 +421,7 @@ export const ClientMessage = z.discriminatedUnion("type", [
   RecordingListMessage,
   RecordingDeleteMessage,
   RecordingFetchMessage,
+  DeviceApproveMessage,
 ]);
 
 export type ClientMessage = z.infer<typeof ClientMessage>;
@@ -461,3 +480,4 @@ export type RecordingStopMessage = z.infer<typeof RecordingStopMessage>;
 export type RecordingListMessage = z.infer<typeof RecordingListMessage>;
 export type RecordingDeleteMessage = z.infer<typeof RecordingDeleteMessage>;
 export type RecordingFetchMessage = z.infer<typeof RecordingFetchMessage>;
+export type DeviceApproveMessage = z.infer<typeof DeviceApproveMessage>;
