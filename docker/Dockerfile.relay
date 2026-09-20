@@ -25,6 +25,12 @@ RUN pnpm install --frozen-lockfile
 FROM installer AS builder
 COPY --from=pruner /app/out/full/ .
 RUN pnpm turbo build --filter=@app/relay
+# `tsc` emits JavaScript that still imports `@repo/protocol` and `@repo/logger`
+# as bare specifiers, and those workspace packages publish raw TypeScript. Node
+# cannot load that, so the `CMD` below ran `dist/index.js` straight into
+# `ERR_MODULE_NOT_FOUND` on every start this image has ever had. The bundle
+# inlines them; see `apps/relay/scripts/bundle.mjs` for the full account.
+RUN pnpm --filter @app/relay run build:bundle
 
 FROM base AS runner
 WORKDIR /app
@@ -34,9 +40,26 @@ RUN groupadd -r relay && useradd -r -g relay relay
 COPY --from=builder /app/apps/relay/dist ./apps/relay/dist
 COPY --from=builder /app/apps/relay/package.json ./apps/relay/
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/protocol ./packages/protocol
-COPY --from=builder /app/packages/logger ./packages/logger
 COPY --from=builder /app/package.json .
+
+# The relay's own `node_modules`, without which nothing resolves.
+#
+# This image did not start: `ERR_MODULE_NOT_FOUND: Cannot find package
+# '@repo/logger'`, every time, since the file was written — so
+# `docker compose --profile relay up` has never produced a working relay.
+#
+# The cause is that pnpm is not npm. npm hoists everything into one root
+# `node_modules`, so copying that root is enough; pnpm puts the real packages
+# under `node_modules/.pnpm` and gives each workspace member its *own*
+# `node_modules` full of symlinks into it. `/app/node_modules/@repo` in this
+# build contains exactly one entry — `prettier-config`. Every dependency the
+# relay actually imports is linked from `/app/apps/relay/node_modules`, and
+# nothing copied it.
+#
+# `packages/protocol` and `packages/logger` are gone from this stage entirely,
+# and that is the point: the bundle inlines them, so the image no longer ships
+# TypeScript sources it has no way to compile.
+COPY --from=builder /app/apps/relay/node_modules ./apps/relay/node_modules
 
 USER relay
 ENV RELAY_PORT=24300
@@ -45,4 +68,4 @@ EXPOSE 24300
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s \
   CMD node -e "const h=require('http');h.get('http://localhost:24300/health',(r)=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
 
-CMD ["node", "apps/relay/dist/index.js"]
+CMD ["node", "apps/relay/dist/index.bundle.js"]
