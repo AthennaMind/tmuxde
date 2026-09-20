@@ -45,7 +45,7 @@ export function MobileNav({
         <button
           key={id}
           className={cn(
-            "flex min-h-11 flex-1 flex-col items-center justify-center gap-1 py-2.5 text-[11px] transition-colors landscape:flex-row landscape:gap-1.5 landscape:py-1 landscape:text-[10px]",
+            "flex min-h-11 flex-1 flex-col items-center justify-center gap-1 py-2.5 text-[11px] transition-colors landscape:flex-row landscape:gap-1.5 landscape:py-1 landscape:text-[11px]",
             "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
             activeTab === id
               ? "text-primary"

@@ -30,6 +30,8 @@ import { findingId, type Detector, type Finding } from "./types";
  */
 export const ux: Detector = async ({ page, stop, device }) => {
   const result = await page.evaluate(() => {
+    const coarse = matchMedia("(pointer: coarse)").matches;
+
     const visible = (el: Element) => {
       const style = getComputedStyle(el);
       if (style.display === "none" || style.visibility === "hidden")
@@ -114,7 +116,18 @@ export const ux: Detector = async ({ page, stop, device }) => {
       if (el.children.length > 0) continue;
       const style = getComputedStyle(el);
       const px = parseFloat(style.fontSize);
-      if (px && px < 11) tinyText.push({ label: text.slice(0, 32), px });
+      /*
+       * The floor is a touch floor, so it only applies on a touch device.
+       *
+       * Dense 10px metadata in a desktop sidebar read at arm's length with a
+       * mouse is a legitimate design choice; the same 10px on a phone held at
+       * arm's length is not read at all. Applying one number to both produced
+       * findings on desktop whose only honest fix would have been to make the
+       * desktop UI worse.
+       */
+      if (coarse && px && px < 11) {
+        tinyText.push({ label: text.slice(0, 32), px });
+      }
 
       const clipped =
         el.scrollWidth > el.clientWidth + 1 &&
@@ -184,7 +197,7 @@ export const ux: Detector = async ({ page, stop, device }) => {
     add(
       `tiny-text-${t.label}`,
       `"${t.label}" renders at ${Math.round(t.px * 10) / 10}px, below the 11px ` +
-        "floor for text anyone is expected to read on a phone",
+        "floor for text on a touch device",
     );
   }
   for (const t of result.truncated) {

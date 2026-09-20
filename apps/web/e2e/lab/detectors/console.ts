@@ -23,6 +23,18 @@ const IGNORED = [
   /was preloaded using link preload but not used/,
   // React's development-only advertisement.
   /Download the React DevTools/,
+  /*
+   * `interactive-widget=resizes-content` is set on purpose and WebKit does not
+   * implement it.
+   *
+   * This is the single most load-bearing viewport declaration in the app: it
+   * is what makes Chromium shrink `innerHeight` for the soft keyboard, which
+   * is the signal `keyboard-viewport.ts` reads. Safari ignoring it is the
+   * whole reason this app has hand-rolled keyboard detection at all, and is
+   * documented in `e2e/MANUAL.md`. Removing the declaration to silence the
+   * warning would break the platform where it works.
+   */
+  /Viewport argument key "interactive-widget" not recognized/,
 ];
 
 export function consoleFindings(

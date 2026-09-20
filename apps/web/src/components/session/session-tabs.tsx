@@ -67,11 +67,16 @@ export function SessionTabs({ onCreateClick, className }: SessionTabsProps) {
           })}
         </div>
       </ScrollArea>
+      {/* An icon with no name is a guess for a sighted user and silence for a
+          screen reader. axe reported this as `button-name` at every stop of a
+          desktop sweep — the one control that creates a session, unnamed. */}
       <Button
         variant="ghost"
         size="icon"
         className="h-7 w-7 shrink-0"
         onClick={onCreateClick}
+        aria-label="New session"
+        title="New session"
       >
         <Plus className="h-3.5 w-3.5" />
       </Button>
