@@ -69,6 +69,13 @@ release that shipped them.
   zoom flag and the layout are both part of the signature now, and the pane
   list is published beside the window list — a window listing can only say
   _that_ something moved.
+- **A pairing code in a URL fragment is now removed whether or not this
+  build can read it.** The strip ran only for a fragment that parsed, which
+  was fine until the typed code grew to nine digits — at which point every
+  link and QR minted by an older mtmux stopped parsing and started leaving
+  its six-digit half, the PAKE password, in the address bar and in history.
+  Arriving with an unreadable code is also answered now, with the lengths
+  that are accepted, instead of with a blank field and no explanation.
 - **The browser's own long-press menu no longer fights the pane menu.**
   Android answered a press on the terminal with "Copy / Select all / Web
   search" drawn over the sheet, stealing the touch on the way. Refused for
