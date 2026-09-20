@@ -1,0 +1,331 @@
+import kleur from "kleur";
+
+import {
+  FLASH_MS,
+  clamp,
+  render,
+  selected,
+  type PanelMode,
+  type PanelState,
+} from "./device-panel.js";
+import { createKeyReader, KEY, type KeyReader } from "./keys.js";
+import { createLiveView, type LiveView } from "./live-view.js";
+import type { AccessPromptInput, AccessPromptResult } from "./access-prompt.js";
+import type { ConnectedDevice } from "./serve.js";
+
+/**
+ * The live panel's moving parts: what it reads, what it does, and who owns
+ * stdin while it is up.
+ *
+ * ## One owner of stdin, always
+ *
+ * `access-prompt.ts` opens a readline to ask its `[y/N]`, and its header
+ * records what two readers on one stdin cost the last time: "a dead `[y/N]`
+ * eating keystrokes on the machine" after the question had been answered on a
+ * phone. So the panel does not co-exist with that prompt — it *is* that
+ * prompt. `promptForAccess` below is handed to `decideAccess` through the
+ * `prompt` seam it already has, the question is drawn as a panel mode, and the
+ * same key reader that moves the cursor answers it.
+ *
+ * ## The tick, and why it is not always running
+ *
+ * Ages and the approval countdown change with the clock rather than with any
+ * event, so something has to repaint on its own. But a timer that redraws the
+ * bottom of the screen once a second forever is a process that never lets the
+ * CPU idle and a terminal that never stops changing. So it runs only while
+ * something on screen is actually time-dependent: a connected device, or a
+ * live question. An idle machine with nothing connected draws once and stops.
+ */
+
+export type PanelDeps = {
+  /** In-process connection list. Absent on a relay bundle that predates it. */
+  details?: () => ConnectedDevice[];
+  /** Fires when a device authenticates or drops. */
+  subscribe?: (listener: () => void) => () => void;
+  /** Hang up on one socket. */
+  disconnect?: (id: string) => Promise<boolean>;
+  /** Un-pair a device, permanently. */
+  revoke?: (deviceId: string) => Promise<boolean>;
+  /** Throw away the printed code and arm a fresh one. */
+  rearm?: () => void;
+  /** Reprint the banner above the panel. */
+  reprint?: () => void;
+  /** Ctrl+C, `q`, and the interrupt key all land here. */
+  onQuit: () => void;
+  /** Whether a tunnel is up, read at render time so a late one counts. */
+  hosted: () => boolean;
+  now?: () => number;
+  view?: LiveView;
+  keys?: KeyReader;
+};
+
+export type DevicePanel = {
+  readonly enabled: boolean;
+  /** Print above the panel. Everything `start` says goes through this. */
+  log: (...lines: string[]) => void;
+  /** Redraw — after a reprint, or when the tunnel comes up late. */
+  refresh: () => void;
+  /** `decideAccess`'s `prompt` seam, when the panel is up. */
+  promptForAccess: (
+    req: AccessPromptInput,
+    signal: AbortSignal,
+  ) => Promise<AccessPromptResult>;
+  stop: () => void;
+};
+
+export function createDevicePanel(deps: PanelDeps): DevicePanel {
+  const now = deps.now ?? Date.now;
+  const view = deps.view ?? createLiveView();
+
+  if (!view.enabled || !deps.details) {
+    // No panel: a pipe, a service unit, `--json`, a terminal too short, or a
+    // relay bundle that cannot list connections. `log` is a plain logger and
+    // `promptForAccess` abstains so the readline prompt is used instead.
+    return {
+      enabled: false,
+      log: (...lines) => view.log(...lines),
+      refresh: () => {},
+      promptForAccess: async () => ({ approved: false, reason: "no-tty" }),
+      stop: () => view.stop(),
+    };
+  }
+
+  const details = deps.details;
+  let cursor = 0;
+  let mode: PanelMode = { kind: "list" };
+  let flash: string | null = null;
+  let flashTimer: NodeJS.Timeout | null = null;
+  let tick: NodeJS.Timeout | null = null;
+  let stopped = false;
+  /** Resolver for the question currently on screen, if any. */
+  let answering: ((result: AccessPromptResult) => void) | null = null;
+
+  const keys =
+    deps.keys ??
+    createKeyReader({
+      onInterrupt: () => {
+        stop();
+        deps.onQuit();
+      },
+    });
+
+  function state(): PanelState {
+    const devices = details();
+    return {
+      devices,
+      cursor: clamp(cursor, devices.length),
+      mode,
+      flash,
+      now: now(),
+      hosted: deps.hosted(),
+      frozen: stopped,
+    };
+  }
+
+  function paint(): void {
+    if (stopped) return;
+    view.setPanel((columns) => render(state(), columns));
+    retime();
+  }
+
+  /**
+   * Start or stop the one-second repaint, based on whether anything on screen
+   * depends on the clock. See the header.
+   */
+  function retime(): void {
+    const needed =
+      mode.kind === "approval" ||
+      (mode.kind === "list" && details().length > 0);
+    if (needed && !tick) {
+      tick = setInterval(() => {
+        if (mode.kind === "approval" && now() >= mode.expiresAt) {
+          // The countdown reaching zero is an answer, and it is "no". Settling
+          // it here rather than waiting for `decideAccess` to time out keeps
+          // the screen and the decision in step.
+          answer({ approved: false, reason: "timeout" });
+          return;
+        }
+        view.refresh();
+      }, 1000);
+      tick.unref?.();
+    } else if (!needed && tick) {
+      clearTimeout(tick);
+      tick = null;
+    }
+  }
+
+  function setFlash(text: string): void {
+    flash = text;
+    if (flashTimer) clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => {
+      flash = null;
+      paint();
+    }, FLASH_MS);
+    flashTimer.unref?.();
+    paint();
+  }
+
+  function answer(result: AccessPromptResult): void {
+    const resolve = answering;
+    answering = null;
+    mode = { kind: "list" };
+    paint();
+    resolve?.(result);
+  }
+
+  async function onKey(raw: string): Promise<void> {
+    if (stopped) return;
+    const key = raw.toLowerCase();
+
+    if (mode.kind === "approval") {
+      // Only y and n. Every other key is ignored rather than dismissing the
+      // question, because a dismissal the user reads as a refusal but which
+      // refuses nothing is the worst thing this surface can do.
+      if (key === "y") answer({ approved: true });
+      else if (key === "n") answer({ approved: false, reason: "refused" });
+      return;
+    }
+
+    if (mode.kind === "help") {
+      mode = { kind: "list" };
+      paint();
+      return;
+    }
+
+    if (mode.kind === "confirm") {
+      if (key === "y") await doRevoke(mode.id, mode.label);
+      else if (key === "n" || raw === KEY.escape) {
+        mode = { kind: "list" };
+        paint();
+      }
+      return;
+    }
+
+    const devices = details();
+    switch (raw) {
+      case KEY.up:
+        cursor = clamp(cursor - 1, devices.length);
+        return paint();
+      case KEY.down:
+        cursor = clamp(cursor + 1, devices.length);
+        return paint();
+    }
+
+    switch (key) {
+      case "?":
+      case "h":
+        mode = { kind: "help" };
+        return paint();
+      case "q":
+        stop();
+        return deps.onQuit();
+      case "l":
+        deps.reprint?.();
+        return paint();
+      case "n":
+        if (!deps.hosted() || !deps.rearm) return;
+        deps.rearm();
+        return setFlash(kleur.dim("Arming a fresh code…"));
+      case "c":
+        return doClose();
+      case "r":
+        return askRevoke();
+    }
+  }
+
+  async function doClose(): Promise<void> {
+    const device = selected(state());
+    if (!device?.id || !deps.disconnect) return;
+    const closed = await deps.disconnect(device.id);
+    setFlash(
+      closed
+        ? kleur.dim(`Closed ${device.label}. It may reconnect.`)
+        : kleur.dim(`${device.label} had already gone.`),
+    );
+  }
+
+  function askRevoke(): void {
+    const device = selected(state());
+    // No device id means the machine's own token, which has nothing to revoke.
+    if (!device?.deviceId || !deps.revoke) return;
+    mode = {
+      kind: "confirm",
+      action: "revoke",
+      id: device.deviceId,
+      label: device.label,
+    };
+    paint();
+  }
+
+  async function doRevoke(deviceId: string, label: string): Promise<void> {
+    mode = { kind: "list" };
+    const ok = await deps.revoke?.(deviceId).catch(() => false);
+    setFlash(
+      ok
+        ? kleur.yellow(`Revoked ${label}. It must pair again.`)
+        : kleur.dim(`Could not revoke ${label}.`),
+    );
+  }
+
+  function stop(): void {
+    if (stopped) return;
+    stopped = true;
+    if (tick) clearTimeout(tick);
+    if (flashTimer) clearTimeout(flashTimer);
+    // A question still on screen is abandoned, not answered. `decideAccess`
+    // reads `no-tty` as "could not ask", which is the truth once the terminal
+    // is going away — and it must not be confusable with a refusal.
+    answering?.({ approved: false, reason: "no-tty" });
+    answering = null;
+    keys.stop();
+    unsubscribe?.();
+    view.stop();
+  }
+
+  keys.setHandler((key) => void onKey(key));
+  const unsubscribe = deps.subscribe?.(() => {
+    // The list changed under the cursor. Clamping at render is what keeps a
+    // device disconnecting while selected from pointing past the end.
+    paint();
+  });
+  paint();
+
+  return {
+    enabled: true,
+    log: (...lines) => view.log(...lines),
+    refresh: paint,
+    async promptForAccess(req, signal) {
+      if (stopped) return { approved: false, reason: "no-tty" };
+      return new Promise<AccessPromptResult>((resolve) => {
+        answering = resolve;
+        mode = {
+          kind: "approval",
+          label: req.deviceLabel,
+          account: req.accountEmail,
+          ...(req.sas ? { sas: req.sas } : {}),
+          expiresAt: now() + APPROVAL_WINDOW_MS,
+        };
+        const onAbort = () => {
+          // Answered somewhere else — a phone, `mtmux approve`. Take the
+          // question down, and report "could not ask" rather than a refusal.
+          if (answering === resolve)
+            answer({ approved: false, reason: "no-tty" });
+        };
+        if (signal.aborted) onAbort();
+        else signal.addEventListener("abort", onAbort, { once: true });
+        paint();
+      });
+    },
+    stop,
+  };
+}
+
+/**
+ * How long the question stands on screen.
+ *
+ * Matched to `PROMPT_TIMEOUT_MS` in `access-prompt.ts`, and under the broker's
+ * 120s request TTL for the same reason that one is: a decision that arrives
+ * after the request has expired is worse than no decision, because the human
+ * believes they approved something.
+ */
+const APPROVAL_WINDOW_MS = 110_000;

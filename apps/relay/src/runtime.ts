@@ -18,8 +18,12 @@ export {
 } from "./pairing-local.js";
 export {
   connectionSummary,
+  connectionDetails,
+  disconnectConnection,
   onConnectionsChanged,
   type ConnectedDevice,
+  type ConnectionDetail,
+  type ConnectionScope,
 } from "./connection-manager.js";
 
 /**

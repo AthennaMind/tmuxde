@@ -1,8 +1,14 @@
 import type { WebSocket } from "ws";
-import type { GrantRecord, ServerMessage, TerminalSize } from "@repo/protocol";
+import type {
+  GrantRecord,
+  GrantScope,
+  ServerMessage,
+  TerminalSize,
+} from "@repo/protocol";
 import { createLogger } from "@repo/logger";
 import { FULL_GRANT } from "./grant.js";
 import { destroyClone } from "./tmux-clone.js";
+import { deviceIdForTokenId } from "./pairing-local.js";
 import { sendJson } from "./ws-server.js";
 import type { PtyBridge } from "./pty-bridge.js";
 import type { DirectoryWatcher, UploadState } from "./file-service.js";
@@ -232,12 +238,65 @@ export function closeRevokedConnections(tokenIds: Iterable<string>): number {
   return closed;
 }
 
-/** One connected device, as `mtmux start` and `mtmux status` display it. */
+/**
+ * One connected device, as it crosses the loopback control boundary.
+ *
+ * Deliberately three fields. `connectionSummary` is served over
+ * `/_control/devices` to a *different process* — `mtmux status`, `mtmux
+ * devices` — and an address or a session name on that endpoint is a fact
+ * about what you are working on, handed to anything local that holds the
+ * token. `connection-manager.test.ts` pins this and should keep failing for
+ * anyone who widens it.
+ *
+ * The in-process live panel wants more than this and is entitled to it: it
+ * runs inside the relay, and nothing it reads leaves. That is
+ * `ConnectionDetail` below, and the split is the whole point.
+ */
 export type ConnectedDevice = {
   label: string;
   connectedAt: number;
   readOnly: boolean;
 };
+
+/**
+ * One connected socket, for something running inside this process.
+ *
+ * Never serialise this over the control endpoint. If a future caller needs it
+ * across a process boundary, that is a new decision about what a local process
+ * holding the token may learn, and it should be made on purpose rather than by
+ * reaching for the richer type because it was there.
+ */
+export type ConnectionDetail = ConnectedDevice & {
+  /**
+   * The connection's id, which is what `disconnectConnection` takes.
+   *
+   * Deliberately the socket's id and not the device's: two tabs on one phone
+   * are two connections with one device id, and "close that tab" has to be
+   * able to mean one of them.
+   */
+  id: string;
+  /** Last message in either direction, for telling live from merely open. */
+  lastActivityAt: number;
+  /** The tmux session this socket is attached to, or null while it picks one. */
+  attachedSession: string | null;
+  tokenId: string | null;
+  /**
+   * The paired device behind the token, when there is one.
+   *
+   * Null for the machine's own `AUTH_TOKEN` — a browser signed in with the
+   * token printed on this screen is not a *paired device*, and offering to
+   * revoke it would offer to revoke the machine's own credential.
+   */
+  deviceId: string | null;
+  remoteAddress: string | null;
+  scope: ConnectionScope;
+};
+
+/** The shape of a connection's reach, flattened for display. */
+export type ConnectionScope =
+  | { kind: "all" }
+  | { kind: "sessions"; sessions: string[] }
+  | { kind: "recordings"; count: number };
 
 /**
  * Who is connected right now.
@@ -254,15 +313,70 @@ export function connectionSummary(): {
   count: number;
   devices: ConnectedDevice[];
 } {
-  const devices = getAllConnections()
+  const devices = connectionDetails().map(
+    ({ label, connectedAt, readOnly }) => ({ label, connectedAt, readOnly }),
+  );
+  return { count: devices.length, devices };
+}
+
+/**
+ * The same connections, in full, for a caller inside this process.
+ *
+ * Oldest first for the same reason `connectionSummary` is: a live panel that
+ * re-sorted on every render would move the row under the user's cursor between
+ * pressing the key and the key being handled.
+ */
+export function connectionDetails(): ConnectionDetail[] {
+  return getAllConnections()
     .filter((conn) => conn.authenticated)
     .map((conn) => ({
+      id: conn.id,
       label: conn.label ?? "A device",
       connectedAt: conn.connectedAt,
       readOnly: conn.grant.readOnly,
+      lastActivityAt: conn.lastActivityAt,
+      attachedSession: conn.attachedSession,
+      tokenId: conn.tokenId,
+      deviceId: conn.tokenId ? deviceIdForTokenId(conn.tokenId) : null,
+      remoteAddress: conn.remoteAddress,
+      scope: describeScope(conn.grant.scope),
     }))
     .sort((a, b) => a.connectedAt - b.connectedAt);
-  return { count: devices.length, devices };
+}
+
+function describeScope(scope: GrantScope): ConnectionScope {
+  if (scope.kind === "sessions") {
+    return { kind: "sessions", sessions: scope.sessions.map((s) => s.name) };
+  }
+  if (scope.kind === "recordings") {
+    return { kind: "recordings", count: scope.recordings.length };
+  }
+  return { kind: "all" };
+}
+
+/**
+ * Close one socket, by id, and say whether there was one.
+ *
+ * Closes rather than revokes, and the difference is the whole of what this is
+ * for: the credential stays valid and the browser is free to come back. It is
+ * "hang up", not "you are no longer trusted" — for the tab you left open in a
+ * cafe, or the one you cannot remember opening. `mtmux devices revoke` is the
+ * other answer, and the panel that calls this offers both so nobody reaches
+ * for the permanent one to solve a temporary problem.
+ *
+ * 1000 with a reason rather than a terminate: a clean close lets the browser
+ * show why it went instead of reconnecting into a loop.
+ */
+export async function disconnectConnection(id: string): Promise<boolean> {
+  const conn = connections.get(id);
+  if (!conn) return false;
+  try {
+    conn.ws.close(1000, "Closed from the machine");
+  } catch {
+    // Already gone. `removeConnection` still has to run.
+  }
+  await removeConnection(conn);
+  return true;
 }
 
 /**

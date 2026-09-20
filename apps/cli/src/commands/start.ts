@@ -51,6 +51,10 @@ import {
   type AccessPromptInput,
 } from "../access-prompt.js";
 import {
+  createDevicePanel,
+  type DevicePanel,
+} from "../device-panel-control.js";
+import {
   createApproveControl,
   type ApproveControl,
 } from "../approve-control.js";
@@ -401,6 +405,34 @@ let askInApp:
     ) => Promise<boolean | null>)
   | null = null;
 
+/**
+ * Where everything this command prints goes.
+ *
+ * A module-level indirection rather than 74 call sites passing a logger
+ * around, and a mutable one because the live panel cannot exist until the
+ * relay does — the banner is printed before there is anything to panel. Until
+ * then this is `console.log` exactly as it was, which is also what it stays as
+ * under `--json`, in a pipe, and in a service unit.
+ *
+ * The reason it has to be *one* thing is the reason `watchConnectedDevices`
+ * gave for staying append-only: "a second writer moving the cursor would
+ * corrupt the QR the moment the two coincided". That is still true. The panel
+ * does not make it safe to have two writers; it makes there be one.
+ */
+let screen: { log: (...lines: string[]) => void } = {
+  log: (...lines) => {
+    if (lines.length === 0) console.log("");
+    else for (const line of lines) console.log(line);
+  },
+};
+
+function say(...lines: string[]): void {
+  screen.log(...lines);
+}
+
+/** The live panel, once the relay exists. Null when it declined to start. */
+let panel: DevicePanel | null = null;
+
 /** How many devices are connected right now, for what the parked notice says. */
 let connectedCount: (() => number) | null = null;
 
@@ -433,40 +465,42 @@ async function confirmCodePairing(label: string): Promise<boolean> {
   const answer = await decideAccess(req, {
     ask: askInApp ? (r, signal) => askInApp!(r, { signal }) : undefined,
     offer: approvals ? (r) => approvals!.offer(r) : undefined,
+    // The panel owns stdin while it is up, so it *is* the TTY channel. When it
+    // is not up this stays undefined and `decideAccess` falls back to
+    // `promptForAccess`'s readline, which is the pre-panel behaviour.
+    ...(panel?.enabled ? { prompt: panel.promptForAccess } : {}),
     park: approvals
       ? (r, signal) =>
           approvals!.offer(r, { park: true, signal }).then((v) => v === true)
       : undefined,
     onParked: (r) => {
       clearWaitingLine();
-      console.log("");
-      console.log(
-        kleur.bold("  A device just entered this machine's pairing code"),
-      );
-      console.log("");
-      console.log(
+      say("");
+      say(kleur.bold("  A device just entered this machine's pairing code"));
+      say("");
+      say(
         `    ${kleur.dim("Device ")}  ${displayLabel(r.deviceLabel, "unknown device")}`,
       );
-      console.log("");
+      say("");
       const asked = connectedCount?.() ?? 0;
-      console.log(
+      say(
         kleur.dim(
           asked > 0
             ? `    Asked the ${asked === 1 ? "device" : `${asked} devices`} already connected — answer there,`
             : "    Nothing is attached to this terminal, so I cannot ask here.",
         ),
       );
-      console.log(
+      say(
         kleur.dim(asked > 0 ? "    or run " : "    Run ") +
           kleur.bold("mtmux approve") +
           kleur.dim(" in another shell."),
       );
-      console.log("");
+      say("");
     },
   });
   if (!answer.approved) {
     clearWaitingLine();
-    console.log(
+    say(
       kleur.yellow(
         `  ✗ Refused ${displayLabel(label, "that device")}. Nothing was shared.`,
       ),
@@ -576,6 +610,8 @@ async function startHosted(opts: {
          */
         ask: askInApp ? (req, signal) => askInApp!(req, { signal }) : undefined,
         offer: approvals ? (req) => approvals!.offer(req) : undefined,
+        // See `confirmCodePairing`: while the panel is up it is the TTY.
+        ...(panel?.enabled ? { prompt: panel.promptForAccess } : {}),
         // Reached only when the TTY prompt could not ask at all, which is the
         // common case rather than the exotic one: a machine started by systemd,
         // by `nohup`, or left in a detached pane. Rather than denying instantly
@@ -589,57 +625,55 @@ async function startHosted(opts: {
           : undefined,
         onParked: (req) => {
           clearWaitingLine();
-          console.log("");
-          console.log(
-            kleur.bold("  A browser wants to pair with this machine"),
-          );
-          console.log("");
-          console.log(
+          say("");
+          say(kleur.bold("  A browser wants to pair with this machine"));
+          say("");
+          say(
             `    ${kleur.dim("Device ")}  ${displayLabel(req.deviceLabel, "unknown device")}`,
           );
-          console.log(
+          say(
             `    ${kleur.dim("Account")}  ${displayLabel(req.accountEmail, "unknown account")}`,
           );
           if (req.sas) {
-            console.log(
+            say(
               `    ${kleur.dim("Code   ")}  ${kleur.bold(formatSas(req.sas))}`,
             );
           }
-          console.log("");
+          say("");
           // Two different true things to say, and saying the wrong one is how
           // a security prompt teaches people to ignore it. "I cannot ask here"
           // is false the moment a phone is showing the dialog.
           const asked = connectedCount?.() ?? 0;
           if (asked > 0) {
-            console.log(
+            say(
               kleur.dim(
                 `    Asked the ${asked === 1 ? "device" : `${asked} devices`} already connected — answer there,`,
               ),
             );
-            console.log(
+            say(
               kleur.dim("    or run ") +
                 kleur.bold("mtmux approve") +
                 kleur.dim(" in another shell. Either way, compare the code."),
             );
           } else {
-            console.log(
+            say(
               kleur.dim(
                 "    Nothing is attached to this terminal, so I cannot ask here.",
               ),
             );
-            console.log(
+            say(
               kleur.dim("    Run ") +
                 kleur.bold("mtmux approve") +
                 kleur.dim(" in another shell, then compare the code."),
             );
           }
-          console.log("");
+          say("");
         },
       });
       if (!answer.approved) {
         // Logged locally so a refusal leaves a trace on the machine that
         // refused it. The broker is told nothing beyond "denied".
-        console.log(
+        say(
           kleur.dim(
             `    Refused an access request from ${request.accountEmail}.`,
           ),
@@ -664,7 +698,7 @@ async function startHosted(opts: {
         deviceId,
       );
       if (!registered) {
-        console.log(
+        say(
           kleur.red("  ✗ Could not register the session. Nothing was shared."),
         );
         return { approved: false, reason: "refused" };
@@ -692,7 +726,7 @@ async function startHosted(opts: {
         directToken: request.keys.directToken,
         sessionKeys: encodeSessionKeys(request.keys),
       });
-      console.log(
+      say(
         kleur.green(
           `  ✓ ${displayLabel(request.deviceLabel, "A device")} connected.`,
         ),
@@ -867,7 +901,7 @@ async function startHosted(opts: {
           // the alternative is a browser that authenticates against a relay
           // which has never heard of its token, and so falls through to nothing.
           if (grant && !registered) {
-            console.log(
+            say(
               kleur.red(
                 "  ✗ Could not register the share. Nothing was shared.",
               ),
@@ -931,7 +965,7 @@ async function startHosted(opts: {
               .catch((armErr: unknown) => {
                 // Arming itself failed — a 503, a dead tunnel. Say so and try
                 // again on the same budget rather than going quiet with no code.
-                console.log(
+                say(
                   kleur.yellow(
                     `  ! Could not get a fresh code (${(armErr as Error).message}).`,
                   ),
@@ -1079,6 +1113,11 @@ let waitingLineOnScreen = false;
 function clearWaitingLine(): void {
   if (!waitingLineOnScreen) return;
   waitingLineOnScreen = false;
+  // Once the panel is up it owns the cursor, and a second escape sequence
+  // walking up two rows would erase the top of its table. The panel clears
+  // the flag when it starts, so this is belt and braces for a caller holding
+  // a stale `true` across that moment.
+  if (panel?.enabled) return;
   if (!process.stdout.isTTY) return;
   // Up two (the blank line, then the waiting line) and erase to the end.
   process.stdout.write("\x1b[2A\x1b[0J");
@@ -1117,13 +1156,13 @@ function watchConnectedDevices(relay: RelayRuntime, json: boolean): void {
 
     clearWaitingLine();
     for (const label of arrived) {
-      console.log(kleur.green(`  ✓ ${label} connected.`));
+      say(kleur.green(`  ✓ ${label} connected.`));
     }
     for (const label of departed) {
-      console.log(kleur.dim(`  · ${label} disconnected.`));
+      say(kleur.dim(`  · ${label} disconnected.`));
     }
-    console.log(kleur.dim(`    ${devicesOnline(current.length)}`));
-    console.log("");
+    say(kleur.dim(`    ${devicesOnline(current.length)}`));
+    say("");
   });
 }
 
@@ -1172,18 +1211,16 @@ function makeReturningGate(): (peer: PeerIdentity) => Promise<boolean> {
       clearWaitingLine();
       const answer = await promptForReturningDevice({ label: peer.label });
       if (answer.approved) {
-        console.log(kleur.green(`  ✓ ${peer.label} let back in.`));
-        console.log("");
+        say(kleur.green(`  ✓ ${peer.label} let back in.`));
+        say("");
         return true;
       }
       if (answer.reason === "no-tty") {
         // Refusing is the setting applying. Admitting because nobody could be
         // asked would be the setting quietly not applying, which is the worst
         // outcome available for a control someone deliberately turned on.
-        console.log(
-          kleur.yellow(`  ! Refused ${peer.label}: nothing to ask on.`),
-        );
-        console.log(
+        say(kleur.yellow(`  ! Refused ${peer.label}: nothing to ask on.`));
+        say(
           kleur.dim("    Start with ") +
             kleur.bold("--trust-reconnect") +
             kleur.dim(", or ") +
@@ -1191,9 +1228,9 @@ function makeReturningGate(): (peer: PeerIdentity) => Promise<boolean> {
             kleur.dim("."),
         );
       } else {
-        console.log(kleur.dim(`  · Refused ${peer.label}.`));
+        say(kleur.dim(`  · Refused ${peer.label}.`));
       }
-      console.log("");
+      say("");
       return false;
     })();
 
@@ -1366,16 +1403,16 @@ async function registerWithAccount(
       cliVersion: cliVersion(),
     });
     if (!result.ok) {
-      console.log(kleur.yellow(`  ! ${result.reason}`));
+      say(kleur.yellow(`  ! ${result.reason}`));
       if (result.upgradeUrl) {
-        console.log(kleur.dim(`    ${result.upgradeUrl}`));
+        say(kleur.dim(`    ${result.upgradeUrl}`));
       }
       return null;
     }
     if (result.trialStarted) {
       // The most important line of copy in this feature. What someone hits
       // here used to be a 402 telling them to get out a card; it is now this.
-      console.log(
+      say(
         kleur.green(
           `  ✓ Started your ${result.trialDaysLeft}-day Pro trial — no card needed.`,
         ),
@@ -1623,7 +1660,7 @@ export async function start(opts: StartOpts) {
       token: cfg.token,
       note,
     })) {
-      console.log(line);
+      say(line);
     }
   };
 
@@ -1673,7 +1710,7 @@ export async function start(opts: StartOpts) {
       tmuxServerPid: null,
       tokenHash: "0".repeat(64),
     })) {
-      console.log(line);
+      say(line);
     }
   }
 
@@ -1718,26 +1755,24 @@ export async function start(opts: StartOpts) {
           // "Paired", not "connected". The socket authenticating is what
           // connected means, and `onConnectionsChanged` says so a moment later
           // — claiming it here too printed the same news twice.
-          console.log(kleur.green(`  ✓ Paired with ${label}.`));
-          console.log(
-            kleur.dim(`    It has the terminal at ${lanUrl ?? localUrl}.`),
-          );
-          console.log(
+          say(kleur.green(`  ✓ Paired with ${label}.`));
+          say(kleur.dim(`    It has the terminal at ${lanUrl ?? localUrl}.`));
+          say(
             kleur.dim(
               "    It stays paired across restarts — mtmux devices lists it.",
             ),
           );
-          console.log("");
+          say("");
         },
         onWarn: (notice) => {
           clearWaitingLine();
           if (notice.warning === "broker-misbehaving") {
-            console.log(
+            say(
               kleur.red(
                 "  ! The pairing service offered more terminals than it should.",
               ),
             );
-            console.log(
+            say(
               kleur.dim(
                 "    Stopped arming rather than risk pairing with the wrong one.",
               ),
@@ -1747,42 +1782,42 @@ export async function start(opts: StartOpts) {
           // Under four, the likeliest reading is a fumble on a phone keyboard,
           // and saying anything heavier would be crying wolf at a typo.
           if (notice.warning === "wrong-code") {
-            console.log(
+            say(
               kleur.yellow(
                 "  ! Someone entered a wrong code. That one is now dead.",
               ),
             );
-            console.log(
+            say(
               kleur.dim("    Here's a fresh one — the old code will not work."),
             );
             return;
           }
           // From the fourth, a stranger is likelier than a fumble. Say so, and
           // name the delay so the pause reads as deliberate rather than broken.
-          console.log(
+          say(
             kleur.yellow(
               `  ! Wrong code again (${notice.wrong}). If that wasn't you, someone is guessing.`,
             ),
           );
-          console.log(
+          say(
             kleur.dim(
               `    Slowing down — next code in ${Math.round(notice.delayMs / 1000)}s.`,
             ),
           );
         },
         onRearm: (invite, reason) => {
-          console.log(kleur.dim(`    ${REARM_LINES[reason]}`));
+          say(kleur.dim(`    ${REARM_LINES[reason]}`));
           reprint(invite);
           void serverState.write(record(invite.url)).catch(() => {});
         },
         onIdle: () => {
           clearWaitingLine();
-          console.log(
+          say(
             kleur.dim(
               "    No one used the last few codes, so I've stopped making them.",
             ),
           );
-          console.log(kleur.dim("    Press enter for a new code."));
+          say(kleur.dim("    Press enter for a new code."));
           waitForRearm();
         },
         onAgent: (stop) => {
@@ -1810,10 +1845,8 @@ export async function start(opts: StartOpts) {
           // person. Emitting a banner into it now would corrupt that output.
           if (opts.json) return;
           clearWaitingLine();
-          console.log(kleur.green("  ✓ The tunnel came up."));
-          console.log(
-            kleur.dim("    Here's a code for pairing a device anywhere:"),
-          );
+          say(kleur.green("  ✓ The tunnel came up."));
+          say(kleur.dim("    Here's a code for pairing a device anywhere:"));
           reprint(late.invite);
         },
       });
@@ -1846,7 +1879,7 @@ export async function start(opts: StartOpts) {
   const lanQrPayload = hosted ? null : armLanNonce();
 
   if (opts.json) {
-    console.log(
+    say(
       JSON.stringify(
         {
           version,
@@ -1887,45 +1920,45 @@ export async function start(opts: StartOpts) {
   }
 
   if (restored > 0 && !opts.json) {
-    console.log(
+    say(
       kleur.dim(
         `  ${restored} device${restored === 1 ? "" : "s"} already trusted — ` +
           `${restored === 1 ? "it does" : "they do"} not need the code.`,
       ),
     );
-    console.log("");
+    say("");
   }
 
   if (needRekey > 0 && !opts.json) {
     // Deliberately not folded into `needRepair`: these devices are not broken,
     // they are reachable on this network and nowhere else. Saying "pair again"
     // to someone whose phone is working fine on the sofa reads as a lie.
-    console.log(
+    say(
       kleur.yellow(
         `  ${needRekey} device${needRekey === 1 ? "" : "s"} can reach this machine on the local network only.`,
       ),
     );
-    console.log(
+    say(
       kleur.dim(
         `    ${needRekey === 1 ? "It was" : "They were"} paired before mtmux could restore a tunnel across restarts.`,
       ),
     );
-    console.log(kleur.dim("    Pair again, once, to reach it from anywhere."));
-    console.log("");
+    say(kleur.dim("    Pair again, once, to reach it from anywhere."));
+    say("");
   }
 
   if (needRepair > 0 && !opts.json) {
     // Said plainly rather than left to fail as a mysterious auth error the
     // next time someone opens the tab on that device.
-    console.log(
+    say(
       kleur.yellow(
         `  ${needRepair} device${needRepair === 1 ? "" : "s"} need${needRepair === 1 ? "s" : ""} to pair again (one-time).`,
       ),
     );
-    console.log(
+    say(
       kleur.dim("    They were paired before mtmux stored a per-device token."),
     );
-    console.log("");
+    say("");
   }
 
   if (!opts.json) {
@@ -1936,14 +1969,68 @@ export async function start(opts: StartOpts) {
       waitingLineOnScreen = false;
       const colour = notice.kind === "outdated" ? kleur.yellow : kleur.dim;
       if (notice.kind !== "current") {
-        console.log(colour(`  mtmux ${notice.detail}`));
-        if (notice.fix) console.log(kleur.dim(`    ${notice.fix}`));
+        say(colour(`  mtmux ${notice.detail}`));
+        if (notice.fix) say(kleur.dim(`    ${notice.fix}`));
       }
       // The operator's own words, printed verbatim and last. This is the only
       // channel that reaches a running CLI without a release.
-      if (notice.advisory) console.log(kleur.yellow(`  ${notice.advisory}`));
-      console.log("");
+      if (notice.advisory) say(kleur.yellow(`  ${notice.advisory}`));
+      say("");
     }
+  }
+
+  /**
+   * The live panel, created after the banner so it sits below it.
+   *
+   * It takes over stdin, so the `prompt` seam in `decideAccess` is pointed at
+   * it too — see `device-panel-control.ts` for why one owner of stdin is not
+   * a nicety. When it declines to start (a pipe, `--json`, a short terminal,
+   * a relay bundle that cannot list connections) everything below degrades to
+   * exactly what this command did before: an append-only log and a readline
+   * prompt.
+   */
+  panel = createDevicePanel({
+    ...(relay.connectionDetails ? { details: relay.connectionDetails } : {}),
+    ...(relay.onConnectionsChanged
+      ? { subscribe: relay.onConnectionsChanged }
+      : {}),
+    ...(relay.disconnectConnection
+      ? { disconnect: relay.disconnectConnection }
+      : {}),
+    revoke: async (deviceId: string) => {
+      // Both halves, and in this order. Dropping the peer record without
+      // revoking the live token leaves the device connected until it happens
+      // to reconnect; revoking without dropping the record means the next
+      // start re-registers it and un-does the revoke.
+      const peers = await configStore.listPeers();
+      const peer = peers.find((p) => p.deviceId === deviceId);
+      // A peer restored from a config written before per-device tokens has no
+      // `directToken` to revoke. Dropping the record is still the right thing:
+      // it is what stops the next start re-admitting it.
+      if (!peer) return false;
+      if (peer.directToken) relay.revokeSessionToken?.(peer.directToken);
+      await configStore.removePeer(deviceId);
+      return true;
+    },
+    rearm: () => {
+      // Fire and forget: `onRearm` prints the new code when it lands, and the
+      // panel has already said it is coming. Awaiting here would block the key
+      // handler on a broker round trip.
+      void hosted?.rearm().catch(() => {});
+    },
+    reprint: () => {
+      const invite = hosted?.invite ?? null;
+      if (invite) reprint(invite);
+    },
+    hosted: () => hosted !== null,
+    onQuit: () => shutdown(),
+  });
+  if (panel.enabled) {
+    screen = panel;
+    // The banner's trailing "Waiting…" is the panel's job now, and leaving the
+    // claim on screen above a table that says the same thing better is two
+    // writers disagreeing in the same column of pixels.
+    waitingLineOnScreen = false;
   }
 
   watchConnectedDevices(relay, opts.json === true);
@@ -1982,8 +2069,8 @@ export async function start(opts: StartOpts) {
   // is spent. Mint another and reprint rather than leaving a dead QR up.
   if (!hosted && lanUrl) {
     relay.onPairingRedeemed(() => {
-      console.log(kleur.green("  ✓ Device signed in."));
-      console.log(kleur.dim("    Here's a fresh code for the next one:"));
+      say(kleur.green("  ✓ Device signed in."));
+      say(kleur.dim("    Here's a fresh code for the next one:"));
       for (const line of renderBannerLines({
         version,
         localUrl,
@@ -1993,7 +2080,7 @@ export async function start(opts: StartOpts) {
         showQr: opts.qr,
         token: cfg.token,
       })) {
-        console.log(line);
+        say(line);
       }
     });
   }
@@ -2024,7 +2111,18 @@ export async function start(opts: StartOpts) {
   const shutdown = () => {
     if (shuttingDown) return;
     shuttingDown = true;
-    console.log("\n  Stopping…");
+    // First, and before anything is printed. `stop()` takes the terminal out
+    // of raw mode and erases the panel, so "Stopping…" lands in a terminal
+    // that echoes again rather than under a table that will never update.
+    panel?.stop();
+    panel = null;
+    screen = {
+      log: (...lines) => {
+        if (lines.length === 0) console.log("");
+        else for (const line of lines) console.log(line);
+      },
+    };
+    say("\n  Stopping…");
     stopHeartbeat?.();
     stopMirror?.();
     approveControl.close();

@@ -160,6 +160,20 @@ export function sessionTokenId(token: string): string {
   return digest(token);
 }
 
+/**
+ * Which device a live session token belongs to, keyed by the token's id.
+ *
+ * The id *is* the map key — `sessionTokenId` and the internal `digest` are the
+ * same function — so this is a lookup and not a scan. It exists so a caller
+ * holding a connection (which carries `tokenId`, never the token itself) can
+ * name the device without the raw credential ever leaving this module. Null
+ * for the machine's own `AUTH_TOKEN`, which has no device behind it, and for a
+ * token that has since expired.
+ */
+export function deviceIdForTokenId(tokenId: string): string | null {
+  return sessions.get(tokenId)?.deviceId ?? null;
+}
+
 function prune(map: Map<string, Expiring>, now: number): void {
   for (const [key, entry] of map) {
     if (entry.expiresAt <= now) map.delete(key);

@@ -18,6 +18,33 @@ const FORCE_EXIT_MS = 2_000;
  * than imported so the same assembly works against the esbuild bundle (`start`)
  * and the raw TypeScript source (`scripts/dev.mjs`, via tsx).
  */
+/**
+ * One connected socket, in the detail the in-process live panel needs.
+ *
+ * Declared here rather than imported from `@app/relay`, and that is not an
+ * oversight: this CLI *bundles* the relay, so the two have no type-level link
+ * at build time. Every field past the first three is optional because the
+ * bundle may be older than this file. Keep in step with `ConnectionDetail` in
+ * `connection-manager.ts` — and note that the narrower `ConnectedDevice` there
+ * is the one that may cross the loopback control endpoint. This one may not.
+ */
+export type ConnectedDevice = {
+  label: string;
+  connectedAt: number;
+  readOnly: boolean;
+  /** Absent from a bundle that predates the live panel. */
+  id?: string;
+  lastActivityAt?: number;
+  attachedSession?: string | null;
+  tokenId?: string | null;
+  deviceId?: string | null;
+  remoteAddress?: string | null;
+  scope?:
+    | { kind: "all" }
+    | { kind: "sessions"; sessions: string[] }
+    | { kind: "recordings"; count: number };
+};
+
 export type RelayRuntime = {
   createWsServerNoBind: () => import("ws").WebSocketServer;
   attachUpgrade: (
@@ -50,8 +77,24 @@ export type RelayRuntime = {
    */
   connectionSummary?: () => {
     count: number;
-    devices: { label: string; connectedAt: number; readOnly: boolean }[];
+    devices: ConnectedDevice[];
   };
+  /**
+   * The same connections in full, for the in-process live panel only.
+   *
+   * Separate from `connectionSummary` because that one is served over the
+   * loopback control endpoint to other processes, and an address or a session
+   * name does not belong there. See `connection-manager.ts`.
+   */
+  connectionDetails?: () => ConnectedDevice[];
+  /**
+   * Hang up on one socket. Resolves false when there was nothing to hang up on.
+   *
+   * Optional like everything else here: against a relay bundle that predates
+   * it the live panel simply does not offer the action, rather than offering
+   * one that silently does nothing.
+   */
+  disconnectConnection?: (id: string) => Promise<boolean>;
   /** Fires when a device authenticates or drops. */
   onConnectionsChanged?: (listener: () => void) => () => void;
   /**

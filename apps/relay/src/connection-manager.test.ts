@@ -9,6 +9,8 @@ import {
   getAllConnections,
   removeConnection,
   connectionSummary,
+  connectionDetails,
+  disconnectConnection,
   onConnectionsChanged,
   notifyConnectionsChanged,
   closeRevokedConnections,
@@ -199,6 +201,41 @@ describe("connectionSummary", () => {
     expect(serialised).not.toContain("secret-project");
   });
 
+  /**
+   * The other half of the boundary, asserted so the split cannot quietly
+   * collapse back into one type. If someone widens `connectionSummary` the
+   * test above fails; if someone narrows `connectionDetails` to match it, the
+   * live panel goes blank and this one fails. Both directions are covered.
+   */
+  it("gives an in-process caller the address, session and scope", () => {
+    const conn = createConnection(fakeWs([]), limiter, "192.168.1.50");
+    conn.authenticated = true;
+    conn.label = "iPhone";
+    conn.attachedSession = "secret-project";
+
+    expect(connectionDetails()[0]).toMatchObject({
+      id: conn.id,
+      label: "iPhone",
+      attachedSession: "secret-project",
+      remoteAddress: "192.168.1.50",
+      scope: { kind: "all" },
+    });
+  });
+
+  it("names a share's sessions, so a scoped row reads as scoped", () => {
+    const conn = createConnection(fakeWs([]), limiter, "10.0.0.1");
+    conn.authenticated = true;
+    conn.grant = {
+      ...FULL_GRANT,
+      scope: { kind: "sessions", sessions: [{ id: "$1", name: "work" }] },
+    };
+
+    expect(connectionDetails()[0]?.scope).toEqual({
+      kind: "sessions",
+      sessions: ["work"],
+    });
+  });
+
   it("orders oldest first, so the list does not reshuffle on every render", () => {
     const first = createConnection(fakeWs([]), limiter, "10.0.0.1");
     first.authenticated = true;
@@ -289,5 +326,51 @@ describe("closeRevokedConnections", () => {
     conn.tokenId = "tok-c";
     expect(closeRevokedConnections([])).toBe(0);
     expect(closes).toEqual([]);
+  });
+});
+
+/**
+ * Hanging up, which is the one action the live panel can take on a connection.
+ *
+ * The distinction it must preserve is temporary vs permanent: this closes a
+ * socket and leaves the credential valid, so the browser is free to come back.
+ * Revoking is `mtmux devices revoke`, and conflating the two would mean
+ * someone reaching for "close this tab" and permanently un-pairing their own
+ * phone.
+ */
+describe("disconnectConnection", () => {
+  beforeEach(async () => {
+    for (const conn of getAllConnections()) await removeConnection(conn);
+  });
+
+  it("closes the socket and drops it from the list", async () => {
+    const conn = createConnection(fakeWs([]), limiter, "10.0.0.1");
+    conn.authenticated = true;
+    conn.label = "iPhone";
+
+    await expect(disconnectConnection(conn.id)).resolves.toBe(true);
+    expect(connectionDetails()).toEqual([]);
+  });
+
+  it("closes only the socket named, not the device's other tabs", async () => {
+    // Two tabs on one phone share a token and a device id. "Close that one"
+    // has to mean one of them, which is why the panel keys on connection id.
+    const a = createConnection(fakeWs([]), limiter, "10.0.0.1");
+    a.authenticated = true;
+    a.label = "iPhone";
+    a.tokenId = "tok-shared";
+    const b = createConnection(fakeWs([]), limiter, "10.0.0.1");
+    b.authenticated = true;
+    b.label = "iPhone";
+    b.tokenId = "tok-shared";
+
+    await disconnectConnection(a.id);
+    expect(connectionDetails().map((d) => d.id)).toEqual([b.id]);
+  });
+
+  it("reports false for an id that is not connected", async () => {
+    // Says so rather than throwing: the panel races the list against the
+    // socket closing on its own, and losing that race is ordinary.
+    await expect(disconnectConnection("gone")).resolves.toBe(false);
   });
 });
