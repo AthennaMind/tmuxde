@@ -1,4 +1,4 @@
-import { capturePane } from "../lab";
+import { capturePane, tmuxFormat } from "../lab";
 import { findingId, type Finding, type Stop } from "./types";
 import type { TerminalSnapshot } from "@/components/terminal/terminal-handle";
 
@@ -58,6 +58,31 @@ export function fidelityFindings(
 
   const findings: Finding[] = [];
 
+  /*
+   * A split window is not a row-for-row question.
+   *
+   * `capture-pane` captures **one pane**. The client is showing tmux's
+   * composite of every pane in the window, separator columns and all, so on a
+   * six-pane window the diff reads "the client has 36 rows where tmux has 1"
+   * — which says nothing about the client and everything about the two
+   * readings not being of the same thing. Reassembling the composite from the
+   * panes and the layout would be reimplementing tmux, in a detector whose job
+   * is to be the independent witness.
+   *
+   * So the claim narrows to one that survives: every line the active pane
+   * holds is on screen, in order. That still catches a dropped byte, a stale
+   * cell and a line that never arrived — it stops claiming to catch a pane
+   * placed at the wrong column, which `capture-pane` cannot see either.
+   *
+   * A zoomed window is excluded: tmux composites one pane to the full window,
+   * so the strict diff is exactly right there and is what runs.
+   */
+  const panes = Number(tmuxFormat(target, "#{window_panes}"));
+  const zoomed = tmuxFormat(target, "#{window_zoomed_flag}") === "1";
+  if (panes > 1 && !zoomed) {
+    return splitFindings(rendered, truth, stop, device, panes);
+  }
+
   if (rendered.length !== truth.length) {
     findings.push({
       id: findingId("fidelity", "row-count", stop.session, device),
@@ -101,6 +126,47 @@ export function fidelityFindings(
     // Three is enough to diagnose; a whole grid of them is the same defect
     // reported forty times and makes the ratchet meaningless.
     if (findings.length >= 4) break;
+  }
+
+  return findings;
+}
+
+/**
+ * The weaker claim, for a window the client composites and tmux does not.
+ *
+ * Containment in order, not equality: each of the active pane's lines has to
+ * appear inside some rendered row, and the rows have to be in the same
+ * sequence. A pane's line is a *substring* of the composited row because the
+ * pane occupies a column range of it, which is precisely why equality cannot
+ * be asked for here.
+ */
+function splitFindings(
+  rendered: string[],
+  truth: string[],
+  stop: Stop,
+  device: string,
+  panes: number,
+): Finding[] {
+  const findings: Finding[] = [];
+  let from = 0;
+
+  for (const line of truth) {
+    if (line.trim() === "") continue;
+    const at = rendered.findIndex((row, i) => i >= from && row.includes(line));
+    if (at === -1) {
+      findings.push({
+        id: findingId("fidelity", "missing", stop.session, device),
+        severity: "blocker",
+        detector: "fidelity",
+        detail:
+          `a line tmux has in the active pane is not on screen, or is out ` +
+          `of order\n  tmux: ${JSON.stringify(line)}`,
+        where: `${stop.session}/${stop.state}`,
+        measured: { panes, searchedFrom: from, rows: rendered.length },
+      });
+      break;
+    }
+    from = at + 1;
   }
 
   return findings;

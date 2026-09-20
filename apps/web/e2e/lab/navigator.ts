@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import type { LabFixture, LabTerminal } from "./fixtures";
-import { tmuxFormat, type LabSession } from "./lab";
+import { capturePane, exitCopyMode, tmuxFormat, type LabSession } from "./lab";
 import {
   PAGE_DETECTORS,
   fidelityFindings,
@@ -75,12 +75,56 @@ export async function inspectStop(
   opts: { volatile?: boolean } = {},
 ): Promise<Finding[]> {
   const findings = await runPageDetectors(page, stop, device);
+  if (!opts.volatile) await leaveCopyMode(page, stop.session);
   const snapshot = await term.snapshot();
   findings.push(...reflowFindings(snapshot, stop, device));
   if (!opts.volatile) {
     findings.push(...fidelityFindings(snapshot, stop, device));
   }
   return findings;
+}
+
+/**
+ * Put the pane back at the live end before diffing it against tmux.
+ *
+ * A pane in copy mode cannot be compared with `capture-pane`, and not because
+ * of a timing race: tmux draws its `[16/49969]` position indicator into the
+ * pane's top-right on screen and does not put it in the capture, so the top
+ * row differs by construction. The rows underneath differ too, because the
+ * capture returns the live screen while the client is showing a scrolled
+ * viewport.
+ *
+ * The lab's tmux outlives every spec file, so a scroll left behind by
+ * `gestures.spec.ts` was still there when the sweep arrived — which is how
+ * five "blocker" fidelity findings on `scrollback` turned out to be one
+ * uncancelled drag. Restoring the precondition is the fix, the same reasoning
+ * `exitCopyMode` already carries.
+ *
+ * The wait is for the client, not for tmux: `cancel` returns as soon as tmux
+ * has processed it, and the repaint still has to travel the relay. It gives up
+ * quietly rather than throwing — if the view never comes back, that is a real
+ * difference and `fidelityFindings` should be the one to report it.
+ */
+async function leaveCopyMode(page: Page, session: string): Promise<void> {
+  if (tmuxFormat(session, "#{pane_in_mode}") === "0") return;
+  exitCopyMode(session);
+  const deadline = Date.now() + 3_000;
+  while (Date.now() < deadline) {
+    const truth = (capturePane(session).split("\n")[0] ?? "").replace(
+      /\s+$/,
+      "",
+    );
+    if (truth === (await topRow(page))) return;
+    await page.waitForTimeout(100);
+  }
+}
+
+/** The client's first rendered row, trailing blanks trimmed. */
+async function topRow(page: Page): Promise<string> {
+  const lines = await page.evaluate(
+    () => window.__mtmuxTerminalHandle?.inspect().lines ?? [],
+  );
+  return (lines[0] ?? "").replace(/\s+$/, "");
 }
 
 /** The window tab strip, when the current session has more than one window. */
