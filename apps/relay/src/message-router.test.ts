@@ -22,7 +22,13 @@ const stepWindow = vi.fn<(session: string, delta: number) => Promise<void>>();
 const stepPane = vi.fn<(session: string, delta: number) => Promise<void>>();
 const selectWindow = vi.fn<(id: string) => Promise<void>>();
 const selectPane = vi.fn<(id: string) => Promise<void>>();
-const zoomPane = vi.fn<(session: string) => Promise<void>>();
+const zoomPane =
+  vi.fn<
+    (
+      session: string,
+      opts?: { paneId?: string; desired?: boolean },
+    ) => Promise<void>
+  >();
 const listWindows = vi.fn<(session: string) => Promise<WindowInfo[]>>();
 const capturePaneById = vi.fn<(id: string) => Promise<string>>();
 type ScrollState = {
@@ -59,7 +65,8 @@ vi.mock("./tmux-manager.js", () => ({
   stepPane: (session: string, delta: number) => stepPane(session, delta),
   selectWindow: (id: string) => selectWindow(id),
   selectPane: (id: string) => selectPane(id),
-  zoomPane: (session: string) => zoomPane(session),
+  zoomPane: (session: string, opts?: { paneId?: string; desired?: boolean }) =>
+    zoomPane(session, opts),
   listWindows: (session: string) => listWindows(session),
   capturePaneById: (id: string) => capturePaneById(id),
   scrollHistory: (session: string, lines: number) =>
@@ -666,6 +673,32 @@ describe("window scoping", () => {
   it("publishes the window list alongside every pane change", async () => {
     await route({ type: "pane:zoom" });
     expect(sent.map((m) => m.type)).toEqual(["window:changed", "pane:changed"]);
+  });
+
+  it("passes the pane and the wanted state through to tmux", async () => {
+    // Both are what make the request idempotent. Dropping either here turns it
+    // back into a toggle against whatever pane tmux had active, which is the
+    // bug the fields were added for.
+    await route({ type: "pane:zoom", id: "%4", zoomed: true });
+    expect(zoomPane).toHaveBeenCalledWith("work", {
+      paneId: "%4",
+      desired: true,
+    });
+  });
+
+  it("asks for a toggle when an older client names neither", async () => {
+    await route({ type: "pane:zoom" });
+    expect(zoomPane).toHaveBeenCalledWith("work", {});
+  });
+
+  it("carries `zoomed: false` rather than dropping it as falsy", async () => {
+    // `...(msg.zoomed ? … )` would silently turn "unzoom this" into "toggle",
+    // which un-zooms exactly when it should not.
+    await route({ type: "pane:zoom", id: "%4", zoomed: false });
+    expect(zoomPane).toHaveBeenCalledWith("work", {
+      paneId: "%4",
+      desired: false,
+    });
   });
 
   it("steps windows relatively, so a stale client list cannot mistarget", async () => {

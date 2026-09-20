@@ -156,8 +156,30 @@ export const PaneSelectMessage = z.object({
   id: z.string(),
 });
 
+/**
+ * Zoom a pane, or unzoom the window.
+ *
+ * Both fields are optional, and both are new. The message used to be a bare
+ * toggle against whatever pane tmux happened to consider active, which is two
+ * bugs wearing one coat:
+ *
+ *   - **It raced itself.** Two taps before the `pane:list` announcement landed
+ *     applied two toggles and left the button showing the opposite of the
+ *     truth. "Sometimes zoom doesn't work" is this: it worked twice.
+ *   - **It could zoom the wrong pane.** `resize-pane -t <session>` resolves to
+ *     the session's *current* active pane, so a tap on a pane that another
+ *     client had just moved away from zoomed something else.
+ *
+ * `id` says which pane, so the request cannot be re-targeted underneath the
+ * user. `zoomed` says the state wanted rather than "change it", which makes
+ * the operation idempotent — the same rule `pane:select` already follows by
+ * naming a pane instead of stepping. Omitting both keeps the old toggle, so an
+ * older web client against a newer relay behaves exactly as it did.
+ */
 export const PaneZoomMessage = z.object({
   type: z.literal("pane:zoom"),
+  id: z.string().optional(),
+  zoomed: z.boolean().optional(),
 });
 
 /**

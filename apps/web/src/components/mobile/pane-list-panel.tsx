@@ -28,6 +28,7 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { useStableMediaQuery } from "@repo/ui/hooks/use-media-query";
 import { useMiniScrollbar } from "@repo/ui/components/ui/mini-scrollbar";
+import { zoomPane } from "@/lib/pane-zoom";
 import { MOBILE_MEDIA_QUERY } from "@/lib/mobile-query";
 import { usePaneStore } from "@/stores/pane-store";
 import { useUiStore } from "@/stores/ui-store";
@@ -111,7 +112,7 @@ export function PaneListPanel() {
       // flickered, and — because every pane of a zoomed window used to report
       // `zoomed` — regularly rezoomed a pane the user had not chosen.
       client.send({ type: "pane:select", id });
-      if (!zoomedPaneId) client.send({ type: "pane:zoom" });
+      if (!zoomedPaneId) zoomPane({ id, zoomed: true });
     } else {
       client.send({ type: "pane:select", id });
     }
@@ -120,7 +121,7 @@ export function PaneListPanel() {
   };
 
   const handleZoomPane = () => {
-    getRelayClient()?.send({ type: "pane:zoom" });
+    zoomPane();
   };
 
   const killingPane = panes.find((p) => p.id === killing);

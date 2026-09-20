@@ -845,7 +845,10 @@ export async function routeMessage(
           sendError(ws, "NOT_ATTACHED", "No session attached");
           break;
         }
-        await tmux.zoomPane(conn.attachedSession);
+        await tmux.zoomPane(conn.attachedSession, {
+          ...(msg.id ? { paneId: msg.id } : {}),
+          ...(msg.zoomed === undefined ? {} : { desired: msg.zoomed }),
+        });
         await announceLayout(conn, conn.attachedSession);
         break;
       }

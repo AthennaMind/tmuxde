@@ -228,7 +228,15 @@ export function useWebSocket(
           if (paneStore.pendingAutoZoom) {
             const zoomedPane = msg.panes.find((p) => p.zoomed);
             if (!zoomedPane && isMobileViewport()) {
-              client?.send({ type: "pane:zoom" });
+              // Name the pane and the state. A bare `pane:zoom` is a toggle,
+              // and this fires off an announcement that may race a tap the
+              // user has already made — see `lib/pane-zoom.ts`.
+              const active = msg.panes.find((p) => p.active);
+              client?.send({
+                type: "pane:zoom",
+                ...(active ? { id: active.id } : {}),
+                zoomed: true,
+              });
             }
             paneStore.setPendingAutoZoom(false);
           }

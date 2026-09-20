@@ -310,6 +310,98 @@ describeTmux("windows and panes", { timeout: TMUX_TEST_TIMEOUT_MS }, () => {
     }
   });
 
+  /**
+   * Zoom, against real tmux, because the whole point of the change is which
+   * tmux command runs in which state — and that is not something a mock can
+   * be wrong about in an interesting way.
+   *
+   * The bug being pinned: `pane:zoom` used to be a bare toggle. Pressing it
+   * twice before the layout announcement landed applied twice, so the button
+   * showed the opposite of the truth, and it targeted the session's current
+   * pane rather than the one tapped.
+   */
+  describe("zoom", () => {
+    /**
+     * The split window, found by counting rather than by taking the current
+     * one. Two of this fixture's three windows hold a single pane, and tmux
+     * will not zoom a window that has nothing to zoom over — so a test that
+     * grabbed `listPanes(MULTI)[0]` would be asserting against a window where
+     * every zoom command is a silent no-op.
+     */
+    const splitPanes = async () => {
+      const all = await tmux.listPanes(MULTI);
+      const counts = new Map<string, number>();
+      for (const p of all)
+        counts.set(p.windowId, (counts.get(p.windowId) ?? 0) + 1);
+      const windowId = [...counts.entries()].find(([, n]) => n > 1)?.[0];
+      expect(windowId).toBeDefined();
+      return all.filter((p) => p.windowId === windowId);
+    };
+
+    const zoomState = async (pane: string) => {
+      const panes = await tmux.listPanes(MULTI);
+      return panes.find((p) => p.id === pane)?.zoomed ?? false;
+    };
+
+    afterEach(async () => {
+      // Leave the window unzoomed whatever the test did, so ordering between
+      // these cannot matter. By pane id, not by session: the session's current
+      // window is not necessarily the one the test just zoomed.
+      const panes = await splitPanes();
+      // Whichever pane is actually zoomed, if any: asking an unzoomed pane to
+      // be unzoomed is correctly a no-op, and would leave the window zoomed.
+      const pane = panes.find((p) => p.zoomed) ?? panes[0];
+      await tmux.zoomPane(MULTI, { paneId: pane!.id, desired: false });
+    });
+
+    it("zooms the pane it was told to, not the one tmux had active", async () => {
+      const panes = await splitPanes();
+      const inactive = panes.find((p) => !p.active);
+      expect(inactive).toBeDefined();
+
+      await tmux.zoomPane(MULTI, { paneId: inactive!.id, desired: true });
+      expect(await zoomState(inactive!.id)).toBe(true);
+    });
+
+    it("is idempotent, so a double tap does not undo itself", async () => {
+      // The actual reported symptom. Two toggles is a no-op; two "make it
+      // zoomed" is zoomed.
+      const [pane] = await splitPanes();
+      await tmux.zoomPane(MULTI, { paneId: pane!.id, desired: true });
+      await tmux.zoomPane(MULTI, { paneId: pane!.id, desired: true });
+      expect(await zoomState(pane!.id)).toBe(true);
+    });
+
+    it("unzooms idempotently too", async () => {
+      const [pane] = await splitPanes();
+      await tmux.zoomPane(MULTI, { paneId: pane!.id, desired: true });
+      await tmux.zoomPane(MULTI, { paneId: pane!.id, desired: false });
+      await tmux.zoomPane(MULTI, { paneId: pane!.id, desired: false });
+      expect(await zoomState(pane!.id)).toBe(false);
+    });
+
+    it("moves the zoom to another pane rather than turning it off", async () => {
+      // The case a toggle cannot express: the only thing toggling a zoomed
+      // window can do is unzoom it, so asking for B while A is zoomed used to
+      // leave nothing zoomed at all.
+      const [a, b] = await splitPanes();
+      await tmux.zoomPane(MULTI, { paneId: a!.id, desired: true });
+      await tmux.zoomPane(MULTI, { paneId: b!.id, desired: true });
+
+      expect(await zoomState(b!.id)).toBe(true);
+      expect(await zoomState(a!.id)).toBe(false);
+    });
+
+    it("still toggles when no state is asked for, for an older client", async () => {
+      const [pane] = await splitPanes();
+      await tmux.selectWindow(pane!.windowId);
+      await tmux.selectPane(pane!.id);
+      const before = await zoomState(pane!.id);
+      await tmux.zoomPane(MULTI);
+      expect(await zoomState(pane!.id)).toBe(!before);
+    });
+  });
+
   it("reports the window tmux is actually showing", async () => {
     const windows = await tmux.listWindows(MULTI);
     expect(windows).toHaveLength(3);

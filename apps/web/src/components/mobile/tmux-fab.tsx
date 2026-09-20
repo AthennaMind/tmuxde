@@ -48,6 +48,7 @@ import { usePaneStore } from "@/stores/pane-store";
 import { useUiStore } from "@/stores/ui-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useConnectionStore } from "@/stores/connection-store";
+import { zoomPane } from "@/lib/pane-zoom";
 import { noteEnteredCopyMode } from "@/lib/copy-mode-belief";
 import { getRelayClient } from "@/hooks/use-websocket";
 
@@ -140,7 +141,7 @@ export function TmuxFab() {
       icon: Maximize2,
       label: zoomedPaneId ? "Unzoom" : "Zoom",
       action: () => {
-        getRelayClient()?.send({ type: "pane:zoom" });
+        zoomPane();
         setFabOpen(false);
       },
     },

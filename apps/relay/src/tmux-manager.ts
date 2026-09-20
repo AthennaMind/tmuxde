@@ -434,15 +434,73 @@ export async function selectPane(paneId: string): Promise<void> {
   logger.info({ paneId }, "Selected pane");
 }
 
-export async function zoomPane(session: string): Promise<void> {
-  await execFileAsync("tmux", [
+/**
+ * Zoom a pane, or unzoom the window, idempotently.
+ *
+ * tmux has no "set zoom to X" — `resize-pane -Z` is a toggle and nothing else.
+ * A toggle is the wrong primitive to hand a network client: two taps that
+ * arrive before the layout announcement does apply twice and leave the user
+ * looking at the opposite of the button they pressed. So the desired state is
+ * read first and the toggle is sent only when it would change something.
+ *
+ * The three-way branch is not defensive padding; each arm is a state tmux can
+ * actually be in, and they need different commands:
+ *
+ *   - not zoomed, want zoomed      → `resize-pane -Z`, which also activates it
+ *   - zoomed on another pane       → `select-pane -Z`, which *moves* the zoom
+ *   - zoomed, want it gone         → `resize-pane -Z` again
+ *
+ * The middle one is the one a toggle can never express. Without it, asking to
+ * zoom pane B while pane A is zoomed unzooms the window, because the only
+ * thing a toggle can do to a zoomed window is un-zoom it.
+ *
+ * `desired` omitted keeps the old toggle, for a client that predates the
+ * field. `paneId` omitted targets the session's current pane, likewise.
+ */
+export async function zoomPane(
+  session: string,
+  opts: { paneId?: string; desired?: boolean } = {},
+): Promise<void> {
+  const target = opts.paneId ?? session;
+
+  if (opts.desired === undefined) {
+    await execFileAsync("tmux", [
+      ...tmuxArgs(),
+      "resize-pane",
+      "-t",
+      target,
+      "-Z",
+    ]);
+    logger.info({ session, target }, "Toggled pane zoom");
+    return;
+  }
+
+  const { stdout } = await execFileAsync("tmux", [
     ...tmuxArgs(),
-    "resize-pane",
+    "display-message",
+    "-p",
     "-t",
-    session,
-    "-Z",
+    target,
+    "#{window_zoomed_flag}\t#{pane_active}",
   ]);
-  logger.info({ session }, "Toggled pane zoom");
+  const [flag, active] = stdout.trim().split("\t");
+  const windowZoomed = flag === "1";
+  // `window_zoomed_flag` is a property of the window: every pane in a zoomed
+  // window reports it. The pane actually *being* zoomed is the active one —
+  // the same reading `listPanes` uses.
+  const thisPaneZoomed = windowZoomed && active === "1";
+
+  if (opts.desired === thisPaneZoomed) {
+    logger.debug({ session, target }, "Pane zoom already as asked");
+    return;
+  }
+
+  const args =
+    opts.desired && windowZoomed
+      ? ["select-pane", "-Z", "-t", target]
+      : ["resize-pane", "-t", target, "-Z"];
+  await execFileAsync("tmux", [...tmuxArgs(), ...args]);
+  logger.info({ session, target, zoomed: opts.desired }, "Set pane zoom");
 }
 
 export async function resizePane(
@@ -576,9 +634,7 @@ export async function readScrollState(session: string): Promise<ScrollState> {
     session,
     "#{pane_in_mode}\t#{scroll_position}\t#{history_size}\t#{pane_height}",
   ]);
-  const [inMode, position, historySize, paneHeight] = stdout
-    .trim()
-    .split("\t");
+  const [inMode, position, historySize, paneHeight] = stdout.trim().split("\t");
   const num = (value: string | undefined): number => {
     const parsed = Number.parseInt(value ?? "", 10);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
