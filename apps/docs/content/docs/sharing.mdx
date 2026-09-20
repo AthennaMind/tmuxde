@@ -52,14 +52,14 @@ tmux set-option -t __mtmux_… key-table mtmux-locked
 
 No prefix key, no key bindings, and the relay drops `terminal:input` before it
 reaches the PTY. There is nothing to type into. The grouped clone shows the same
-windows live, and `prefix` and `key-table` are *session* options, so your own
+windows live, and `prefix` and `key-table` are _session_ options, so your own
 client is unaffected.
 
 <Callout type="warn">
-`tmux attach-session -r` is **not** enough on its own. tmux documents that under
-`-r`, keys bound to `detach-client` **and `switch-client`** still work — and `(`
-and `)` are bound to `switch-client` by default. A viewer could page through
-every session on the machine. The locked clone is what closes that.
+  `tmux attach-session -r` is **not** enough on its own. tmux documents that
+  under `-r`, keys bound to `detach-client` **and `switch-client`** still work —
+  and `(` and `)` are bound to `switch-client` by default. A viewer could page
+  through every session on the machine. The locked clone is what closes that.
 </Callout>
 
 ```bash
@@ -75,20 +75,20 @@ mtmux share list
 mtmux share revoke <grantId>
 ```
 
-| Flag | Default | Effect |
-| --- | --- | --- |
-| `--read-only` | off | They watch; input is refused. A real boundary. |
-| `--files <level>` | `none` | `none`, `ro` (read), `rw` (read + write). |
-| `--expires <duration>` | `7d` | `30m`, `24h`, `7d`, `2w`, or `never`. |
-| `--label <text>` | `Share of <session>` | What it is called in `mtmux share list`. |
-| `--no-qr` | — | Print the code without the QR block. |
-| `-p, --port <n>` | `14100` | The port mtmux is serving on. |
+| Flag                   | Default              | Effect                                         |
+| ---------------------- | -------------------- | ---------------------------------------------- |
+| `--read-only`          | off                  | They watch; input is refused. A real boundary. |
+| `--files <level>`      | `none`               | `none`, `ro` (read), `rw` (read + write).      |
+| `--expires <duration>` | `7d`                 | `30m`, `24h`, `7d`, `2w`, or `never`.          |
+| `--label <text>`       | `Share of <session>` | What it is called in `mtmux share list`.       |
+| `--no-qr`              | —                    | Print the code without the QR block.           |
+| `-p, --port <n>`       | `14100`              | The port mtmux is serving on.                  |
 
 Comma-separate to share several at once: `mtmux share work,logs`.
 
 ### Files are off by default
 
-A share with file access turned on uses the *same* allow-list as the machine
+A share with file access turned on uses the _same_ allow-list as the machine
 itself, which defaults to your entire home directory — and `file:delete` is one
 of the operations. That is not a share of one tmux session.
 
@@ -179,7 +179,7 @@ looks like a bug rather than like the truth.
 ## Sharing a recording instead
 
 `mtmux share` hands over a live session. If what you want to hand over is what
-*already happened*, [`mtmux record share`](/docs/recording) sends a copy of a
+_already happened_, [`mtmux record share`](/docs/recording) sends a copy of a
 `.cast` file instead: the same pairing code and the same sealed tunnel, but the
 grant names recordings rather than sessions, so the connection can attach to no
 session, send no input and read no files.

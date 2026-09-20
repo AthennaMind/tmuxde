@@ -4,11 +4,11 @@ description: mtmux sends none. The four layers that can page you when an agent f
 ---
 
 <Callout type="warn" title="mtmux sends no notifications">
-This is a product decision, not a missing feature. mtmux has no notification
-service, no background daemon watching your panes, no push credentials and no
-channel it initiates to your devices. It cannot tell you an agent finished,
-because nothing in it is looking. Every mechanism on this page belongs to some
-other program, and is configured somewhere other than mtmux.
+  This is a product decision, not a missing feature. mtmux has no notification
+  service, no background daemon watching your panes, no push credentials and no
+  channel it initiates to your devices. It cannot tell you an agent finished,
+  because nothing in it is looking. Every mechanism on this page belongs to some
+  other program, and is configured somewhere other than mtmux.
 </Callout>
 
 What mtmux does is remove the reason a notification used to be useless: being
@@ -21,12 +21,12 @@ Exactly four things can raise an alert about a terminal agent. They are not
 alternatives to each other — they sit at different distances and observe
 different events.
 
-| Layer | Observes | Reaches | Configured in |
-| --- | --- | --- | --- |
-| The agent's own hook | Its own lifecycle: finished, waiting, blocked | Whatever the command it runs can reach | The agent's config — `settings.json` for [Claude Code](/docs/agents/claude-code), `~/.codex/config.toml` for [Codex CLI](/docs/agents/codex-cli) |
-| tmux | Output activity, silence, and the terminal bell in any pane | The tmux status line, and any command a hook runs | `~/.tmux.conf` |
-| The terminal emulator | The bell, and OSC escape sequences a program prints | Your desktop's notification centre | The emulator's own settings |
-| A push service | Nothing — it delivers what one of the above hands it | Your phone, anywhere | The service (ntfy, Pushover, …), called by one of the layers above |
+| Layer                 | Observes                                                    | Reaches                                           | Configured in                                                                                                                                    |
+| --------------------- | ----------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| The agent's own hook  | Its own lifecycle: finished, waiting, blocked               | Whatever the command it runs can reach            | The agent's config — `settings.json` for [Claude Code](/docs/agents/claude-code), `~/.codex/config.toml` for [Codex CLI](/docs/agents/codex-cli) |
+| tmux                  | Output activity, silence, and the terminal bell in any pane | The tmux status line, and any command a hook runs | `~/.tmux.conf`                                                                                                                                   |
+| The terminal emulator | The bell, and OSC escape sequences a program prints         | Your desktop's notification centre                | The emulator's own settings                                                                                                                      |
+| A push service        | Nothing — it delivers what one of the above hands it        | Your phone, anywhere                              | The service (ntfy, Pushover, …), called by one of the layers above                                                                               |
 
 Read down the "Reaches" column: only the last row leaves the building. The first
 three end at a machine you have to be sitting near, which is why an unattended
@@ -35,18 +35,18 @@ it.
 
 ## Which layer for which event
 
-| Event | Best layer | Why |
-| --- | --- | --- |
-| The agent finished a turn | Agent hook | It is the only layer that knows the difference between "finished" and "printed a lot" |
-| The agent is blocked on you | Agent hook, if the agent has one | tmux sees no output at all in this state — silence, not activity |
-| A build or test run ended | tmux `monitor-silence`, or a command appended to the run | The agent is not involved |
-| Any of the above, on a phone | Push service, called from one of the above | Nothing else crosses a network |
+| Event                        | Best layer                                               | Why                                                                                   |
+| ---------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| The agent finished a turn    | Agent hook                                               | It is the only layer that knows the difference between "finished" and "printed a lot" |
+| The agent is blocked on you  | Agent hook, if the agent has one                         | tmux sees no output at all in this state — silence, not activity                      |
+| A build or test run ended    | tmux `monitor-silence`, or a command appended to the run | The agent is not involved                                                             |
+| Any of the above, on a phone | Push service, called from one of the above               | Nothing else crosses a network                                                        |
 
 <Callout type="info" title="The blocked case is the one that pays">
-A finished run costs you a few minutes of not knowing. A run blocked at a
-permission prompt costs you the whole time you are away, because nothing
-advances until you answer. If you wire one thing, wire the blocked case. See
-[Approvals](/docs/agents/approvals).
+  A finished run costs you a few minutes of not knowing. A run blocked at a
+  permission prompt costs you the whole time you are away, because nothing
+  advances until you answer. If you wire one thing, wire the blocked case. See
+  [Approvals](/docs/agents/approvals).
 </Callout>
 
 ## tmux's own alert system, in brief
@@ -54,11 +54,11 @@ advances until you answer. If you wire one thing, wire the blocked case. See
 The parts of tmux relevant here, for reference — the full semantics are in
 `man tmux`:
 
-| Option | Fires when |
-| --- | --- |
-| `monitor-activity` | Any output appears in a window you are not looking at |
-| `monitor-silence <seconds>` | A window produces no output for that long |
-| `monitor-bell` | A program in the window writes `\a` |
+| Option                                             | Fires when                                                    |
+| -------------------------------------------------- | ------------------------------------------------------------- |
+| `monitor-activity`                                 | Any output appears in a window you are not looking at         |
+| `monitor-silence <seconds>`                        | A window produces no output for that long                     |
+| `monitor-bell`                                     | A program in the window writes `\a`                           |
 | `visual-activity`, `visual-bell`, `visual-silence` | Whether the alert is a status-line message rather than a bell |
 
 `set-hook -g alert-bell '<command>'` runs an arbitrary command on the alert,

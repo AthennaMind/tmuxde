@@ -24,13 +24,13 @@ is a standalone service on port `14300`.
 
 ## HTTP endpoints
 
-| Endpoint | Method | Auth | Purpose |
-| --- | --- | --- | --- |
-| `/health` | GET | none | Liveness. Returns `{ status, uptime }`. |
-| `/_pair/local` | POST | a pairing nonce in the body | Redeem a LAN sign-in nonce for a session token |
-| `/_pair/session` | POST | loopback + `Bearer AUTH_TOKEN` | Register a PAKE-derived session token |
-| `/file?path=…` | GET | `Bearer`, or legacy `?token=` | Download or stream a file |
-| `/_relay` | WS | `auth` as the first message | The protocol socket |
+| Endpoint         | Method | Auth                           | Purpose                                        |
+| ---------------- | ------ | ------------------------------ | ---------------------------------------------- |
+| `/health`        | GET    | none                           | Liveness. Returns `{ status, uptime }`.        |
+| `/_pair/local`   | POST   | a pairing nonce in the body    | Redeem a LAN sign-in nonce for a session token |
+| `/_pair/session` | POST   | loopback + `Bearer AUTH_TOKEN` | Register a PAKE-derived session token          |
+| `/file?path=…`   | GET    | `Bearer`, or legacy `?token=`  | Download or stream a file                      |
+| `/_relay`        | WS     | `auth` as the first message    | The protocol socket                            |
 
 `GET /_pair/local` is refused with `405` on purpose — a `GET` would put the
 nonce in access logs and `Referer` headers.
@@ -84,12 +84,12 @@ flag. Anything that can authenticate can do anything the protocol offers.
 
 ## Limits
 
-| Limit | Default | Behaviour on exceeding |
-| --- | --- | --- |
-| Messages per second per connection | `WS_RATE_LIMIT`, 100 | The message is dropped with a `RATE_LIMITED` error. No disconnect. |
-| Idle time | `IDLE_TIMEOUT_MINUTES`, 30 | Closed with code 1000, "Idle timeout". `0` disables it. |
-| Concurrent connections | 100 total, 10 per address | Upgrade closed with code 1013. |
-| WebSocket frame | 1 MiB | Rejected before it reaches a handler. |
+| Limit                              | Default                    | Behaviour on exceeding                                             |
+| ---------------------------------- | -------------------------- | ------------------------------------------------------------------ |
+| Messages per second per connection | `WS_RATE_LIMIT`, 100       | The message is dropped with a `RATE_LIMITED` error. No disconnect. |
+| Idle time                          | `IDLE_TIMEOUT_MINUTES`, 30 | Closed with code 1000, "Idle timeout". `0` disables it.            |
+| Concurrent connections             | 100 total, 10 per address  | Upgrade closed with code 1013.                                     |
+| WebSocket frame                    | 1 MiB                      | Rejected before it reaches a handler.                              |
 
 The rate limit is checked before parsing and before auth. The idle clock is
 updated by any inbound message, including rejected ones. Separately, the relay

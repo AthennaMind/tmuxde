@@ -24,12 +24,23 @@ of leaving the app.
 
 ## The keyboard toolbar
 
-A bar above the on-screen keyboard. Fixed buttons:
+A bar above the on-screen keyboard, in three parts. The two **pinned** buttons
+never scroll away:
 
-`^C` `^D` `^Z` · Paste · Copy · Search · Command palette · Split horizontally ·
-Split vertically · Copy mode · font `−` `+`
+- **Copy mode**, at the start. It captures the pane's text into a view you can
+  select out of, which on a phone is the only way to get anything out of the
+  terminal at all — the pane is a canvas, so there is nothing to press and hold
+  over. While tmux is in its own copy mode this slot becomes an amber chip that
+  leaves it, because until you do the terminal looks focused and silently eats
+  everything you type.
+- **`?`**, at the end. The gesture cheat sheet — see [Gestures](#gestures).
 
-Then the configurable keys, each of which can be hidden in Settings:
+Between them, a strip that scrolls sideways:
+
+Compose · `^C` `^D` `^Z` · the configurable keys · Search · Command palette ·
+Paste · Copy · Split horizontally · Split vertically · font `−` `+` · `⋯`
+
+The configurable keys, each of which can be hidden in Settings:
 
 `Tab` `Esc` `Ctrl` `Alt` `↑` `↓` `←` `→` `|` `-` `~` `/`
 
@@ -58,7 +69,8 @@ The floating action button opens a bottom sheet with three tabs:
 | **Windows**  | Create, rename, kill, tiled layout, rotate layout         |
 | **Advanced** | Copy mode, send the tmux prefix, detach                   |
 
-Long-pressing the FAB is a shortcut to split.
+Long-pressing the FAB is a shortcut to split. Long-pressing a **window tab**
+opens this sheet on that window, which is where rename and close live.
 
 **Resize mode** replaces the sheet with a D-pad overlay: each press moves the
 boundary five cells and repeats while held.
@@ -69,9 +81,25 @@ Configurable in Settings:
 
 | Gesture          | Action                                                                |
 | ---------------- | --------------------------------------------------------------------- |
+| Press and hold   | Options for the pane under your finger — zoom, split, focus, kill     |
 | Drag up/down     | Scroll tmux's history                                                 |
+| Flick            | Keeps scrolling, and slows to a stop                                  |
 | Swipe left/right | Switch pane if the window has more than one, otherwise switch session |
 | Pinch            | Change font size                                                      |
+
+The `?` in the keyboard toolbar prints this table on the phone itself, filtered
+to the gestures you have left switched on — a gesture is the one kind of control
+that cannot label itself, and a cheat sheet that teaches one you have turned off
+is worse than none.
+
+**Press and hold names a pane.** Everything else that acts on a pane acts on
+whichever one tmux currently considers active, so doing anything to another one
+meant switching to it first and remembering to switch back. A press hit-tests
+the point against tmux's own pane geometry, which is the only way to do it: tmux
+composites server-side and sends one linear stream, so there is no per-pane
+element to aim at. The browser's own long-press menu is suppressed over the
+terminal, on touch only — a right-click on a desktop still gets it, which is how
+you copy a selection out of a canvas there.
 
 Scrolling is a real tmux operation, not a client-side one: the relay attaches a
 normal tmux client, so tmux holds the alternate screen and there is no local

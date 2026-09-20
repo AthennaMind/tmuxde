@@ -25,14 +25,14 @@ serves. It talks to the relay over the typed WebSocket protocol in
 
 ## Pages
 
-| Route | Purpose |
-| --- | --- |
-| `/` | The terminal — sidebar, terminal, file panel |
-| `/[sessionId]` | Deep link to a session; sets it active and restores it later |
-| `/j` | **The QR target for `mtmux start`.** Claims a code the terminal is showing |
-| `/pair` | The other direction: shows a code for `mtmux pair` to claim |
-| `/login` | Paste a token, or auto-authenticate from a URL fragment |
-| `/settings` | Settings, and the only place with a logout button |
+| Route          | Purpose                                                                    |
+| -------------- | -------------------------------------------------------------------------- |
+| `/`            | The terminal — sidebar, terminal, file panel                               |
+| `/[sessionId]` | Deep link to a session; sets it active and restores it later               |
+| `/j`           | **The QR target for `mtmux start`.** Claims a code the terminal is showing |
+| `/pair`        | The other direction: shows a code for `mtmux pair` to claim                |
+| `/login`       | Paste a token, or auto-authenticate from a URL fragment                    |
+| `/settings`    | Settings, and the only place with a logout button                          |
 
 `/j` reads the code from the fragment (`/j#49271638`) and pairs with **zero
 taps**; with no fragment it falls back to a code field for someone typing

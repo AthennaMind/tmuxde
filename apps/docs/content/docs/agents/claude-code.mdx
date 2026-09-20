@@ -18,6 +18,7 @@ npm install -g mtmux
 
 Node 22+ and `tmux` on `PATH` are the only requirements. See
 [Getting started](/docs/getting-started) for the full prerequisite list.
+
 </Step>
 
 <Step title="Give Claude Code a tmux session of its own">
@@ -28,6 +29,7 @@ tmux new -s claude
 Start Claude Code inside it. A named session is not cosmetic: it is the handle
 `mtmux share` and `mtmux start --share` take, and it is what you look for in the
 session list on a phone.
+
 </Step>
 
 <Step title="Serve the machine's tmux">
@@ -39,6 +41,7 @@ mtmux
 server, not just the one you named — see
 [Multi-agent layouts](/docs/agents/multi-agent-layouts) if that is not what you
 want.
+
 </Step>
 
 <Step title="Pair the device you will actually read it on">
@@ -55,14 +58,14 @@ These are web-client features, not Claude Code features. The full reference is
 in [Mobile](/docs/web-app/mobile); this is the subset that matters while an
 agent is working.
 
-| Need | Control |
-| --- | --- |
-| Read a long response | Pinch to change font size; auto-zoom keeps the active pane readable after a split |
-| Answer a prompt or write a follow-up | The command bar — an auto-resizing text area, `Enter` sends, `Shift+Enter` newlines |
-| Stop it | `^C` is a fixed button on the keyboard toolbar |
-| Read what scrolled past | Copy mode captures the pane read-only, with Copy All |
-| Check what it changed | The [file browser](/docs/web-app/files) opens files in Monaco; file watching raises a reload banner when the agent edits a file you have open |
-| Switch between agents | Swipe left/right, or the Sessions tab |
+| Need                                 | Control                                                                                                                                       |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Read a long response                 | Pinch to change font size; auto-zoom keeps the active pane readable after a split                                                             |
+| Answer a prompt or write a follow-up | The command bar — an auto-resizing text area, `Enter` sends, `Shift+Enter` newlines                                                           |
+| Stop it                              | `^C` is a fixed button on the keyboard toolbar                                                                                                |
+| Read what scrolled past              | Copy mode captures the pane read-only, with Copy All                                                                                          |
+| Check what it changed                | The [file browser](/docs/web-app/files) opens files in Monaco; file watching raises a reload banner when the agent edits a file you have open |
+| Switch between agents                | Swipe left/right, or the Sessions tab                                                                                                         |
 
 ## Narrowing what the browser can reach
 
@@ -74,12 +77,12 @@ mtmux start --allowed-paths /home/me/projects
 ```
 
 <Callout type="warn">
-A paired browser is a shell on the machine, with your user's permissions. It is
-not sandboxed to the agent's repository, and `--allowed-paths` bounds the **file
-browser**, not the terminal. If that is not the boundary you want, share a single
-session read-only instead — see [Approvals](/docs/agents/approvals) and
-[Sharing a session](/docs/sharing). The full credential model is in
-[Security](/docs/security).
+  A paired browser is a shell on the machine, with your user's permissions. It
+  is not sandboxed to the agent's repository, and `--allowed-paths` bounds the
+  **file browser**, not the terminal. If that is not the boundary you want,
+  share a single session read-only instead — see
+  [Approvals](/docs/agents/approvals) and [Sharing a session](/docs/sharing).
+  The full credential model is in [Security](/docs/security).
 </Callout>
 
 ## Hooks, and what they are for here
@@ -110,12 +113,12 @@ Optional, permanently. Anonymous pairing is not deprecated and will not be — s
 
 ## What survives a dropped connection
 
-| | Survives? |
-| --- | --- |
-| The Claude Code process and everything in it | yes |
-| Terminal scrollback | yes, on the host |
-| Your place in the session | yes — the client re-attaches |
-| Keystrokes typed while offline | **no** — dropped, never replayed |
+|                                              | Survives?                        |
+| -------------------------------------------- | -------------------------------- |
+| The Claude Code process and everything in it | yes                              |
+| Terminal scrollback                          | yes, on the host                 |
+| Your place in the session                    | yes — the client re-attaches     |
+| Keystrokes typed while offline               | **no** — dropped, never replayed |
 
 The last row is a decision, not a gap: replaying input into a session that has
 moved on is worse than losing it. The longer form, including reboots, is in

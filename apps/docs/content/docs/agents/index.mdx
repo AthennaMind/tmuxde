@@ -13,21 +13,22 @@ for, what survives a dropped connection, and where the configuration for each
 behaviour actually lives.
 
 <Callout type="warn" title="mtmux sends no notifications">
-Nothing in mtmux pushes, buzzes, emails or alerts. It has no notification
-service, no daemon watching your panes, and no channel to your phone that it
-initiates. Everything on [Notifications](/docs/agents/notifications) is
-configuration you own, in your agent, your tmux, your terminal emulator or your
-own push service. mtmux is what you open **after** something else has paged you.
+  Nothing in mtmux pushes, buzzes, emails or alerts. It has no notification
+  service, no daemon watching your panes, and no channel to your phone that it
+  initiates. Everything on [Notifications](/docs/agents/notifications) is
+  configuration you own, in your agent, your tmux, your terminal emulator or
+  your own push service. mtmux is what you open **after** something else has
+  paged you.
 </Callout>
 
 ## What each layer is responsible for
 
-| Layer | Responsibility | Configured in |
-| --- | --- | --- |
-| The agent | Doing the work; emitting its own lifecycle events | The agent's own config — see [Claude Code](/docs/agents/claude-code), [Codex CLI](/docs/agents/codex-cli) |
-| tmux | Keeping the process alive and detached from any terminal | `~/.tmux.conf` |
-| mtmux | Serving that tmux to a browser, and admitting devices | `~/.mtmux/config.json`, flags — see the [CLI reference](/docs/cli) |
-| Your phone or laptop | Reading and answering | Nothing; it is a browser |
+| Layer                | Responsibility                                           | Configured in                                                                                             |
+| -------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| The agent            | Doing the work; emitting its own lifecycle events        | The agent's own config — see [Claude Code](/docs/agents/claude-code), [Codex CLI](/docs/agents/codex-cli) |
+| tmux                 | Keeping the process alive and detached from any terminal | `~/.tmux.conf`                                                                                            |
+| mtmux                | Serving that tmux to a browser, and admitting devices    | `~/.mtmux/config.json`, flags — see the [CLI reference](/docs/cli)                                        |
+| Your phone or laptop | Reading and answering                                    | Nothing; it is a browser                                                                                  |
 
 The important consequence: **mtmux is not in the loop while the agent runs.**
 Close the tab and the agent carries on, because the agent is a child of tmux and

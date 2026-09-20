@@ -6,10 +6,10 @@ description: Two different approvals — the agent's own permission prompt, answ
 "Approval" means two unrelated things around an agent session, and confusing
 them wastes an afternoon. This page separates them.
 
-| | Who asks | Who answers | Where |
-| --- | --- | --- | --- |
-| **Agent permission prompt** | The agent, inside its pane | You, by typing into the terminal | Any paired device |
-| **mtmux access request** | A browser asking to join a registered machine | A human — in the app on an already-paired device, at the machine, or via `mtmux approve` | Wherever that human is |
+|                             | Who asks                                      | Who answers                                                                              | Where                  |
+| --------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------- |
+| **Agent permission prompt** | The agent, inside its pane                    | You, by typing into the terminal                                                         | Any paired device      |
+| **mtmux access request**    | A browser asking to join a registered machine | A human — in the app on an already-paired device, at the machine, or via `mtmux approve` | Wherever that human is |
 
 ## 1. The agent's permission prompt
 
@@ -20,20 +20,20 @@ being paired.
 
 What makes it practical on a phone rather than merely possible:
 
-| Problem on a phone | What the client does |
-| --- | --- |
-| The prompt scrolled off | Copy mode captures the pane read-only, with Copy All |
+| Problem on a phone                           | What the client does                                                                            |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| The prompt scrolled off                      | Copy mode captures the pane read-only, with Copy All                                            |
 | One-character answers are easy to fat-finger | The keyboard toolbar puts them on real buttons; `Ctrl` and `Alt` are sticky rather than chorded |
-| A longer correction fights autocorrect | The command bar is a text area — `Enter` sends, `Shift+Enter` newlines |
-| It went wrong and must stop now | `^C` is a fixed toolbar button |
+| A longer correction fights autocorrect       | The command bar is a text area — `Enter` sends, `Shift+Enter` newlines                          |
+| It went wrong and must stop now              | `^C` is a fixed toolbar button                                                                  |
 
 Full control reference in [Mobile](/docs/web-app/mobile).
 
 <Callout type="warn" title="A read-only share cannot answer a prompt">
-`mtmux share --read-only` is a real boundary: that device can watch and cannot
-type, so it cannot approve anything. If you are handing a session to someone so
-they can unblock an agent, share it read-write and understand what that means —
-see [Sharing a session](/docs/sharing).
+  `mtmux share --read-only` is a real boundary: that device can watch and cannot
+  type, so it cannot approve anything. If you are handing a session to someone
+  so they can unblock an agent, share it read-write and understand what that
+  means — see [Sharing a session](/docs/sharing).
 </Callout>
 
 **Nothing announces this state.** No layer of mtmux notices that an agent is
@@ -85,36 +85,39 @@ mtmux approve -p 14100        # a specific server; default is whichever is runni
 ```
 
 <Steps>
-<Step title="Reach the machine however you normally would">
-SSH in. The machine must already be running `mtmux` — `approve` talks to that
-process over loopback, it does not start a server or open a tunnel of its own.
-</Step>
-<Step title="Open the window">
-Run `mtmux approve`. For the next few minutes an incoming request is shown here
-instead of being denied.
-</Step>
-<Step title="Trigger the request from the browser">
-Press the join button in the dashboard. The comparison code appears in your SSH
-session — and simultaneously on any device already paired with that machine.
-</Step>
-<Step title="Compare the digits, then decide">
-They must match what the browser shows. Matching digits are the whole security
-property; approving without comparing them approves whoever is asking.
-</Step>
+  <Step title="Reach the machine however you normally would">
+    SSH in. The machine must already be running `mtmux` — `approve` talks to
+    that process over loopback, it does not start a server or open a tunnel of
+    its own.
+  </Step>
+  <Step title="Open the window">
+    Run `mtmux approve`. For the next few minutes an incoming request is shown
+    here instead of being denied.
+  </Step>
+  <Step title="Trigger the request from the browser">
+    Press the join button in the dashboard. The comparison code appears in your
+    SSH session — and simultaneously on any device already paired with that
+    machine.
+  </Step>
+  <Step title="Compare the digits, then decide">
+    They must match what the browser shows. Matching digits are the whole
+    security property; approving without comparing them approves whoever is
+    asking.
+  </Step>
 </Steps>
 
 <Callout type="warn" title="Nobody answering is a no">
-On every channel, in every combination, an unanswered request is denied when it
-expires. Closing the app, walking away from the terminal, or letting the
-approval window lapse are all the same answer: no. Nothing is ever admitted
-because a human failed to object.
+  On every channel, in every combination, an unanswered request is denied when
+  it expires. Closing the app, walking away from the terminal, or letting the
+  approval window lapse are all the same answer: no. Nothing is ever admitted
+  because a human failed to object.
 </Callout>
 
 <Callout type="info" title="Why there is no approval queue">
-The browser's half of the exchange is an ephemeral key held in one tab's memory,
-with a two-minute lifetime at the broker. There is nothing durable to queue: the
-**window** persists, the **request** cannot. So open the window first, then press
-the button — not the other way round.
+  The browser's half of the exchange is an ephemeral key held in one tab's
+  memory, with a two-minute lifetime at the broker. There is nothing durable to
+  queue: the **window** persists, the **request** cannot. So open the window
+  first, then press the button — not the other way round.
 </Callout>
 
 Requests only exist for machines registered to an account, but since 0.7.1

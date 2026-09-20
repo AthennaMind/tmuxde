@@ -15,24 +15,24 @@ flags.
 
 ## Commands at a glance
 
-| Command | What it does |
-| --- | --- |
-| `mtmux` | Alias for `mtmux start` — the command you actually use |
-| `mtmux start` | Serve this machine's tmux on this network. `--hosted` also opens a sealed tunnel and prints a QR + pairing code |
-| `mtmux local` | Serve this network only, whatever `reach` is set to |
-| `mtmux pair [code]` | The other direction: join a pairing a browser started |
-| `mtmux share <session>` | Share one tmux session without sharing the machine |
-| `mtmux record <session>` | Capture a session or pane to a `.cast` on this machine |
-| `mtmux status` | Show the server running on this machine |
-| `mtmux stop` | Stop the server running on this machine |
-| `mtmux doctor` | Check everything mtmux needs |
-| `mtmux login` / `logout` / `whoami` | Account, which is optional |
-| `mtmux servers` | List the machines on your account |
-| `mtmux devices` | Browsers this machine trusts |
-| `mtmux upgrade` | Open checkout for Pro |
-| `mtmux token` | Manage the auth token |
-| `mtmux config` | Read and change settings |
-| `mtmux version` | Print version info (alias: `v`) |
+| Command                             | What it does                                                                                                    |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `mtmux`                             | Alias for `mtmux start` — the command you actually use                                                          |
+| `mtmux start`                       | Serve this machine's tmux on this network. `--hosted` also opens a sealed tunnel and prints a QR + pairing code |
+| `mtmux local`                       | Serve this network only, whatever `reach` is set to                                                             |
+| `mtmux pair [code]`                 | The other direction: join a pairing a browser started                                                           |
+| `mtmux share <session>`             | Share one tmux session without sharing the machine                                                              |
+| `mtmux record <session>`            | Capture a session or pane to a `.cast` on this machine                                                          |
+| `mtmux status`                      | Show the server running on this machine                                                                         |
+| `mtmux stop`                        | Stop the server running on this machine                                                                         |
+| `mtmux doctor`                      | Check everything mtmux needs                                                                                    |
+| `mtmux login` / `logout` / `whoami` | Account, which is optional                                                                                      |
+| `mtmux servers`                     | List the machines on your account                                                                               |
+| `mtmux devices`                     | Browsers this machine trusts                                                                                    |
+| `mtmux upgrade`                     | Open checkout for Pro                                                                                           |
+| `mtmux token`                       | Manage the auth token                                                                                           |
+| `mtmux config`                      | Read and change settings                                                                                        |
+| `mtmux version`                     | Print version info (alias: `v`)                                                                                 |
 
 ## `mtmux start`
 
@@ -49,19 +49,19 @@ command in a second terminal.
 mtmux start [options]
 ```
 
-| Flag | Default | Description |
-| --- | --- | --- |
-| `-p, --port <number>` | `14100` | HTTP + WebSocket port |
-| `-h, --host <address>` | `0.0.0.0` on a LAN, else `127.0.0.1` | Bind address. An explicit value always wins. |
-| `--local` | on unless `reach` says otherwise | LAN and loopback only — never contact a broker. Beats everything. |
-| `--hosted` | off | Also open a tunnel and print a code for app.mtmux.com |
-| `--no-qr` | QR shown | Print the code without the QR block |
-| `-n, --name <label>` | this machine's hostname | What to call this machine in the dashboard |
-| `-t, --token <value>` | the stored token | Override the auth token for this run only |
-| `--allowed-paths <paths>` | `$HOME` | Comma-separated path allow-list for the file browser |
-| `--open` | off | Also open a browser on this machine |
-| `--api <url>` | `https://api.mtmux.com` | Pairing service base URL |
-| `--json` | off | Print a machine-readable startup record instead of the banner |
+| Flag                      | Default                              | Description                                                       |
+| ------------------------- | ------------------------------------ | ----------------------------------------------------------------- |
+| `-p, --port <number>`     | `14100`                              | HTTP + WebSocket port                                             |
+| `-h, --host <address>`    | `0.0.0.0` on a LAN, else `127.0.0.1` | Bind address. An explicit value always wins.                      |
+| `--local`                 | on unless `reach` says otherwise     | LAN and loopback only — never contact a broker. Beats everything. |
+| `--hosted`                | off                                  | Also open a tunnel and print a code for app.mtmux.com             |
+| `--no-qr`                 | QR shown                             | Print the code without the QR block                               |
+| `-n, --name <label>`      | this machine's hostname              | What to call this machine in the dashboard                        |
+| `-t, --token <value>`     | the stored token                     | Override the auth token for this run only                         |
+| `--allowed-paths <paths>` | `$HOME`                              | Comma-separated path allow-list for the file browser              |
+| `--open`                  | off                                  | Also open a browser on this machine                               |
+| `--api <url>`             | `https://api.mtmux.com`              | Pairing service base URL                                          |
+| `--json`                  | off                                  | Print a machine-readable startup record instead of the banner     |
 
 ### The default bind address
 
@@ -107,6 +107,47 @@ with the reason printed as a dim note under the addresses. This is what makes
 `mtmux start` behave identically to its self-hosted shape when the hosted
 service is absent.
 
+### The live panel
+
+On a TTY, `mtmux start` keeps a panel at the bottom of the screen showing who is
+connected right now. Everything the command prints scrolls above it, so the
+panel is never left stranded in the scrollback. It is absent off a TTY — a pipe,
+a service unit, `--json`, or a terminal under twelve rows — where the output
+stays a plain append-only log.
+
+| Key     | What it does                                                     |
+| ------- | ---------------------------------------------------------------- |
+| `↑` `↓` | Move between connected devices                                   |
+| `d`     | Everything about this connection. `enter` does it too            |
+| `c`     | Close this connection. The credential stays valid; it may return |
+| `r`     | Revoke this device. Permanent — it has to pair again             |
+| `t`     | Open the encrypted tunnel, on a server started local-only        |
+| `n`     | Throw away the printed code and arm a fresh one                  |
+| `l`     | Reprint the banner, code and addresses                           |
+| `?`     | These keys                                                       |
+| `q`     | Stop the server, the same as `Ctrl+C`                            |
+
+`t` and `n` are never both offered: `t` opens the tunnel a machine does not
+have, `n` replaces a code it already printed. A key that cannot work is worse
+than a key that is absent.
+
+**`c` and `r` are deliberately different verbs.** Closing is hanging up on a tab
+you left open somewhere; revoking un-pairs the device. Revoke asks for
+confirmation and close does not, because the cost of a wrong close is one
+reconnect and the cost of a wrong revoke is pairing again from scratch.
+
+`d` opens a card for the selected connection: what it is attached to, the
+viewer's screen size, what the grant allows in a sentence, how it reached this
+machine — "through the encrypted tunnel", "over this network", "from this
+machine" — and the device id in full, because that is what `mtmux devices
+revoke` takes. A connection with no pairing record is named from its user agent
+("Safari on iPhone") rather than left as a third row called "A device".
+
+When a device asks for access, the question is drawn in this panel and answered
+with `y`/`n` from the same key reader. There is exactly one reader on stdin at
+any time; a `[y/N]` prompt that keeps eating keystrokes after the question has
+been answered on a phone is a bug this shape makes impossible.
+
 ## `mtmux local`
 
 ```bash
@@ -137,11 +178,11 @@ Reach for it when you are already at the browser, when you are pairing a machine
 you got to over SSH, or when you want `--tunnel-only`. For the ordinary case,
 `mtmux` and a scan is fewer moving parts.
 
-| Flag | Default | Description |
-| --- | --- | --- |
-| `-p, --port <number>` | `14100` | Port mtmux is already serving on |
-| `--api <url>` | `https://api.mtmux.com` | Pairing service base URL |
-| `--tunnel-only` | off | Advertise no direct addresses; always relay through the tunnel |
+| Flag                  | Default                 | Description                                                    |
+| --------------------- | ----------------------- | -------------------------------------------------------------- |
+| `-p, --port <number>` | `14100`                 | Port mtmux is already serving on                               |
+| `--api <url>`         | `https://api.mtmux.com` | Pairing service base URL                                       |
+| `--tunnel-only`       | off                     | Advertise no direct addresses; always relay through the tunnel |
 
 `mtmux pair` requires a server to already be running on that port — it checks
 `http://127.0.0.1:<port>/health` first and refuses with a pointer to
@@ -162,15 +203,15 @@ mtmux share list
 mtmux share revoke <grantId>
 ```
 
-| Flag | Default | Effect |
-| --- | --- | --- |
-| `--read-only` | off | They watch and cannot type. A real boundary. |
-| `--files <level>` | `none` | `none`, `ro`, `rw` |
-| `--expires <duration>` | `7d` | `30m`, `24h`, `7d`, `2w`, `never` |
-| `--label <text>` | `Share of <session>` | Name in `mtmux share list` |
-| `--no-qr` | — | Print the code without the QR block |
-| `-p, --port <number>` | `14100` | Port mtmux is serving on |
-| `--api <url>` | `https://api.mtmux.com` | Pairing service base URL |
+| Flag                   | Default                 | Effect                                       |
+| ---------------------- | ----------------------- | -------------------------------------------- |
+| `--read-only`          | off                     | They watch and cannot type. A real boundary. |
+| `--files <level>`      | `none`                  | `none`, `ro`, `rw`                           |
+| `--expires <duration>` | `7d`                    | `30m`, `24h`, `7d`, `2w`, `never`            |
+| `--label <text>`       | `Share of <session>`    | Name in `mtmux share list`                   |
+| `--no-qr`              | —                       | Print the code without the QR block          |
+| `-p, --port <number>`  | `14100`                 | Port mtmux is serving on                     |
+| `--api <url>`          | `https://api.mtmux.com` | Pairing service base URL                     |
 
 Requires a server already running on that port — the grant is pinned to tmux
 session ids, and only the running relay knows them.
@@ -193,16 +234,16 @@ mtmux record rm <id>
 mtmux record share <id>
 ```
 
-| Flag | Applies to | Default | Effect |
-| --- | --- | --- | --- |
-| `--pane <id>` | `record` | — | Record one pane (a tmux `%id`) instead of the session |
-| `--title <text>` | `record` | the session name | What the recording is called, in the file's own header |
-| `--json` | `record list` | — | Print one JSON document and nothing else |
-| `--all` | `record stop` | — | Stop every recording |
-| `--expires <duration>` | `record share` | `7d` | `30m`, `24h`, `7d`, `2w`, `never` |
-| `--label <text>` | `record share` | `Recording: <title>` | Name in `mtmux share list` |
-| `--no-qr` | `record share` | — | Print the code without the QR block |
-| `-p, --port <number>` | all | `14100` | Port mtmux is serving on |
+| Flag                   | Applies to     | Default              | Effect                                                 |
+| ---------------------- | -------------- | -------------------- | ------------------------------------------------------ |
+| `--pane <id>`          | `record`       | —                    | Record one pane (a tmux `%id`) instead of the session  |
+| `--title <text>`       | `record`       | the session name     | What the recording is called, in the file's own header |
+| `--json`               | `record list`  | —                    | Print one JSON document and nothing else               |
+| `--all`                | `record stop`  | —                    | Stop every recording                                   |
+| `--expires <duration>` | `record share` | `7d`                 | `30m`, `24h`, `7d`, `2w`, `never`                      |
+| `--label <text>`       | `record share` | `Recording: <title>` | Name in `mtmux share list`                             |
+| `--no-qr`              | `record share` | —                    | Print the code without the QR block                    |
+| `-p, --port <number>`  | all            | `14100`              | Port mtmux is serving on                               |
 
 Requires a server already running on that port: only the running process holds
 the tmux connection the recorder attaches through.
@@ -290,25 +331,25 @@ flag or a decision the product should make for you.
 
 **`reach`** — how far `mtmux start` goes when nobody says.
 
-| Value | Meaning |
-| --- | --- |
-| `local` (default) | Serve the LAN and loopback. Contact nothing. |
-| `hosted` | Also open a sealed tunnel and print a code for app.mtmux.com. |
+| Value             | Meaning                                                       |
+| ----------------- | ------------------------------------------------------------- |
+| `local` (default) | Serve the LAN and loopback. Contact nothing.                  |
+| `hosted`          | Also open a sealed tunnel and print a code for app.mtmux.com. |
 
 `--local` and `--hosted` both beat this for one run, and `--local` beats
 `--hosted` — an explicit "not now" should win over a preference set weeks ago.
 This default used to be `hosted`. Reaching the internet is the more useful
-behaviour *and* the one with consequences, and a default is whatever happens to
+behaviour _and_ the one with consequences, and a default is whatever happens to
 someone who typed the shortest command in the product without reading what it
 did.
 
 **`reconnectPolicy`** — whether a device paired in an earlier run may reconnect
 without being asked.
 
-| Value | Meaning |
-| --- | --- |
+| Value             | Meaning                                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `trust` (default) | Paired means paired, the way a Bluetooth keyboard is paired. A machine under systemd survives a reboot with nobody at it. |
-| `confirm` | A returning device raises a prompt on this machine the first time it reconnects after a restart. |
+| `confirm`         | A returning device raises a prompt on this machine the first time it reconnects after a restart.                          |
 
 Under `confirm` the prompt shows no comparison code, because there is nothing to
 compare: the device already proved itself cryptographically — its key schedule
@@ -351,13 +392,13 @@ not un-pair every device you own.
 
 All optional. See [Accounts](/docs/accounts).
 
-| Command | Description |
-| --- | --- |
-| `mtmux login` | Sign in via OAuth device authorization — works on a headless box |
-| `mtmux logout` | Sign out on this machine |
-| `mtmux whoami` | Show the signed-in account, plan and broker |
-| `mtmux servers` | List the machines registered to the account |
-| `mtmux upgrade` | Open checkout for mtmux Pro |
+| Command         | Description                                                      |
+| --------------- | ---------------------------------------------------------------- |
+| `mtmux login`   | Sign in via OAuth device authorization — works on a headless box |
+| `mtmux logout`  | Sign out on this machine                                         |
+| `mtmux whoami`  | Show the signed-in account, plan and broker                      |
+| `mtmux servers` | List the machines registered to the account                      |
+| `mtmux upgrade` | Open checkout for mtmux Pro                                      |
 
 `login`, `logout`, `whoami`, `servers` and `upgrade` all take `--api <url>`.
 `login` and `upgrade` also take `--no-open`.
@@ -380,22 +421,22 @@ Aliased as `mtmux v`.
 
 ## Environment variables
 
-| Variable | Effect |
-| --- | --- |
-| `MTMUX_CONFIG_DIR` | Directory holding `config.json` and `server.json`. Default `~/.mtmux`. |
-| `MTMUX_API_URL` | Pairing broker base URL. Default `https://api.mtmux.com`. `--api` overrides it. |
-| `MTMUX_APP_URL` | Web client origin used to build the pairing link and QR. Default `https://app.mtmux.com`. Point it at your own deployment of `apps/web`. |
-| `MTMUX_BUILD_API_URL` | **Build time only.** Bakes a broker origin into the bundled web client. |
+| Variable              | Effect                                                                                                                                   |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `MTMUX_CONFIG_DIR`    | Directory holding `config.json` and `server.json`. Default `~/.mtmux`.                                                                   |
+| `MTMUX_API_URL`       | Pairing broker base URL. Default `https://api.mtmux.com`. `--api` overrides it.                                                          |
+| `MTMUX_APP_URL`       | Web client origin used to build the pairing link and QR. Default `https://app.mtmux.com`. Point it at your own deployment of `apps/web`. |
+| `MTMUX_BUILD_API_URL` | **Build time only.** Bakes a broker origin into the bundled web client.                                                                  |
 
 ## Files
 
-| Path | Contents |
-| --- | --- |
-| `~/.mtmux/config.json` | Auth token, device key, paired peers, account, server name. Mode `0600`. |
-| `~/.mtmux/grants.json` | Shares created with `mtmux share`. Mode `0600`. Separate from `config.json` so a truncated write cannot cost you your device identity. |
-| `~/.mtmux/recordings/` | `.cast` files from `mtmux record`, plus an `index.json`. Directory `0700`, files `0600`. |
-| `~/.mtmux/server.json` | The running server's pid, port, URLs and mode. |
-| `~/.tmuxremote/config.json` | Legacy location. Its token is adopted on first run if the new file is missing. |
+| Path                        | Contents                                                                                                                               |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `~/.mtmux/config.json`      | Auth token, device key, paired peers, account, server name. Mode `0600`.                                                               |
+| `~/.mtmux/grants.json`      | Shares created with `mtmux share`. Mode `0600`. Separate from `config.json` so a truncated write cannot cost you your device identity. |
+| `~/.mtmux/recordings/`      | `.cast` files from `mtmux record`, plus an `index.json`. Directory `0700`, files `0600`.                                               |
+| `~/.mtmux/server.json`      | The running server's pid, port, URLs and mode.                                                                                         |
+| `~/.tmuxremote/config.json` | Legacy location. Its token is adopted on first run if the new file is missing.                                                         |
 
 ## Commands that do not exist
 

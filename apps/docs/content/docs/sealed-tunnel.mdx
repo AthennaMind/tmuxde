@@ -11,10 +11,10 @@ Everything on this page corresponds to code in `packages/crypto/src/`. Nothing
 here is aspirational.
 
 <Callout type="warn" title="Status">
-The CPace implementation is checked against the published draft test vectors,
-which proves the encoding and group maths. It has not yet had an independent
-security review of the surrounding protocol wiring. The file says so at the top,
-and so do we.
+  The CPace implementation is checked against the published draft test vectors,
+  which proves the encoding and group maths. It has not yet had an independent
+  security review of the surrounding protocol wiring. The file says so at the
+  top, and so do we.
 </Callout>
 
 ## The shape of it
@@ -39,7 +39,7 @@ coming back. The relay sees an ordinary authenticated local client and knows
 nothing about tunnels, brokers, pairing or AES — which is what keeps the
 self-hosted path off the tunnel's critical code.
 
-It also means the machine's 64-hex `AUTH_TOKEN` is injected on *this* side of
+It also means the machine's 64-hex `AUTH_TOKEN` is injected on _this_ side of
 the tunnel and never travels over it.
 
 ## Step 1 — CPace
@@ -51,11 +51,11 @@ over `@noble/curves`' audited ristretto255.
 CPace is a balanced PAKE: both sides hold the same low-entropy password and end
 up with the same high-entropy key, while an observer learns neither.
 
-| Input | Value |
-| --- | --- |
-| `PRS` (password) | The six-digit secret from the pairing code |
-| `CI` (channel identifier) | The three-digit slot |
-| `sid` (session id) | 16 bytes, chosen by the claimant |
+| Input                     | Value                                      |
+| ------------------------- | ------------------------------------------ |
+| `PRS` (password)          | The six-digit secret from the pairing code |
+| `CI` (channel identifier) | The three-digit slot                       |
+| `sid` (session id)        | 16 bytes, chosen by the claimant           |
 
 The run is:
 
@@ -81,10 +81,10 @@ The broker sees the two 32-byte shares and the associated data. From those the
 six-digit secret cannot be recovered.
 
 <Callout type="info" title="Why implement it rather than depend on one">
-Every CPace package on npm is pre-1.0 and unaudited, so depending on one would
-move the trust rather than reduce it. `cpace.test.ts` checks every intermediate
-against the draft's Appendix B.3 vectors, which is the only reason to trust the
-file.
+  Every CPace package on npm is pre-1.0 and unaudited, so depending on one would
+  move the trust rather than reduce it. `cpace.test.ts` checks every
+  intermediate against the draft's Appendix B.3 vectors, which is the only
+  reason to trust the file.
 </Callout>
 
 ## Step 2 — the key schedule
@@ -92,11 +92,11 @@ file.
 Four keys are derived from the ISK with **HKDF-SHA-256**, salted by the CPace
 transcript, one label per purpose, 32 bytes each:
 
-| Label | Key |
-| --- | --- |
-| `mtmux/v1 browser→cli` | AES-256-GCM key for browser → CLI frames |
-| `mtmux/v1 cli→browser` | AES-256-GCM key for CLI → browser frames |
-| `mtmux/v1 confirm` | HMAC key for key confirmation |
+| Label                   | Key                                          |
+| ----------------------- | -------------------------------------------- |
+| `mtmux/v1 browser→cli`  | AES-256-GCM key for browser → CLI frames     |
+| `mtmux/v1 cli→browser`  | AES-256-GCM key for CLI → browser frames     |
+| `mtmux/v1 confirm`      | HMAC key for key confirmation                |
 | `mtmux/v1 direct-token` | Relay auth token for the direct path, as hex |
 
 Separate labels mean a leak of one key gives an attacker none of the others. The
@@ -140,7 +140,7 @@ nonce (12B):  [ 4-byte direction tag ][ 8-byte BE counter ]
   descriptor and the first frame of a stream were sealed under the same
   direction key at counter 0, which is AES-GCM nonce reuse: XOR of the two
   ciphertexts recovers plaintext, and the forbidden-attack recovers the GHASH
-  subkey and with it the ability to *forge*. Every hosted pairing handed the
+  subkey and with it the ability to _forge_. Every hosted pairing handed the
   broker that pair. A per-connection subkey means no key is ever used twice at
   counter 0, and it makes a reconnect a fresh key schedule rather than a reset
   replay window.
@@ -156,13 +156,13 @@ nonce (12B):  [ 4-byte direction tag ][ 8-byte BE counter ]
   equal to the highest already accepted is rejected as replayed or reordered,
   by counter number, before any decryption is attempted.
 - The counter is on the wire so a receiver can name the failure —
-  *"replayed or reordered frame 41, expected > 57"* — instead of reporting an
+  _"replayed or reordered frame 41, expected > 57"_ — instead of reporting an
   opaque decrypt error. Tampering with it is still caught, because it feeds the
   nonce and any change makes authentication fail.
 - The receiver advances its high-water mark **only after** a frame authenticates,
   so a forged high counter cannot lock out the legitimate stream.
-- A decryption failure is reported opaquely as *"Sealed frame failed
-  authentication"*: a tampered frame and a wrong key are the same event as far
+- A decryption failure is reported opaquely as _"Sealed frame failed
+  authentication"_: a tampered frame and a wrong key are the same event as far
   as the peer is concerned, and the connection dies either way.
 
 Both ends use WebCrypto (`globalThis.crypto.subtle`), present in browsers and in
@@ -211,11 +211,11 @@ and the work an unpaired caller can make the agent do.
 
 Per tunnel, enforced by the broker, configurable:
 
-| Limit | Default | Variable |
-| --- | --- | --- |
-| Bytes forwarded, both directions | 1 GiB | `API_TUNNEL_MAX_BYTES` |
-| Lifetime | 720 minutes (12 h) | `API_TUNNEL_MAX_MINUTES` |
-| Concurrent streams per tunnel | 16 | `API_TUNNEL_MAX_STREAMS` |
+| Limit                            | Default            | Variable                 |
+| -------------------------------- | ------------------ | ------------------------ |
+| Bytes forwarded, both directions | 1 GiB              | `API_TUNNEL_MAX_BYTES`   |
+| Lifetime                         | 720 minutes (12 h) | `API_TUNNEL_MAX_MINUTES` |
+| Concurrent streams per tunnel    | 16                 | `API_TUNNEL_MAX_STREAMS` |
 
 Exceeding bytes or lifetime closes the tunnel with `tunnel:closed` and reason
 `quota-exceeded`. The other reasons are `agent-gone`, `expired`, `revoked` and

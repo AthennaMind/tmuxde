@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { MIN_PAIR_CLI_VERSION } from "@repo/protocol";
+
 /**
  * The dashboard's structure.
  *
@@ -26,6 +28,8 @@ const SERVERS = [
     // Below MIN_PAIR_CLI_VERSION: `mtmux pair` here cannot read the code this
     // app now shows, and `mtmux approve` does not exist.
     cliVersion: "0.4.0",
+    // Held apart from the floor on purpose, so the assertion below names a
+    // version the page actually printed rather than one the fixture assumed.
   },
   {
     id: "srv-2",
@@ -35,7 +39,17 @@ const SERVERS = [
     online: true,
     lastSeenAt: Date.now(),
     platform: "darwin",
-    cliVersion: "0.6.0",
+    /*
+     * The floor itself, not a number beside it.
+     *
+     * This was "0.6.0", which was current when it was written and stopped
+     * being so the moment `MIN_PAIR_CLI_VERSION` moved to 0.7.0 — at which
+     * point the "up to date" machine in this fixture was being told to update,
+     * and a test asserting that only one machine is told so failed on a clean
+     * tree for months. Deriving it means the fixture cannot fall behind the
+     * constant it is testing against again.
+     */
+    cliVersion: MIN_PAIR_CLI_VERSION,
   },
 ];
 
@@ -134,7 +148,9 @@ test(
     // `cliVersion` was rendered and otherwise inert. It now gates the one thing
     // that actually depends on it: 0.4.0 cannot pair from here, 0.6.0 can.
     await expect(page.getByText(/on mtmux v0\.4\.0/)).toBeVisible();
-    await expect(page.getByText(/on mtmux v0\.6\.0/)).toHaveCount(0);
+    await expect(
+      page.getByText(`on mtmux v${MIN_PAIR_CLI_VERSION}`),
+    ).toHaveCount(0);
   },
 );
 

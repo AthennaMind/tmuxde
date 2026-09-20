@@ -40,14 +40,14 @@ mtmux
 ```
 
 **Scan the QR, then say yes.** The code arrives in the URL fragment, the page
-claims it, and the machine asks one question before anything is admitted: *let
-this device in?* Answer it wherever you are — the prompt in `mtmux start`'s own
+claims it, and the machine asks one question before anything is admitted: _let
+this device in?_ Answer it wherever you are — the prompt in `mtmux start`'s own
 terminal, the in-app dialog on a phone already connected to that machine, or
 `mtmux approve` in another shell. Whoever answers first decides, and nobody
 answering means no.
 
 There are no digits to compare on this path, and that is deliberate: the
-nine-digit code *was* the shared secret, so there is nothing left to check. The
+nine-digit code _was_ the shared secret, so there is nothing left to check. The
 question is only "did you just enter this code?".
 
 <Callout type="info">
@@ -106,17 +106,32 @@ instead of a pairing code:
   █ █▄▄▄█ █▀█ █▄█▄▀██▀▄██ █▄▄▄█ █
   █▄▄▄▄▄▄▄█▄█▄█ █ █ █ █ █▄▄▄▄▄▄▄█
   █ ▄  ▄▀▄▄  ▄█▄▄▄▄▀  ▀▄▄▀▄▀▄█▄▀█
-  █▄▄ ▄ ▄▄▀▄ ▀ ▄█▀ █▄██▄▀▀▄ ██▀██   Scan to sign in
+  █▄▄ ▄ ▄▄▀▄ ▀ ▄█▀ █▄██▄▀▀▄ ██▀██   Scan to open your terminal
   █▀█    ▄▄▄ ▀▄▀▄▀█▄ ▀▀▄▄▀▄▀▄ █▀█
-  █▄ ▄▄▀█▄▀█  █▀██  █▀▀█ ▄▀██▄▀██   No token to type — the
-  █▀▄▀█▀█▄  █ █▄▄▄█▄ ▀ ▄ ▀█▀▀ █▀█   code signs the device in.
-  █ █▄▀ ▀▄█▀▄█ ▄█ ▄▀▄██ ▀ █▀▄▄▀██
-  █▄█▄██▄▄█▀ ▀▄▀▀██▀▄▀▀ ▄▄▄ ▀   █
+  █▄ ▄▄▀█▄▀█  █▀██  █▀▀█ ▄▀██▄▀██   On this network only. The
+  █▀▄▀█▀█▄  █ █▄▄▄█▄ ▀ ▄ ▀█▀▀ █▀█   link signs the device in —
+  █ █▄▀ ▀▄█▀▄█ ▄█ ▄▀▄██ ▀ █▀▄▄▀██   nothing reaches our
+  █▄█▄██▄▄█▀ ▀▄▀▀██▀▄▀▀ ▄▄▄ ▀   █   servers.
   █ ▄▄▄▄▄ █▄█ █▀ ▄▄▄▄█▄ █▄█ ▄▄███
   █ █   █ █ ▀▀█▄█▄▄█ ▀█  ▄ ▄▄▄  █
   █ █▄▄▄█ █  ▀ ▄█▀▄▀█▄▄ ▀▄▀ ▄█ ██
   █▄▄▄▄▄▄▄█▄█▄▄█████▄███████▄▄███
+
+  Local    http://localhost:14100
+  Network  http://192.168.1.5:14100  (wlp3s0)
+
+  Want it from anywhere?  Press t for an encrypted tunnel
+
+  Can't scan? Open an address above and paste this token:
+  0a1b2c3d4e5f...
 ```
+
+The token is printed here and not under a pairing code, because in local mode it
+is the only credential a second device can use by hand — a laptop on the same
+wifi, a phone that will not give the browser its camera, a machine you are
+reading this on over SSH. Paste it at `/login`. Under a hosted invite it is
+suppressed: nine digits that expire are the better answer, and printing both
+invites the wrong one to be copied.
 
 Scanning opens `http://192.168.1.5:14100/login#n=<nonce>`. The nonce is in the
 fragment for the same reason the pairing code is. The page posts it to
@@ -136,6 +151,17 @@ restarts — see [Staying paired](#staying-paired).
 
 `--host 127.0.0.1` suppresses all of this and keeps the server on loopback.
 
+### Changing your mind, without restarting
+
+A local-only server is not a decision you are stuck with. Press **`t`** in the
+terminal running `mtmux start` and the tunnel opens in place: the banner
+reprints with a nine-digit code, and nothing already connected is dropped. It is
+the same tunnel `--hosted` opens, started later.
+
+`mtmux config set reach hosted` is the other half — it stops you having to press
+anything next time. The flag and the key are for different questions: "this
+time" and "from now on".
+
 ## What the code is
 
 ```
@@ -147,7 +173,7 @@ restarts — see [Staying paired](#staying-paired).
 The split is the load-bearing design decision.
 
 - **The first three digits are a slot.** The broker assigns it, so it can route a
-  claim to the right pending mailbox. It is the *only* part that reaches our
+  claim to the right pending mailbox. It is the _only_ part that reaches our
   servers.
 - **The last six are the secret.** They are generated locally and used as the
   password for a PAKE. They are **never sent to the broker — not even as a
@@ -235,7 +261,7 @@ forwards opaque blobs. This is structural, not a promise:
   the CLI offers is encrypted under the pairing key before it leaves the
   machine, so the broker never learns it.
 - **Your token stays on your machine.** The browser is never told the relay's
-  long-lived `AUTH_TOKEN`. On the direct path both sides *derive* a session
+  long-lived `AUTH_TOKEN`. On the direct path both sides _derive_ a session
   token from the pairing key; on the tunnel path the browser needs no token at
   all, because the local agent authenticates the loopback socket itself.
 
@@ -250,22 +276,22 @@ CLI. When `mtmux` prints a code the CLI holds the mailbox and the phone claims
 it; with `mtmux pair` it is the other way round. Nothing in the schema names
 which end runs a terminal.
 
-| Step | Message | Direction |
-| --- | --- | --- |
-| One side parks a mailbox | `POST /v1/pair/new` → `{ mailboxId, slot, expiresAt }` | HTTP |
-| Mailbox socket attaches | `pair:ready` | broker → holder |
-| The other quotes the code | `POST /v1/pair/claim` `{ slot, share, ad, sid }` → `{ offered, claimId }` | HTTP |
-| Fan-out to every mailbox on the slot | `pair:peer-share` | broker → holder |
-| Holder answers | `pair:share` | holder → broker |
-| Both prove the same key | `pair:confirm` / `pair:peer-confirm` | either direction |
-| CLI seals the descriptor | `pair:establish` → `pair:established` | CLI → browser |
-| Anything goes wrong | `pair:failed` — and the mailbox dies | broker → either |
+| Step                                 | Message                                                                   | Direction        |
+| ------------------------------------ | ------------------------------------------------------------------------- | ---------------- |
+| One side parks a mailbox             | `POST /v1/pair/new` → `{ mailboxId, slot, expiresAt }`                    | HTTP             |
+| Mailbox socket attaches              | `pair:ready`                                                              | broker → holder  |
+| The other quotes the code            | `POST /v1/pair/claim` `{ slot, share, ad, sid }` → `{ offered, claimId }` | HTTP             |
+| Fan-out to every mailbox on the slot | `pair:peer-share`                                                         | broker → holder  |
+| Holder answers                       | `pair:share`                                                              | holder → broker  |
+| Both prove the same key              | `pair:confirm` / `pair:peer-confirm`                                      | either direction |
+| CLI seals the descriptor             | `pair:establish` → `pair:established`                                     | CLI → browser    |
+| Anything goes wrong                  | `pair:failed` — and the mailbox dies                                      | broker → either  |
 
 `pair:failed` carries one of `expired`, `already-claimed`, `confirmation-failed`,
 `peer-gone`, `rate-limited` or `server-error`. All of them destroy the mailbox.
 
 The `offered` count in the claim response says how many live mailboxes the claim
-reached — never *which*.
+reached — never _which_.
 
 ## Direct or tunnelled
 
@@ -329,11 +355,11 @@ challenge.
 
 ## Revoking
 
-| To revoke | Do this |
-| --- | --- |
-| One device, permanently | `mtmux devices revoke <id>` |
-| A live socket that device already holds | Restart mtmux after revoking |
-| Every LAN-nonce sign-in | Restart mtmux — those tokens are memory-only |
+| To revoke                               | Do this                                      |
+| --------------------------------------- | -------------------------------------------- |
+| One device, permanently                 | `mtmux devices revoke <id>`                  |
+| A live socket that device already holds | Restart mtmux after revoking                 |
+| Every LAN-nonce sign-in                 | Restart mtmux — those tokens are memory-only |
 
 Revoking removes the peer record, so the device is not re-admitted on the next
 start and cannot reconnect. A browser with an already-open socket keeps it until

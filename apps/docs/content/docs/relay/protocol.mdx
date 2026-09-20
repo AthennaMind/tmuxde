@@ -24,22 +24,22 @@ Everything is JSON-serialised and validated on both ends by `codec.ts`.
 
 ### Authentication and keep-alive
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `auth` | `token: string` | Must be the first message, within 5 seconds |
-| `ping` | `timestamp: number` | Latency measurement |
+| Type   | Fields              | Description                                 |
+| ------ | ------------------- | ------------------------------------------- |
+| `auth` | `token: string`     | Must be the first message, within 5 seconds |
+| `ping` | `timestamp: number` | Latency measurement                         |
 
 ### Sessions
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `session:list` | — | List all tmux sessions |
-| `session:create` | `name?`, `cwd?`, `command?` | Create a session |
-| `session:attach` | `name`, `size?`, `capture?`, `attachId?` | Attach to a session |
-| `session:detach` | — | Detach from the current session |
-| `session:kill` | `name` | Kill a session |
-| `session:rename` | `oldName`, `newName` | Rename a session |
-| `session:windows` | `name` | Windows and panes for a session |
+| Type              | Fields                                   | Description                     |
+| ----------------- | ---------------------------------------- | ------------------------------- |
+| `session:list`    | —                                        | List all tmux sessions          |
+| `session:create`  | `name?`, `cwd?`, `command?`              | Create a session                |
+| `session:attach`  | `name`, `size?`, `capture?`, `attachId?` | Attach to a session             |
+| `session:detach`  | —                                        | Detach from the current session |
+| `session:kill`    | `name`                                   | Kill a session                  |
+| `session:rename`  | `oldName`, `newName`                     | Rename a session                |
+| `session:windows` | `name`                                   | Windows and panes for a session |
 
 `attachId` is an attach epoch, echoed back on `session:attached` so a client can
 reject the acknowledgement of a superseded attach instead of letting a stale one
@@ -47,73 +47,73 @@ corrupt its state machine. Optional, so older clients and relays stay compatible
 
 ### Terminal I/O
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `terminal:input` | `data: string` | Keystrokes to the PTY |
-| `terminal:resize` | `size: { cols, rows }` | Resize the terminal |
+| Type              | Fields                 | Description           |
+| ----------------- | ---------------------- | --------------------- |
+| `terminal:input`  | `data: string`         | Keystrokes to the PTY |
+| `terminal:resize` | `size: { cols, rows }` | Resize the terminal   |
 
 `cols` is 1–1000, `rows` 1–500.
 
 ### Panes
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `pane:list` | — | Panes in the active window |
-| `pane:split` | `direction: "h" \| "v"` | Split the active pane |
-| `pane:select` | `id` | Focus a pane |
-| `pane:zoom` | — | Toggle zoom on the active pane |
-| `pane:resize` | `id`, `direction: "U"\|"D"\|"L"\|"R"`, `amount` | Resize a pane |
-| `pane:swap` | `id`, `direction` | Swap a pane with its neighbour |
-| `pane:kill` | `id` | Kill a pane |
-| `pane:capture` | `id` | Capture a pane's contents as text |
+| Type           | Fields                                          | Description                       |
+| -------------- | ----------------------------------------------- | --------------------------------- |
+| `pane:list`    | —                                               | Panes in the active window        |
+| `pane:split`   | `direction: "h" \| "v"`                         | Split the active pane             |
+| `pane:select`  | `id`                                            | Focus a pane                      |
+| `pane:zoom`    | —                                               | Toggle zoom on the active pane    |
+| `pane:resize`  | `id`, `direction: "U"\|"D"\|"L"\|"R"`, `amount` | Resize a pane                     |
+| `pane:swap`    | `id`, `direction`                               | Swap a pane with its neighbour    |
+| `pane:kill`    | `id`                                            | Kill a pane                       |
+| `pane:capture` | `id`                                            | Capture a pane's contents as text |
 
 ### Windows
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `window:list` | — | Windows in the active session |
-| `window:create` | `name?` | Create a window |
-| `window:select` | `id` | Focus a window |
-| `window:rename` | `id`, `name` | Rename a window |
-| `window:kill` | `id` | Kill a window |
-| `window:layout` | `preset` | Apply a tmux layout |
-| `layout:rotate` | — | Rotate the current layout |
+| Type            | Fields       | Description                   |
+| --------------- | ------------ | ----------------------------- |
+| `window:list`   | —            | Windows in the active session |
+| `window:create` | `name?`      | Create a window               |
+| `window:select` | `id`         | Focus a window                |
+| `window:rename` | `id`, `name` | Rename a window               |
+| `window:kill`   | `id`         | Kill a window                 |
+| `window:layout` | `preset`     | Apply a tmux layout           |
+| `layout:rotate` | —            | Rotate the current layout     |
 
 `preset` is one of `even-horizontal`, `even-vertical`, `main-horizontal`,
 `main-vertical`, `tiled`.
 
 ### tmux control
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `tmux:prefix` | — | Send the tmux prefix key |
-| `tmux:copy-mode` | — | Enter copy mode |
+| Type             | Fields | Description              |
+| ---------------- | ------ | ------------------------ |
+| `tmux:prefix`    | —      | Send the tmux prefix key |
+| `tmux:copy-mode` | —      | Enter copy mode          |
 
 ### Commands
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `command:send` | `command: string` | Send a command, appending Enter |
-| `command:interrupt` | — | Ctrl+C |
-| `command:eof` | — | Ctrl+D |
-| `command:clear` | — | Clear the screen |
-| `command:suspend` | — | Ctrl+Z |
+| Type                | Fields            | Description                     |
+| ------------------- | ----------------- | ------------------------------- |
+| `command:send`      | `command: string` | Send a command, appending Enter |
+| `command:interrupt` | —                 | Ctrl+C                          |
+| `command:eof`       | —                 | Ctrl+D                          |
+| `command:clear`     | —                 | Clear the screen                |
+| `command:suspend`   | —                 | Ctrl+Z                          |
 
 ### Files
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `file:list` | `path` | List a directory |
-| `file:read` | `path` | Read a file (truncated above 100 KB) |
-| `file:stat` | `path` | File metadata |
-| `file:write` | `path`, `content` | Overwrite a file (max 1 MB) |
-| `file:create` | `path`, `content?` | Create a file |
-| `file:mkdir` | `path` | Create a directory |
-| `file:delete` | `path` | Delete a file or directory |
-| `file:rename` | `oldPath`, `newPath` | Rename or move |
-| `file:upload` | `path`, `content` (base64), `final` | Chunked upload (max 10 MB) |
-| `file:watch` | `path` | Watch a directory (`depth: 0`) |
-| `file:unwatch` | `path` | Stop watching |
+| Type           | Fields                              | Description                          |
+| -------------- | ----------------------------------- | ------------------------------------ |
+| `file:list`    | `path`                              | List a directory                     |
+| `file:read`    | `path`                              | Read a file (truncated above 100 KB) |
+| `file:stat`    | `path`                              | File metadata                        |
+| `file:write`   | `path`, `content`                   | Overwrite a file (max 1 MB)          |
+| `file:create`  | `path`, `content?`                  | Create a file                        |
+| `file:mkdir`   | `path`                              | Create a directory                   |
+| `file:delete`  | `path`                              | Delete a file or directory           |
+| `file:rename`  | `oldPath`, `newPath`                | Rename or move                       |
+| `file:upload`  | `path`, `content` (base64), `final` | Chunked upload (max 10 MB)           |
+| `file:watch`   | `path`                              | Watch a directory (`depth: 0`)       |
+| `file:unwatch` | `path`                              | Stop watching                        |
 
 Every one of these passes the `ALLOWED_PATHS` guard before touching the disk.
 
@@ -121,65 +121,65 @@ Every one of these passes the `ALLOWED_PATHS` guard before touching the disk.
 
 ### Authentication, keep-alive, errors
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `auth:success` | `serverVersion` | Authenticated |
-| `auth:failure` | `reason` | Rejected; the socket then closes |
-| `pong` | `timestamp` | Reply to `ping` |
-| `error` | `code`, `message` | Error response, e.g. `RATE_LIMITED` |
-| `server:info` | `hostname`, `platform`, `uptime` | Sent right after `auth:success` |
+| Type           | Fields                           | Description                         |
+| -------------- | -------------------------------- | ----------------------------------- |
+| `auth:success` | `serverVersion`                  | Authenticated                       |
+| `auth:failure` | `reason`                         | Rejected; the socket then closes    |
+| `pong`         | `timestamp`                      | Reply to `ping`                     |
+| `error`        | `code`, `message`                | Error response, e.g. `RATE_LIMITED` |
+| `server:info`  | `hostname`, `platform`, `uptime` | Sent right after `auth:success`     |
 
 ### Sessions
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `session:list` | `sessions: SessionInfo[]` | Full session list |
-| `session:created` | `session: SessionInfo` | A session was created |
-| `session:killed` | `name` | A session was killed |
-| `session:activity` | `name`, `activity` | Activity timestamp updated |
-| `session:exited` | `name`, `exitCode?` | The session's process exited |
-| `session:attached` | `name`, `attachId?` | Attach acknowledged |
-| `session:windows` | `name`, `windows[]`, `panes[]` | Response to `session:windows` |
+| Type               | Fields                         | Description                   |
+| ------------------ | ------------------------------ | ----------------------------- |
+| `session:list`     | `sessions: SessionInfo[]`      | Full session list             |
+| `session:created`  | `session: SessionInfo`         | A session was created         |
+| `session:killed`   | `name`                         | A session was killed          |
+| `session:activity` | `name`, `activity`             | Activity timestamp updated    |
+| `session:exited`   | `name`, `exitCode?`            | The session's process exited  |
+| `session:attached` | `name`, `attachId?`            | Attach acknowledged           |
+| `session:windows`  | `name`, `windows[]`, `panes[]` | Response to `session:windows` |
 
 ### Terminal
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `terminal:output` | `data: string` | PTY output |
+| Type              | Fields         | Description |
+| ----------------- | -------------- | ----------- |
+| `terminal:output` | `data: string` | PTY output  |
 
 ### Panes and windows
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `pane:list` | `panes: PaneInfo[]`, `windowId` | Response to `pane:list` |
-| `pane:changed` | `panes: PaneInfo[]`, `windowId` | Pane layout changed |
-| `pane:captured` | `id`, `content` | Response to `pane:capture` |
-| `window:list` | `windows: WindowInfo[]`, `sessionName` | Response to `window:list` |
-| `window:changed` | `windows: WindowInfo[]`, `sessionName` | Window set changed |
+| Type             | Fields                                 | Description                |
+| ---------------- | -------------------------------------- | -------------------------- |
+| `pane:list`      | `panes: PaneInfo[]`, `windowId`        | Response to `pane:list`    |
+| `pane:changed`   | `panes: PaneInfo[]`, `windowId`        | Pane layout changed        |
+| `pane:captured`  | `id`, `content`                        | Response to `pane:capture` |
+| `window:list`    | `windows: WindowInfo[]`, `sessionName` | Response to `window:list`  |
+| `window:changed` | `windows: WindowInfo[]`, `sessionName` | Window set changed         |
 
 ### Files
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `file:list` | `path`, `entries: FileEntry[]` | Directory listing |
-| `file:content` | `path`, `content`, `truncated` | File contents |
-| `file:stat` | `stat: FileStat` | File metadata |
-| `file:changed` | `path`, `event` | Filesystem change event |
-| `file:write:result` | `path`, `success`, `error?`, `size?` | Result of `file:write` |
-| `file:op:result` | `op`, `path`, `success`, `error?` | Result of create/mkdir/delete/rename/upload |
+| Type                | Fields                               | Description                                 |
+| ------------------- | ------------------------------------ | ------------------------------------------- |
+| `file:list`         | `path`, `entries: FileEntry[]`       | Directory listing                           |
+| `file:content`      | `path`, `content`, `truncated`       | File contents                               |
+| `file:stat`         | `stat: FileStat`                     | File metadata                               |
+| `file:changed`      | `path`, `event`                      | Filesystem change event                     |
+| `file:write:result` | `path`, `success`, `error?`, `size?` | Result of `file:write`                      |
+| `file:op:result`    | `op`, `path`, `success`, `error?`    | Result of create/mkdir/delete/rename/upload |
 
 ## Shared schemas
 
 ```typescript
-type TerminalSize = { cols: number; rows: number };  // 1–1000 × 1–500
+type TerminalSize = { cols: number; rows: number }; // 1–1000 × 1–500
 
 type SessionInfo = {
   name: string;
   id: string;
   windows: number;
   attached: boolean;
-  created: string;    // ISO timestamp
-  activity: string;   // ISO timestamp
+  created: string; // ISO timestamp
+  activity: string; // ISO timestamp
   dimensions?: TerminalSize;
 };
 
@@ -210,7 +210,7 @@ type FileEntry = {
   path: string;
   type: "file" | "directory" | "symlink" | "other";
   size: number;
-  modified: string;   // ISO timestamp
+  modified: string; // ISO timestamp
 };
 
 type FileStat = FileEntry & {
@@ -231,14 +231,14 @@ broker read a keystroke.
 
 ## HTTP
 
-| Endpoint | Request | Response |
-| --- | --- | --- |
-| `POST /v1/pair/new` | — | `{ mailboxId, slot, expiresAt }` |
-| `POST /v1/pair/claim` | `{ slot, share, ad, sid }` | `{ offered, claimId }` |
-| `GET /v1/discover` | — | `{ ip }` |
+| Endpoint              | Request                    | Response                         |
+| --------------------- | -------------------------- | -------------------------------- |
+| `POST /v1/pair/new`   | —                          | `{ mailboxId, slot, expiresAt }` |
+| `POST /v1/pair/claim` | `{ slot, share, ad, sid }` | `{ offered, claimId }`           |
+| `GET /v1/discover`    | —                          | `{ ip }`                         |
 
 `share` is 32 hex-encoded bytes (a ristretto255 element), `sid` 16, `slot` two
-digits. `offered` is how many live mailboxes the claim reached — never *which*.
+digits. `offered` is how many live mailboxes the claim reached — never _which_.
 
 ## Pairing messages
 
@@ -251,12 +251,12 @@ a terminal.
 
 Over `WS /v1/pair/:mailboxId` or `WS /v1/claim/:claimId`.
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `pair:share` | `peer`, `share` (32B hex), `ad` | This side's CPace share |
-| `pair:confirm` | `peer`, `tag` (32B hex) | Key confirmation |
-| `pair:establish` | `peer`, `sealedDescriptor` | The sealed connection descriptor. Always sent by the CLI. |
-| `pair:close` | `peer?`, `reason?` | Give up on one peer |
+| Type             | Fields                          | Description                                               |
+| ---------------- | ------------------------------- | --------------------------------------------------------- |
+| `pair:share`     | `peer`, `share` (32B hex), `ad` | This side's CPace share                                   |
+| `pair:confirm`   | `peer`, `tag` (32B hex)         | Key confirmation                                          |
+| `pair:establish` | `peer`, `sealedDescriptor`      | The sealed connection descriptor. Always sent by the CLI. |
+| `pair:close`     | `peer?`, `reason?`              | Give up on one peer                                       |
 
 `peer` is an opaque handle minted per attempt. A slot is shared by many
 simultaneous pairings, so a claim is fanned out and may hear back from several;
@@ -268,13 +268,13 @@ guess cost the attacker the whole code.
 
 ### Broker → either end
 
-| Type | Fields | Description |
-| --- | --- | --- |
-| `pair:ready` | `mailboxId`, `slot`, `expiresAt` | The mailbox socket is live. Mailbox holder only. |
-| `pair:peer-share` | `peer`, `share`, `ad`, `sid` | The other side's share. `sid` is always the claimant's. |
-| `pair:peer-confirm` | `peer`, `tag` | The peer's confirmation tag |
-| `pair:established` | `peer`, `sealedDescriptor` | Pairing succeeded |
-| `pair:failed` | `peer?`, `reason`, `message?` | Terminal failure — destroys the mailbox |
+| Type                | Fields                           | Description                                             |
+| ------------------- | -------------------------------- | ------------------------------------------------------- |
+| `pair:ready`        | `mailboxId`, `slot`, `expiresAt` | The mailbox socket is live. Mailbox holder only.        |
+| `pair:peer-share`   | `peer`, `share`, `ad`, `sid`     | The other side's share. `sid` is always the claimant's. |
+| `pair:peer-confirm` | `peer`, `tag`                    | The peer's confirmation tag                             |
+| `pair:established`  | `peer`, `sealedDescriptor`       | Pairing succeeded                                       |
+| `pair:failed`       | `peer?`, `reason`, `message?`    | Terminal failure — destroys the mailbox                 |
 
 `reason` is one of `expired`, `already-claimed`, `confirmation-failed`,
 `peer-gone`, `rate-limited`, `server-error`.
@@ -289,22 +289,22 @@ Over `WS /v1/agent` for the CLI and `WS /v1/tunnel/:id` for the browser.
 
 ### CLI → broker
 
-| Type | Fields | Description |
-| --- | --- | --- |
+| Type              | Fields                                                                       | Description                   |
+| ----------------- | ---------------------------------------------------------------------------- | ----------------------------- |
 | `tunnel:register` | `deviceId` (8B hex), `publicKey` (32B), `challenge` (32B), `signature` (64B) | Register this device's tunnel |
-| `stream:close` | `streamId`, `reason?` | Close one stream |
-| `stream:frame` | `streamId`, `data` (base64url) | One sealed application frame |
+| `stream:close`    | `streamId`, `reason?`                                                        | Close one stream              |
+| `stream:frame`    | `streamId`, `data` (base64url)                                               | One sealed application frame  |
 
 ### Broker → either side
 
-| Type | Fields | Description |
-| --- | --- | --- |
+| Type               | Fields                | Description                                                                                 |
+| ------------------ | --------------------- | ------------------------------------------------------------------------------------------- |
 | `tunnel:challenge` | `challenge` (32B hex) | First message on `/v1/agent`. Server-issued, so a captured registration cannot be replayed. |
-| `tunnel:ready` | `tunnelId` | Registration accepted |
-| `stream:open` | `streamId` | A browser wants a stream |
-| `stream:close` | `streamId`, `reason?` | One stream is closing |
-| `stream:frame` | `streamId`, `data` | Forwarded verbatim — the broker holds no key that could open it |
-| `tunnel:closed` | `reason` | The whole tunnel is going away |
+| `tunnel:ready`     | `tunnelId`            | Registration accepted                                                                       |
+| `stream:open`      | `streamId`            | A browser wants a stream                                                                    |
+| `stream:close`     | `streamId`, `reason?` | One stream is closing                                                                       |
+| `stream:frame`     | `streamId`, `data`    | Forwarded verbatim — the broker holds no key that could open it                             |
+| `tunnel:closed`    | `reason`              | The whole tunnel is going away                                                              |
 
 `tunnel:closed.reason` is one of `agent-gone`, `quota-exceeded`, `expired`,
 `revoked`, `server-error`.
@@ -318,11 +318,11 @@ ciphertext, so publishing the shape is safe and keeps both ends honest about it.
 
 ```typescript
 type SealedDescriptor = {
-  candidates: string[];   // direct URLs to race, best first, max 8
-  tunnelId: string;       // fall back to this when every candidate fails
-  deviceId: string;       // 8 bytes hex — pin it for reconnects
-  publicKey: string;      // 32 bytes hex
-  label: string;          // e.g. "gagan@thinkpad"
+  candidates: string[]; // direct URLs to race, best first, max 8
+  tunnelId: string; // fall back to this when every candidate fails
+  deviceId: string; // 8 bytes hex — pin it for reconnects
+  publicKey: string; // 32 bytes hex
+  label: string; // e.g. "gagan@thinkpad"
 };
 ```
 

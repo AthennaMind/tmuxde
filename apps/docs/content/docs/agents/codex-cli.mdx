@@ -20,9 +20,9 @@ Then scan the QR or type the nine digits at `app.mtmux.com`. Full walkthrough in
 
 ## The two states worth reaching a phone for
 
-| State | What it looks like | Does Codex signal it? |
-| --- | --- | --- |
-| Turn complete | The agent stops and returns the prompt | Yes — the `notify` hook runs |
+| State                         | What it looks like                                     | Does Codex signal it?                                       |
+| ----------------------------- | ------------------------------------------------------ | ----------------------------------------------------------- |
+| Turn complete                 | The agent stops and returns the prompt                 | Yes — the `notify` hook runs                                |
 | Waiting at an approval prompt | A command is proposed and Codex blocks for `y`/`n`/`a` | **No** — `notify` fires on turn completion, not on approval |
 
 That asymmetry is the whole practical problem with an unattended Codex run: the
@@ -53,10 +53,10 @@ running on**, so on its own it reaches a desktop, not a phone — the last hop i
 something you add, such as a `curl` to a push service.
 
 <Callout type="warn" title="mtmux is not that push service">
-mtmux sends no notifications of any kind and has no endpoint for a hook to call.
-It is the terminal you open once a notification has arrived by some other route.
-The four layers that can actually page you are set out on
-[Notifications](/docs/agents/notifications).
+  mtmux sends no notifications of any kind and has no endpoint for a hook to
+  call. It is the terminal you open once a notification has arrived by some
+  other route. The four layers that can actually page you are set out on
+  [Notifications](/docs/agents/notifications).
 </Callout>
 
 ## Narrowing what a paired browser can reach

@@ -27,6 +27,7 @@ mtmux
 
 It serves the terminal on port `14100`, opens a sealed tunnel, and prints a QR
 block with a nine-digit code underneath.
+
 </Step>
 
 <Step title="Scan the QR with the device you want to use">
@@ -107,21 +108,21 @@ Press **Ctrl+C** to stop.
 ## Getting your phone on
 
 **Scan the QR, then say yes.** It opens the join page with the code already in
-it, and the machine asks one question before it admits anything: *let this
-device in?* Answer it in `mtmux start`'s own terminal, in the app on a phone
+it, and the machine asks one question before it admits anything: _let this
+device in?_ Answer it in `mtmux start`'s own terminal, in the app on a phone
 already connected to that machine, or with `mtmux approve` in another shell —
 whoever answers first decides, and nobody answering means no. Then the terminal
 loads.
 
 There is nothing to compare on this path, deliberately: the nine-digit code
-*was* the shared secret, so the question is only whether you are the one who
+_was_ the shared secret, so the question is only whether you are the one who
 just entered it.
 
 If the camera will not cooperate, go to **app.mtmux.com** on the device and type
 the code into the field it shows. It is grouped for reading aloud,
 so `492716384` prints as `492 716 384`.
 
-This works from your own wifi *and* from cellular in another country. mtmux
+This works from your own wifi _and_ from cellular in another country. mtmux
 takes the direct path when the device can reach your machine and falls back to a
 relayed tunnel when it cannot — you do not choose, and the switchover is
 invisible.
@@ -171,6 +172,11 @@ mtmux start --json                   # machine-readable startup record
 
 `mtmux local` forces the local path whatever `reach` says. The full list is in the
 [CLI reference](/docs/cli).
+
+You do not have to decide up front. In a running `mtmux start`, press **`t`** to
+open the tunnel in place — the banner reprints with a code and nothing already
+connected is dropped. `--hosted` and `reach hosted` answer a different question:
+not "this time" but "from now on".
 
 ## Managing the token
 

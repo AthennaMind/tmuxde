@@ -11,6 +11,71 @@ release that shipped them.
 
 ## [Unreleased]
 
+### Added
+
+- **Press `t` in a running `mtmux start` to open the tunnel.** A local-only
+  server was a decision you could not revisit: the banner's hint said to run
+  `mtmux start --hosted`, which means stopping a server you may already have
+  paired a phone to, retyping the command with one flag different, and
+  arriving back where you were. `t` does it in place — the banner reprints
+  with a nine-digit code and nothing already connected is dropped. It is the
+  same tunnel `--hosted` opens, started later. `t` and `n` are never both
+  offered: `n` replaces a code that exists, `t` creates the thing that has
+  codes at all.
+- **`d` (or `enter`) opens a card for one connection.** The row says who is
+  here; the card says what it is and what it may do — the session, the
+  viewer's screen size, the grant as a sentence, how it reached this machine,
+  and the device id in full because that is what `mtmux devices revoke` takes.
+  "Reached me" is carried from the upgrade rather than guessed from an
+  address, so a tunnelled device and a browser on this machine — both loopback
+  — are told apart honestly.
+- **A `?` on the phone's keyboard toolbar, with the gestures written down.**
+  A press, a pinch, a drag and a swipe each do something useful on the
+  terminal and none of them can say so; nothing anywhere admitted they
+  existed. The sheet is filtered by your gesture settings, so it never teaches
+  one you have switched off.
+
+### Changed
+
+- **A connection with no pairing record is named from its user agent.** A
+  browser signed in with the machine's own token showed as "A device", so
+  three of them were three identical rows. It now reads "Safari on iPhone" —
+  and says nothing rather than guessing when it cannot tell, because a
+  confident wrong answer is worse than vague when telling connections apart is
+  the whole job.
+- **Copy mode is the pinned button on the phone, not the composer.** Getting
+  text _out_ of a terminal is the thing with no other way in on a phone: the
+  pane is a canvas, so there is nothing to press and hold over, and the long
+  press there now means "this pane's options". The composer keeps the one-line
+  bar and moves to the head of the strip, still ungated on the socket.
+- **The banner says the tunnel is sealed, and prints the token again.** It
+  never mentioned that any of this is encrypted, on the one surface people
+  actually read. In local mode it used to say "no token to type" beside a QR,
+  which is a dead end for anything that cannot scan one — a laptop on the same
+  wifi, a phone that will not give the browser its camera, a machine you are
+  reading over SSH. The token is now printed whenever there is no pairing
+  code, which is exactly when it is the only credential a second device can
+  use by hand. A hosted invite still suppresses it.
+
+### Fixed
+
+- **A pane unzoomed outside the browser went on being drawn as zoomed.**
+  `prefix z` on the machine, a pane killed in another client, a split made in
+  your own terminal — none of them reached the web client, because the change
+  detector that re-announces a session's windows was built from ids, names,
+  order, active flag and pane count, and zoom moves none of them. tmux reports
+  `window_layout` as the layout the window will _return to_, byte-identical
+  zoomed and unzoomed, so the layout could not stand in for it either. The
+  zoom flag and the layout are both part of the signature now, and the pane
+  list is published beside the window list — a window listing can only say
+  _that_ something moved.
+- **The browser's own long-press menu no longer fights the pane menu.**
+  Android answered a press on the terminal with "Copy / Select all / Web
+  search" drawn over the sheet, stealing the touch on the way. Refused for
+  touch-originated menus only: a right-click on a desktop terminal still gets
+  the browser's menu, which is the only way to copy a selection out of a
+  canvas there.
+
 ## [0.7.2] — 2026-09-20
 
 ### Added
