@@ -11,6 +11,8 @@ release that shipped them.
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-09-20
+
 ### Changed
 
 - **Entering the pairing code now asks for approval.** Scanning the QR or
