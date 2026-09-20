@@ -83,10 +83,14 @@ export function tmux(args: string[]): string {
  */
 export function capturePane(
   target: string,
-  opts: { escapes?: boolean; lines?: number } = {},
+  opts: { escapes?: boolean; lines?: number; join?: boolean } = {},
 ): string {
   const args = ["capture-pane", "-t", target, "-p"];
   if (opts.escapes) args.push("-e");
+  // Opt-in, and off by default, because the default is what `fidelity.ts`
+  // needs. Joining is right only when the question is "does this text exist",
+  // and wrong whenever it is "is this laid out correctly".
+  if (opts.join) args.push("-J");
   if (opts.lines !== undefined) args.push("-S", `-${opts.lines}`);
   return tmux(args);
 }

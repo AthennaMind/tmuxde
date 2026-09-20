@@ -50,7 +50,7 @@ export interface LabTerminal {
   /** Type into the session and wait for tmux to echo it back. */
   type(text: string): Promise<void>;
   /** tmux's own rendering of the same pane — the ground truth. */
-  capture(opts?: { escapes?: boolean; lines?: number }): string;
+  capture(opts?: { escapes?: boolean; lines?: number; join?: boolean }): string;
   /** The size tmux believes this session is, as `[cols, rows]`. */
   tmuxSize(): [number, number];
 }

@@ -37,17 +37,22 @@ test.describe("the lab is wired up", { tag: "@terminal" }, () => {
      * printed. One would mean the keystrokes reached tmux but the shell did
      * not run, which is a different failure entirely.
      *
-     * Counted from `capture-pane`, with history, and not from the rendered
-     * grid. Counting rows on screen was really asserting a viewport size: the
-     * lab is one long-lived tmux server shared by five projects, so `idle`
-     * arrives at whatever size the last client left it — 88x4 at one point in
-     * a full sweep — and on a short enough grid the typed line has already
-     * scrolled off by the time the output lands. The terminal was rendering
-     * perfectly and the assertion was about geometry. That is the same mistake
-     * the unicode test below records, in a different disguise.
+     * Counted from `capture-pane` with history, not from the rendered grid.
+     * Counting rows on screen was really asserting a viewport size: the lab is
+     * one long-lived tmux server shared by five projects, so `idle` arrives at
+     * whatever size the last client left it — 88x4 at one point in a full
+     * sweep — and on a short enough grid the typed line has scrolled off by
+     * the time the output lands.
+     *
+     * And `-J`, because a row is not a line on tmux's side either. At 47
+     * columns the *typed* line wraps, so without joining neither of its rows
+     * holds the whole marker and this counted one occurrence where there were
+     * two. The same mistake three times, on both sides of the oracle: it is
+     * genuinely easy to write an assertion about text that is really an
+     * assertion about width.
      */
     await expect(async () => {
-      const history = term.capture({ lines: 200 });
+      const history = term.capture({ lines: 200, join: true });
       expect(
         history.split("\n").filter((l) => l.includes(marker)).length,
         "the keystrokes reached tmux but the shell never ran the command",
