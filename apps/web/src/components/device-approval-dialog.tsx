@@ -41,6 +41,13 @@ import { useDeviceApprovalStore } from "@/stores/device-approval-store";
  * middle of the key exchange. So the question posed is "do these match?", never
  * "is this code right?" — the user is comparing, not entering.
  *
+ * A code pairing carries no digits, and the block is dropped rather than filled
+ * with something. The nine-digit code *was* the shared secret, so there is
+ * nothing left to compare, and printing six digits nobody can check would teach
+ * the eye to nod at the block — including on the requests where checking it is
+ * the entire point. The question becomes "did you just type this code?", which
+ * is the only thing the user can actually answer.
+ *
  * The countdown is there because the request really does expire, and a button
  * that silently stops working is worse than one that says when it will.
  *
@@ -119,8 +126,9 @@ export function DeviceApprovalDialog() {
                 Let this device in?
               </DialogTitle>
               <DialogDescription className="mt-1 text-sm">
-                It is asking for a shell on this machine. Nothing is granted
-                until you say yes.
+                {request.via === "code"
+                  ? "Someone just entered this machine's pairing code. Nothing is granted until you say yes."
+                  : "It is asking for a shell on this machine. Nothing is granted until you say yes."}
               </DialogDescription>
             </div>
           </div>
@@ -142,21 +150,33 @@ export function DeviceApprovalDialog() {
             </dd>
           </dl>
 
-          <div
-            className="mt-4 rounded-lg border border-border bg-muted/40 py-4 text-center"
-            // Read as individual digits. A screen reader saying "four hundred
-            // and eight thousand" is useless for a value being compared
-            // character by character against another screen.
-            aria-label={`Verification digits ${request.sas.split("").join(" ")}`}
-            data-testid="approval-sas"
-          >
-            <span className="font-mono text-3xl tabular-nums tracking-[0.2em] sm:text-4xl">
-              {formatSas(request.sas)}
-            </span>
-          </div>
-          <p className="mt-2 text-center text-xs text-muted-foreground">
-            The other device is showing six digits too. Deny if they differ.
-          </p>
+          {request.sas ? (
+            <>
+              <div
+                className="mt-4 rounded-lg border border-border bg-muted/40 py-4 text-center"
+                // Read as individual digits. A screen reader saying "four
+                // hundred and eight thousand" is useless for a value being
+                // compared character by character against another screen.
+                aria-label={`Verification digits ${request.sas.split("").join(" ")}`}
+                data-testid="approval-sas"
+              >
+                <span className="font-mono text-3xl tabular-nums tracking-[0.2em] sm:text-4xl">
+                  {formatSas(request.sas)}
+                </span>
+              </div>
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                The other device is showing six digits too. Deny if they differ.
+              </p>
+            </>
+          ) : (
+            <p
+              className="mt-4 rounded-lg border border-border bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground"
+              data-testid="approval-no-sas"
+            >
+              This device entered the pairing code shown on the machine. Deny
+              unless you just typed it yourself.
+            </p>
+          )}
 
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button

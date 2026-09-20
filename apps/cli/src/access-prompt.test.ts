@@ -33,6 +33,28 @@ describe("renderAccessRequest", () => {
     expect(text).toContain("Chrome on macOS");
     expect(text).toContain("dp@example.com");
   });
+
+  /**
+   * A code pairing has no digits, and must not grow fake ones.
+   *
+   * The nine-digit code was itself the shared secret, so there is nothing to
+   * compare. Rendering a "Code" row anyway — blank, zeroed, or reusing the
+   * pairing code — would be asking the human to check something that cannot
+   * fail, which is how a security prompt turns into a keypress.
+   */
+  it("asks a different question, with no Code row, when there are no digits", () => {
+    const text = renderAccessRequest({
+      deviceLabel: "Safari on iPhone",
+      accountEmail: "",
+      via: "code",
+    }).join("\n");
+    expect(text).toContain("entered this machine's pairing code");
+    expect(text).toContain("Safari on iPhone");
+    expect(text).not.toContain("Code   ");
+    // And no account row either, rather than "unknown account", which reads as
+    // a fact about the device instead of the absence of one.
+    expect(text).not.toContain("Account");
+  });
 });
 
 /**

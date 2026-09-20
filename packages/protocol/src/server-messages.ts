@@ -273,8 +273,18 @@ export const DeviceApprovalRequestMessage = z.object({
   deviceLabel: z.string().max(128),
   /** The account that pressed the button, or "" when anonymous. */
   accountEmail: z.string().max(254),
-  /** Six digits. Compared against the requesting browser's own screen. */
-  sas: z.string().max(16),
+  /**
+   * Six digits to compare against the requesting browser's own screen.
+   *
+   * Absent for a code pairing, and that absence is meaningful rather than
+   * missing data: the nine-digit code *was* the shared secret, so there is
+   * nothing left to compare and showing digits nobody can check would teach
+   * people to wave through the ones that do matter. The question in that case
+   * is "did you just type this code?", not "do these match?".
+   */
+  sas: z.string().max(16).optional(),
+  /** How the device is asking, so the dialog can pose the right question. */
+  via: z.enum(["code", "request"]).default("request"),
   expiresAt: z.number().int().positive(),
 });
 

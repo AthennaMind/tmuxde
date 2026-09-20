@@ -55,7 +55,9 @@ cp .env.example .env && docker compose up
 
 <img src=".github/assets/demo.svg" alt="A terminal running mtmux beside a phone browser: the terminal prints a QR and a nine-digit pairing code, and the phone is attached to the same tmux session, showing the dev server window" width="900">
 
-**Scan it and you're in.** One command, no second terminal. If the camera won't
+**Scan it, then say yes.** One command, no second terminal. The machine asks
+once before it lets anything in — answer in the terminal, in `mtmux approve`,
+or in the app on a phone already connected. If the camera won't
 cooperate, type the nine digits at `app.mtmux.com`. It works the same on your own
 network and over cellular — mtmux takes the direct path when the device can reach
 your machine and falls back to a relayed tunnel when it can't. You don't choose,
@@ -146,7 +148,7 @@ default mode, not a degraded one. [Self-hosting →](https://docs.mtmux.com/docs
 mtmux                          # serve, print a code, open a browser
 mtmux start --local            # LAN and loopback only, no broker
 mtmux start --port 8080        # different port
-mtmux start --no-open          # don't open a browser here
+mtmux start --open             # also open a browser here
 mtmux pair 492716384           # join a pairing the browser started
 mtmux status                   # what's running here
 mtmux stop                     # stop it
@@ -203,7 +205,7 @@ mtmux.example.com {
 | `--no-qr`                 | QR shown                             | Print the code without the QR block                  |
 | `-t, --token <value>`     | auto                                 | Override the auth token for this run                 |
 | `--allowed-paths <paths>` | `$HOME`                              | Comma-separated path allow-list for the file browser |
-| `--no-open`               | opens                                | Don't open a browser on this machine                 |
+| `--open`                  | off                                  | Also open a browser on this machine                  |
 | `--json`                  | off                                  | Machine-readable startup record                      |
 
 There is deliberately **no fixed default host**: mtmux binds `0.0.0.0` when the machine has a usable private address on a real interface (container bridges and VPN overlays don't count) and `127.0.0.1` when it doesn't. You do not need `--host 0.0.0.0` to reach it from your phone.

@@ -4,31 +4,45 @@ import { formatSas } from "@repo/crypto";
 import { displayLabel } from "@repo/protocol";
 
 /**
- * The prompt a browser's access request raises on this machine.
+ * The prompt a browser raises on this machine before it is let in.
  *
- * This is the strongest gate in the product, and it is deliberately the only
- * pairing path that has one. The rule is: demand approval exactly when the
- * requester cannot be presumed present at the machine.
+ * ## Every path is gated now, and that is a reversal
  *
- *   `mtmux start` code/QR  — no prompt. You ran the command, you are standing
- *                            there, the code is fresh and short-lived. A
- *                            keypress here is pure friction at the one moment
- *                            the product should feel magical.
- *   dashboard request      — prompt. Nobody is necessarily at the machine.
+ * This file used to say that the code/QR path deliberately had no prompt —
+ * "you ran the command, you are standing there, a keypress here is pure
+ * friction at the one moment the product should feel magical." That argument
+ * is coherent and it is why the exemption existed.
  *
- * The six digits are not a password and are not secret. They are a comparison:
- * the browser shows the same number, and the only way the two disagree is if
- * something sat in the middle of the exchange. So the question asked is
- * "do these match?", never "is this code correct?".
+ * It is also wrong about who is standing there. The code is read off a screen
+ * and typed into a browser, and nothing in the exchange proves the browser
+ * doing the typing is yours: anyone who sees the screen, a shoulder, a shared
+ * desk, a screenshot in a chat, holds a working credential for as long as the
+ * round is armed. The code proves knowledge of the code. It does not prove
+ * consent, and those had been treated as the same thing.
+ *
+ * So both paths ask now:
+ *
+ *   `mtmux start` code/QR  — "this device entered the code. Let it in?"
+ *                            No digits to compare: the code *was* the secret,
+ *                            and showing a number nobody can check teaches
+ *                            people to wave through the ones that matter.
+ *   dashboard request      — "do these six digits match?" The browser shows
+ *                            the same number, and the only way the two
+ *                            disagree is if something sat in the middle.
+ *
+ * Both questions go to every channel at once — the app, the TTY, `mtmux
+ * approve` — and in both, silence denies.
  */
 
 /** Long enough to walk to the machine; short enough to not sit forever. */
 const PROMPT_TIMEOUT_MS = 110_000;
 
 export type AccessPromptInput = {
-  sas: string;
+  /** Absent for a code pairing: there is nothing left to compare. */
+  sas?: string;
   deviceLabel: string;
   accountEmail: string;
+  via?: "code" | "request";
 };
 
 export type AccessPromptResult =
@@ -53,6 +67,8 @@ export type PromptDeps = {
  * without driving a terminal.
  */
 export function renderAccessRequest(req: AccessPromptInput): string[] {
+  // No digits means a code pairing, and a different question entirely.
+  if (!req.sas) return renderCodePairing(req);
   return [
     "",
     kleur.bold("  A browser wants to pair with this machine"),
@@ -60,6 +76,28 @@ export function renderAccessRequest(req: AccessPromptInput): string[] {
     `    ${kleur.dim("Device ")}  ${displayLabel(req.deviceLabel, "unknown device")}`,
     `    ${kleur.dim("Account")}  ${displayLabel(req.accountEmail, "unknown account")}`,
     `    ${kleur.dim("Code   ")}  ${kleur.bold(formatSas(req.sas))}`,
+    "",
+  ];
+}
+
+/**
+ * The code-pairing question, which is not the same question.
+ *
+ * No SAS line, deliberately. There is nothing to compare — the nine digits the
+ * browser typed *were* the shared secret — so the only honest thing to ask is
+ * whether this is the device you just typed them on.
+ */
+export function renderCodePairing(req: AccessPromptInput): string[] {
+  return [
+    "",
+    kleur.bold("  A device just entered this machine's pairing code"),
+    "",
+    `    ${kleur.dim("Device ")}  ${displayLabel(req.deviceLabel, "unknown device")}`,
+    ...(req.accountEmail
+      ? [`    ${kleur.dim("Account")}  ${displayLabel(req.accountEmail, "")}`]
+      : []),
+    "",
+    kleur.dim("    Only say yes if that is you, on a device you are holding."),
     "",
   ];
 }

@@ -102,7 +102,12 @@ export type RelayRuntime = {
    * channel, and `decideAccess` degrades to the machine's own prompts.
    */
   askDeviceApproval?: (
-    req: { sas: string; deviceLabel: string; accountEmail: string },
+    req: {
+      sas?: string;
+      deviceLabel: string;
+      accountEmail: string;
+      via?: "code" | "request";
+    },
     opts?: { timeoutMs?: number; signal?: AbortSignal },
   ) => Promise<boolean | null>;
   /**

@@ -30,9 +30,10 @@ block with a nine-digit code underneath.
 </Step>
 
 <Step title="Scan the QR with the device you want to use">
-The terminal loads — no taps, no typing, no second command. If the camera will
-not cooperate, open `app.mtmux.com` on the device and type the nine digits into
-the field it shows.
+The machine asks whether to let it in — say yes in the terminal, in the app, or
+with `mtmux approve` — and the terminal loads. If the camera will not
+cooperate, open `app.mtmux.com` on the device and type the nine digits into the
+field it shows.
 </Step>
 </Steps>
 
@@ -105,8 +106,16 @@ Press **Ctrl+C** to stop.
 
 ## Getting your phone on
 
-**Scan the QR.** That is the whole thing. It opens the join page with the code
-already in it, and the terminal loads — no taps, no typing, no second command.
+**Scan the QR, then say yes.** It opens the join page with the code already in
+it, and the machine asks one question before it admits anything: *let this
+device in?* Answer it in `mtmux start`'s own terminal, in the app on a phone
+already connected to that machine, or with `mtmux approve` in another shell —
+whoever answers first decides, and nobody answering means no. Then the terminal
+loads.
+
+There is nothing to compare on this path, deliberately: the nine-digit code
+*was* the shared secret, so the question is only whether you are the one who
+just entered it.
 
 If the camera will not cooperate, go to **app.mtmux.com** on the device and type
 the code into the field it shows. It is grouped for reading aloud,
@@ -153,7 +162,7 @@ Reloading the browser does not force a re-pair either.
 mtmux start --local                  # LAN and loopback only; contacts no broker
 mtmux start -p 9000                  # different port
 mtmux start -n "build box"           # name this machine in the dashboard
-mtmux start --no-open                # don't open a browser here
+mtmux start --open                   # also open a browser here
 mtmux start --no-qr                  # code without the QR block
 mtmux start --json                   # machine-readable startup record
 ```

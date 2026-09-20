@@ -45,7 +45,11 @@ import {
 } from "./pair.js";
 import * as account from "../account.js";
 import { resolveShareSessions, shareBanner } from "../share-grants.js";
-import { decideAccess, promptForReturningDevice } from "../access-prompt.js";
+import {
+  decideAccess,
+  promptForReturningDevice,
+  type AccessPromptInput,
+} from "../access-prompt.js";
 import {
   createApproveControl,
   type ApproveControl,
@@ -381,13 +385,89 @@ let approvals: ApproveControl | null = null;
  */
 let askInApp:
   | ((
-      req: { sas: string; deviceLabel: string; accountEmail: string },
+      req: {
+        sas?: string;
+        deviceLabel: string;
+        accountEmail: string;
+        via?: "code" | "request";
+      },
       opts: { signal: AbortSignal },
     ) => Promise<boolean | null>)
   | null = null;
 
 /** How many devices are connected right now, for what the parked notice says. */
 let connectedCount: (() => number) | null = null;
+
+/**
+ * The gate on a code pairing, which until now had none.
+ *
+ * The old rule was that typing the code *was* the approval: you ran the
+ * command, you were standing there, the code was fresh. The flaw is that the
+ * code is read off a screen and typed somewhere else, so what it proves is
+ * that somebody saw the screen — a shoulder, a shared desk, a screenshot in a
+ * chat — and not that the person holding the browser is you. Knowledge of the
+ * code and consent to the pairing had been treated as the same fact.
+ *
+ * So the same three channels that decide a dashboard request decide this one:
+ * the app on a phone already connected, the TTY, and `mtmux approve`. Silence
+ * denies, as everywhere else. There are no digits to compare — the code was
+ * the shared secret — so the question is "did you just type this?", not "do
+ * these match?", and `renderAccessRequest` switches on the absent SAS.
+ *
+ * Refusal is not a failure: the keys are simply never admitted and the round
+ * re-arms, so a mistyped-by-a-stranger code costs nothing but a new code.
+ */
+async function confirmCodePairing(label: string): Promise<boolean> {
+  const req: AccessPromptInput = {
+    deviceLabel: label,
+    accountEmail: "",
+    via: "code",
+  };
+  clearWaitingLine();
+  const answer = await decideAccess(req, {
+    ask: askInApp ? (r, signal) => askInApp!(r, { signal }) : undefined,
+    offer: approvals ? (r) => approvals!.offer(r) : undefined,
+    park: approvals
+      ? (r, signal) =>
+          approvals!.offer(r, { park: true, signal }).then((v) => v === true)
+      : undefined,
+    onParked: (r) => {
+      clearWaitingLine();
+      console.log("");
+      console.log(
+        kleur.bold("  A device just entered this machine's pairing code"),
+      );
+      console.log("");
+      console.log(
+        `    ${kleur.dim("Device ")}  ${displayLabel(r.deviceLabel, "unknown device")}`,
+      );
+      console.log("");
+      const asked = connectedCount?.() ?? 0;
+      console.log(
+        kleur.dim(
+          asked > 0
+            ? `    Asked the ${asked === 1 ? "device" : `${asked} devices`} already connected — answer there,`
+            : "    Nothing is attached to this terminal, so I cannot ask here.",
+        ),
+      );
+      console.log(
+        kleur.dim(asked > 0 ? "    or run " : "    Run ") +
+          kleur.bold("mtmux approve") +
+          kleur.dim(" in another shell."),
+      );
+      console.log("");
+    },
+  });
+  if (!answer.approved) {
+    clearWaitingLine();
+    console.log(
+      kleur.yellow(
+        `  ✗ Refused ${displayLabel(label, "that device")}. Nothing was shared.`,
+      ),
+    );
+  }
+  return answer.approved;
+}
 
 async function startHosted(opts: {
   port: number;
@@ -514,9 +594,11 @@ async function startHosted(opts: {
           console.log(
             `    ${kleur.dim("Account")}  ${displayLabel(req.accountEmail, "unknown account")}`,
           );
-          console.log(
-            `    ${kleur.dim("Code   ")}  ${kleur.bold(formatSas(req.sas))}`,
-          );
+          if (req.sas) {
+            console.log(
+              `    ${kleur.dim("Code   ")}  ${kleur.bold(formatSas(req.sas))}`,
+            );
+          }
           console.log("");
           // Two different true things to say, and saying the wrong one is how
           // a security prompt teaches people to ignore it. "I cannot ask here"
@@ -695,6 +777,10 @@ async function startHosted(opts: {
 
     const hostOpts = () => ({
       apiBase: opts.base,
+      // The yes/no on a typed or scanned code, asked before the browser is
+      // told anything. See `admit` in `pairing-exchange.ts` for why it cannot
+      // live in the `paired` handler below.
+      admit: confirmCodePairing,
       buildDescriptor: () => {
         // Read through to the agent rather than closing over the id captured at
         // boot: `createTunnelAgent` reconnects on its own and comes back with a
@@ -1885,7 +1971,14 @@ export async function start(opts: StartOpts) {
   if (opts.name) await configStore.setServerName(opts.name);
 
   if (opts.open) {
-    // Auto-open with the token in the URL *fragment* (never the query): the
+    // Opt-in since 0.7.1, and the flip is deliberate. `mtmux start` is most
+    // often run over SSH, in a detached pane, or on a headless box, where
+    // "helpfully" launching a browser is at best a stray window on whatever
+    // machine happened to have a display and at worst a token-bearing URL
+    // opened somewhere nobody was looking. The command already prints the URL
+    // and a QR; `--open` is for the laptop case that actually wants it.
+    //
+    // The token still travels in the URL *fragment* (never the query): the
     // fragment is never sent to the server or logged, and the login page reads
     // it on mount to auto-authenticate — no manual copy-paste.
     const openUrl = `${localUrl}/login#token=${encodeURIComponent(cfg.token)}`;

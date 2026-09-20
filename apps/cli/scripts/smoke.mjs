@@ -1,5 +1,5 @@
 // Smoke test the built CLI:
-//   1. boot `node dist/bin.js start --port <free> --no-open`
+//   1. boot `node dist/bin.js start --port <free>`
 //   2. probe /health, /, /_relay (websocket upgrade)
 //   3. kill the process; exit non-zero on any failure
 //
@@ -136,14 +136,10 @@ function probeUpgrade(path) {
 }
 
 console.log(`→ booting CLI on port ${PORT}`);
-const child = spawn(
-  "node",
-  [BIN, "start", "--port", String(PORT), "--no-open"],
-  {
-    stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, NODE_ENV: "production" },
-  },
-);
+const child = spawn("node", [BIN, "start", "--port", String(PORT)], {
+  stdio: ["ignore", "pipe", "pipe"],
+  env: { ...process.env, NODE_ENV: "production" },
+});
 
 const stderr = [];
 const stdout = [];
@@ -344,7 +340,6 @@ await check(
       "start",
       "--port",
       String(port),
-      "--no-open",
       "--local",
       "--json",
     ]);

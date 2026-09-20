@@ -58,9 +58,11 @@ const logger = createLogger("relay:approval");
 export const APPROVAL_TIMEOUT_MS = 100_000;
 
 export type DeviceApprovalInput = {
-  sas: string;
+  /** Omitted for a code pairing, where the code was the shared secret. */
+  sas?: string;
   deviceLabel: string;
   accountEmail: string;
+  via?: "code" | "request";
 };
 
 export type AskOptions = {
@@ -157,7 +159,8 @@ export function askDeviceApproval(
     id: `app-${(counter += 1).toString(36)}-${now().toString(36)}`,
     deviceLabel: input.deviceLabel,
     accountEmail: input.accountEmail,
-    sas: input.sas,
+    ...(input.sas ? { sas: input.sas } : {}),
+    via: input.via ?? "request",
     expiresAt: now() + timeoutMs,
   };
 

@@ -117,8 +117,12 @@ with a two-minute lifetime at the broker. There is nothing durable to queue: the
 the button — not the other way round.
 </Callout>
 
-Requests only exist for machines registered to an account. Anonymous nine-digit
-pairing has no access request at all, because the code *is* the consent — see
+Requests only exist for machines registered to an account, but since 0.7.1
+**anonymous nine-digit pairing is gated too**. The code used to be treated as
+the consent; it is not, because it is read off one screen and typed into
+another, so what it proves is that somebody saw the screen. That path now asks
+through these same channels, with one difference: there are no digits to
+compare, since the code itself was the shared secret. See
 [How pairing works](/docs/pairing) and [Accounts](/docs/accounts).
 
 ## Revoking

@@ -202,6 +202,35 @@ test.describe("device approval", { tag: "@terminal" }, () => {
     ).toEqual([]);
   });
 
+  /**
+   * The code-pairing shape, which is the one with a hole in it.
+   *
+   * The digit block is the visual centre of this dialog, so dropping it is the
+   * kind of change that renders an empty bordered box nobody notices until a
+   * user is comparing whitespace. This asserts the block is gone rather than
+   * blank, and that something took its place saying what to check instead.
+   */
+  test("drops the digit block, not its contents, when there is nothing to compare", async ({
+    page,
+    lab,
+  }) => {
+    await lab.open("idle");
+    await raise(page, { sas: undefined, via: "code" } as never);
+
+    await expect(page.getByTestId("approval-sas")).toHaveCount(0);
+    await expect(page.getByTestId("approval-no-sas")).toBeVisible();
+    await expect(page.getByRole("dialog")).toContainText("pairing code");
+    // The decision itself still has to work, digits or no digits.
+    await page.getByRole("button", { name: "Approve" }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window as never as { __labSent: string[] }).__labSent,
+        ),
+      )
+      .toContainEqual(expect.stringContaining('"approved":true'));
+  });
+
   test("comes off the screen when the answer can no longer travel", async ({
     page,
     lab,

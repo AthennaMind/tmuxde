@@ -11,6 +11,30 @@ release that shipped them.
 
 ## [Unreleased]
 
+### Changed
+
+- **Entering the pairing code now asks for approval.** Scanning the QR or
+  typing the nine digits used to be the approval: you ran the command, you
+  were standing there, the code was fresh. But the code is read off one screen
+  and typed into another, so what it proves is that somebody _saw_ the
+  screen — a shoulder, a shared desk, a screenshot in a chat — and not that
+  they are you. Knowledge of the code and consent to the pairing had been
+  treated as the same fact. Now every path asks, through the same three
+  channels: the in-app dialog on a device already connected, the prompt in
+  `mtmux start`'s own terminal, and `mtmux approve`. Whoever answers first
+  decides; nobody answering means no. A refusal admits nothing and re-arms a
+  fresh code.
+- **No digits to compare on the code path, deliberately.** The dialog drops
+  the six-digit block rather than filling it, because the nine-digit code
+  _was_ the shared secret and there is nothing left to check. Six digits
+  nobody can verify would teach the eye to nod at the block — including on the
+  dashboard requests where checking it is the entire point.
+- **`mtmux start` no longer opens a browser by itself.** `--no-open` is gone;
+  `--open` opts in. The command is most often run over SSH, in a detached
+  pane, or on a headless box, where launching a browser is at best a stray
+  window on whatever machine happened to have a display. The URL and the QR
+  are already printed.
+
 ## [0.7.0] — 2026-09-20
 
 ### Breaking — the 0.7.0 clean break

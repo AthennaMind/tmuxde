@@ -97,6 +97,32 @@ describe("in-app device approval", () => {
     await expect(answer).resolves.toBe(true);
   });
 
+  /**
+   * A code pairing asks without digits, and the absence has to survive the wire.
+   *
+   * If `sas` arrived as an empty string the dialog would render the comparison
+   * block with nothing in it, and a human would compare nothing to nothing and
+   * approve. The field must be genuinely absent, and `via` must say why.
+   */
+  it("carries no digits at all for a code pairing, and says it is one", async () => {
+    const { inbox } = connect();
+    const answer = askDeviceApproval({
+      deviceLabel: "Safari on iPhone",
+      accountEmail: "",
+      via: "code",
+    });
+
+    const [asked] = requests(inbox);
+    expect(asked).toMatchObject({
+      via: "code",
+      deviceLabel: "Safari on iPhone",
+    });
+    expect(asked).not.toHaveProperty("sas");
+
+    resolveDeviceApproval((asked as { id: string }).id, false);
+    await expect(answer).resolves.toBe(false);
+  });
+
   it("never shows the question to a read-only or scoped share", async () => {
     // Half of the escalation defence; `POLICY["device:approve"]` is the other.
     // A share that could admit a device would grant more than it holds.

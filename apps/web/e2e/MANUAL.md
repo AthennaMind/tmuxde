@@ -148,3 +148,31 @@ for a stated reason, not skipped.
       fresh code appears immediately.
 - [ ] A fourth: the wording changes to name it as guessing, and the replacement
       is five seconds late.
+
+## The code-pairing gate
+
+Automated where it could be: `pairing-exchange.test.ts` proves the descriptor is
+never sealed on a refusal, and `device-approval.spec.ts` proves the dialog drops
+the digit block rather than emptying it. What is left needs a real broker and a
+real second device, which the lab has neither of.
+
+- [ ] `mtmux start`, then scan the QR from a phone. The phone stays on
+      "verifying" — **not** an error, and not the terminal — while the machine
+      asks. Say yes; the terminal loads.
+- [ ] Same again, and say **no** at the machine. The phone shows "did not match,
+      or it was refused at the machine", the terminal prints a refusal line, and
+      a fresh code appears. Nothing is in `mtmux devices list`.
+- [ ] With a phone already connected, scan from a second device. The dialog on
+      the first phone asks, with **no digit block** — it is a code pairing, so
+      there is nothing to compare.
+- [ ] Walk away and let it lapse. The pairing fails; nothing was admitted.
+- [ ] `mtmux start` opens no browser. `mtmux start --open` does.
+
+## Known flake
+
+`lab-tablet` intermittently dies with Playwright's `Target crashed` — the
+renderer process, not an assertion. Seen across unrelated specs, not reproducible
+on demand: the spec it killed most recently passes 27/27 under `--repeat-each=3`
+in isolation. Leaning toward harness exhaustion rather than a product defect, but
+that is a guess and is recorded here as one rather than written up as a
+diagnosis.

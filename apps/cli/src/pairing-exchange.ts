@@ -152,6 +152,23 @@ export type ExchangeOptions = {
   noMatchGraceMs?: number;
   /** Derive this peer's key schedule from its share. */
   derive: (msg: PairPeerShareMessage) => Derived;
+  /**
+   * The last gate: a human says yes before the descriptor is sealed.
+   *
+   * Placed *here*, and not in the caller's `paired` handler, for a reason that
+   * is not cosmetic. Once `pair:establish` goes out the browser believes it is
+   * in: it races the direct candidates, opens a socket and sends `auth`, and
+   * the relay's `auth:failure` is terminal — `ws-client.ts` marks it an
+   * intentional close and never retries. Gating after the fact would therefore
+   * strand the browser on a dead end for as long as the human took to decide,
+   * and then leave it there. Gating before it means the browser simply stays
+   * in "verifying" until the answer arrives, and a refusal reaches it as a
+   * `pair:close` with a reason it can show.
+   *
+   * Returning false burns this peer and nothing else: the round re-arms with a
+   * fresh code, and no key, token or peer record was ever written.
+   */
+  admit?: (peerLabel: string) => Promise<boolean>;
   /** Built once a key is known, so it can be sealed for that peer alone. */
   buildDescriptor: () => SealedDescriptor;
   seal: (
@@ -334,6 +351,23 @@ export function runExchange(opts: ExchangeOptions): Exchange {
       }
 
       if (opts.side === "claim") sendOwnConfirm(attempt);
+
+      if (opts.admit) {
+        const label = attempt.peerAd || "browser";
+        let allowed = false;
+        try {
+          allowed = await opts.admit(label);
+        } catch {
+          // A gate that threw is not a yes. The only safe reading of "I could
+          // not ask" is the same as the one for "nobody answered".
+          allowed = false;
+        }
+        if (settled) return;
+        if (!allowed) {
+          giveUpOn(peer, "refused at the machine");
+          return;
+        }
+      }
 
       try {
         const sealed = await opts.seal(attempt.keys, opts.buildDescriptor());

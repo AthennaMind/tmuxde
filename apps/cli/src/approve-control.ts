@@ -53,7 +53,12 @@ export const OFFER_TIMEOUT_MS = 100_000;
 export const MAX_WINDOW_MS = 60 * 60_000;
 
 export type ApprovalOffer = {
-  sas: string;
+  /**
+   * Absent for a code pairing. `mtmux approve` renders the row only when it is
+   * there, because six digits nobody can check are worse than none: they train
+   * the eye to nod at the ones that do matter.
+   */
+  sas?: string;
   deviceLabel: string;
   accountEmail: string;
 };
@@ -192,7 +197,7 @@ export function createApproveControl(deps: ApproveControlDeps): ApproveControl {
     send(held, 200, {
       type: "request",
       id: pending.id,
-      sas: pending.offer.sas,
+      ...(pending.offer.sas ? { sas: pending.offer.sas } : {}),
       deviceLabel: pending.offer.deviceLabel,
       accountEmail: pending.offer.accountEmail,
     });

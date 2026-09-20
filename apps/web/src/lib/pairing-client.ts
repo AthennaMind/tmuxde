@@ -638,7 +638,13 @@ function describeFailure(reason: string): string {
     case "already-claimed":
       return "This code has already been used. Get a new one.";
     case "confirmation-failed":
-      return "The code did not match. Get a new one.";
+      // Two causes, one code. The broker deliberately collapses every
+      // peer-scoped close into this one reason — it cannot tell them apart and
+      // must not be told — so the copy has to cover both: a key confirmation
+      // that did not verify, and a machine whose human said no. Claiming the
+      // digits were wrong to someone who watched them be refused is the worse
+      // of the two errors, because it sends them to type the code again.
+      return "The code did not match, or it was refused at the machine. Get a new code from your terminal.";
     case "rate-limited":
       return "Too many attempts. Wait a minute and try again.";
     case "peer-gone":

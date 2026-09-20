@@ -108,7 +108,7 @@ program
   .option("-n, --name <label>", "what to call this machine")
   .option("-t, --token <value>", "override the auth token for this run")
   .option("--allowed-paths <paths>", "comma-separated path allow-list")
-  .option("--no-open", "don't open the browser on this machine")
+  .option("--open", "also open the browser on this machine", false)
   .option("--api <url>", "pairing service base URL")
   .option(
     "--confirm-reconnect",
@@ -132,7 +132,7 @@ program
   .option("--no-qr", "print without the QR block")
   .option("-t, --token <value>", "override the auth token for this run")
   .option("--allowed-paths <paths>", "comma-separated path allow-list")
-  .option("--no-open", "don't open the browser on this machine")
+  .option("--open", "also open the browser on this machine", false)
   .option("--json", "print a machine-readable startup record")
   .action((opts: StartFlags) => start(toStartOpts(opts, true)));
 

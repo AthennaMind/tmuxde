@@ -58,7 +58,7 @@ mtmux start [options]
 | `-n, --name <label>` | this machine's hostname | What to call this machine in the dashboard |
 | `-t, --token <value>` | the stored token | Override the auth token for this run only |
 | `--allowed-paths <paths>` | `$HOME` | Comma-separated path allow-list for the file browser |
-| `--no-open` | opens | Don't open a browser on this machine |
+| `--open` | off | Also open a browser on this machine |
 | `--api <url>` | `https://api.mtmux.com` | Pairing service base URL |
 | `--json` | off | Print a machine-readable startup record instead of the banner |
 
@@ -113,7 +113,7 @@ mtmux local [options]
 ```
 
 Alias for `mtmux start --local`. It accepts `-p/--port`, `-h/--host`,
-`--no-qr`, `-t/--token`, `--allowed-paths`, `--no-open` and `--json`. It does
+`--no-qr`, `-t/--token`, `--allowed-paths`, `--open` and `--json`. It does
 not accept `--name` or `--api`, since neither means anything without a broker.
 
 In local mode the QR encodes a LAN sign-in URL — `http://<lan>:<port>/login#n=<nonce>`

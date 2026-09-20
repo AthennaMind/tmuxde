@@ -110,6 +110,7 @@ function run(opts: {
   side?: ExchangeSide;
   maxPeers?: number;
   noMatchGraceMs?: number;
+  admit?: (peerLabel: string) => Promise<boolean>;
 }) {
   const io = fakeSocket();
   const exchange = runExchange({
@@ -120,6 +121,7 @@ function run(opts: {
     // had its mailbox destroyed, so there is no straggler to wait for.
     noMatchGraceMs: opts.noMatchGraceMs ?? 0,
     derive: mailboxDerive(opts.secret),
+    ...(opts.admit ? { admit: opts.admit } : {}),
     buildDescriptor: () => DESCRIPTOR,
     seal: () => Promise.resolve(new Uint8Array([1, 2, 3])),
     timeoutMs: 2_000,
@@ -191,6 +193,48 @@ describe("mailbox-side fan-out", () => {
     expect(io.find("pair:close", "peer-0")).toBeDefined();
     expect(io.find("pair:close", "peer-1")).toBeUndefined();
     expect(io.find("pair:establish", "peer-1")).toBeDefined();
+  });
+
+  /**
+   * The gate sits before `pair:establish`, and that placement is the whole
+   * point of it.
+   *
+   * A browser that has been handed the descriptor has already won: it races
+   * the direct candidates, opens a socket and authenticates, and `ws-client`
+   * treats `auth:failure` as a permanent close. So a refusal that arrives
+   * after establishment is not a refusal, it is a broken pairing. These two
+   * assert the descriptor never leaves on a no, and does on a yes.
+   */
+  it("seals nothing for a peer the machine refused", async () => {
+    const secret = "2716";
+    const seen: string[] = [];
+    const io = run({
+      secret,
+      admit: async (label) => {
+        seen.push(label);
+        return false;
+      },
+    });
+
+    claimAs(io, "peer-0", secret).confirm();
+
+    await expect(io.exchange.result).rejects.toThrow("did not match");
+    expect(seen).toEqual(["browser"]);
+    expect(io.find("pair:establish", "peer-0")).toBeUndefined();
+    expect(io.find("pair:close", "peer-0")).toMatchObject({
+      reason: "refused at the machine",
+    });
+  });
+
+  it("establishes once the machine says yes", async () => {
+    const secret = "2716";
+    const io = run({ secret, admit: async () => true });
+    const real = claimAs(io, "peer-0", secret);
+    real.confirm();
+
+    const result = await io.exchange.result;
+    expect(bytesToHex(result.keys.c2s)).toBe(bytesToHex(real.keys.c2s));
+    expect(io.find("pair:establish", "peer-0")).toBeDefined();
   });
 
   it("answers every peer with its own share and tag before any of them prove anything", () => {

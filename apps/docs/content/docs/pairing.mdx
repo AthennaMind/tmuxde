@@ -39,9 +39,24 @@ mtmux
   Waiting for a device…   Ctrl+C to stop.
 ```
 
-**Scan the QR and you are in.** Zero taps: the code arrives in the URL fragment,
-the page claims it, and the terminal loads. No second terminal, no second
-command.
+**Scan the QR, then say yes.** The code arrives in the URL fragment, the page
+claims it, and the machine asks one question before anything is admitted: *let
+this device in?* Answer it wherever you are — the prompt in `mtmux start`'s own
+terminal, the in-app dialog on a phone already connected to that machine, or
+`mtmux approve` in another shell. Whoever answers first decides, and nobody
+answering means no.
+
+There are no digits to compare on this path, and that is deliberate: the
+nine-digit code *was* the shared secret, so there is nothing left to check. The
+question is only "did you just enter this code?".
+
+<Callout type="info">
+  Before 0.7.1 this path had no prompt — typing the code was treated as the
+  approval. The trouble is that the code is read off one screen and typed into
+  another, so what it proves is that somebody *saw* the screen, not that they
+  are you. A shoulder, a shared desk, a screenshot in a chat: all of them are a
+  working credential for as long as the code is live. Now every path asks.
+</Callout>
 
 If the QR will not scan — a cracked camera, a terminal that mangles block
 characters, someone reading the digits to you over the phone — go to
