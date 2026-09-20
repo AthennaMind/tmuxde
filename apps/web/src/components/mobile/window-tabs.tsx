@@ -112,28 +112,46 @@ export function WindowTabs({ className }: WindowTabsProps) {
   const showStrip = strip.entries.length > 1;
   const soleWindow = windows.length === 1 ? windows[0] : undefined;
 
+  /*
+   * The row is not the tablist, and the two used to be the same element.
+   *
+   * `role="tablist"` requires that its children be tabs. This row also holds
+   * "Create window", a spacer and the pane-list button, so axe reported
+   * `aria-required-children` on every single stop of a sweep — a real failure,
+   * not a pedantic one: a screen reader announces "tab list, 13 items" and
+   * then reads two of them as buttons that are not tabs, which is a lie about
+   * how many windows there are.
+   *
+   * `min-h-11` rather than `h-11`, for the other half of the same bug. Tailwind
+   * boxes are `border-box`, so `h-11` *plus* `border-b` is a 43px content area
+   * — and every tab, being `h-full`, was 43px tall against a 44px floor. The
+   * comment that used to live here said the buttons filled the row so the tap
+   * target cleared 44px; it was right about the intent and wrong by one pixel,
+   * for two years, on every window tab in the app.
+   */
+  const stripLabel =
+    strip.kind === "window"
+      ? "Windows"
+      : strip.kind === "pane"
+        ? "Panes"
+        : "Sessions";
+
   return (
     <div
       className={cn(
-        // Fixed 44px row: the tabs stay visually compact pills but each button
-        // fills the row height so the tap target clears the 44px minimum.
-        // `touch-pan-x` states this row's own intent: it is a real horizontal
-        // scroller, and it used to inherit `pan-y` from a wrapper that no
-        // longer exists.
-        "flex h-11 shrink-0 touch-pan-x items-center gap-1 overflow-x-auto px-2 border-b scrollbar-none",
+        "flex min-h-11 shrink-0 items-center gap-1 px-2 border-b",
         className,
       )}
-      role="tablist"
-      aria-label={
-        strip.kind === "window"
-          ? "Windows"
-          : strip.kind === "pane"
-            ? "Panes"
-            : "Sessions"
-      }
     >
       {showStrip ? (
-        <>
+        <div
+          role="tablist"
+          aria-label={stripLabel}
+          // `touch-pan-x` states this row's own intent: it is a real
+          // horizontal scroller. `min-w-0` is what lets it actually shrink
+          // inside the flex row rather than pushing the buttons off-screen.
+          className="flex min-w-0 flex-1 touch-pan-x items-center gap-1 self-stretch overflow-x-auto scrollbar-none"
+        >
           {strip.entries.map((entry) => {
             const isActive = entry.key === activeKey;
             const isPending = entry.key === pendingKey;
@@ -143,7 +161,11 @@ export function WindowTabs({ className }: WindowTabsProps) {
                 ref={isActive ? activeRef : undefined}
                 role="tab"
                 aria-selected={isActive}
-                className="group flex h-full shrink-0 items-center rounded-md disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                // The full name, for a tab whose visible label is clipped to
+                // 80px. Two sessions called `mtmux-web-1` and `mtmux-web-2`
+                // are otherwise the same tab twice.
+                title={entry.label}
+                className="group flex h-11 shrink-0 items-center rounded-md disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 disabled={!connected}
                 onClick={() => selectStripEntry(entry.key)}
                 {...(strip.kind === "window" ? longPress(entry.key) : {})}
@@ -161,14 +183,19 @@ export function WindowTabs({ className }: WindowTabsProps) {
                   )}
                 >
                   {entry.index !== undefined && (
-                    <span className="text-[10px] opacity-60">{entry.index}</span>
+                    <span className="text-[11px] opacity-60">
+                      {entry.index}
+                    </span>
                   )}
                   <span className="max-w-[80px] truncate">{entry.label}</span>
                   {entry.zoomed && (
                     <Maximize2 className="h-2.5 w-2.5" aria-label="Zoomed" />
                   )}
                   {entry.paneCount !== undefined && entry.paneCount > 1 && (
-                    <span className="text-[10px] opacity-60">
+                    <span
+                      className="text-[11px] opacity-60"
+                      title={`${entry.paneCount} panes`}
+                    >
                       ·{entry.paneCount}
                     </span>
                   )}
@@ -182,24 +209,29 @@ export function WindowTabs({ className }: WindowTabsProps) {
               </button>
             );
           })}
-          {strip.kind === "window" && (
-            <button
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              onClick={handleCreateWindow}
-              disabled={!connected}
-              aria-label="Create window"
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </>
+        </div>
       ) : soleWindow ? (
-        <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+        <span
+          className="flex-1 truncate text-xs text-muted-foreground"
+          title={soleWindow.name}
+        >
           {soleWindow.name}
         </span>
-      ) : null}
+      ) : (
+        <div className="flex-1" />
+      )}
 
-      <div className="flex-1" />
+      {showStrip && strip.kind === "window" && (
+        <button
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          onClick={handleCreateWindow}
+          disabled={!connected}
+          aria-label="Create window"
+          title={connected ? "Create window" : "Not connected"}
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      )}
 
       {/* Pane indicator button — always clickable to open PaneListPanel */}
       <button
@@ -212,7 +244,7 @@ export function WindowTabs({ className }: WindowTabsProps) {
         ) : (
           <LayoutGrid className="h-3.5 w-3.5" />
         )}
-        <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-muted text-[10px] font-medium px-1">
+        <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-muted text-[11px] font-medium px-1">
           {panes.length || 1}
         </span>
       </button>
