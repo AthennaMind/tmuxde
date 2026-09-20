@@ -23,6 +23,14 @@ interface UiStore {
    * "did anything happen?" is "you cannot tell".
    */
   switchHint: string | null;
+  /**
+   * The pane a long press opened the options menu for, or null when closed.
+   *
+   * A pane id rather than a boolean: the menu acts on the pane the finger
+   * landed on, which is frequently not the active one — picking a *different*
+   * pane and zooming it is most of the point of the gesture.
+   */
+  paneMenuId: string | null;
   setMobileTab: (tab: MobileTab) => void;
   setPaneListOpen: (open: boolean) => void;
   setFabOpen: (open: boolean) => void;
@@ -36,6 +44,7 @@ interface UiStore {
   openComposer: (draft?: string) => void;
   setComposerDraft: (draft: string) => void;
   setSwitchHint: (hint: string | null) => void;
+  setPaneMenuId: (id: string | null) => void;
   closeComposer: () => void;
 }
 
@@ -52,6 +61,7 @@ export const useUiStore = create<UiStore>((set) => ({
   capturedContent: null,
   composerDraft: null,
   switchHint: null,
+  paneMenuId: null,
   setMobileTab: (mobileTab) => set({ mobileTab }),
   setPaneListOpen: (paneListOpen) => set({ paneListOpen }),
   setFabOpen: (fabOpen) => set({ fabOpen }),
@@ -67,6 +77,7 @@ export const useUiStore = create<UiStore>((set) => ({
   setMachineSwitcherOpen: (machineSwitcherOpen) => set({ machineSwitcherOpen }),
   setCapturedPane: (capturedPaneId, capturedContent) =>
     set({ capturedPaneId, capturedContent }),
+  setPaneMenuId: (paneMenuId) => set({ paneMenuId }),
   // `null` means closed and `""` means open-and-empty, which is why this is a
   // nullable draft rather than a boolean beside a string.
   openComposer: (draft = "") => set({ composerDraft: draft }),

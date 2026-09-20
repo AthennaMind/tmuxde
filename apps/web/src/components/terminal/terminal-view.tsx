@@ -191,6 +191,38 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
             core?._renderService?.dimensions?.css?.cell?.height;
           return typeof height === "number" && height > 0 ? height : 0;
         },
+        getGeometry: () => {
+          const term = terminalRef.current;
+          const screen =
+            containerRef.current?.querySelector(".xterm-screen") ?? null;
+          // Same `_core` reach as `getCellHeightPx`: no public API exposes the
+          // measured cell box, and the width matters as much as the height
+          // once a point has to become a column.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cell = (terminalRef.current as any)?._core?._renderService
+            ?.dimensions?.css?.cell;
+          const width: unknown = cell?.width;
+          const height: unknown = cell?.height;
+          if (
+            !term ||
+            !screen ||
+            typeof width !== "number" ||
+            typeof height !== "number" ||
+            width <= 0 ||
+            height <= 0
+          ) {
+            return null;
+          }
+          const rect = screen.getBoundingClientRect();
+          return {
+            left: rect.left,
+            top: rect.top,
+            cellWidth: width,
+            cellHeight: height,
+            cols: term.cols,
+            rows: term.rows,
+          };
+        },
         redraw,
         inspect: () => {
           const term = terminalRef.current;

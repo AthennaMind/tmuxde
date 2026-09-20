@@ -1,3 +1,5 @@
+import type { GridGeometry } from "@/lib/pane-hit-test";
+
 /**
  * Registry for the mounted terminal's imperative handle.
  *
@@ -32,6 +34,19 @@ export interface TerminalHandle {
    * "fall back to an estimate" rather than as "do not scroll".
    */
   getCellHeightPx: () => number;
+  /**
+   * Where the character grid is on screen, and how big a cell is.
+   *
+   * For turning a touch point into a cell, which is how a long press finds the
+   * pane under it (`lib/pane-hit-test.ts`). Measured from `.xterm-screen`
+   * rather than the container: the container carries padding, and cell (0,0)
+   * starts inside it, so a container-relative reading is out by that padding
+   * at every column.
+   *
+   * Null until the renderer has measured, which the caller treats as "cannot
+   * say" rather than "no pane".
+   */
+  getGeometry: () => GridGeometry | null;
   /**
    * Re-fit, rebuild the character atlas and repaint every row.
    *

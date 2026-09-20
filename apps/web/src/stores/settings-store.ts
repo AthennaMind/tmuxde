@@ -257,6 +257,15 @@ interface GestureSettings {
    */
   dragToScroll: boolean;
   pinchToZoom: boolean;
+  /**
+   * A still press on the terminal opens the options for the pane under it.
+   *
+   * Note the name. `longPressContextMenu` above is one of the two switches
+   * that were removed for being wired to nothing, and this is deliberately not
+   * a resurrection of it: the gesture exists, it is read by `reduceGesture`,
+   * and turning this off stops it firing.
+   */
+  longPressPaneMenu: boolean;
 }
 
 interface SettingsStore {
@@ -337,6 +346,7 @@ export const useSettingsStore = create<SettingsStore>()(
         swipeToSwitchPanes: true,
         dragToScroll: true,
         pinchToZoom: true,
+        longPressPaneMenu: true,
       },
       hapticEnabled: true,
       autoZoom: true,

@@ -46,6 +46,8 @@ export type GestureConfig = {
   pinchToZoom: boolean;
   /** A one-finger horizontal swipe moves between panes or sessions. */
   swipeToSwitch: boolean;
+  /** A one-finger press that stays still opens the pane menu under it. */
+  longPressPaneMenu: boolean;
   /**
    * Pixel height of one terminal row, for turning a drag into a line count.
    *
@@ -71,6 +73,16 @@ export type GestureInput =
       config: GestureConfig;
     }
   | { kind: "move"; touches: GestureTouch[]; at: number }
+  /**
+   * The press has been still long enough to be a hold — ask whether it counts.
+   *
+   * The timer is the surface's, for the same reason the fling's decay is: this
+   * reducer is pure and driven by DOM events, and a press becoming a long press
+   * is the one transition no event announces. The question still has to be
+   * asked *here*, because only this state knows whether the finger has since
+   * drifted, locked into a scroll, or been joined by a second one.
+   */
+  | { kind: "hold"; at: number }
   | {
       kind: "end";
       /** Fingers still down — on `touchend` this excludes the lifted one. */
@@ -114,7 +126,15 @@ export type GestureEffect =
   | { type: "zoom"; scale: number }
   | { type: "zoomEnd" }
   /** The direction the finger travelled, not the direction of the change. */
-  | { type: "swipeCommit"; direction: "left" | "right" };
+  | { type: "swipeCommit"; direction: "left" | "right" }
+  /**
+   * A still press, at the point it began, in client coordinates.
+   *
+   * The origin rather than the last position on purpose: the point names a
+   * pane, and a press allowed to drift up to the slop should open the menu for
+   * the pane the finger was put down on.
+   */
+  | { type: "longPress"; x: number; y: number };
 
 export type GesturePhase =
   | "idle"
@@ -122,6 +142,8 @@ export type GesturePhase =
   | "scroll"
   | "swipe"
   | "pinch"
+  /** A long press has fired; the rest of this touch does nothing. */
+  | "held"
   | "passthrough";
 
 export type GestureState = {
@@ -205,6 +227,18 @@ export const SWIPE_VELOCITY_WINDOW_MS = 100;
  * for ten seconds and then lifting 100px to the left switched sessions.
  */
 export const SWIPE_MAX_MS = 800;
+
+/**
+ * How long a finger must stay down, and how far it may stray, to be a hold.
+ *
+ * 500ms is what the FAB already uses for its own long press, and what both
+ * platforms use for a context menu, so the gesture feels the same everywhere in
+ * the app. The slop is under `AXIS_LOCK_PX` by design: a press that has moved
+ * far enough to be deciding an axis is a drag that started slowly, not a hold,
+ * and the axis lock must stay the thing that claims it.
+ */
+export const LONG_PRESS_MS = 500;
+export const LONG_PRESS_SLOP_PX = 10;
 
 /** Scale change that must accumulate before a pinch starts zooming. */
 export const PINCH_SLOP = 0.08;
@@ -368,9 +402,37 @@ export function reduceGesture(
       return onMove(state, input);
     case "end":
       return onEnd(state, input);
+    case "hold":
+      return onHold(state);
     case "cancel":
       return onCancel(state);
   }
+}
+
+/**
+ * The timer fired. Whether that means anything is this function's answer.
+ *
+ * Only from `pending`, and only for a finger that has barely moved: by the
+ * time a gesture has locked, the touch belongs to it, and firing a menu out
+ * from under a slow scroll is exactly the kind of surprise that makes people
+ * stop trusting a gesture surface.
+ */
+function onHold(state: GestureState): GestureResult {
+  if (state.phase !== "pending" || !state.config?.longPressPaneMenu) {
+    return { state, effects: [], preventDefault: false };
+  }
+  const drift = Math.hypot(
+    state.lastX - state.originX,
+    state.lastY - state.originY,
+  );
+  if (drift > LONG_PRESS_SLOP_PX) {
+    return { state, effects: [], preventDefault: false };
+  }
+  return {
+    state: { ...state, phase: "held" },
+    effects: [{ type: "longPress", x: state.originX, y: state.originY }],
+    preventDefault: false,
+  };
 }
 
 function onStart(
@@ -381,6 +443,11 @@ function onStart(
   // second finger is handled by `move`, not by restarting here.
   if (state.phase === "pinch" || state.phase === "passthrough") {
     return { state, effects: [], preventDefault: claimedPhase(state.phase) };
+  }
+
+  // A second finger on a press the menu already answered. The touch is spent.
+  if (state.phase === "held") {
+    return { state, effects: [], preventDefault: true };
   }
 
   const first = input.touches[0];
@@ -439,6 +506,12 @@ function onMove(
 ): GestureResult {
   if (state.phase === "idle" || state.phase === "passthrough") {
     return { state, effects: [], preventDefault: false };
+  }
+
+  // Held: the menu is up and this finger is done. `preventDefault` so the
+  // drag that follows a long press is not also delivered to tmux as a click.
+  if (state.phase === "held") {
+    return { state, effects: [], preventDefault: true };
   }
 
   const config = state.config;
@@ -610,6 +683,17 @@ function onEnd(
       state: remaining > 0 ? state : initialGestureState(),
       effects: [],
       preventDefault: false,
+    };
+  }
+
+  if (state.phase === "held") {
+    // Cancel the synthesized click. Without it the lift lands in tmux, moving
+    // the cursor or clicking a link in whatever is running, behind a menu the
+    // user is still reading.
+    return {
+      state: remaining > 0 ? state : initialGestureState(),
+      effects: [],
+      preventDefault: true,
     };
   }
 

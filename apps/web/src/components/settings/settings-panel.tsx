@@ -324,6 +324,7 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
                 ["swipeToSwitchPanes", "Swipe to switch panes"],
                 ["dragToScroll", "Drag to scroll history"],
                 ["pinchToZoom", "Pinch to zoom"],
+                ["longPressPaneMenu", "Long-press a pane for options"],
               ] as const
             ).map(([key, label]) => (
               <div key={key} className="flex items-center justify-between">

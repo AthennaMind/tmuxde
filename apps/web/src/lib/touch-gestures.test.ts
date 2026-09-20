@@ -16,6 +16,7 @@ const CONFIG: GestureConfig = {
   dragToScroll: true,
   pinchToZoom: true,
   swipeToSwitch: true,
+  longPressPaneMenu: true,
   cellHeightPx: CELL,
 };
 
@@ -724,5 +725,79 @@ describe("reversing a scroll", () => {
 
     const back = run([move(100, 166 - 2 * CELL, 100)], scrolled.state);
     expect(back.of("scroll")).toEqual([{ type: "scroll", lines: -2 }]);
+  });
+});
+
+/**
+ * The long press.
+ *
+ * The timer belongs to the surface, so what is asserted here is the only half
+ * this machine owns: whether a fired timer counts, and what the rest of the
+ * touch does afterwards.
+ */
+const hold = (at: number): GestureInput => ({ kind: "hold", at });
+
+describe("long press", () => {
+  it("fires for a finger that stayed put, at the point it went down", () => {
+    const r = run([down(120, 200), hold(500)]);
+    expect(r.of("longPress")).toEqual([{ type: "longPress", x: 120, y: 200 }]);
+    expect(r.state.phase).toBe("held");
+  });
+
+  it("tolerates the drift of a thumb that is not moving on purpose", () => {
+    const r = run([down(120, 200), move(124, 203, 300), hold(500)]);
+    expect(r.of("longPress")).toHaveLength(1);
+    // The point is where the finger landed, not where it ended up: the point
+    // names a pane, and a few pixels of drift must not change which one.
+    expect(r.of("longPress")[0]).toMatchObject({ x: 120, y: 200 });
+  });
+
+  it("does not fire once a drag has locked an axis", () => {
+    // A slow scroll is still a scroll. Opening a menu out from under one is
+    // exactly the surprise that makes a gesture surface feel unpredictable.
+    const r = run([
+      down(120, 200),
+      move(120, 200 + AXIS_LOCK_PX + 5, 300),
+      hold(500),
+    ]);
+    expect(r.of("longPress")).toHaveLength(0);
+    expect(r.state.phase).toBe("scroll");
+  });
+
+  it("does not fire for a finger that wandered but never locked", () => {
+    const drift = move(120, 200 + AXIS_LOCK_PX - 1, 300);
+    const r = run([down(120, 200), drift, hold(500)]);
+    expect(r.of("longPress")).toHaveLength(0);
+    expect(r.state.phase).toBe("pending");
+  });
+
+  it("stays quiet when the gesture is switched off", () => {
+    const off: GestureInput = {
+      kind: "start",
+      touches: [{ id: 1, x: 10, y: 10 }],
+      at: 0,
+      config: { ...CONFIG, longPressPaneMenu: false },
+    };
+    expect(run([off, hold(500)]).of("longPress")).toHaveLength(0);
+  });
+
+  it("spends the touch, so the lift cannot also land in tmux", () => {
+    // Without `preventDefault` on the end, the synthesized click reaches
+    // whatever is running — moving the cursor behind a menu the user is
+    // still reading.
+    const r = run([down(120, 200), hold(500), move(130, 210, 600), up(700)]);
+    expect(r.of("longPress")).toHaveLength(1);
+    expect(r.prevented.slice(-2)).toEqual([true, true]);
+    expect(r.state.phase).toBe("idle");
+  });
+
+  it("cannot fire twice for one press", () => {
+    const r = run([down(120, 200), hold(500), hold(1000)]);
+    expect(r.of("longPress")).toHaveLength(1);
+  });
+
+  it("is not something a fresh touch inherits", () => {
+    const r = run([down(120, 200), hold(500), up(600), down(10, 10, 700)]);
+    expect(r.state.phase).toBe("pending");
   });
 });

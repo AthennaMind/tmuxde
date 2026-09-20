@@ -19,6 +19,7 @@ import { SettingsPanel } from "@/components/settings/settings-panel";
 import { WindowTabs } from "@/components/mobile/window-tabs";
 import { TmuxFab } from "@/components/mobile/tmux-fab";
 import { PaneListPanel } from "@/components/mobile/pane-list-panel";
+import { PaneOptionsSheet } from "@/components/mobile/pane-options-sheet";
 import { PaneResizeControls } from "@/components/mobile/pane-resize-controls";
 import { TerminalGestureSurface } from "@/components/terminal/terminal-gesture-surface";
 import { SwitchHint } from "@/components/terminal/switch-hint";
@@ -271,6 +272,7 @@ export function TerminalWorkspace() {
         {/* Copy mode overlay */}
         {copyModeOpen && <CopyModeOverlay />}
         <PaneListPanel />
+        <PaneOptionsSheet />
         <PaneResizeControls />
         <SessionCreateDialog
           open={showCreateDialog}

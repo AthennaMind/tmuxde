@@ -78,6 +78,7 @@ describe("mergeGestures", () => {
     swipeToSwitchPanes: true,
     dragToScroll: true,
     pinchToZoom: true,
+    longPressPaneMenu: true,
   };
 
   it("keeps a toggle the user turned off", () => {

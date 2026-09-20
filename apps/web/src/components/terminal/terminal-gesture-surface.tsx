@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { cn } from "@repo/ui/lib/utils";
+import { triggerHaptic } from "@repo/ui/components/haptic-button";
 import { getRelayClient } from "@/hooks/use-websocket";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
 import { believedInCopyMode, noteLeftCopyMode } from "@/lib/copy-mode-belief";
@@ -14,8 +15,12 @@ import { stepStrip } from "@/lib/strip-controller";
 import { useSessionStore } from "@/stores/session-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useTerminalStore } from "@/stores/terminal-store";
+import { paneAtPoint } from "@/lib/pane-hit-test";
+import { usePaneStore } from "@/stores/pane-store";
+import { useUiStore } from "@/stores/ui-store";
 import {
   initialGestureState,
+  LONG_PRESS_MS,
   reduceGesture,
   type GestureConfig,
   type GestureEffect,
@@ -183,6 +188,25 @@ export function TerminalGestureSurface({
     stepStrip(direction === "right" ? -1 : 1);
   }, []);
 
+  /**
+   * Turn the press point into a pane, and open its menu.
+   *
+   * Falling back to the active pane rather than doing nothing: a press that
+   * lands on the status line or a pane border is still a deliberate press, and
+   * "nothing happened" is the failure mode this gesture is meant to remove.
+   * With no pane list at all there is nothing to show, so it stays quiet.
+   */
+  const openPaneMenu = useCallback((x: number, y: number) => {
+    const { panes, zoomedPaneId, activePaneId } = usePaneStore.getState();
+    if (panes.length === 0) return;
+    const grid = getTerminalHandle()?.getGeometry() ?? null;
+    const hit = grid ? paneAtPoint({ x, y }, grid, panes, zoomedPaneId) : null;
+    const id = hit?.id ?? activePaneId ?? panes[0]?.id ?? null;
+    if (!id) return;
+    if (useSettingsStore.getState().hapticEnabled) triggerHaptic();
+    useUiStore.getState().setPaneMenuId(id);
+  }, []);
+
   const applyEffects = useCallback(
     (effects: GestureEffect[]) => {
       for (const effect of effects) {
@@ -245,10 +269,14 @@ export function TerminalGestureSurface({
           case "swipeCommit":
             switchTarget(effect.direction);
             break;
+
+          case "longPress":
+            openPaneMenu(effect.x, effect.y);
+            break;
         }
       }
     },
-    [flushFontSize, startFling, switchTarget],
+    [flushFontSize, openPaneMenu, startFling, switchTarget],
   );
 
   useEffect(() => {
@@ -279,6 +307,7 @@ export function TerminalGestureSurface({
         pinchToZoom: gestures.pinchToZoom,
         swipeToSwitch:
           gestures.swipeToSwitchSessions || gestures.swipeToSwitchPanes,
+        longPressPaneMenu: gestures.longPressPaneMenu,
         cellHeightPx:
           getTerminalHandle()?.getCellHeightPx() || FALLBACK_CELL_PX,
       };
@@ -305,6 +334,37 @@ export function TerminalGestureSurface({
       paint();
     };
 
+    /*
+     * The hold timer.
+     *
+     * Lives here rather than in the reducer because a press becoming a long
+     * press is the one transition no DOM event announces — the same reason the
+     * fling's decay is a `requestAnimationFrame` loop up there and not a state
+     * in the machine. When it fires it does not decide anything: it *asks*,
+     * and `reduceGesture` answers using what has happened to the finger since.
+     */
+    let holdTimer: ReturnType<typeof setTimeout> | null = null;
+    const clearHold = () => {
+      if (holdTimer === null) return;
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    };
+    const armHold = () => {
+      clearHold();
+      holdTimer = setTimeout(() => {
+        holdTimer = null;
+        const result = reduceGesture(stateRef.current, {
+          kind: "hold",
+          at: performance.now(),
+        });
+        // No event to cancel: the timer is not a DOM callback. Everything else
+        // an `apply` does still has to happen.
+        stateRef.current = result.state;
+        applyEffects(result.effects);
+        paint();
+      }, LONG_PRESS_MS);
+    };
+
     const onStart = (e: TouchEvent) => {
       // Touching the terminal stops a fling, the way it does on every native
       // list. Without it a tap meant to catch the moving view instead landed
@@ -324,6 +384,12 @@ export function TerminalGestureSurface({
         }),
         e,
       );
+      // One finger, still undecided: the only shape a hold can have.
+      if (stateRef.current.phase === "pending" && e.touches.length === 1) {
+        armHold();
+      } else {
+        clearHold();
+      }
     };
 
     const onMove = (e: TouchEvent) => {
@@ -335,9 +401,14 @@ export function TerminalGestureSurface({
         }),
         e,
       );
+      // A locked gesture owns the touch; a press still drifting inside its
+      // slop keeps the timer, and the reducer re-checks the drift when it
+      // fires.
+      if (stateRef.current.phase !== "pending") clearHold();
     };
 
     const onEnd = (e: TouchEvent) => {
+      clearHold();
       const wasTap = stateRef.current.phase === "pending";
       apply(
         reduceGesture(stateRef.current, {
@@ -365,6 +436,7 @@ export function TerminalGestureSurface({
     };
 
     const onCancel = (e: TouchEvent) => {
+      clearHold();
       apply(
         reduceGesture(stateRef.current, { kind: "cancel", at: e.timeStamp }),
         e,
@@ -384,6 +456,7 @@ export function TerminalGestureSurface({
       el.removeEventListener("touchmove", onMove, opts);
       el.removeEventListener("touchend", onEnd, opts);
       el.removeEventListener("touchcancel", onCancel, opts);
+      clearHold();
       if (fontRaf.current !== null) cancelAnimationFrame(fontRaf.current);
       fontRaf.current = null;
       el.style.opacity = "";
