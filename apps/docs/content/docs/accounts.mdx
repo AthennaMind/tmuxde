@@ -29,8 +29,12 @@ terminal. The registry is a convenience layered on top, never a licence check.
 - **A liveness signal.** A signed-in server heartbeats the registry every 30
   seconds so the dashboard can show it as online.
 - **Ask to join from the browser.** Pick a machine from the dashboard instead of
-  reading a fresh code off a screen. The machine still decides: whoever is there
-  runs `mtmux approve` and reads back a six-digit SAS.
+  reading a fresh code off a screen. Someone still has to say yes, and they can
+  say it from wherever they are: a phone already connected to that machine gets
+  an in-app prompt showing the device, the account and a six-digit SAS to
+  compare, and there is still the prompt in `mtmux start`'s own terminal and
+  `mtmux approve` in another shell. Whoever answers first decides. Nobody
+  answering means no.
 - **More machines.** Free registers one; Pro lifts that.
 - **A free 7-day Pro trial.** It starts by itself the first time Free is not
   enough — no button, no card. If you never hit a limit, it never starts.

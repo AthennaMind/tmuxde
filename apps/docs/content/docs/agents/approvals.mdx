@@ -9,7 +9,7 @@ them wastes an afternoon. This page separates them.
 | | Who asks | Who answers | Where |
 | --- | --- | --- | --- |
 | **Agent permission prompt** | The agent, inside its pane | You, by typing into the terminal | Any paired device |
-| **mtmux access request** | A browser asking to join a registered machine | A human at the machine, or `mtmux approve` | The machine itself |
+| **mtmux access request** | A browser asking to join a registered machine | A human — in the app on an already-paired device, at the machine, or via `mtmux approve` | Wherever that human is |
 
 ## 1. The agent's permission prompt
 
@@ -44,15 +44,38 @@ not fire on its approval prompt either. See
 ## 2. mtmux's own access request
 
 Separate mechanism, separate purpose. When a browser asks to join a machine
-registered to your account, the machine prompts a human — a six-digit comparison
-in the terminal — and that human presses a key. Consent is at the machine, by
-design.
+registered to your account, a human is asked to compare six digits and say yes
+or no. Consent is a human's, by design — never a timeout's.
 
-On a box nobody is sitting at, that prompt finds no TTY and **denies**. That is
-the correct answer: silence is not consent. It also leaves a real owner with no
-way to admit a new phone to their own build server.
+There are three places that question can be answered, and they are asked **at
+the same time**. Whoever answers first decides.
 
-`mtmux approve` is the way in:
+### In the app
+
+Any device already paired with that machine — your phone, in your hand — gets a
+prompt showing the device asking, the account it belongs to, and the six digits
+to compare against what that browser is showing on its own screen. Approve or
+Deny, one tap.
+
+This is usually the right one, because the premise of mtmux is that you are not
+at the machine. It cannot be dismissed by tapping outside it or pressing Escape:
+those look like refusing and refuse nothing, and the request would quietly
+expire while you believed you had answered. Deny is one tap and it is the
+default focus.
+
+A **read-only or single-session share cannot answer**, and is never shown the
+question. Admitting a device grants more than such a share holds.
+
+### At the machine
+
+If `mtmux start` is running attached to a terminal, the same comparison appears
+there and you press `y` or `n`. Answering in the app closes this prompt, and
+vice versa.
+
+### From another shell
+
+On a box nobody is sitting at — systemd, `nohup`, a detached pane — the terminal
+prompt finds no TTY and cannot ask. `mtmux approve` is the way in:
 
 ```bash
 mtmux approve                 # stay available for 5 minutes
@@ -72,13 +95,20 @@ instead of being denied.
 </Step>
 <Step title="Trigger the request from the browser">
 Press the join button in the dashboard. The comparison code appears in your SSH
-session.
+session — and simultaneously on any device already paired with that machine.
 </Step>
 <Step title="Compare the digits, then decide">
 They must match what the browser shows. Matching digits are the whole security
 property; approving without comparing them approves whoever is asking.
 </Step>
 </Steps>
+
+<Callout type="warn" title="Nobody answering is a no">
+On every channel, in every combination, an unanswered request is denied when it
+expires. Closing the app, walking away from the terminal, or letting the
+approval window lapse are all the same answer: no. Nothing is ever admitted
+because a human failed to object.
+</Callout>
 
 <Callout type="info" title="Why there is no approval queue">
 The browser's half of the exchange is an ephemeral key held in one tab's memory,
