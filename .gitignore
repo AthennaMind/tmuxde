@@ -70,3 +70,18 @@ playwright-report/
 
 # Lab sweep output — regenerated on every run.
 apps/web/lab-report/
+
+# Next's generated ambient types, which name the dist directory they were
+# written for.
+#
+# `apps/web` deliberately has four of them — `.next-dev`, `.next-build`,
+# `.next-serve` and the lab's `.next-lab` — because a build must never write
+# the tree a server is reading. That makes the generated `import
+# "./.next-*/types/routes.d.ts"` line a statement about which task ran last on
+# one machine, and committing it breaks every machine where that directory does
+# not exist. CI had no `.next-lab`, so `tsc` could not resolve the import and
+# both the build and the type check failed on a tree that was green locally.
+#
+# Next regenerates the file on every `dev`/`build`, and `tsc --noEmit` passes
+# without it, so there is nothing to keep.
+apps/web/next-env.d.ts
