@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import {
   Search,
+  Type,
+  X,
   Zap,
   Columns2,
   Rows2,
@@ -23,6 +25,9 @@ import { useUiStore } from "@/stores/ui-store";
 import { useAlertStore } from "@/stores/alert-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { getRelayClient } from "@/hooks/use-websocket";
+import { useBelievedInCopyMode } from "@/hooks/use-copy-mode";
+import { noteLeftCopyMode } from "@/lib/copy-mode-belief";
+import { useSessionStore } from "@/stores/session-store";
 import { sendKeySequence } from "@/lib/send-key";
 import { KeySheet } from "./key-sheet";
 
@@ -46,6 +51,9 @@ export function KeyboardToolbar({
   // Keys that travel to the relay are dead while the socket is down; the purely
   // local ones (search, palette, font size) stay live.
   const connected = useConnectionStore((s) => s.status === "connected");
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const inCopyMode = useBelievedInCopyMode(activeSessionId);
+  const openComposer = useUiStore((s) => s.openComposer);
 
   /**
    * Send a toolbar key, applying whichever sticky modifiers are lit.
@@ -118,6 +126,12 @@ export function KeyboardToolbar({
     sendKeySequence(data);
   }, []);
 
+  const leaveCopyMode = useCallback(() => {
+    noteLeftCopyMode(activeSessionId);
+    getRelayClient()?.send({ type: "tmux:exit-copy-mode" });
+    if (hapticEnabled) triggerHaptic();
+  }, [activeSessionId, hapticEnabled]);
+
   const iconBtnClass =
     "flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors active:bg-accent/80 active:scale-95 disabled:opacity-40 disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
@@ -125,6 +139,51 @@ export function KeyboardToolbar({
 
   return (
     <div className={cn("flex items-stretch", className)}>
+      {/*
+        The start of the bar, pinned.
+
+        Everything in the strip beside it can be scrolled past, and on a 390px
+        phone most of it is. What sits here is whichever thing the user most
+        needs *right now*, which is not the same button in both states:
+
+         - Normally it is text mode — the composer, where several lines can be
+           written and read back before anything runs. Its only other entry
+           point is the one-line bar above, which is rendered only once a
+           session is attached, so until now there were states with a keyboard
+           toolbar on screen and no way to reach it.
+         - In copy mode it is the way out. Keystrokes sent to a pane in copy
+           mode are copy-mode commands, so until this is tapped the terminal
+           looks focused and silently eats everything typed — including
+           anything sent from the composer, which is why the two swap rather
+           than sit side by side.
+      */}
+      <div className="flex shrink-0 items-center border-r border-border px-1">
+        {inCopyMode ? (
+          <button
+            className="flex h-11 shrink-0 items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/15 px-2.5 text-xs font-medium text-amber-600 transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:text-amber-400"
+            aria-label="Leave copy mode"
+            onClick={leaveCopyMode}
+          >
+            Copy mode
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : (
+          <button
+            className={iconBtnClass}
+            aria-label="Write a command"
+            // Not gated on the socket, like the other purely local actions in
+            // this row: writing a command while the connection is down is how
+            // you have one ready when it comes back.
+            onClick={() => {
+              if (hapticEnabled) triggerHaptic();
+              openComposer();
+            }}
+          >
+            <Type className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       <div className="flex flex-1 items-center gap-0.5 overflow-x-auto px-1 py-1 scrollbar-none">
         {/* Signal buttons */}
         <button
@@ -185,6 +244,45 @@ export function KeyboardToolbar({
           );
         })}
 
+        {/*
+          Ways to *go* somewhere come before ways to *do* something to the
+          current pane. Search, the palette and copy mode each change what the
+          screen is showing, and they were sitting behind five keys and two
+          clipboard buttons — on a 390px phone, past the fold of a strip most
+          people never realise scrolls. The splits and the font size moved to
+          the end instead: both are in the FAB, the splits are also in a pane's
+          long-press menu, and the font size is a pinch.
+        */}
+        {/* Search button */}
+        {onSearchOpen && (
+          <button
+            className={iconBtnClass}
+            onClick={onSearchOpen}
+            aria-label="Search"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+        )}
+        {/* Command palette */}
+        <button
+          className={iconBtnClass}
+          aria-label="Command palette"
+          onClick={() => useCommandStore.getState().setPaletteOpen(true)}
+        >
+          <Zap className="h-4 w-4" />
+        </button>
+        {/* Copy mode overlay */}
+        <button
+          className={iconBtnClass}
+          aria-label="Open copy mode"
+          disabled={!connected}
+          onClick={() => {
+            useUiStore.getState().setCopyModeOpen(true);
+            if (hapticEnabled) triggerHaptic();
+          }}
+        >
+          <ScrollText className="h-4 w-4" />
+        </button>
         <button
           className={iconBtnClass}
           aria-label="Paste"
@@ -216,24 +314,6 @@ export function KeyboardToolbar({
             <Clipboard className="h-4 w-4" />
           </button>
         )}
-        {/* Search button */}
-        {onSearchOpen && (
-          <button
-            className={iconBtnClass}
-            onClick={onSearchOpen}
-            aria-label="Search"
-          >
-            <Search className="h-4 w-4" />
-          </button>
-        )}
-        {/* Command palette */}
-        <button
-          className={iconBtnClass}
-          aria-label="Command palette"
-          onClick={() => useCommandStore.getState().setPaletteOpen(true)}
-        >
-          <Zap className="h-4 w-4" />
-        </button>
         {/* Split horizontal */}
         <button
           className={iconBtnClass}
@@ -263,18 +343,6 @@ export function KeyboardToolbar({
           }}
         >
           <Rows2 className="h-4 w-4" />
-        </button>
-        {/* Copy mode overlay */}
-        <button
-          className={iconBtnClass}
-          aria-label="Open copy mode"
-          disabled={!connected}
-          onClick={() => {
-            useUiStore.getState().setCopyModeOpen(true);
-            if (hapticEnabled) triggerHaptic();
-          }}
-        >
-          <ScrollText className="h-4 w-4" />
         </button>
         {/* Zoom controls */}
         <button

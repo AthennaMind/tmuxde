@@ -25,12 +25,36 @@
 
 const sessionsInCopyMode = new Set<string>();
 
+/**
+ * Subscribers, so the belief can be *shown* and not merely consulted.
+ *
+ * It was write-and-check-later state for as long as its only reader was the
+ * tap handler that rescues a stuck terminal. But the honest fix for "the
+ * terminal looks focused and silently eats everything the user types" is to
+ * stop it looking focused — which means something on screen has to re-render
+ * when this changes. Hence a store, in the smallest form that is still one:
+ * `useSyncExternalStore` over the Set that was already here.
+ */
+const listeners = new Set<() => void>();
+
+function emit(): void {
+  for (const listener of listeners) listener();
+}
+
+export function subscribeCopyModeBelief(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
 export function noteEnteredCopyMode(session: string | null | undefined): void {
-  if (session) sessionsInCopyMode.add(session);
+  if (!session || sessionsInCopyMode.has(session)) return;
+  sessionsInCopyMode.add(session);
+  emit();
 }
 
 export function noteLeftCopyMode(session: string | null | undefined): void {
-  if (session) sessionsInCopyMode.delete(session);
+  if (!session || !sessionsInCopyMode.delete(session)) return;
+  emit();
 }
 
 export function believedInCopyMode(
@@ -42,4 +66,5 @@ export function believedInCopyMode(
 /** Test-only: the set is module state and outlives a test file otherwise. */
 export function resetCopyModeBeliefForTests(): void {
   sessionsInCopyMode.clear();
+  emit();
 }
