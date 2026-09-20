@@ -30,11 +30,53 @@ import { getRelayClient } from "@/hooks/use-websocket";
 import { sendCommand } from "@/lib/send-command";
 import { isHostedBuild, useSession } from "@/lib/auth-client";
 
+/**
+ * The two account rows, and why they are a separate component.
+ *
+ * `useSession()` is an unconditional fetch. A hook cannot be called
+ * conditionally, so `if (!isHostedBuild) return null` at the top of a component
+ * that calls it does not prevent the call — it only prevents the render. In a
+ * self-hosted build `hostedApiUrl` is null, better-auth falls back to a
+ * same-origin `/api/auth/get-session`, and the terminal — the app's primary
+ * surface — fired a guaranteed 404 on every single load.
+ *
+ * `entry-header.tsx` already spells out the rule this follows: the thing to
+ * extract is the markup, never the session hook. So the hook lives here, in a
+ * component that is only mounted when there is a broker to ask.
+ */
+function PaletteAccountItems({
+  onSelect,
+}: {
+  onSelect: (value: string) => void;
+}) {
+  const { data: session, isPending } = useSession();
+  const signedIn = !isPending && !!session?.user;
+  const signedOut = !isPending && !session?.user;
+
+  return (
+    <>
+      {signedIn && (
+        <CommandItem value="goto:/dashboard" onSelect={onSelect}>
+          <LayoutGrid className="h-4 w-4" />
+          Your machines
+        </CommandItem>
+      )}
+      {/* Signed out, the same slot offers the thing that would make the row
+          above it exist. Never both, and never while the session is still in
+          flight — an item that appears a beat late is an item someone's arrow
+          key has already skipped past. */}
+      {signedOut && (
+        <CommandItem value="goto:/signup" onSelect={onSelect}>
+          <LayoutGrid className="h-4 w-4" />
+          Create an mtmux account
+        </CommandItem>
+      )}
+    </>
+  );
+}
+
 export function CommandPalette() {
   const { paletteOpen, setPaletteOpen, history, snippets } = useCommandStore();
-  const { data: session, isPending: sessionPending } = useSession();
-  const signedIn = !sessionPending && !!session?.user;
-  const signedOut = !sessionPending && !session?.user;
 
   // Cmd+K / Ctrl+K trigger
   useEffect(() => {
@@ -153,22 +195,7 @@ export function CommandPalette() {
             <SlidersHorizontal className="h-4 w-4" />
             Settings
           </CommandItem>
-          {isHostedBuild && signedIn && (
-            <CommandItem value="goto:/dashboard" onSelect={handleSelect}>
-              <LayoutGrid className="h-4 w-4" />
-              Your machines
-            </CommandItem>
-          )}
-          {/* Signed out, the same slot offers the thing that would make the
-              row above it exist. Never both, and never while the session is
-              still in flight — an item that appears a beat late is an item
-              someone's arrow key has already skipped past. */}
-          {isHostedBuild && signedOut && (
-            <CommandItem value="goto:/signup" onSelect={handleSelect}>
-              <LayoutGrid className="h-4 w-4" />
-              Create an mtmux account
-            </CommandItem>
-          )}
+          {isHostedBuild && <PaletteAccountItems onSelect={handleSelect} />}
           <CommandItem value="goto:/start" onSelect={handleSelect}>
             <PlugZap className="h-4 w-4" />
             Connect another machine

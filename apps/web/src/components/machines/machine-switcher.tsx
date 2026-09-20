@@ -93,8 +93,15 @@ export function MachineSwitcher({ className }: { className?: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Switch machine"
+        title={active?.name ? `Machine: ${active.name}` : "Switch machine"}
         className={cn(
-          "flex min-w-0 max-w-40 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors",
+          // `pointer-coarse:min-h-11` rather than a plain `min-h-11`: this is
+          // a 24px control, which is fine for a mouse and eight pixels short
+          // of usable for a thumb. Keying on the pointer rather than on the
+          // width is the same rule `MOBILE_MEDIA_QUERY` already uses, and it
+          // covers the tablet and the landscape phone that a width breakpoint
+          // would call desktop.
+          "flex min-w-0 max-w-40 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors pointer-coarse:min-h-11",
           "hover:bg-accent hover:text-foreground",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
           className,

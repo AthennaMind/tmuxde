@@ -92,6 +92,20 @@ export const test = base.extend<{ lab: LabFixture }>({
       }
     });
     page.on("pageerror", (err) => problems.push(`pageerror: ${err.message}`));
+    /*
+     * A 4xx/5xx is reported by the browser as a bare "Failed to load resource"
+     * with no URL, which is useless as a finding — the first sweep produced
+     * exactly one 404 and no way to tell what had 404'd. The response event
+     * has the URL, so it is collected here instead.
+     */
+    page.on("response", (res) => {
+      if (res.status() < 400) return;
+      const url = res.url();
+      // `next dev` 404s its own optional dev assets; the app is not asking
+      // for them and cannot stop it.
+      if (/\/_next\/(static\/development|webpack-hmr)/.test(url)) return;
+      problems.push(`http ${res.status()}: ${url}`);
+    });
     page.on("requestfailed", (req) => {
       // Aborts are routine: a navigation cancels in-flight requests, and the
       // HMR socket is torn down on every route change under `next dev`.

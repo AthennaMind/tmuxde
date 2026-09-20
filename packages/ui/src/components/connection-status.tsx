@@ -85,15 +85,15 @@ export function ConnectionStatus({
           {status === "reconnecting" &&
             reconnectCount != null &&
             reconnectCount > 0 && (
-              <span className="ml-1 opacity-60">#{reconnectCount}</span>
+              <span className="ml-1 text-foreground/70">#{reconnectCount}</span>
             )}
           {status === "connected" && latency != null && (
-            <span className="ml-1 opacity-60">{latency}ms</span>
+            <span className="ml-1 text-foreground/70">{latency}ms</span>
           )}
           {/* Shown, not just tooltipped, for the same reason as above — and
               truncated because a tunnel hostname is longer than the header. */}
           {hostname && (
-            <span className="ml-1 hidden max-w-[10ch] truncate align-bottom opacity-60 sm:inline-block">
+            <span className="ml-1 hidden max-w-[10ch] truncate align-bottom text-foreground/70 sm:inline-block">
               {hostname}
             </span>
           )}

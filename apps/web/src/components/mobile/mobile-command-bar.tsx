@@ -132,6 +132,21 @@ export function MobileCommandBar({ className }: MobileCommandBarProps) {
         onClick={handleSend}
         disabled={!connected || !command.trim()}
         aria-label="Send command"
+        /*
+         * Why it is greyed out, in the one place someone will look.
+         *
+         * A disabled control with no explanation is a dead end: the user
+         * cannot tell whether it is broken, not ready, or not for them. There
+         * are exactly two reasons this button is off and they call for
+         * different actions — wait, or type something.
+         */
+        title={
+          !connected
+            ? "Not connected — reconnecting"
+            : !command.trim()
+              ? "Type a command to send"
+              : "Send command"
+        }
         className={cn(
           "flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",

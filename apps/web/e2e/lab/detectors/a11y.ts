@@ -38,7 +38,13 @@ export const a11y: Detector = async ({ page, stop, device }) => {
             ? "major"
             : "minor",
       detector: "a11y",
-      detail: `${v.id}: ${v.help} (${v.nodes.length} node${v.nodes.length === 1 ? "" : "s"})`,
+      // The offending markup inline. An axe rule id on its own sends the
+      // reader to a trace viewer to find out *which* element; one line of
+      // HTML is usually enough to go straight to the component.
+      detail:
+        `${v.id}: ${v.help} (${v.nodes.length} node${v.nodes.length === 1 ? "" : "s"})\n` +
+        `  ${v.nodes[0]?.html?.slice(0, 200) ?? ""}\n` +
+        `  ${v.nodes[0]?.failureSummary?.replace(/\n+/g, " ").slice(0, 300) ?? ""}`,
       where: `${stop.session}/${stop.state} ${target}`,
       measured: { nodes: v.nodes.length, impact: v.impact ?? "unknown" },
     };

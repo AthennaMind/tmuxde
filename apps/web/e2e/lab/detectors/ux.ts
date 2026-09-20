@@ -119,11 +119,17 @@ export const ux: Detector = async ({ page, stop, device }) => {
       const clipped =
         el.scrollWidth > el.clientWidth + 1 &&
         (style.textOverflow === "ellipsis" || style.overflow === "hidden");
-      if (
-        clipped &&
-        !el.getAttribute("title") &&
-        !el.getAttribute("aria-label")
-      ) {
+      /*
+       * The recourse may be on an ancestor, and usually is.
+       *
+       * A session tab puts `title` on the tab and clips a `<span>` inside it;
+       * the connection indicator puts `title` and an `sr-only` copy on the
+       * wrapper and clips the hostname within. Checking only the clipped node
+       * reported both as defects when both already do the right thing — and a
+       * detector that cannot be satisfied by the correct fix is worse than no
+       * detector, because it trains people to ignore it.
+       */
+      if (clipped && !el.closest("[title], [aria-label]")) {
         truncated.push(text.slice(0, 32));
       }
     }

@@ -30,14 +30,27 @@ import {
  * network call to find out.
  */
 export function AccountNudge() {
+  /*
+   * The guard is here, in a component that does not call `useSession()`.
+   *
+   * It used to be the first statement of the body below — after the hook, as
+   * it has to be, because a hook cannot be called conditionally. So the
+   * comment above ("makes no network call to find out") was false: the fetch
+   * went out on every render and only the markup was suppressed. In a
+   * self-hosted build that is a same-origin `/api/auth/get-session` that 404s
+   * every time, which the lab's console detector found on the terminal route.
+   */
+  if (!isHostedBuild) return null;
+  return <AccountNudgeInner />;
+}
+
+function AccountNudgeInner() {
   const { data: session, isPending } = useSession();
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
     setDismissed(readStored(ACCOUNT_NUDGE_DISMISSED_KEY) !== null);
   }, []);
-
-  if (!isHostedBuild) return null;
 
   // Never guess while the session is in flight: flashing a "create an account"
   // pitch at someone who has one is the worse of the two wrong answers.
