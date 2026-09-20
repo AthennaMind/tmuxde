@@ -53,8 +53,10 @@ export type BannerOpts = {
    */
   showQr?: boolean;
   /**
-   * Shown only when there is no QR at all, because that is the only case where
-   * someone has to authenticate by hand.
+   * This machine's relay token, for signing a device in by hand.
+   *
+   * Printed whenever there is no pairing code — see the block that renders it
+   * for why "there is a QR" is not a good enough reason to withhold it.
    */
   token?: string;
   /** A dim line under the addresses — degradation notices go here. */
@@ -75,6 +77,37 @@ export type BannerOpts = {
 const GAP = "   ";
 const INDENT = "  ";
 const ANSI = /\[[0-9;]*m/g;
+
+/**
+ * The one claim about the hosted path worth the lines it costs.
+ *
+ * Every other terminal-in-a-browser asks you to believe its servers. This one
+ * does not have to be believed: the nine digits are a CPace password that
+ * never reaches the broker, the session key is derived on the two endpoints,
+ * and every frame after it is AES-256-GCM. The broker routes ciphertext it
+ * cannot open. That is the product, and the banner — the one surface people
+ * actually read — was the one place that never said so.
+ *
+ * Worded as what it means rather than as what it is. "CPace PAKE over
+ * ristretto255" is true and persuades nobody who is not already persuaded.
+ *
+ * Wrapped by hand at 26 columns, because this sits beside the QR and
+ * `twoColumn` stacks the two the moment they will not fit side by side. A long
+ * line here would push a wide terminal into the narrow layout.
+ */
+const SEALED = [
+  kleur.dim("Sealed end to end — we"),
+  kleur.dim("pass it on, we can't"),
+  kleur.dim("read it."),
+];
+
+/** The other half of the same honesty: local mode is not the tunnel. */
+const LOCAL_ONLY = [
+  kleur.dim("On this network only. The"),
+  kleur.dim("link signs the device in —"),
+  kleur.dim("nothing reaches our"),
+  kleur.dim("servers."),
+];
 
 /**
  * qrcode-terminal draws *light* modules as foreground blocks and dark modules
@@ -195,6 +228,8 @@ export function renderBannerLines(opts: BannerOpts): string[] {
       kleur.dim(showQr ? "or go to  " : "Go to     ") + brand(opts.invite.host),
     );
     aside.push(kleur.dim("and enter ") + kleur.bold(renderCode(typedCode)));
+    aside.push("");
+    aside.push(...SEALED);
   } else if (opts.invite && showQr) {
     // The typed half is spent but the QR is not. Say what is left rather than
     // pointing at a code that no longer exists.
@@ -202,11 +237,12 @@ export function renderBannerLines(opts: BannerOpts): string[] {
     aside.push("");
     aside.push(kleur.dim("There is no code to type"));
     aside.push(kleur.dim("for this one."));
-  } else if (opts.lanQrPayload && showQr) {
-    aside.push(kleur.bold("Scan to sign in"));
     aside.push("");
-    aside.push(kleur.dim("No token to type — the"));
-    aside.push(kleur.dim("code signs the device in."));
+    aside.push(...SEALED);
+  } else if (opts.lanQrPayload && showQr) {
+    aside.push(kleur.bold("Scan to open your terminal"));
+    aside.push("");
+    aside.push(...LOCAL_ONLY);
   }
 
   if (qr.length > 0) {
@@ -238,12 +274,34 @@ export function renderBannerLines(opts: BannerOpts): string[] {
     out.push(INDENT + kleur.dim(opts.hint));
   }
 
-  // The token is a fallback, not a feature. It only earns space when there is
-  // neither a code to type nor one to scan — the one case left where a human
-  // has to authenticate by hand.
-  if (!opts.invite && !showQr && opts.token) {
+  /*
+   * The token, and why it is back on screen.
+   *
+   * It used to be printed only when there was neither a code to type nor one
+   * to scan, on the reasoning that it is a 64-character secret and a QR beside
+   * it is the better answer. The first half of that is still true. The second
+   * half quietly assumed every device can scan, and the banner then told the
+   * one that cannot — a laptop on the same wifi, a phone with no camera
+   * permission, anyone reading this over SSH — that there was "no token to
+   * type", which was not a demotion but a dead end.
+   *
+   * So: printed whenever this run has no pairing code, which is exactly when
+   * it is the only credential a second device can use by hand. `/login` takes
+   * it pasted. A hosted invite still suppresses it — nine digits that expire
+   * beat a permanent secret, and printing both invites the wrong one to be
+   * copied.
+   */
+  if (!opts.invite && opts.token) {
     out.push("");
-    out.push(INDENT + kleur.dim("Token  ") + kleur.dim(opts.token));
+    out.push(
+      INDENT +
+        kleur.dim(
+          showQr
+            ? "Can't scan? Open an address above and paste this token:"
+            : "Open an address above and paste this token to sign in:",
+        ),
+    );
+    out.push(INDENT + kleur.dim(opts.token));
   }
 
   out.push("");

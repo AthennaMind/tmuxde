@@ -57,15 +57,20 @@ describe("renderBannerLines", () => {
       expect(out.join("\n")).not.toMatch(QR_GLYPHS);
     });
 
-    // The token is a fallback for the case where nothing can be scanned or
-    // typed. An invite is exactly that case being covered, so printing a
-    // 64-character secret alongside it is noise a shoulder-surfer can use.
+    // Nine digits that expire beat a permanent 64-character secret, and
+    // printing both invites the wrong one to be copied.
     it("does not print the token", () => {
       expect(render({ invite: INVITE }).join("\n")).not.toContain(TOKEN);
     });
 
     it("says it is waiting for a device", () => {
       expect(render({ invite: INVITE }).join("\n")).toContain("Waiting");
+    });
+
+    it("says the tunnel is sealed, because that is the whole product", () => {
+      expect(render({ invite: INVITE }).join("\n")).toContain(
+        "Sealed end to end",
+      );
     });
   });
 
@@ -77,12 +82,27 @@ describe("renderBannerLines", () => {
         lanUrl: "http://192.168.1.5:14100",
         lanQrPayload,
       }).join("\n");
-      expect(out).toContain("Scan to sign in");
+      expect(out).toContain("Scan to open your terminal");
       expect(out).toMatch(QR_GLYPHS);
-      expect(out).not.toContain(TOKEN);
     });
 
-    it("falls back to the token when there is nothing to scan", () => {
+    it("says the local path stays local, and does not claim a tunnel", () => {
+      const out = render({
+        lanUrl: "http://192.168.1.5:14100",
+        lanQrPayload,
+      }).join("\n");
+      expect(out).toContain("On this network only");
+      expect(out).not.toContain("Sealed end to end");
+    });
+
+    /*
+     * The regression this replaces: the banner used to say "No token to type"
+     * next to a QR, which is a dead end for any device that cannot scan one.
+     */
+    it("offers the token beside the QR, not only instead of it", () => {
+      expect(
+        render({ lanUrl: "http://192.168.1.5:14100", lanQrPayload }).join("\n"),
+      ).toContain(TOKEN);
       expect(render({}).join("\n")).toContain(TOKEN);
       expect(render({ lanQrPayload, showQr: false }).join("\n")).toContain(
         TOKEN,
@@ -122,6 +142,27 @@ describe("renderBannerLines", () => {
         columns,
       );
     }
+  });
+  /*
+   * The aside beside the QR is hand-wrapped, so it is the one thing here that
+   * a wording change can silently break: one long line pushes `twoColumn` into
+   * its stacked layout, and the banner quietly stops being two columns on a
+   * terminal wide enough for both.
+   */
+  it("keeps the QR beside the text in every mode a wide terminal has", () => {
+    const local = render({
+      lanUrl: "http://192.168.1.5:14100",
+      lanQrPayload: "http://192.168.1.5:14100/login#n=" + "a".repeat(32),
+      columns: 100,
+    });
+    expect(local.find((l) => l.includes("On this network only"))).toMatch(
+      QR_GLYPHS,
+    );
+    expect(
+      render({ invite: INVITE, columns: 100 }).find((l) =>
+        l.includes("Sealed end to end"),
+      ),
+    ).toMatch(QR_GLYPHS);
   });
 });
 
