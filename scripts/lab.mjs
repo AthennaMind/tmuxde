@@ -220,6 +220,53 @@ const commands = {
     });
   },
 
+  /**
+   * Run the Playwright lab suite against a running lab.
+   *
+   * This exists so the port, the token and the relay URL have exactly one
+   * definition. `playwright.config.ts` reads them from the environment and
+   * falls back to the same numbers, but a fallback that is never exercised is
+   * a number waiting to drift — so the supported entry point sets them.
+   *
+   * Everything after `--` is passed to Playwright:
+   *
+   *   node scripts/lab.mjs test -- --project=lab-webkit --grep @terminal
+   */
+  async test() {
+    await commands.ensure();
+    const passthrough = process.argv.slice(3).filter((a) => a !== "--");
+    const child = spawn(
+      "pnpm",
+      ["exec", "playwright", "test", ...passthrough],
+      {
+        cwd: path.join(ROOT, "apps/web"),
+        env: {
+          ...labEnv,
+          E2E_LAB: "1",
+          E2E_PORT: String(LAB_WEB_PORT),
+          E2E_RELAY_TOKEN: LAB_AUTH_TOKEN,
+          NEXT_PUBLIC_RELAY_URL: `ws://127.0.0.1:${LAB_RELAY_PORT}`,
+        },
+        stdio: "inherit",
+      },
+    );
+    const code = await new Promise((resolve) => child.on("exit", resolve));
+    if (code !== 0) process.exitCode = code ?? 1;
+  },
+
+  /**
+   * Start the lab only if it is not already healthy.
+   *
+   * `up` rebuilds two images, which is a minute nobody wants between two runs
+   * of the same spec. This is what `test` calls, and what a developer
+   * iterating should call.
+   */
+  async ensure() {
+    const id = containerId();
+    if (id && health(id) === "healthy") return;
+    await commands.up();
+  },
+
   /** Consumed by `playwright.config.ts` and by anyone driving this by hand. */
   env() {
     process.stdout.write(

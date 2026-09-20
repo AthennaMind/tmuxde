@@ -192,6 +192,40 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
           return typeof height === "number" && height > 0 ? height : 0;
         },
         redraw,
+        inspect: () => {
+          const term = terminalRef.current;
+          if (!term) {
+            return {
+              cols: 0,
+              rows: 0,
+              cursor: { x: 0, y: 0 },
+              alt: false,
+              scrollback: 0,
+              viewportY: 0,
+              lines: [],
+            };
+          }
+          const buf = term.buffer.active;
+          const lines: string[] = [];
+          for (let y = 0; y < term.rows; y++) {
+            // `buf.viewportY + y`, not `y`: `getLine` indexes the whole buffer
+            // including scrollback, so reading from zero returns the oldest
+            // history rather than what is on screen.
+            const line = buf.getLine(buf.viewportY + y);
+            lines.push(
+              (line?.translateToString(true) ?? "").replace(/\s+$/, ""),
+            );
+          }
+          return {
+            cols: term.cols,
+            rows: term.rows,
+            cursor: { x: buf.cursorX, y: buf.cursorY },
+            alt: buf.type === "alternate",
+            scrollback: buf.baseY,
+            viewportY: buf.viewportY,
+            lines,
+          };
+        },
       }),
       [redraw],
     );
