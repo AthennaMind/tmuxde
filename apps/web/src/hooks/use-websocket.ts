@@ -13,6 +13,7 @@ import { usePaneStore } from "@/stores/pane-store";
 import { useFileStore } from "@/stores/file-store";
 import { useAlertStore } from "@/stores/alert-store";
 import { useRecordingStore } from "@/stores/recording-store";
+import { useDeviceApprovalStore } from "@/stores/device-approval-store";
 import { useUiStore } from "@/stores/ui-store";
 import { useScrollStore } from "@/stores/scroll-store";
 import {
@@ -308,6 +309,59 @@ export function useWebSocket(
           // of base64 through a Zustand store would re-render every subscriber
           // once per chunk.
           break;
+        case "device:approval-request":
+          /*
+           * The one message that asks rather than tells.
+           *
+           * Straight into its own store and onto the screen as a modal — not
+           * an alert. See `device-approval-dialog.tsx` for why a banner would
+           * be a security hole rather than a styling choice: a question that
+           * fades after six seconds is a question the user was never asked,
+           * and the request would expire while they were reading the terminal.
+           */
+          useDeviceApprovalStore.getState().open(msg);
+          break;
+        case "device:approval-resolved": {
+          /*
+           * Somebody answered — possibly this browser, possibly the phone in
+           * the other room, possibly nobody before it expired. Close the
+           * dialog either way, then say what happened.
+           *
+           * Told rather than inferred, because the second phone showing the
+           * same dialog has no way to know. Leaving it up would offer a
+           * decision that can no longer be made.
+           */
+          const store = useDeviceApprovalStore.getState();
+          const byThisDevice = store.answering && store.request?.id === msg.id;
+          if (store.request && store.request.id !== msg.id) break;
+          store.close();
+          if (msg.reason === "expired") {
+            useAlertStore
+              .getState()
+              .push("warning", "A device request expired unanswered. Denied.");
+          } else if (msg.reason === "withdrawn") {
+            // Somebody answered at the machine, or in `mtmux approve`. A
+            // dialog that simply vanished would read as a bug on the one
+            // screen where the user most needs to know what happened.
+            useAlertStore
+              .getState()
+              .push("info", "That device request was answered on the machine.");
+          } else if (msg.reason === "decided") {
+            useAlertStore
+              .getState()
+              .push(
+                msg.approved ? "success" : "info",
+                msg.approved
+                  ? byThisDevice
+                    ? "Approved. The device is being let in."
+                    : "A device was approved somewhere else."
+                  : byThisDevice
+                    ? "Denied. Nothing was granted."
+                    : "A device request was denied somewhere else.",
+              );
+          }
+          break;
+        }
         case "device:paired": {
           /*
            * A security signal, surfaced rather than swallowed.
@@ -372,6 +426,17 @@ export function useWebSocket(
             useConnectionStore.getState().setStatus(status);
             if (status === "reconnecting") {
               useConnectionStore.getState().incrementReconnect();
+            }
+            // A question we can no longer answer must come off the screen.
+            //
+            // The socket is how the answer travels, so an approval dialog left
+            // up over a dead connection is a button that does nothing. Worse,
+            // the relay has already given the question back to the machine's
+            // own prompts by this point — so the dialog would be offering a
+            // decision that has moved elsewhere. Abandoning records no
+            // outcome, because none was reached here.
+            if (status === "disconnected" || status === "reconnecting") {
+              useDeviceApprovalStore.getState().abandon();
             }
           },
           /**

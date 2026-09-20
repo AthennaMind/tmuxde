@@ -34,6 +34,7 @@ import { CommandPalette } from "@/components/command/command-palette";
 import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { AlertBanner } from "@/components/alert-banner";
+import { DeviceApprovalDialog } from "@/components/device-approval-dialog";
 import { ConnectionBanner } from "@/components/connection-banner";
 import { CapabilityBanner } from "@/components/capability-banner";
 import { LockGate } from "@/components/lock/lock-gate";
@@ -451,6 +452,11 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
       <CommandPalette />
       <CommandComposer />
       <KeyboardShortcutsDialog />
+      {/* Last, and outside every other overlay, because it outranks all of
+          them: if a device is asking to be let onto this machine, that is the
+          only thing on screen worth deciding. It renders nothing until there
+          is a question. */}
+      <DeviceApprovalDialog />
       <SessionCreateDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
