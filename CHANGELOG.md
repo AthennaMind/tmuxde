@@ -11,6 +11,8 @@ release that shipped them.
 
 ## [Unreleased]
 
+## [0.7.2] — 2026-09-20
+
 ### Added
 
 - **A live device panel in `mtmux start`.** The command used to append an
