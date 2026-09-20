@@ -45,6 +45,14 @@ import type { ConnectedDevice } from "./serve.js";
 export type PanelMode =
   | { kind: "list" }
   | { kind: "help" }
+  /**
+   * Everything known about one connection.
+   *
+   * Held by connection id rather than by cursor index, so a device that drops
+   * while its card is open shows "it has gone" instead of silently becoming
+   * whichever device slid into that row.
+   */
+  | { kind: "details"; id: string | null }
   /** A destructive action waiting on y/n, holding what it will act on. */
   | { kind: "confirm"; action: "revoke"; id: string; label: string }
   /** A device is asking to be let in. Nothing else is reachable until it is answered. */
@@ -66,6 +74,12 @@ export type PanelState = {
   now: number;
   /** Whether a tunnel is up, which decides if `n` can mean anything. */
   hosted: boolean;
+  /**
+   * Whether `t` can mean anything: no tunnel yet, and something able to open
+   * one. False on a relay bundle with no `openTunnel` wired, where offering
+   * the key would be offering a key that does nothing.
+   */
+  canOpenTunnel: boolean;
   /** Set while the panel cannot act — during shutdown. */
   frozen: boolean;
 };
@@ -83,6 +97,8 @@ export function render(state: PanelState, columns: number): string[] {
       return approval(state, state.mode, width);
     case "help":
       return help(width);
+    case "details":
+      return detailCard(state, state.mode, width);
     case "confirm":
       return confirm(state.mode, width);
     default:
@@ -222,15 +238,138 @@ function keyBar(state: PanelState, width: number): string {
   const keys: string[] = [];
   if (state.devices.length > 1) keys.push(key("↑↓", "select"));
   if (state.devices.length > 0) {
+    keys.push(key("d", "details"));
     keys.push(key("c", "close"));
     // Only when there is a device behind the socket. The machine's own token
     // has none, and offering to revoke it would offer to revoke the credential
     // this terminal is printing.
     if (selected(state)?.deviceId) keys.push(key("r", "revoke"));
   }
+  // Exactly one of these is ever offered, and the pair is why: `n` replaces a
+  // code that exists, `t` creates the thing that has codes at all. Showing
+  // both would invite someone with no tunnel to press the one that cannot work.
   if (state.hosted) keys.push(key("n", "new code"));
+  else if (state.canOpenTunnel) keys.push(key("t", "tunnel"));
   keys.push(key("?", "help"), key("q", "quit"));
   return ` ${fit(keys.join(kleur.dim("   ")), width - 2)}`;
+}
+
+/**
+ * One connection, in full.
+ *
+ * The table row answers "who is here"; this answers "what exactly is it, and
+ * what is it allowed to do". That second question had no answer anywhere short
+ * of reading the config file by hand — `mtmux devices` lists paired devices
+ * rather than live sockets, and the row has room for a label, an age and a
+ * badge.
+ *
+ * Fields are omitted when they have nothing to say, rather than printed as a
+ * dash. A card of eleven rows where four read "—" trains the eye to skip it.
+ */
+function detailCard(
+  state: PanelState,
+  mode: Extract<PanelMode, { kind: "details" }>,
+  width: number,
+): string[] {
+  const device =
+    state.devices.find((d) => d.id === mode.id) ??
+    (mode.id === null ? selected(state) : null);
+
+  if (!device) {
+    return [
+      rule(width),
+      ` ${kleur.bold("That connection has gone")}`,
+      ` ${kleur.dim(fit("It dropped while this was open. Any key to go back.", width - 2))}`,
+    ];
+  }
+
+  const lines = [rule(width), ` ${kleur.bold(fit(device.label, width - 2))}`];
+  const field = (label: string, value: string) => {
+    lines.push(` ${kleur.dim(pad(label, 10))} ${fit(value, width - 13)}`);
+  };
+
+  field(
+    "Connected",
+    `${since(device.connectedAt, state.now)} ago` +
+      (device.lastActivityAt === undefined
+        ? ""
+        : `   ·   ${idleText(device.lastActivityAt, state.now)}`),
+  );
+  if (device.attachedSession) field("Session", device.attachedSession);
+  if (device.size) field("Screen", `${device.size.cols}×${device.size.rows}`);
+  field("Can do", capabilities(device));
+  if (device.expiresAt) {
+    field(
+      "Expires",
+      device.expiresAt <= state.now
+        ? "already — it is running on a spent grant"
+        : `in ${since(state.now, device.expiresAt)}`,
+    );
+  }
+  field("Reached me", whereFrom(device));
+  if (device.userAgent) field("It says", device.userAgent);
+  // The device id is what `mtmux devices revoke` takes, so it is printed in
+  // full rather than shortened — a truncated id is a thing you cannot act on.
+  if (device.deviceId) field("Device", device.deviceId);
+  else field("Device", kleur.dim("signed in with this machine's token"));
+  if (device.id) field("Socket", device.id);
+
+  lines.push("");
+  // Fitted like every other line here: at 40 columns the hint is what goes,
+  // not the keys, because the keys are the part you cannot guess.
+  const footer =
+    `${kleur.bold("c")} ${kleur.dim("close")}` +
+    (device.deviceId ? `   ${kleur.bold("r")} ${kleur.dim("revoke")}` : "") +
+    kleur.dim("   ·   any other key goes back");
+  lines.push(` ${fit(footer, width - 2)}`);
+  return lines;
+}
+
+/** The grant in one line: reach, then write access, then files. */
+function capabilities(device: ConnectedDevice): string {
+  const parts: string[] = [];
+  if (!device.scope || device.scope.kind === "all") parts.push("every session");
+  else if (device.scope.kind === "sessions") {
+    parts.push(
+      device.scope.sessions.length === 1
+        ? `only ${device.scope.sessions[0]}`
+        : `only ${device.scope.sessions.join(", ")}`,
+    );
+  } else parts.push(`${device.scope.count} recording(s)`);
+
+  parts.push(device.readOnly ? "watch only" : "type into it");
+
+  if (device.files === "none") parts.push("no files");
+  else if (device.files === "read") parts.push("read files");
+  else if (device.files === "write") parts.push("read and write files");
+
+  return parts.join("   ·   ");
+}
+
+/**
+ * How the socket arrived, said plainly.
+ *
+ * This deliberately does not guess from the address. A tunnelled connection
+ * and a browser on this very machine both come from loopback, and the only
+ * thing that separates them is the tunnel agent's own user-agent header at the
+ * upgrade — which the relay classifies there and carries through as
+ * `transport`. Reading the address here would produce a confident wrong answer
+ * for the case people most want to know about.
+ */
+function whereFrom(device: ConnectedDevice): string {
+  const address = device.remoteAddress?.replace(/^::ffff:/, "") ?? null;
+  switch (device.transport) {
+    case "tunnel":
+      return "through the encrypted tunnel";
+    case "lan":
+      return `over this network${address ? ` from ${address}` : ""}`;
+    case "loopback":
+      return "from this machine";
+    default:
+      // An older relay bundle with no `transport`. The address is all there is,
+      // and it is said as an address rather than dressed up as a conclusion.
+      return address ?? "unknown";
+  }
 }
 
 function key(k: string, label: string): string {
@@ -242,14 +381,19 @@ function help(width: number): string[] {
     rule(width),
     ` ${kleur.bold("Keys")}`,
     `   ${kleur.bold("↑ ↓")}   ${kleur.dim("move between connected devices")}`,
+    `   ${kleur.bold("d")}     ${kleur.dim("everything about this connection — enter does it too")}`,
     `   ${kleur.bold("c")}     ${kleur.dim("close this connection — it may reconnect")}`,
     `   ${kleur.bold("r")}     ${kleur.dim("revoke this device — permanent, it must pair again")}`,
+    `   ${kleur.bold("t")}     ${kleur.dim("open an encrypted tunnel, so a device anywhere can pair")}`,
     `   ${kleur.bold("n")}     ${kleur.dim("throw away the printed code and arm a fresh one")}`,
     `   ${kleur.bold("l")}     ${kleur.dim("reprint the banner, code and addresses")}`,
     `   ${kleur.bold("q")}     ${kleur.dim("stop the server — the same as Ctrl+C")}`,
     "",
     ` ${kleur.dim("Closing is temporary, revoking is not. mtmux devices lists every")}`,
     ` ${kleur.dim("paired device, including the ones not connected right now.")}`,
+    "",
+    ` ${kleur.dim("t and n are never both offered: t opens the tunnel this machine")}`,
+    ` ${kleur.dim("does not have, n replaces a code it already printed.")}`,
     ` ${kleur.dim("Any key to go back.")}`,
   ];
 }

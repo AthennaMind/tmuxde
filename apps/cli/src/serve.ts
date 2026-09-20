@@ -43,6 +43,16 @@ export type ConnectedDevice = {
     | { kind: "all" }
     | { kind: "sessions"; sessions: string[] }
     | { kind: "recordings"; count: number };
+  /** What the grant allows on disk. Independent of `readOnly`. */
+  files?: "none" | "read" | "write";
+  /** When the credential stops working, for a share that has an end. */
+  expiresAt?: number | null;
+  /** The viewer's terminal size, as last applied to the PTY. */
+  size?: { cols: number; rows: number } | null;
+  /** How the socket arrived. Absent on a bundle that predates the field. */
+  transport?: "loopback" | "lan" | "tunnel";
+  /** The browser's raw `user-agent`, when it sent one. */
+  userAgent?: string | null;
 };
 
 export type RelayRuntime = {

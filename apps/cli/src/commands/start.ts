@@ -1737,119 +1737,142 @@ export async function start(opts: StartOpts) {
     });
   };
 
-  if (!localOnly) {
-    try {
-      hosted = await startHosted({
-        buildGrant,
-        port: opts.port,
-        base,
-        cfg,
-        tunnelOnly: false,
-        trusted,
-        confirmReturning,
-        onPaired: (label) => {
-          // Redrawn, not appended. The banner's last line still says "Waiting
-          // for a device…", and printing underneath it leaves a stale claim on
-          // screen above the news that it is no longer true.
-          clearWaitingLine();
-          // "Paired", not "connected". The socket authenticating is what
-          // connected means, and `onConnectionsChanged` says so a moment later
-          // — claiming it here too printed the same news twice.
-          say(kleur.green(`  ✓ Paired with ${label}.`));
-          say(kleur.dim(`    It has the terminal at ${lanUrl ?? localUrl}.`));
+  /**
+   * Bring the tunnel up.
+   *
+   * Extracted from the `if (!localOnly)` block it used to be inlined in, for
+   * one reason: a local-by-default start is now allowed to change its mind.
+   * The banner's hint used to end at "run `mtmux start --hosted`", which means
+   * stopping a server somebody may already have paired a phone to, and typing
+   * a command to get back to where they were with one flag different. Pressing
+   * a key does the same thing without the round trip through a dead server.
+   *
+   * Every callback below is the same on both paths, and that is the point of
+   * the shape: the keypress route is not a second, thinner way to open a
+   * tunnel, it is the same one started later.
+   *
+   * It returns the handle rather than assigning `hosted` itself, which is not
+   * style. An assignment made only inside this closure is invisible to
+   * TypeScript's flow analysis at every call site below, which narrows `hosted`
+   * to `null` and then to `never` — so the compiler would reject `hosted.invite`
+   * throughout a file where it is plainly reachable.
+   */
+  const openTunnel = async (): Promise<Hosted> =>
+    startHosted({
+      buildGrant,
+      port: opts.port,
+      base,
+      cfg,
+      tunnelOnly: false,
+      trusted,
+      confirmReturning,
+      onPaired: (label) => {
+        // Redrawn, not appended. The banner's last line still says "Waiting
+        // for a device…", and printing underneath it leaves a stale claim on
+        // screen above the news that it is no longer true.
+        clearWaitingLine();
+        // "Paired", not "connected". The socket authenticating is what
+        // connected means, and `onConnectionsChanged` says so a moment later
+        // — claiming it here too printed the same news twice.
+        say(kleur.green(`  ✓ Paired with ${label}.`));
+        say(kleur.dim(`    It has the terminal at ${lanUrl ?? localUrl}.`));
+        say(
+          kleur.dim(
+            "    It stays paired across restarts — mtmux devices lists it.",
+          ),
+        );
+        say("");
+      },
+      onWarn: (notice) => {
+        clearWaitingLine();
+        if (notice.warning === "broker-misbehaving") {
           say(
-            kleur.dim(
-              "    It stays paired across restarts — mtmux devices lists it.",
+            kleur.red(
+              "  ! The pairing service offered more terminals than it should.",
             ),
           );
-          say("");
-        },
-        onWarn: (notice) => {
-          clearWaitingLine();
-          if (notice.warning === "broker-misbehaving") {
-            say(
-              kleur.red(
-                "  ! The pairing service offered more terminals than it should.",
-              ),
-            );
-            say(
-              kleur.dim(
-                "    Stopped arming rather than risk pairing with the wrong one.",
-              ),
-            );
-            return;
-          }
-          // Under four, the likeliest reading is a fumble on a phone keyboard,
-          // and saying anything heavier would be crying wolf at a typo.
-          if (notice.warning === "wrong-code") {
-            say(
-              kleur.yellow(
-                "  ! Someone entered a wrong code. That one is now dead.",
-              ),
-            );
-            say(
-              kleur.dim("    Here's a fresh one — the old code will not work."),
-            );
-            return;
-          }
-          // From the fourth, a stranger is likelier than a fumble. Say so, and
-          // name the delay so the pause reads as deliberate rather than broken.
+          say(
+            kleur.dim(
+              "    Stopped arming rather than risk pairing with the wrong one.",
+            ),
+          );
+          return;
+        }
+        // Under four, the likeliest reading is a fumble on a phone keyboard,
+        // and saying anything heavier would be crying wolf at a typo.
+        if (notice.warning === "wrong-code") {
           say(
             kleur.yellow(
-              `  ! Wrong code again (${notice.wrong}). If that wasn't you, someone is guessing.`,
+              "  ! Someone entered a wrong code. That one is now dead.",
             ),
           );
           say(
-            kleur.dim(
-              `    Slowing down — next code in ${Math.round(notice.delayMs / 1000)}s.`,
-            ),
+            kleur.dim("    Here's a fresh one — the old code will not work."),
           );
-        },
-        onRearm: (invite, reason) => {
-          say(kleur.dim(`    ${REARM_LINES[reason]}`));
-          reprint(invite);
-          void serverState.write(record(invite.url)).catch(() => {});
-        },
-        onIdle: () => {
-          clearWaitingLine();
-          say(
-            kleur.dim(
-              "    No one used the last few codes, so I've stopped making them.",
-            ),
-          );
-          say(kleur.dim("    Press enter for a new code."));
-          waitForRearm();
-        },
-        onAgent: (stop) => {
-          stopAgent = stop;
-        },
-        onLateTunnel: (late) => {
-          /*
-           * The user may have given up and pressed Ctrl-C while we were still
-           * retrying. Arming two pairing mailboxes, printing a live code and
-           * rewriting the state file for a machine they believe is stopped is
-           * worse than doing nothing — and the `serverState.write` below would
-           * race the `clear()` in `shutdown`, leaving a state file pointing at
-           * a dead pid.
-           */
-          if (shuttingDown) {
-            late.stop();
-            return;
-          }
-          // The banner has already been printed, saying the machine is serving
-          // locally. Correct that rather than leaving a stale claim on screen.
-          hosted = late;
-          note = null;
-          void serverState.write(record(late.invite.url)).catch(() => {});
-          // `--json` printed one object and is being read by a script, not a
-          // person. Emitting a banner into it now would corrupt that output.
-          if (opts.json) return;
-          clearWaitingLine();
-          say(kleur.green("  ✓ The tunnel came up."));
-          say(kleur.dim("    Here's a code for pairing a device anywhere:"));
-          reprint(late.invite);
-        },
-      });
+          return;
+        }
+        // From the fourth, a stranger is likelier than a fumble. Say so, and
+        // name the delay so the pause reads as deliberate rather than broken.
+        say(
+          kleur.yellow(
+            `  ! Wrong code again (${notice.wrong}). If that wasn't you, someone is guessing.`,
+          ),
+        );
+        say(
+          kleur.dim(
+            `    Slowing down — next code in ${Math.round(notice.delayMs / 1000)}s.`,
+          ),
+        );
+      },
+      onRearm: (invite, reason) => {
+        say(kleur.dim(`    ${REARM_LINES[reason]}`));
+        reprint(invite);
+        void serverState.write(record(invite.url)).catch(() => {});
+      },
+      onIdle: () => {
+        clearWaitingLine();
+        say(
+          kleur.dim(
+            "    No one used the last few codes, so I've stopped making them.",
+          ),
+        );
+        say(kleur.dim("    Press enter for a new code."));
+        waitForRearm();
+      },
+      onAgent: (stop) => {
+        stopAgent = stop;
+      },
+      onLateTunnel: (late) => {
+        /*
+         * The user may have given up and pressed Ctrl-C while we were still
+         * retrying. Arming two pairing mailboxes, printing a live code and
+         * rewriting the state file for a machine they believe is stopped is
+         * worse than doing nothing — and the `serverState.write` below would
+         * race the `clear()` in `shutdown`, leaving a state file pointing at
+         * a dead pid.
+         */
+        if (shuttingDown) {
+          late.stop();
+          return;
+        }
+        // The banner has already been printed, saying the machine is serving
+        // locally. Correct that rather than leaving a stale claim on screen.
+        hosted = late;
+        note = null;
+        void serverState.write(record(late.invite.url)).catch(() => {});
+        // `--json` printed one object and is being read by a script, not a
+        // person. Emitting a banner into it now would corrupt that output.
+        if (opts.json) return;
+        clearWaitingLine();
+        say(kleur.green("  ✓ The tunnel came up."));
+        say(kleur.dim("    Here's a code for pairing a device anywhere:"));
+        reprint(late.invite);
+      },
+    });
+
+  if (!localOnly) {
+    try {
+      hosted = await openTunnel();
     } catch (err) {
       // The tunnel is a convenience, not a dependency. An offline machine, a
       // blocked outbound connection or a broker outage must all land here and
@@ -1862,17 +1885,66 @@ export async function start(opts: StartOpts) {
   }
 
   /**
+   * The same thing, asked for from the live panel rather than the command line.
+   *
+   * Returns the failure as a string instead of throwing, because the caller is
+   * a keypress handler: there is nothing above it to catch, and the honest
+   * outcome of "I pressed t and the machine has no route out" is a line on the
+   * panel rather than a stack trace over the QR.
+   *
+   * Refuses when a tunnel is already up — `t` is not a re-arm. `n` is, and the
+   * panel offers exactly one of the two at a time so the difference cannot be
+   * discovered by accident.
+   */
+  let openingTunnel = false;
+  const openTunnelFromPanel = async (): Promise<string | null> => {
+    if (hosted || openingTunnel) return null;
+    openingTunnel = true;
+    try {
+      hosted = await openTunnel();
+    } catch (err) {
+      return (err as Error).message;
+    } finally {
+      openingTunnel = false;
+    }
+    const invite = hosted?.invite;
+    if (!invite) return "the tunnel opened without a code";
+    // The banner on screen says this machine is local-only, and it is now
+    // wrong. `note` may also be carrying a failure from the start-up attempt,
+    // which this supersedes.
+    note = null;
+    void serverState.write(record(invite.url)).catch(() => {});
+    say("");
+    say(
+      kleur.green("  ✓ Tunnel open. This machine is reachable from anywhere."),
+    );
+    say(
+      kleur.dim(
+        "    Sealed end to end — the pairing service passes it on and cannot read it.",
+      ),
+    );
+    reprint(invite);
+    return null;
+  };
+
+  /**
    * The one line that keeps a local-by-default server from being a dead end.
    *
-   * Only when this run was local *by default* — not when someone typed
-   * `--local`, who has already made this decision and does not need it
-   * explained, and not when a tunnel was asked for and failed, where `note`
-   * already says what happened and telling them to pass the flag they just
-   * passed would be nonsense.
+   * It used to say "run `mtmux start --hosted`", which is a strange thing to
+   * tell somebody whose server is already running: stop it, retype it, and
+   * arrive back where you were with one flag different. `t` does it here, in
+   * place, without dropping whatever is already connected — so the flag is
+   * demoted to the thing it is actually good for, which is not having to press
+   * anything next time.
+   *
+   * Still only when this run was local *by default*. Someone who typed
+   * `--local` has made this decision and does not need it explained, and a run
+   * where the tunnel was asked for and failed has `note` saying what happened
+   * — the key is still live in both cases, it is just not advertised.
    */
   const hint =
     localOnly && !opts.local
-      ? `On another network?  ${kleur.bold("mtmux start --hosted")}` +
+      ? `Want it from anywhere?  Press ${kleur.bold("t")} for an encrypted tunnel` +
         kleur.dim(`   ·   always:  mtmux config set reach hosted`)
       : null;
 
@@ -2023,6 +2095,7 @@ export async function start(opts: StartOpts) {
       if (invite) reprint(invite);
     },
     hosted: () => hosted !== null,
+    openTunnel: openTunnelFromPanel,
     onQuit: () => shutdown(),
   });
   if (panel.enabled) {

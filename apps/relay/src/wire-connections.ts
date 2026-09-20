@@ -127,6 +127,12 @@ export function wireConnections(
     }
 
     const conn = createConnection(ws, createRateLimiter(), remoteAddress);
+    // Both are only knowable here, at the upgrade: the request and its headers
+    // do not survive into the socket. `transport` in particular cannot be
+    // recovered later, because the tunnel agent and a browser on this machine
+    // are the same loopback address and differ only by the header above.
+    conn.transport = transport;
+    conn.userAgent = req?.headers?.["user-agent"] ?? null;
 
     // ws liveness protocol: mark alive on connect and on every pong.
     ws.isAlive = true;

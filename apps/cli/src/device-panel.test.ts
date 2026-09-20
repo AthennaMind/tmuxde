@@ -26,6 +26,7 @@ function device(over: Partial<ConnectedDevice> = {}): ConnectedDevice {
     tokenId: "tok-1",
     deviceId: "dev-1",
     remoteAddress: "192.168.1.5",
+    transport: "lan",
     scope: { kind: "all" },
     ...over,
   };
@@ -39,6 +40,7 @@ function state(over: Partial<PanelState> = {}): PanelState {
     flash: null,
     now: NOW,
     hosted: true,
+    canOpenTunnel: false,
     frozen: false,
     ...over,
   };
@@ -272,5 +274,133 @@ describe("liveness", () => {
     const out = text(state({ devices: [rest] }));
     expect(out).not.toContain("idle");
     expect(out).toContain("iPhone · Safari");
+  });
+});
+
+describe("the tunnel key", () => {
+  it("offers t instead of n when there is no tunnel yet", () => {
+    const out = text(state({ hosted: false, canOpenTunnel: true }));
+    expect(out).toContain("tunnel");
+    expect(out).not.toContain("new code");
+  });
+
+  it("offers n instead of t once the tunnel is up", () => {
+    const out = text(state({ hosted: true, canOpenTunnel: false }));
+    expect(out).toContain("new code");
+    // The two are never both on screen: `n` replaces a code that exists, `t`
+    // creates the thing that has codes at all, and a key that cannot work is
+    // worse than a key that is absent.
+    expect(out).not.toMatch(/\bt tunnel\b/);
+  });
+
+  it("offers neither when nothing can open one", () => {
+    const out = text(state({ hosted: false, canOpenTunnel: false }));
+    expect(out).not.toContain("tunnel");
+    expect(out).not.toContain("new code");
+  });
+});
+
+describe("the detail card", () => {
+  const open = (over: Partial<ConnectedDevice> = {}, width = 90) =>
+    text(
+      state({
+        devices: [device(over)],
+        mode: { kind: "details", id: "conn-1" },
+      }),
+      width,
+    );
+
+  it("says everything the row had no room for", () => {
+    const out = open({ size: { cols: 120, rows: 40 } });
+    expect(out).toContain("iPhone · Safari");
+    expect(out).toContain("2m ago");
+    expect(out).toContain("work");
+    expect(out).toContain("120×40");
+    expect(out).toContain("over this network from 192.168.1.5");
+    expect(out).toContain("dev-1");
+    expect(out).toContain("conn-1");
+  });
+
+  it("spells out what the grant allows", () => {
+    expect(open()).toContain("every session");
+    expect(open({ readOnly: true })).toContain("watch only");
+    expect(open({ files: "write" })).toContain("read and write files");
+    expect(open({ scope: { kind: "sessions", sessions: ["work"] } })).toContain(
+      "only work",
+    );
+  });
+
+  it("names the machine's own token rather than an absent device", () => {
+    const out = open({ deviceId: null });
+    expect(out).toContain("this machine's token");
+    // Nothing to revoke, so nothing offers to.
+    expect(out).not.toContain("r revoke");
+  });
+
+  /*
+   * The card is keyed on the connection id, so a device that drops while it is
+   * open must say so — silently redrawing as whichever device slid into that
+   * row would be the panel lying about what the next keypress acts on.
+   */
+  it("admits when the connection it describes has gone", () => {
+    const out = text(
+      state({ devices: [], mode: { kind: "details", id: "conn-9" } }),
+    );
+    expect(out).toContain("has gone");
+  });
+
+  it("omits a field rather than printing a dash", () => {
+    const out = open({ attachedSession: null, size: null });
+    expect(out).not.toContain("Session");
+    expect(out).not.toContain("Screen");
+  });
+
+  it("never overflows a narrow terminal", () => {
+    for (const width of [40, 64, 90]) {
+      for (const line of plain(
+        render(
+          state({
+            devices: [device({ label: "📱".repeat(30) })],
+            mode: { kind: "details", id: "conn-1" },
+          }),
+          width,
+        ),
+      )) {
+        expect(displayWidth(line)).toBeLessThanOrEqual(width);
+      }
+    }
+  });
+});
+
+describe("where a connection came from", () => {
+  const from = (over: Partial<ConnectedDevice>) =>
+    text(
+      state({
+        devices: [device(over)],
+        mode: { kind: "details", id: "conn-1" },
+      }),
+    );
+
+  /*
+   * The case this field exists for. A tunnelled device and a browser on this
+   * machine are both loopback; guessing from the address would tell the reader
+   * the opposite of the truth about the one they care about.
+   */
+  it("names the tunnel, which no address could", () => {
+    expect(from({ transport: "tunnel", remoteAddress: "127.0.0.1" })).toContain(
+      "through the encrypted tunnel",
+    );
+    expect(
+      from({ transport: "loopback", remoteAddress: "127.0.0.1" }),
+    ).toContain("from this machine");
+  });
+
+  it("falls back to the bare address against an older relay", () => {
+    const out = from({
+      transport: undefined,
+      remoteAddress: "::ffff:10.0.0.9",
+    });
+    expect(out).toContain("10.0.0.9");
+    expect(out).not.toContain("network");
   });
 });

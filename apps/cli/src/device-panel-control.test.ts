@@ -318,3 +318,87 @@ describe("when there is no panel", () => {
     expect(panel.enabled).toBe(false);
   });
 });
+
+describe("opening a tunnel from the panel", () => {
+  it("asks for one on t, and says so while it is happening", async () => {
+    const openTunnel = vi.fn(async () => null);
+    const h = harness({ hosted: () => false, openTunnel });
+    h.press("t");
+    expect(openTunnel).toHaveBeenCalledTimes(1);
+    expect(h.frame()).toContain("Opening an encrypted tunnel");
+    await vi.waitFor(() => expect(h.frame()).not.toContain("Opening an"));
+    h.panel.stop();
+  });
+
+  /*
+   * A tunnel takes a broker round trip, which is long enough for an impatient
+   * second press. Two tunnels on one server is not a slower version of one, it
+   * is two live pairing codes for the same machine.
+   */
+  it("cannot be asked for twice while one is opening", async () => {
+    let release: () => void = () => {};
+    const openTunnel = vi.fn(
+      () => new Promise<string | null>((r) => (release = () => r(null))),
+    );
+    const h = harness({ hosted: () => false, openTunnel });
+    h.press("t");
+    h.press("t");
+    expect(openTunnel).toHaveBeenCalledTimes(1);
+    release();
+    h.panel.stop();
+  });
+
+  it("does nothing when a tunnel is already up", () => {
+    const openTunnel = vi.fn(async () => null);
+    const h = harness({ hosted: () => true, openTunnel });
+    h.press("t");
+    expect(openTunnel).not.toHaveBeenCalled();
+    h.panel.stop();
+  });
+
+  it("reports a refusal on the panel rather than throwing", async () => {
+    const h = harness({
+      hosted: () => false,
+      openTunnel: async () => "no route to the pairing service",
+    });
+    h.press("t");
+    await vi.waitFor(() =>
+      expect(h.frame()).toContain("no route to the pairing service"),
+    );
+    h.panel.stop();
+  });
+
+  it("survives an openTunnel that rejects", async () => {
+    const h = harness({
+      hosted: () => false,
+      openTunnel: async () => {
+        throw new Error("socket hang up");
+      },
+    });
+    h.press("t");
+    await vi.waitFor(() => expect(h.frame()).toContain("socket hang up"));
+    h.panel.stop();
+  });
+});
+
+describe("the detail card", () => {
+  it("opens on d and on enter, and closes on anything", () => {
+    for (const key of ["d", KEY.enter]) {
+      const h = harness();
+      h.press(key);
+      expect(h.frame()).toContain("conn-1");
+      h.press("x");
+      expect(h.frame()).toContain("device connected");
+      h.panel.stop();
+    }
+  });
+
+  it("acts on the device it is describing, not the cursor", () => {
+    const disconnect = vi.fn(async () => true);
+    const h = harness({ disconnect });
+    h.press("d");
+    h.press("c");
+    expect(disconnect).toHaveBeenCalledWith("conn-1");
+    h.panel.stop();
+  });
+});

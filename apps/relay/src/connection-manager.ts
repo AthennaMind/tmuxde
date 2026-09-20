@@ -1,5 +1,6 @@
 import type { WebSocket } from "ws";
 import type {
+  GrantFiles,
   GrantRecord,
   GrantScope,
   ServerMessage,
@@ -9,6 +10,8 @@ import { createLogger } from "@repo/logger";
 import { FULL_GRANT } from "./grant.js";
 import { destroyClone } from "./tmux-clone.js";
 import { deviceIdForTokenId } from "./pairing-local.js";
+import { describeUserAgent } from "./user-agent.js";
+import type { AccessTransport } from "./access-log.js";
 import { sendJson } from "./ws-server.js";
 import type { PtyBridge } from "./pty-bridge.js";
 import type { DirectoryWatcher, UploadState } from "./file-service.js";
@@ -53,6 +56,17 @@ export interface ConnectionState {
   cloneSession: string | null;
   activeWindowId: string | null;
   remoteAddress: string | null;
+  /**
+   * How this socket reached us, as `access-log.transportFor` classified it.
+   *
+   * Recorded rather than re-derived, because it is not derivable later: a
+   * tunnelled connection and a browser on this very machine both arrive from
+   * loopback, and the only thing that tells them apart is the tunnel agent's
+   * own user-agent header, which exists at upgrade time and nowhere else.
+   */
+  transport: AccessTransport;
+  /** The browser's `user-agent` at upgrade, for naming an unlabelled device. */
+  userAgent: string | null;
   /** Display name from the pairing record, once authenticated. */
   label: string | null;
   /**
@@ -138,6 +152,8 @@ export function createConnection(
     cloneSession: null,
     activeWindowId: null,
     remoteAddress,
+    transport: "loopback",
+    userAgent: null,
     label: null,
     tokenId: null,
     connectedAt: Date.now(),
@@ -290,6 +306,22 @@ export type ConnectionDetail = ConnectedDevice & {
   deviceId: string | null;
   remoteAddress: string | null;
   scope: ConnectionScope;
+  /**
+   * What this connection may do to files, as the grant states it.
+   *
+   * Beside `readOnly` rather than folded into it: they are independent axes,
+   * and a share that can watch a session but not touch the disk is a
+   * combination somebody has to be able to *see* before they trust it.
+   */
+  files: GrantFiles;
+  /** When the credential stops working, for a share that has an end. */
+  expiresAt: number | null;
+  /** Last size applied to this socket's PTY — the shape of the viewer's screen. */
+  size: TerminalSize | null;
+  /** Tunnel, LAN or loopback — see `ConnectionState.transport`. */
+  transport: AccessTransport;
+  /** Raw `user-agent`, for a reader who wants more than the summary label. */
+  userAgent: string | null;
 };
 
 /** The shape of a connection's reach, flattened for display. */
@@ -331,7 +363,11 @@ export function connectionDetails(): ConnectionDetail[] {
     .filter((conn) => conn.authenticated)
     .map((conn) => ({
       id: conn.id,
-      label: conn.label ?? "A device",
+      // The pairing record's name first, because the user chose it. Then what
+      // the browser says it is, which is how a connection that signed in with
+      // the machine's own token stops being the third indistinguishable row
+      // called "A device".
+      label: conn.label ?? describeUserAgent(conn.userAgent) ?? "A device",
       connectedAt: conn.connectedAt,
       readOnly: conn.grant.readOnly,
       lastActivityAt: conn.lastActivityAt,
@@ -340,6 +376,11 @@ export function connectionDetails(): ConnectionDetail[] {
       deviceId: conn.tokenId ? deviceIdForTokenId(conn.tokenId) : null,
       remoteAddress: conn.remoteAddress,
       scope: describeScope(conn.grant.scope),
+      files: conn.grant.files,
+      expiresAt: conn.grant.expiresAt,
+      size: conn.lastSize,
+      transport: conn.transport,
+      userAgent: conn.userAgent,
     }))
     .sort((a, b) => a.connectedAt - b.connectedAt);
 }

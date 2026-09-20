@@ -179,6 +179,8 @@ function makeConn(): ConnectionState {
     authenticated: true,
     grant: FULL_GRANT,
     tokenId: null,
+    transport: "loopback" as const,
+    userAgent: null,
     pty: null,
     watchers: new Map(),
     uploads: new Map(),

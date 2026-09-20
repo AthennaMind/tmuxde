@@ -48,6 +48,14 @@ export type PanelDeps = {
   revoke?: (deviceId: string) => Promise<boolean>;
   /** Throw away the printed code and arm a fresh one. */
   rearm?: () => void;
+  /**
+   * Open the sealed tunnel on a machine that started local-only.
+   *
+   * Resolves with a failure message rather than throwing: the caller is a
+   * keypress, there is nothing above it to catch, and the honest outcome of
+   * "no route out" is a line on the panel and not a stack trace over the QR.
+   */
+  openTunnel?: () => Promise<string | null>;
   /** Reprint the banner above the panel. */
   reprint?: () => void;
   /** Ctrl+C, `q`, and the interrupt key all land here. */
@@ -95,6 +103,8 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
   let mode: PanelMode = { kind: "list" };
   let flash: string | null = null;
   let flashTimer: NodeJS.Timeout | null = null;
+  /** True while a tunnel is being opened, so `t` cannot be pressed twice. */
+  let opening = false;
   let tick: NodeJS.Timeout | null = null;
   let stopped = false;
   /** Resolver for the question currently on screen, if any. */
@@ -118,6 +128,7 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
       flash,
       now: now(),
       hosted: deps.hosted(),
+      canOpenTunnel: !deps.hosted() && deps.openTunnel !== undefined,
       frozen: stopped,
     };
   }
@@ -135,6 +146,7 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
   function retime(): void {
     const needed =
       mode.kind === "approval" ||
+      mode.kind === "details" ||
       (mode.kind === "list" && details().length > 0);
     if (needed && !tick) {
       tick = setInterval(() => {
@@ -165,6 +177,13 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
     paint();
   }
 
+  function clearFlash(): void {
+    if (flashTimer) clearTimeout(flashTimer);
+    flashTimer = null;
+    flash = null;
+    paint();
+  }
+
   function answer(result: AccessPromptResult): void {
     const resolve = answering;
     answering = null;
@@ -188,6 +207,22 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
 
     if (mode.kind === "help") {
       mode = { kind: "list" };
+      paint();
+      return;
+    }
+
+    if (mode.kind === "details") {
+      // The card names two keys in its footer, so those two have to work from
+      // inside it. Anything else closes, which is what "any other key goes
+      // back" promises. Both act on the connection the card is describing
+      // rather than on the cursor: `c` and `r` read `selected()`, and the card
+      // can outlive the row it was opened from.
+      const describing = mode.id;
+      const target = state().devices.find((d) => d.id === describing) ?? null;
+      mode = { kind: "list" };
+      if (target) cursor = state().devices.indexOf(target);
+      if (key === "c") return doClose();
+      if (key === "r" && target?.deviceId) return askRevoke();
       paint();
       return;
     }
@@ -226,11 +261,47 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
         if (!deps.hosted() || !deps.rearm) return;
         deps.rearm();
         return setFlash(kleur.dim("Arming a fresh code…"));
+      case "t":
+        return doOpenTunnel();
+      case "d":
+      case KEY.enter:
+        return openDetails();
       case "c":
         return doClose();
       case "r":
         return askRevoke();
     }
+  }
+
+  /**
+   * Turn a local-only server into a reachable one, in place.
+   *
+   * The alternative this replaces was to stop the server and start it again
+   * with `--hosted`, which drops every connected device to change a setting
+   * none of them can see. Awaited rather than fired and forgotten, because
+   * unlike `n` — which has a printed code to replace when it lands — there is
+   * nothing on screen to tell the user this worked except what happens next.
+   */
+  async function doOpenTunnel(): Promise<void> {
+    if (deps.hosted() || !deps.openTunnel || opening) return;
+    opening = true;
+    setFlash(kleur.dim("Opening an encrypted tunnel…"));
+    const failure = await deps.openTunnel().catch((err: unknown) => {
+      return err instanceof Error ? err.message : "unknown error";
+    });
+    opening = false;
+    // Success prints its own banner above the panel, which says far more than
+    // a flash could — and the "Opening…" line has to go with it, or the panel
+    // spends four seconds claiming to still be doing something it has done.
+    if (failure) setFlash(kleur.yellow(`Could not open a tunnel: ${failure}`));
+    else clearFlash();
+  }
+
+  function openDetails(): void {
+    const device = selected(state());
+    if (!device) return;
+    mode = { kind: "details", id: device.id ?? null };
+    paint();
   }
 
   async function doClose(): Promise<void> {
