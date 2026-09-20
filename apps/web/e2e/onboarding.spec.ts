@@ -112,7 +112,9 @@ test.describe("a first visit", () => {
     // The meter stays visible. Hiding a limit we are about to apply is what
     // would make every other line in that list suspect.
     await expect(page.getByText(/metered at/)).toBeVisible();
-    await expect(page.getByText(/Anonymous relay is not metered/)).toBeVisible();
+    await expect(
+      page.getByText(/Anonymous relay is not metered/),
+    ).toBeVisible();
   });
 
   test("always offers a route to the token page and to sign-in", async ({
@@ -157,8 +159,17 @@ test.describe("the CLI's own handoffs", () => {
     expect(token).toHaveLength(64);
   });
 
-  // Both lengths, because a big-bang length change still has to read codes
-  // minted by whatever mtmux is already installed on the machine.
+  /*
+   * Two fragments neither of which this build can read, on purpose.
+   *
+   * The typed code is nine digits now, so both of these are what a QR minted
+   * by an older mtmux puts in the address bar — and that is precisely the case
+   * where the two behaviours below stopped holding. The strip was conditional
+   * on the code parsing, so a stale one survived into history; and the panel
+   * returned silently, so the arrival was answered with a blank form. A code
+   * this build cannot use is still a live code, and a user who followed a link
+   * is still owed an explanation.
+   */
   for (const code of ["49271638", "492716"]) {
     test(`/j#${code} strips the code from the URL either way`, async ({
       page,

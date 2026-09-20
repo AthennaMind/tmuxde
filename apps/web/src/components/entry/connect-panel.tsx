@@ -114,17 +114,27 @@ export function ConnectPanel({ variant = "full" }: ConnectPanelProps) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Either shape: six typed digits, or the QR's slot + 128-bit secret.
+    // Either shape: the typed digits, or the QR's slot + 128-bit secret.
     // `parseCode` validates both and rejects anything else, so a junk fragment
-    // still lands on the manual form rather than starting a doomed handshake.
+    // never starts a doomed handshake.
     const raw = decodeURIComponent(window.location.hash.replace(/^#/, ""));
     const fromFragment = parseCode(raw) ? raw : null;
 
-    // Out of the address bar first, before anything can fail or return early.
-    // A live code sitting in the URL bar is a live code whether or not *this*
-    // build can use it — and the obvious next move for someone who lands here
-    // without a broker is to open the same URL somewhere that has one.
-    if (fromFragment) {
+    /*
+     * Out of the address bar first, before anything can fail or return early,
+     * and for *any* fragment rather than only a parseable one.
+     *
+     * A live code sitting in the URL bar is a live code whether or not this
+     * build can use it — and "can this build use it" was the wrong test twice
+     * over. Once for a build with no broker, which is what this strip was
+     * already unconditional against. And once for a length: the typed code
+     * grew to nine digits, so a fragment minted by an older mtmux stopped
+     * parsing here and started surviving into the address bar and into
+     * history, which is the exact leak the fragment exists to prevent. There
+     * is no other meaning for a fragment on this page, so there is nothing to
+     * weigh against removing it.
+     */
+    if (window.location.hash) {
       window.history.replaceState(
         null,
         "",
@@ -141,7 +151,20 @@ export function ConnectPanel({ variant = "full" }: ConnectPanelProps) {
       return;
     }
 
-    if (!fromFragment) return;
+    if (!fromFragment) {
+      /*
+       * Arrived with a fragment we cannot read — and saying so is the point.
+       *
+       * The silent `return` here dropped the user on a blank code field with
+       * no explanation, which is the dead end this whole page exists to close.
+       * It is not a hypothetical: the typed code grew to nine digits, so every
+       * link and QR minted by an older mtmux lands exactly here. Naming the
+       * length is what turns "this is broken" into "upgrade the machine, or
+       * read the nine digits off its screen".
+       */
+      if (raw) setState({ phase: "failed", message: describeBadCode(raw) });
+      return;
+    }
     join(fromFragment);
 
     return () => handleRef.current?.cancel();
@@ -230,8 +253,19 @@ export function ConnectPanel({ variant = "full" }: ConnectPanelProps) {
             {state.phase === "failed" && <RefreshCw className="mr-2 h-4 w-4" />}
             {state.phase === "failed" ? "Try again" : "Connect"}
           </Button>
+          {/*
+            Two sentences, and the second is the one nobody had been told.
+            "Only the first three digits reach our servers" is the sharper
+            claim and stays first, but on its own it describes a precaution
+            rather than the thing it protects: the other six are the password
+            the session key is derived from, on this device and on the machine,
+            and everything after that is sealed. The CLI's banner says the same
+            in the same words, deliberately — a claim worded two ways reads as
+            two different claims.
+          */}
           <p className="text-center text-xs text-muted-foreground">
-            Only the first three digits reach our servers.
+            Only the first three digits reach our servers. Everything after is
+            sealed end to end — we pass it on, we can&apos;t read it.
           </p>
         </form>
       )}

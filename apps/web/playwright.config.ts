@@ -103,10 +103,23 @@ const labProjects = [
 
 export default defineConfig({
   testDir: "./e2e",
-  // In lab mode only the lab specs run. They need a container the other specs
-  // neither have nor want, and `grep: /@terminal/` alone would still load and
-  // evaluate every other spec file.
-  ...(LAB ? { testMatch: /e2e\/lab\/.*\.spec\.ts/ } : {}),
+  /*
+   * The lab specs and everything else never run together, in either direction.
+   *
+   * In lab mode only the lab specs run: they need a container the other specs
+   * neither have nor want, and `grep: /@terminal/` alone would still load and
+   * evaluate every other spec file.
+   *
+   * Out of lab mode the exclusion has to be stated too, and it was not. The
+   * `chromium` project only excludes `@phone-only`, so it was collecting all
+   * nineteen lab specs and running them against a lab that is not there —
+   * `pnpm --filter @app/web e2e` exited non-zero on a clean tree with
+   * nineteen failures that could not have passed. A test that cannot pass in
+   * the mode it is being run in is not a failure, it is a mis-scoped run.
+   */
+  ...(LAB
+    ? { testMatch: /e2e\/lab\/.*\.spec\.ts/ }
+    : { testIgnore: /e2e\/lab\// }),
   // One worker: every spec drives the same IndexedDB origin, and a device lock
   // is per-origin state. Parallel workers would fight over it.
   workers: 1,

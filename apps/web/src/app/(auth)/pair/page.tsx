@@ -216,8 +216,8 @@ export default function PairPage() {
               </div>
 
               <p className="text-center text-xs text-muted-foreground">
-                Expires in {remaining}s. Only the first three digits reach
-                our servers.
+                Expires in {remaining}s. Only the first three digits reach our
+                servers; everything after is sealed end to end.
               </p>
             </>
           )}

@@ -202,7 +202,13 @@ test("a failed payment is an alert with a way out", async ({ page }) => {
   await stubBilling(page, [pro({ status: "on_hold" })]);
   await open(page);
 
-  const alert = page.getByRole("alert");
+  // Named by its content, not by its role alone. Next renders an empty
+  // `role="alert"` route announcer into every page, so the bare role is
+  // ambiguous by construction and Playwright's strict mode rejects it — which
+  // it had been doing on a clean tree.
+  const alert = page
+    .getByRole("alert")
+    .filter({ hasText: /didn't go through/i });
   await expect(alert).toBeVisible();
   await expect(alert.getByText(/didn't go through/i)).toBeVisible();
   await expect(
