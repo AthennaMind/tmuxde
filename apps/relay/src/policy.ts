@@ -162,6 +162,18 @@ export const POLICY: Record<ClientMessage["type"], Policy> = {
   "recording:delete": { write: true },
   "recording:list": {},
   "recording:fetch": {},
+
+  /**
+   * Answering "let this device in?".
+   *
+   * `fullScopeOnly` and `write` together, and both are load-bearing. A
+   * read-only share that could admit a device would hand out more access than
+   * it holds, and a single-session share that could do it would turn a grant
+   * over one session into a grant over the machine. This is the one message
+   * whose effect is larger than any grant that is not the full one, so the
+   * only grant permitted to send it is the full one.
+   */
+  "device:approve": { write: true, fullScopeOnly: true },
 };
 
 export type EnforceResult =

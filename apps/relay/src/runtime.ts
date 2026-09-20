@@ -23,6 +23,17 @@ export {
 } from "./connection-manager.js";
 
 /**
+ * In-app device approval, for `decideAccess`.
+ *
+ * Exported as a plain function rather than reached over loopback HTTP the way
+ * `mtmux approve` is, because unlike `mtmux approve` the caller is *this
+ * process*: the CLI imports this runtime and holds the relay's memory
+ * directly. Going out to a socket and back would add a failure mode to a
+ * security prompt for no gain.
+ */
+export { askDeviceApproval } from "./device-approval.js";
+
+/**
  * Recording, for `mtmux record`'s loopback control endpoint.
  *
  * Namespaced rather than re-exported one function at a time: `list` and

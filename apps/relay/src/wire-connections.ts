@@ -16,6 +16,7 @@ import {
   broadcastWhere,
   notifyConnectionsChanged,
 } from "./connection-manager.js";
+import { noteApproversChanged, pendingApprovalFor } from "./device-approval.js";
 import { allowsSession, allowsSessionName } from "./grant.js";
 import * as recorder from "./recorder.js";
 import { sweepRecordings } from "./recordings-index.js";
@@ -226,6 +227,16 @@ export function wireConnections(
             : { defaultPath: defaultBrowsePath() }),
         });
 
+        // A device asking to be let in *right now* is why this tab was opened.
+        //
+        // The broadcast that raised the question went out before this socket
+        // existed, so without a replay the person who came running because
+        // their phone buzzed would find a perfectly ordinary terminal and no
+        // way to say yes. The request is time-boxed and carries its own
+        // `expiresAt`, so replaying a stale one is not possible.
+        const live = pendingApprovalFor(conn);
+        if (live) sendJson(ws, live);
+
         // Heartbeat: standard `ws` liveness protocol. If a peer missed the
         // previous round's pong it's presumed dead and terminated (which fires
         // `close` → removeConnection → PTY/watcher/upload cleanup).
@@ -266,7 +277,13 @@ export function wireConnections(
         });
       }
       await removeConnection(conn);
-      if (wasAuthenticated) notifyConnectionsChanged();
+      if (wasAuthenticated) {
+        notifyConnectionsChanged();
+        // The last browser that could have answered has closed. Abstain, so
+        // the TTY and `mtmux approve` get the question back rather than
+        // inheriting a denial nobody made.
+        noteApproversChanged();
+      }
     });
 
     ws.on("error", (err) => {

@@ -29,6 +29,7 @@ import * as tmux from "./tmux-manager.js";
 import * as files from "./file-service.js";
 import * as recorder from "./recorder.js";
 import * as recordings from "./recordings-index.js";
+import { resolveDeviceApproval } from "./device-approval.js";
 const logger = createLogger("relay:router");
 
 // Output backpressure thresholds. If the socket's send buffer grows past the
@@ -1127,6 +1128,32 @@ export async function routeMessage(
           break;
         }
         await streamRecording(ws, recording, msg.offset);
+        break;
+      }
+
+      case "device:approve": {
+        /**
+         * A human just answered "is this you?" on their phone.
+         *
+         * Nothing here decides anything: the decision belongs to the pending
+         * request, and this only carries the answer to it. A stale id — the
+         * other phone got there first, or the request timed out while the
+         * dialog sat on a locked screen — is reported rather than swallowed,
+         * because the one thing worse than a slow approval is a person who
+         * believes they approved something they did not.
+         *
+         * The grant check happened in `policy.ts` on the way in. It is not
+         * repeated here, and `device-approval.ts` refuses to show the question
+         * to a narrow grant in the first place, so answering one it never saw
+         * is not reachable even with a forged id.
+         */
+        if (!resolveDeviceApproval(msg.id, msg.approved)) {
+          sendError(
+            ws,
+            "APPROVAL_NOT_PENDING",
+            "That request is no longer waiting for an answer.",
+          );
+        }
         break;
       }
 
