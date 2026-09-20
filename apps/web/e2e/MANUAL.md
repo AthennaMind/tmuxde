@@ -170,9 +170,28 @@ real second device, which the lab has neither of.
 
 ## Known flake
 
-`lab-tablet` intermittently dies with Playwright's `Target crashed` — the
-renderer process, not an assertion. Seen across unrelated specs, not reproducible
-on demand: the spec it killed most recently passes 27/27 under `--repeat-each=3`
-in isolation. Leaning toward harness exhaustion rather than a product defect, but
-that is a guess and is recorded here as one rather than written up as a
-diagnosis.
+A lab run intermittently dies with Playwright's `Target crashed` — the renderer
+process, not an assertion. Roughly 1 test in 30 to 50, and not reproducible on
+demand: every spec it has killed passes 27/27 or 54/54 under `--repeat-each` in
+isolation, on a box with 86 GB free and a 63 GB `/dev/shm`.
+
+Two things are known about it and both are worth writing down, because each
+kills a theory that looks obvious.
+
+- **It is not one project.** First seen only on `lab-tablet`, which made
+  SwiftShader the natural suspect — the terminal is the one page holding a live
+  WebGL context, and there is no GPU here. Then it took `lab-webkit`, a
+  different engine. Whatever it is, it is not Chromium's software GL alone.
+- **It is not one spec, but it is one moment.** All four occurrences are in
+  `device-approval.spec.ts`, and all four are inside `lab.open()` rather than
+  in anything the spec asserts. That file happens to sort first in `e2e/lab`,
+  so what those four have in common is being among the first pages a freshly
+  launched browser opens — a cold-start shape, not a product one.
+
+Neither observation is a diagnosis and neither is written up as one. What is no
+longer a guess is what it looks like: `fixtures.ts` listens for
+`page.on("crash")`, records it in `problems` so the sweep fails on it, and makes
+`waitFor` say the renderer died — checked both before and after each poll,
+because Playwright rejects the in-flight call before the crash event lands. A
+crash is still a red run; it is just a legible one, and CI's one retry covers
+it.

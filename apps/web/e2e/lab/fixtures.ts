@@ -98,6 +98,27 @@ export const test = base.extend<{ lab: LabFixture }>({
       }
     });
     page.on("pageerror", (err) => problems.push(`pageerror: ${err.message}`));
+
+    /*
+     * A renderer crash, said out loud.
+     *
+     * The terminal is the one page in this app holding a live WebGL context,
+     * and on a box with no GPU that context runs on SwiftShader. It dies
+     * roughly once in fifty lab tests. When it does, every later
+     * `page.evaluate` fails with a bare "Page crashed" attributed to whichever
+     * line happened to be running — in practice `waitFor`'s poll, so the
+     * report blames the fixture for a browser that is no longer there. Naming
+     * it here means the next person reads the cause instead of re-deriving it.
+     *
+     * Not swallowed: it still lands in `problems`, so `console.ts` fails the
+     * sweep on it rather than letting a crashed run pass quietly.
+     */
+    let crashed = false;
+    page.on("crash", () => {
+      crashed = true;
+      problems.push("page crash: the renderer process died");
+    });
+    const isCrashed = () => crashed;
     /*
      * A 4xx/5xx is reported by the browser as a bare "Failed to load resource"
      * with no URL, which is useless as a finding — the first sweep produced
@@ -145,7 +166,7 @@ export const test = base.extend<{ lab: LabFixture }>({
           `the terminal never attached to "${session}" — is the lab running?`,
         ).toBeVisible({ timeout: ATTACH_TIMEOUT });
 
-        const terminal = makeTerminal(page, root, session);
+        const terminal = makeTerminal(page, root, session, isCrashed);
 
         /*
          * Wait for *content*, not for the element.
@@ -188,7 +209,7 @@ export const test = base.extend<{ lab: LabFixture }>({
           `the terminal never attached to "${session}" after a reload`,
         ).toBeVisible({ timeout: ATTACH_TIMEOUT });
 
-        const terminal = makeTerminal(page, root, session);
+        const terminal = makeTerminal(page, root, session, isCrashed);
         await terminal.waitFor(
           (snap) => snap.lines.some((l) => l.trim().length > 0),
           `"${session}" attached but never rendered anything`,
@@ -202,7 +223,20 @@ export const test = base.extend<{ lab: LabFixture }>({
   },
 });
 
-function makeTerminal(page: Page, root: Locator, session: string): LabTerminal {
+function crashError(message: string): Error {
+  return new Error(
+    `${message}\nthe renderer process crashed while waiting — the page is ` +
+      "gone, so nothing after this point is a finding about the app. See the " +
+      'note on `page.on("crash")` in this file.',
+  );
+}
+
+function makeTerminal(
+  page: Page,
+  root: Locator,
+  session: string,
+  crashed: () => boolean,
+): LabTerminal {
   const snapshot = () =>
     page.evaluate(() => {
       const handle = window.__mtmuxTerminalHandle;
@@ -230,9 +264,22 @@ function makeTerminal(page: Page, root: Locator, session: string): LabTerminal {
       const deadline = Date.now() + timeout;
       let last: TerminalSnapshot | null = null;
       while (Date.now() < deadline) {
-        last = await snapshot();
-        if (predicate(last)) return last;
-        await page.waitForTimeout(150);
+        /*
+         * Checked before *and* after, because the two arrive in either order.
+         * Playwright rejects the in-flight call the moment the target dies and
+         * `page.on("crash")` lands a tick later — so a check only at the top
+         * of the loop still reports the original bare "Page crashed",
+         * attributed to whichever line happened to be waiting.
+         */
+        if (crashed()) throw crashError(message);
+        try {
+          last = await snapshot();
+          if (predicate(last)) return last;
+          await page.waitForTimeout(150);
+        } catch (err) {
+          if (crashed()) throw crashError(message);
+          throw err;
+        }
       }
       throw new Error(
         `${message}\nlast viewport (${last?.cols}x${last?.rows}):\n` +
