@@ -37,12 +37,47 @@ SESSIONS=(
 
 tm() { tmux -S "$SOCKET" -f "$CONF" "$@"; }
 
-# A profile that prints and exits would leave a dead pane, and a dead pane
-# cannot be typed into -- which half the detectors need to do. So every profile
-# hands over to an interactive shell when it is done, and the pane stays live.
-gen_then_shell() { printf 'python3 %s %s; exec bash' "$GEN" "$1"; }
-
 have_session() { tm has-session -t "=$1" 2>/dev/null; }
+
+# Wait for a session's pane to be an interactive shell, then type a command
+# into it -- exactly as a person would.
+#
+# ## Why not `new-session -d -s x "cmd; exec bash"`
+#
+# That is what this did, and it made every profile uninterruptible. tmux runs a
+# pane command through `/bin/sh -c`, so `sh` is the pane's process and the
+# generator is its foreground child *in the same process group*. A Ctrl-C from
+# the browser therefore signalled both: the generator stopped, `sh` died with
+# it, and `remain-on-exit` left a dead pane that could never be typed into
+# again -- "Pane is dead (signal 2)". The `exec bash` never ran, because the
+# shell that would have run it was already gone.
+#
+# An interactive shell owns the pane and puts each command in its own
+# foreground process group, which is the entire mechanism by which Ctrl-C
+# interrupts a command rather than the session. That is also what a user has,
+# so the lab now models it rather than approximating it.
+run_in() {
+  local session="$1"
+  shift
+  local i=0
+  # Any shell will do; `tmux.conf` pins bash, and accepting `sh` too means a
+  # base-image change degrades the fixture rather than hanging the seed for ten
+  # seconds per session — which is how this first went wrong.
+  until case "$(tm display-message -p -t "$session" '#{pane_current_command}')" in
+    bash | sh | zsh) true ;;
+    *) false ;;
+  esac; do
+    i=$((i + 1))
+    if [ "$i" -gt 50 ]; then
+      echo "seed: $session never started a shell" >&2
+      break
+    fi
+    sleep 0.1
+  done
+  tm send-keys -t "$session" "$*" Enter
+}
+
+profile() { run_in "$1" "python3 $GEN $2"; }
 
 seed() {
   mkdir -p "$WORK"
@@ -58,28 +93,37 @@ seed() {
   printf 'export const answer = 42;\n' >"$WORK/src/answer.ts"
   printf '# notes\n\nseeded by the lab.\n' >"$WORK/docs/notes.md"
 
-  # --- the simple one-pane profiles ------------------------------------
-  have_session idle      || tm new-session -d -s idle      -c "$WORK" -x 120 -y 40
-  have_session drip      || tm new-session -d -s drip      -c "$WORK" -x 120 -y 40 "$(gen_then_shell drip)"
-  have_session colors    || tm new-session -d -s colors    -c "$WORK" -x 120 -y 40 "$(gen_then_shell colors)"
-  have_session unicode   || tm new-session -d -s unicode   -c "$WORK" -x 120 -y 40 "$(gen_then_shell unicode)"
-  have_session progress  || tm new-session -d -s progress  -c "$WORK" -x 120 -y 40 "$(gen_then_shell progress)"
-  have_session ctrlseq   || tm new-session -d -s ctrlseq   -c "$WORK" -x 120 -y 40 "$(gen_then_shell ctrlseq)"
-  have_session garbage   || tm new-session -d -s garbage   -c "$WORK" -x 120 -y 40 "$(gen_then_shell garbage)"
+  # Names created by *this* run. `seed` is idempotent — it is called on every
+  # container start and by `lab.mjs seed` — so the output has to be started for
+  # new sessions only. Starting it again in a session that already has a
+  # generator running would type the command into that generator's stdin.
+  created=""
 
-  # Wider than any viewport under test on purpose: a 4000-column line that tmux
-  # had already wrapped at 120 would be testing tmux's wrapping, not the
-  # client's horizontal overflow.
-  have_session longlines || tm new-session -d -s longlines -c "$WORK" -x 400 -y 40 "$(gen_then_shell longlines)"
+  # --- the simple one-pane profiles ------------------------------------
+  for name in idle drip colors unicode progress ctrlseq garbage; do
+    if ! have_session "$name"; then
+      tm new-session -d -s "$name" -c "$WORK" -x 120 -y 40
+      created="$created $name"
+    fi
+  done
+  # Wider than any viewport under test on purpose. tmux composites
+  # server-side, so a long line reaches the client already wrapped -- what this
+  # session is for is the *reflow* when a phone attaches and 400 columns become
+  # forty in one step.
+  if ! have_session longlines; then
+    tm new-session -d -s longlines -c "$WORK" -x 400 -y 40
+    created="$created longlines"
+  fi
 
   # --- alternate screen -------------------------------------------------
   # The one profile where xterm's own scrollback is necessarily empty, because
   # tmux owns the alternate buffer. That is the entire reason the scroll rail
   # and the `tmux:scroll*` messages exist, so it needs its own session.
   if ! have_session altscreen; then
-    tm new-session -d -s altscreen -c "$WORK" -x 120 -y 40 "less -R $WORK/altscreen.txt"
-    tm new-window -t altscreen: -n top -c "$WORK" "top -d 1"
+    tm new-session -d -s altscreen -c "$WORK" -x 120 -y 40
+    tm new-window -t altscreen: -n top -c "$WORK"
     tm select-window -t altscreen:0
+    created="$created altscreen"
   fi
 
   # --- many windows -----------------------------------------------------
@@ -88,23 +132,23 @@ seed() {
   if ! have_session many-windows; then
     tm new-session -d -s many-windows -n w00 -c "$WORK" -x 120 -y 40
     for i in $(seq -w 1 11); do
-      tm new-window -t many-windows: -n "w$i" -c "$WORK" \
-        "printf 'window %s\\n' $i; exec bash"
+      tm new-window -t many-windows: -n "w$i" -c "$WORK"
     done
     tm select-window -t many-windows:0
+    created="$created many-windows"
   fi
 
   # --- many panes -------------------------------------------------------
   if ! have_session many-panes; then
     tm new-session -d -s many-panes -n tiled -c "$WORK" -x 200 -y 50
-    for i in 1 2 3 4 5; do
-      tm split-window -t many-panes:tiled -c "$WORK" "printf 'pane %s\\n' $i; exec bash"
+    for _ in 1 2 3 4 5; do
+      tm split-window -t many-panes:tiled -c "$WORK"
       tm select-layout -t many-panes:tiled tiled
     done
     tm select-layout -t many-panes:tiled tiled
     tm new-window -t many-panes: -n columns -c "$WORK"
-    for i in 1 2 3; do
-      tm split-window -t many-panes:columns -h -c "$WORK" "printf 'col %s\\n' $i; exec bash"
+    for _ in 1 2 3; do
+      tm split-window -t many-panes:columns -h -c "$WORK"
     done
     tm select-layout -t many-panes:columns even-horizontal
     tm select-window -t many-panes:tiled
@@ -117,11 +161,32 @@ seed() {
   # it raised would put all thirteen on ~60k lines of retained scrollback.
   if ! have_session scrollback; then
     tm set-option -g history-limit 60000
-    tm new-session -d -s scrollback -c "$WORK" -x 120 -y 40 "$(gen_then_shell scrollback)"
+    tm new-session -d -s scrollback -c "$WORK" -x 120 -y 40
     tm set-option -g history-limit 10000
+    created="$created scrollback"
   fi
 
-  have_session firehose || tm new-session -d -s firehose -c "$WORK" -x 120 -y 40 "$(gen_then_shell firehose)"
+  if ! have_session firehose; then
+    tm new-session -d -s firehose -c "$WORK" -x 120 -y 40
+    created="$created firehose"
+  fi
+
+  # --- now start the output, in the shells created above ----------------
+  for name in $created; do
+    case "$name" in
+      idle) ;;  # a bare quiet shell is the whole profile
+      altscreen)
+        run_in altscreen:0 "less -R $WORK/altscreen.txt"
+        run_in altscreen:top "top -d 1"
+        ;;
+      many-windows)
+        for i in $(seq -w 1 11); do
+          run_in "many-windows:w$i" "printf 'window %s\\n' $i"
+        done
+        ;;
+      *) profile "$name" "$name" ;;
+    esac
+  done
 }
 
 reset() {

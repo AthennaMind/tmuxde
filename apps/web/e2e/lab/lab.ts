@@ -125,3 +125,63 @@ export function exitCopyMode(session: string): void {
   if (tmuxFormat(session, "#{pane_in_mode}") === "0") return;
   tmux(["send-keys", "-t", session, "-X", "cancel"]);
 }
+
+/**
+ * Stop whatever a profile session is producing, and wait for it to settle.
+ *
+ * A moving target cannot be diffed. The fidelity check under load therefore
+ * has two halves: produce the load, then stop it and compare — because "the
+ * client kept up" and "the client ended up with the right bytes" are different
+ * claims and the second is the one that matters after a burst.
+ *
+ * `C-c` rather than killing the pane: `seed.sh` hands every profile over to an
+ * interactive shell when it finishes, so interrupting leaves a live, typable
+ * pane exactly as the profile's normal end would.
+ */
+export function quiesce(session: string): void {
+  tmux(["send-keys", "-t", session, "C-c"]);
+  let last = "";
+  for (let i = 0; i < 40; i++) {
+    const now = String(outputProgress(session));
+    if (now === last) return;
+    last = now;
+    // Busy-wait: this runs in the test process, not the page, and 100ms of a
+    // synchronous sleep is cheaper than threading a promise through a
+    // synchronous tmux helper used everywhere else.
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+  }
+}
+
+/** Start a profile generator again in a session that was quiesced. */
+export function restartProfile(session: string, profile: string): void {
+  tmux(["send-keys", "-t", session, `python3 /lab/gen.py ${profile}`, "Enter"]);
+}
+
+/**
+ * A monotonic measure of how much a session has produced.
+ *
+ * **Not `#{history_size}`**, which is what this was and which is capped at the
+ * session's `history-limit`. A firehose fills 10 000 lines in two seconds and
+ * then reports the same number forever — so "the count stopped changing" read
+ * as "output stopped" the moment the buffer was full, and every check built on
+ * it silently measured nothing. `quiesce()` returned immediately; a test that
+ * timed how long Ctrl-C took to land answered in milliseconds without the
+ * keystroke having arrived.
+ *
+ * The generators number their lines, so the last number on screen is a real,
+ * uncapped position. Sessions that print nothing numbered fall back to the
+ * pane's dimensions plus its cursor, which still moves when anything is
+ * written and is stable when nothing is.
+ */
+export function outputProgress(session: string): number {
+  const visible = capturePane(session);
+  const numbered = visible.match(/\[(\d{4,})\]/g);
+  if (numbered && numbered.length > 0) {
+    return Number(numbered[numbered.length - 1]!.replace(/\D/g, ""));
+  }
+  const counted = visible.match(/\b(\d{4,})\b/g);
+  if (counted && counted.length > 0) {
+    return Number(counted[counted.length - 1]);
+  }
+  return Number(tmuxFormat(session, "#{history_size}"));
+}
