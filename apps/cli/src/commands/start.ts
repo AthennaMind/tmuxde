@@ -46,15 +46,12 @@ import {
 } from "./pair.js";
 import * as account from "../account.js";
 import { resolveShareSessions, shareBanner } from "../share-grants.js";
-import {
-  decideAccess,
-  promptForReturningDevice,
-  type AccessPromptInput,
-} from "../access-prompt.js";
+import { decideAccess, type AccessPromptInput } from "../access-prompt.js";
 import {
   createDevicePanel,
   type DevicePanel,
 } from "../device-panel-control.js";
+import type { PanelPeer } from "../device-panel.js";
 import {
   createApproveControl,
   type ApproveControl,
@@ -410,7 +407,7 @@ let askInApp:
         sas?: string;
         deviceLabel: string;
         accountEmail: string;
-        via?: "code" | "request";
+        via?: "code" | "request" | "returning";
       },
       opts: { signal: AbortSignal },
     ) => Promise<boolean | null>)
@@ -1220,7 +1217,25 @@ function makeReturningGate(): (peer: PeerIdentity) => Promise<boolean> {
 
     const asking = (async () => {
       clearWaitingLine();
-      const answer = await promptForReturningDevice({ label: peer.label });
+      /*
+       * Through `decideAccess`, like every other question this command asks.
+       *
+       * It used to open its own readline. That is the two-readers-on-one-stdin
+       * defect `access-prompt.ts` records paying for, and it had come back by
+       * the side door: with the live panel up, a returning device opened a
+       * `[y/N]` underneath a panel that already owned the tty in raw mode, so
+       * the keystroke that answered it went to whichever reader got there
+       * first. Routing it here also means the question reaches a phone that is
+       * already connected and `mtmux approve`, which it never did.
+       */
+      const answer = await decideAccess(
+        { deviceLabel: peer.label, accountEmail: "", via: "returning" },
+        {
+          ask: askInApp ? (r, signal) => askInApp!(r, { signal }) : undefined,
+          offer: approvals ? (r) => approvals!.offer(r) : undefined,
+          ...(panel?.enabled ? { prompt: panel.promptForAccess } : {}),
+        },
+      );
       if (answer.approved) {
         say(kleur.green(`  ✓ ${peer.label} let back in.`));
         say("");
@@ -1642,12 +1657,23 @@ export async function start(opts: StartOpts) {
   // Flags beat the stored setting, and `--trust-reconnect` beats
   // `--confirm-reconnect` if somebody passes both — the explicit "not now" is
   // the one you want to win when you are about to walk away from the machine.
-  const confirmReconnect = opts.trustReconnect
+  let askOnReconnect = opts.trustReconnect
     ? false
     : (opts.confirmReconnect ??
       (await configStore.getReconnectPolicy()) === "confirm");
 
-  const confirmReturning = confirmReconnect ? makeReturningGate() : undefined;
+  /*
+   * Read at the moment a device returns, not captured at boot.
+   *
+   * The gate is always installed and consults the flag, so `a` in the live
+   * panel can flip it without a restart. A setting you have to stop the server
+   * to change is a setting nobody changes, and this is exactly the one people
+   * want on when they walk away from the machine and off when they are sitting
+   * in front of it.
+   */
+  const returningGate = makeReturningGate();
+  const confirmReturning = (peer: PeerIdentity): Promise<boolean> =>
+    askOnReconnect ? returningGate(peer) : Promise.resolve(true);
 
   /**
    * Arm the local invite: a QR to scan and six digits to type.
@@ -2058,11 +2084,34 @@ export async function start(opts: StartOpts) {
   }
 
   if (restored > 0 && !opts.json) {
+    /*
+     * Said out loud, including what it means for the approval prompt.
+     *
+     * This line used to stop at "already trusted", and that omission was
+     * behind the most common complaint about this product's security model:
+     * "it let a device in without asking me". It had asked — once, when that
+     * device first paired, possibly weeks ago — and a device you approved is
+     * a device you approved. But nothing on screen connected the two, so the
+     * honest reading available to the user was that the prompt did not work.
+     *
+     * So the count now names the consequence and the way out, in the same
+     * breath. A new device is still always asked about.
+     */
     say(
       kleur.dim(
         `  ${restored} device${restored === 1 ? "" : "s"} already trusted — ` +
-          `${restored === 1 ? "it does" : "they do"} not need the code.`,
+          `${restored === 1 ? "it comes" : "they come"} straight back in, no code and no prompt.`,
       ),
+    );
+    say(
+      kleur.dim("    Anything new still has to be let in here. To be asked "),
+    );
+    say(
+      kleur.dim("    every time as well, press ") +
+        kleur.bold("a") +
+        kleur.dim(" — or ") +
+        kleur.bold("mtmux devices") +
+        kleur.dim(" to drop one."),
     );
     say("");
   }
@@ -2127,7 +2176,46 @@ export async function start(opts: StartOpts) {
    * exactly what this command did before: an append-only log and a readline
    * prompt.
    */
+  /*
+   * The paired list, cached and refreshed rather than read on every repaint.
+   *
+   * The panel redraws once a second while anything is connected, and the peer
+   * list lives in a JSON file — so reading it at render time would be a disk
+   * hit per frame and a panel that stutters whenever the disk is busy. It
+   * changes only when this process changes it (a pairing, a rename, a revoke)
+   * or when a `lastSeenAt` is touched, and all of those call `refreshPeers`.
+   */
+  let peerRows: PanelPeer[] = [];
+  const refreshPeers = async (): Promise<void> => {
+    const now = Date.now();
+    peerRows = (await configStore.listPeers()).map((peer) => ({
+      deviceId: peer.deviceId,
+      label: peer.label,
+      ...(peer.name ? { name: peer.name } : {}),
+      pairedAt: peer.pairedAt,
+      lastSeenAt: peer.lastSeenAt,
+      expired: configStore.isPeerExpired(peer, now),
+    }));
+    panel?.refresh();
+  };
+  await refreshPeers();
+
   panel = createDevicePanel({
+    peers: () => peerRows,
+    askOnReconnect: () => askOnReconnect,
+    setAskOnReconnect: async (value) => {
+      askOnReconnect = value;
+      // Persisted, because the panel is where the decision is made and a
+      // choice that evaporates on restart is one you have to make again every
+      // morning. `--trust-reconnect` still wins for the run it was passed to;
+      // this writes the default that flag overrides.
+      await configStore.setReconnectPolicy(value ? "confirm" : "trust");
+    },
+    rename: async (deviceId, name) => {
+      const ok = await configStore.renamePeer(deviceId, name);
+      await refreshPeers();
+      return ok;
+    },
     ...(relay.connectionDetails ? { details: relay.connectionDetails } : {}),
     ...(relay.onConnectionsChanged
       ? { subscribe: relay.onConnectionsChanged }
@@ -2148,6 +2236,7 @@ export async function start(opts: StartOpts) {
       if (!peer) return false;
       if (peer.directToken) relay.revokeSessionToken?.(peer.directToken);
       await configStore.removePeer(deviceId);
+      await refreshPeers();
       return true;
     },
     rearm: () => {
@@ -2174,6 +2263,12 @@ export async function start(opts: StartOpts) {
 
   watchConnectedDevices(relay, opts.json === true);
 
+  // A device connecting or dropping is also the moment its peer record may
+  // have changed — a fresh pairing writes one — and it is the cheapest honest
+  // trigger for picking up a rename made by `mtmux devices rename` in another
+  // shell. One small file read per connection event.
+  relay.onConnectionsChanged?.(() => void refreshPeers());
+
   /*
    * Keep `lastSeenAt` honest.
    *
@@ -2196,10 +2291,13 @@ export async function start(opts: StartOpts) {
     const previous = lastTouched.get(deviceId);
     if (previous !== undefined && now - previous < TOUCH_INTERVAL_MS) return;
     lastTouched.set(deviceId, now);
-    void configStore.touchPeer(deviceId, now).catch(() => {
-      // Bookkeeping on a file that may be read-only or full. Losing it costs
-      // accuracy in `mtmux devices`, and must not cost the device its session.
-    });
+    void configStore
+      .touchPeer(deviceId, now)
+      .then(refreshPeers)
+      .catch(() => {
+        // Bookkeeping on a file that may be read-only or full. Losing it costs
+        // accuracy in `mtmux devices`, and must not cost the device its session.
+      });
   });
 
   await serverState.write(record(liveInvite()?.url ?? null));

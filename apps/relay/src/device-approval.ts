@@ -62,7 +62,7 @@ export type DeviceApprovalInput = {
   sas?: string;
   deviceLabel: string;
   accountEmail: string;
-  via?: "code" | "request";
+  via?: "code" | "request" | "returning";
 };
 
 export type AskOptions = {

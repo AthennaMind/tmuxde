@@ -123,12 +123,24 @@ export function DeviceApprovalDialog() {
             </span>
             <div className="min-w-0">
               <DialogTitle className="text-base font-semibold leading-tight">
-                Let this device in?
+                {request.via === "returning"
+                  ? "Let it back in?"
+                  : "Let this device in?"}
               </DialogTitle>
               <DialogDescription className="mt-1 text-sm">
+                {/*
+                  Three questions, worded as three questions. `returning` is
+                  the one that is not a pairing: the device already proved
+                  itself, so nothing is being verified and the honest ask is a
+                  policy one. Posing it as "someone just entered your code"
+                  would be a small lie, and small lies here are how people
+                  learn to press yes without reading.
+                */}
                 {request.via === "code"
                   ? "Someone just entered this machine's pairing code. Nothing is granted until you say yes."
-                  : "It is asking for a shell on this machine. Nothing is granted until you say yes."}
+                  : request.via === "returning"
+                    ? "A device you paired before is reconnecting. You asked to be checked with each time."
+                    : "It is asking for a shell on this machine. Nothing is granted until you say yes."}
               </DialogDescription>
             </div>
           </div>

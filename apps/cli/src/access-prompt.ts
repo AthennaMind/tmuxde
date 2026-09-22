@@ -42,7 +42,18 @@ export type AccessPromptInput = {
   sas?: string;
   deviceLabel: string;
   accountEmail: string;
-  via?: "code" | "request";
+  /**
+   * Which question this is.
+   *
+   * `code` — somebody typed or scanned this machine's code.
+   * `request` — a signed-in browser asked through the dashboard.
+   * `returning` — a device that paired before is back, and the reconnect
+   *   policy says ask. Nothing is being *verified* there: the device already
+   *   proved itself cryptographically. What is being asked is a policy
+   *   question, which is why it gets its own wording rather than borrowing
+   *   one of the two above.
+   */
+  via?: "code" | "request" | "returning";
 };
 
 export type AccessPromptResult =
@@ -67,6 +78,9 @@ export type PromptDeps = {
  * without driving a terminal.
  */
 export function renderAccessRequest(req: AccessPromptInput): string[] {
+  if (req.via === "returning") {
+    return renderReturningDevice({ label: req.deviceLabel });
+  }
   // No digits means a code pairing, and a different question entirely.
   if (!req.sas) return renderCodePairing(req);
   return [
@@ -328,7 +342,11 @@ export async function promptForAccess(
         // no digits, the code *was* the secret and there is nothing to compare,
         // so the only honest question is whether this is you.
         kleur.bold(
-          req.sas ? "  Matches what your browser shows?" : "  Let it in?",
+          req.via === "returning"
+            ? "  Let it reconnect?"
+            : req.sas
+              ? "  Matches what your browser shows?"
+              : "  Let it in?",
         ) + " [y/N] ",
         (value) => {
           clearTimeout(timer);

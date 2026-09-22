@@ -26,8 +26,27 @@ export type PeerRecord = {
   deviceId: string;
   /** Ed25519 public key, hex. Used to verify reconnect challenges. */
   publicKey: string;
-  /** Human label for `mtmux devices`, e.g. "iPhone · Safari". */
+  /**
+   * What the *browser* said it was, e.g. "iPhone · Safari".
+   *
+   * Self-reported and never trusted for anything. Two phones running the same
+   * browser produce the same string, which is exactly the problem `name`
+   * below exists to solve.
+   */
   label: string;
+  /**
+   * What the *owner* calls it, when they have said.
+   *
+   * Set with `e` in the live panel or `mtmux devices rename`, and it wins over
+   * `label` everywhere a device is shown. Held separately rather than
+   * overwriting `label` so that a rename never destroys what the device
+   * actually claimed to be — which is the one field that can contradict a
+   * name, and therefore the one worth keeping when it does.
+   *
+   * "Work laptop" and "Kids iPad" is the difference between a list you can act
+   * on and three rows that all say "Chrome on macOS".
+   */
+  name?: string;
   pairedAt: number;
   lastSeenAt: number;
   /**
@@ -335,6 +354,46 @@ export async function removePeer(deviceId: string): Promise<boolean> {
   if (remaining.length === peers.length) return false;
   await write({ ...config, peers: remaining });
   return true;
+}
+
+/**
+ * Give a paired device a name of your own, or clear it back to the browser's.
+ *
+ * Returns false when there is no such peer, so a caller can tell "renamed" from
+ * "that device is already gone" instead of reporting a success it did not have.
+ */
+export async function renamePeer(
+  deviceId: string,
+  name: string | null,
+): Promise<boolean> {
+  const config = await load();
+  const peers = config.peers ?? [];
+  const peer = peers.find((p) => p.deviceId === deviceId);
+  if (!peer) return false;
+  const trimmed = (name ?? "").trim().slice(0, MAX_PEER_NAME);
+  if (trimmed) peer.name = trimmed;
+  else delete peer.name;
+  await write({ ...config, peers });
+  return true;
+}
+
+/**
+ * Longest name a device may carry.
+ *
+ * Not a storage concern — it is a layout one. The name is drawn in a table
+ * that has to survive a 40-column terminal, and a label long enough to eat
+ * every other column turns the list into one field.
+ */
+export const MAX_PEER_NAME = 32;
+
+/**
+ * What to call a device on screen: the owner's name, else the browser's label.
+ *
+ * One function, so the panel, `mtmux devices` and the details card cannot
+ * disagree about which of the two fields wins.
+ */
+export function displayName(peer: { name?: string; label?: string }): string {
+  return (peer.name ?? "").trim() || (peer.label ?? "").trim() || "";
 }
 
 export async function touchPeer(

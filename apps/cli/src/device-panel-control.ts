@@ -2,10 +2,14 @@ import kleur from "kleur";
 
 import {
   FLASH_MS,
+  MAX_NAME_INPUT,
+  buildRows,
   clamp,
   render,
   selected,
   type PanelMode,
+  type PanelPeer,
+  type PanelRow,
   type PanelState,
 } from "./device-panel.js";
 import { createKeyReader, KEY, type KeyReader } from "./keys.js";
@@ -46,6 +50,26 @@ export type PanelDeps = {
   disconnect?: (id: string) => Promise<boolean>;
   /** Un-pair a device, permanently. */
   revoke?: (deviceId: string) => Promise<boolean>;
+  /**
+   * Every device this machine trusts, connected or not.
+   *
+   * Synchronous and cached by the caller rather than a promise, because it is
+   * read on every repaint — once a second while anything is connected — and a
+   * panel that awaited the config file to draw a row would be a panel that
+   * blinks whenever the disk is busy.
+   */
+  peers?: () => PanelPeer[];
+  /** Give a device a name of the owner's choosing. Null clears it. */
+  rename?: (deviceId: string, name: string | null) => Promise<boolean>;
+  /**
+   * Whether a device that has paired before is asked about when it returns,
+   * and a way to flip it while the server runs.
+   *
+   * On the panel because "it never asked me" is almost always this setting,
+   * and a setting nobody can see is one nobody can be wrong about.
+   */
+  askOnReconnect?: () => boolean;
+  setAskOnReconnect?: (value: boolean) => Promise<void>;
   /** Throw away the printed code and arm a fresh one. */
   rearm?: () => void;
   /**
@@ -119,16 +143,21 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
       },
     });
 
+  function rows(): PanelRow[] {
+    return buildRows(details(), deps.peers?.() ?? []);
+  }
+
   function state(): PanelState {
-    const devices = details();
+    const list = rows();
     return {
-      devices,
-      cursor: clamp(cursor, devices.length),
+      rows: list,
+      cursor: clamp(cursor, list.length),
       mode,
       flash,
       now: now(),
       hosted: deps.hosted(),
       canOpenTunnel: !deps.hosted() && deps.openTunnel !== undefined,
+      askOnReconnect: deps.askOnReconnect?.() ?? false,
       frozen: stopped,
     };
   }
@@ -211,24 +240,28 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
       return;
     }
 
+    if (mode.kind === "rename") {
+      return onRenameKey(raw, mode);
+    }
+
     if (mode.kind === "details") {
-      // The card names two keys in its footer, so those two have to work from
+      // The card names its keys in the footer, so those have to work from
       // inside it. Anything else closes, which is what "any other key goes
-      // back" promises. Both act on the connection the card is describing
-      // rather than on the cursor: `c` and `r` read `selected()`, and the card
-      // can outlive the row it was opened from.
-      const describing = mode.id;
-      const target = state().devices.find((d) => d.id === describing) ?? null;
+      // back" promises. All of them act on the row the card is describing
+      // rather than on the cursor, which the card can outlive.
+      const describing = mode.key;
+      const target = rows().find((r) => r.key === describing) ?? null;
       mode = { kind: "list" };
-      if (target) cursor = state().devices.indexOf(target);
+      if (target) cursor = rows().indexOf(target);
       if (key === "c") return doClose();
       if (key === "r" && target?.deviceId) return askRevoke();
+      if (key === "e" && target?.deviceId) return openRename();
       paint();
       return;
     }
 
     if (mode.kind === "confirm") {
-      if (key === "y") await doRevoke(mode.id, mode.label);
+      if (key === "y") await doRevoke(mode.deviceId, mode.label);
       else if (key === "n" || raw === KEY.escape) {
         mode = { kind: "list" };
         paint();
@@ -236,13 +269,13 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
       return;
     }
 
-    const devices = details();
+    const list = rows();
     switch (raw) {
       case KEY.up:
-        cursor = clamp(cursor - 1, devices.length);
+        cursor = clamp(cursor - 1, list.length);
         return paint();
       case KEY.down:
-        cursor = clamp(cursor + 1, devices.length);
+        cursor = clamp(cursor + 1, list.length);
         return paint();
     }
 
@@ -261,6 +294,8 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
         if (!deps.hosted() || !deps.rearm) return;
         deps.rearm();
         return setFlash(kleur.dim("Arming a fresh code…"));
+      case "a":
+        return toggleAsk();
       case "t":
         return doOpenTunnel();
       case "d":
@@ -268,9 +303,91 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
         return openDetails();
       case "c":
         return doClose();
+      case "e":
+        return openRename();
       case "r":
         return askRevoke();
     }
+  }
+
+  /**
+   * Flip "ask again when a device I know comes back".
+   *
+   * Live, without a restart, because the setting's whole value is situational:
+   * you want it on when you are about to walk away from the machine and off
+   * when you are sitting in front of it, and a setting you have to stop the
+   * server to change is one nobody ever changes.
+   */
+  async function toggleAsk(): Promise<void> {
+    if (!deps.setAskOnReconnect || !deps.askOnReconnect) return;
+    const next = !deps.askOnReconnect();
+    await deps.setAskOnReconnect(next).catch(() => {});
+    setFlash(
+      next
+        ? kleur.dim("A device you know will be asked about when it returns.")
+        : kleur.dim("A device you know comes straight back in."),
+    );
+  }
+
+  /**
+   * The rename editor's keys.
+   *
+   * A line editor rather than a readline — see `rename()` in `device-panel.ts`
+   * for why. It takes printable characters, backspace, Enter and Esc, and
+   * ignores everything else rather than letting an arrow key's escape sequence
+   * land in the middle of somebody's device name.
+   */
+  async function onRenameKey(
+    raw: string,
+    current: Extract<PanelMode, { kind: "rename" }>,
+  ): Promise<void> {
+    if (raw === KEY.escape) {
+      mode = { kind: "list" };
+      return paint();
+    }
+    if (raw === KEY.enter) {
+      const name = current.draft.trim();
+      mode = { kind: "list" };
+      const ok = await deps
+        .rename?.(current.deviceId, name || null)
+        .catch(() => false);
+      setFlash(
+        !ok
+          ? kleur.dim("That device is gone — nothing was renamed.")
+          : name
+            ? kleur.dim(`Renamed to ${name}.`)
+            : kleur.dim("Name cleared — back to what the browser calls it."),
+      );
+      return;
+    }
+    // Backspace and delete both arrive here, and both mean the same thing to
+    // anyone holding the key down.
+    if (raw === "\x7f" || raw === "\b") {
+      mode = { ...current, draft: [...current.draft].slice(0, -1).join("") };
+      return paint();
+    }
+    // Printable only. A control byte in a device name is a name that cannot be
+    // read back off a terminal, and an escape sequence is several of them.
+    // eslint-disable-next-line no-control-regex
+    if (/[\x00-\x1f]/.test(raw)) return;
+    if ([...current.draft].length >= MAX_NAME_INPUT) return;
+    mode = { ...current, draft: current.draft + raw };
+    paint();
+  }
+
+  function openRename(): void {
+    const row = selected(state());
+    if (!row?.deviceId || !deps.rename) return;
+    mode = {
+      kind: "rename",
+      deviceId: row.deviceId,
+      label: row.name,
+      // Seeded empty rather than with the current name. The common case is
+      // replacing "Chrome on macOS" outright, and pre-filling it would make
+      // every rename start with thirteen backspaces.
+      draft: "",
+    };
+    paint();
   }
 
   /**
@@ -298,32 +415,32 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
   }
 
   function openDetails(): void {
-    const device = selected(state());
-    if (!device) return;
-    mode = { kind: "details", id: device.id ?? null };
+    const row = selected(state());
+    if (!row) return;
+    mode = { kind: "details", key: row.key };
     paint();
   }
 
   async function doClose(): Promise<void> {
-    const device = selected(state());
-    if (!device?.id || !deps.disconnect) return;
-    const closed = await deps.disconnect(device.id);
+    const row = selected(state());
+    if (!row?.live?.id || !deps.disconnect) return;
+    const closed = await deps.disconnect(row.live.id);
     setFlash(
       closed
-        ? kleur.dim(`Closed ${device.label}. It may reconnect.`)
-        : kleur.dim(`${device.label} had already gone.`),
+        ? kleur.dim(`Closed ${row.name}. It may reconnect.`)
+        : kleur.dim(`${row.name} had already gone.`),
     );
   }
 
   function askRevoke(): void {
-    const device = selected(state());
+    const row = selected(state());
     // No device id means the machine's own token, which has nothing to revoke.
-    if (!device?.deviceId || !deps.revoke) return;
+    if (!row?.deviceId || !deps.revoke) return;
     mode = {
       kind: "confirm",
       action: "revoke",
-      id: device.deviceId,
-      label: device.label,
+      deviceId: row.deviceId,
+      label: row.name,
     };
     paint();
   }

@@ -283,8 +283,16 @@ export const DeviceApprovalRequestMessage = z.object({
    * is "did you just type this code?", not "do these match?".
    */
   sas: z.string().max(16).optional(),
-  /** How the device is asking, so the dialog can pose the right question. */
-  via: z.enum(["code", "request"]).default("request"),
+  /**
+   * How the device is asking, so the dialog can pose the right question.
+   *
+   * `returning` is not a pairing at all: the device already proved itself
+   * cryptographically and what is being asked is a policy question — "let this
+   * one back in?" — which reads very differently from "someone just typed your
+   * code". Dressing the two up as the same question is how people learn to
+   * answer both without reading either.
+   */
+  via: z.enum(["code", "request", "returning"]).default("request"),
   expiresAt: z.number().int().positive(),
 });
 

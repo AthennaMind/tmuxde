@@ -15,6 +15,7 @@ import { status, stop } from "./commands/status.js";
 import { approve } from "./commands/approve.js";
 import {
   devicesList,
+  devicesRename,
   devicesRevoke,
   devicesHistory,
 } from "./commands/devices.js";
@@ -483,6 +484,10 @@ devices
   .action((opts: { limit: string }) =>
     devicesHistory({ limit: Number(opts.limit) || 50 }),
   );
+devices
+  .command("rename <deviceId> [name...]")
+  .description("Call a device something of your own — no name clears it")
+  .action((deviceId: string, name: string[]) => devicesRename(deviceId, name));
 devices
   .command("revoke <deviceId>")
   .description("Forget a device so it cannot reconnect")

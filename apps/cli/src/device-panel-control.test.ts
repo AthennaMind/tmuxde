@@ -402,3 +402,174 @@ describe("the detail card", () => {
     h.panel.stop();
   });
 });
+
+/**
+ * Renaming, which is the difference between a list you can act on and three
+ * rows all reading "Chrome on macOS".
+ */
+describe("renaming a device", () => {
+  const peer = {
+    deviceId: "dev-1",
+    label: "iPhone",
+    pairedAt: NOW - 86_400_000,
+    lastSeenAt: NOW - 1000,
+    expired: false,
+  };
+
+  it("opens an editor rather than a second reader on stdin", () => {
+    // The whole reason this is a panel mode and not a readline: two readers
+    // on one tty is the defect `access-prompt.ts` records paying for.
+    const h = harness({ rename: vi.fn().mockResolvedValue(true) });
+    h.press("e");
+    expect(h.frame()).toContain("Rename");
+  });
+
+  it("takes what is typed and saves it on Enter", async () => {
+    const rename = vi.fn().mockResolvedValue(true);
+    const h = harness({ rename, peers: () => [peer] });
+    h.press("e");
+    for (const ch of "Work laptop") h.press(ch);
+    expect(h.frame()).toContain("Work laptop");
+    h.press(KEY.enter);
+    await settle();
+    expect(rename).toHaveBeenCalledWith("dev-1", "Work laptop");
+    expect(h.frame()).toContain("Renamed to Work laptop");
+  });
+
+  it("clears the name when Enter is pressed on an empty field", async () => {
+    // The only way back to the browser's own label, and it is said on screen
+    // rather than left to be discovered.
+    const rename = vi.fn().mockResolvedValue(true);
+    const h = harness({ rename, peers: () => [peer] });
+    h.press("e");
+    h.press(KEY.enter);
+    await settle();
+    expect(rename).toHaveBeenCalledWith("dev-1", null);
+    expect(h.frame()).toContain("Name cleared");
+  });
+
+  it("backspaces", () => {
+    const h = harness({ rename: vi.fn(), peers: () => [peer] });
+    h.press("e");
+    for (const ch of "abc") h.press(ch);
+    h.press("\x7f");
+    expect(h.frame()).toContain("ab");
+    expect(h.frame()).not.toContain("abc");
+  });
+
+  it("cancels on Esc without saving", async () => {
+    const rename = vi.fn();
+    const h = harness({ rename, peers: () => [peer] });
+    h.press("e");
+    h.press("x");
+    h.press(KEY.escape);
+    await settle();
+    expect(rename).not.toHaveBeenCalled();
+    expect(h.frame()).not.toContain("Rename");
+  });
+
+  it("refuses control bytes and arrow keys, which would be unreadable", () => {
+    // An arrow key is `ESC [ A`. Letting it land in a name produces something
+    // that cannot be read back off a terminal at all.
+    const h = harness({ rename: vi.fn(), peers: () => [peer] });
+    h.press("e");
+    h.press(KEY.up);
+    h.press("\x07");
+    h.press("o");
+    h.press("k");
+    expect(h.frame()).toContain("ok");
+  });
+
+  it("stops at the length the table can draw", () => {
+    const h = harness({ rename: vi.fn(), peers: () => [peer] });
+    h.press("e");
+    for (let i = 0; i < 80; i++) h.press("x");
+    const line = h
+      .frame()
+      .split("\n")
+      .find((l) => l.includes("Name"))!;
+    expect(line.replace(/[^x]/g, "")).toHaveLength(32);
+  });
+
+  it("says so rather than claiming success when the device has gone", async () => {
+    const h = harness({ rename: vi.fn().mockResolvedValue(false) });
+    h.press("e");
+    h.press("z");
+    h.press(KEY.enter);
+    await settle();
+    expect(h.frame()).toContain("nothing was renamed");
+  });
+
+  it("offers nothing to rename when there is no device behind the row", () => {
+    // The machine's own token. Renaming it would be renaming the credential
+    // this terminal is printing.
+    const h = harness({
+      details: () => [device({ deviceId: null })],
+      rename: vi.fn(),
+    });
+    h.press("e");
+    expect(h.frame()).not.toContain("Rename");
+  });
+});
+
+/**
+ * "It never asked me" is almost always the reconnect policy, doing exactly
+ * what it was told weeks ago. Flipping it must not need a restart.
+ */
+describe("asking again when a known device returns", () => {
+  it("flips and persists it", async () => {
+    let value = false;
+    const setAskOnReconnect = vi.fn(async (next: boolean) => {
+      value = next;
+    });
+    const h = harness({
+      askOnReconnect: () => value,
+      setAskOnReconnect,
+    });
+    h.press("a");
+    await settle();
+    expect(setAskOnReconnect).toHaveBeenCalledWith(true);
+    expect(h.frame()).toContain("will be asked about");
+
+    h.press("a");
+    await settle();
+    expect(setAskOnReconnect).toHaveBeenLastCalledWith(false);
+    expect(h.frame()).toContain("comes straight back in");
+  });
+
+  it("does nothing against a build that cannot change it", () => {
+    const h = harness({});
+    h.press("a");
+    expect(h.frame()).not.toContain("asked about");
+  });
+});
+
+/** A device you are not holding is still a device you may want rid of. */
+describe("devices that are not connected", () => {
+  const absent = {
+    deviceId: "dev-2",
+    label: "Old iPad",
+    pairedAt: NOW - 86_400_000,
+    lastSeenAt: NOW - 86_400_000,
+    expired: false,
+  };
+
+  it("can be selected and revoked without the device being here", async () => {
+    const revoke = vi.fn().mockResolvedValue(true);
+    const h = harness({ peers: () => [absent], revoke });
+    h.press(KEY.down);
+    h.press("r");
+    expect(h.frame()).toContain("Revoke");
+    h.press("y");
+    await settle();
+    expect(revoke).toHaveBeenCalledWith("dev-2");
+  });
+
+  it("is not offered a close, because there is no socket to close", () => {
+    const disconnect = vi.fn();
+    const h = harness({ peers: () => [absent], disconnect });
+    h.press(KEY.down);
+    h.press("c");
+    expect(disconnect).not.toHaveBeenCalled();
+  });
+});

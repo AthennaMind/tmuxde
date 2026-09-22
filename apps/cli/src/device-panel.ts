@@ -21,17 +21,33 @@ import type { ConnectedDevice } from "./serve.js";
  * useful, and it is what a service unit still gets — but the bottom of the
  * screen now holds the current answer rather than a diff from ten minutes ago.
  *
- * ## The two verbs, kept apart on purpose
+ * ## Connected is not the same as paired, and both belong here
+ *
+ * The first version of this listed live sockets only, which quietly made the
+ * panel useless for the most common thing anyone wants to do to a device:
+ * get rid of one that is not currently here. A phone you lent to somebody, a
+ * laptop you have sold, a tablet in a drawer — none of them hold a socket, all
+ * of them hold a credential, and the only way to act on one was to quit the
+ * server and run `mtmux devices revoke <id>` with an id you had to go and
+ * find.
+ *
+ * So the list is every device this machine trusts, with the connected ones
+ * first. An offline row is dim and carries "last seen" instead of an idle
+ * time, and every action that makes sense for it — rename, revoke — works from
+ * the same keys.
+ *
+ * ## The verbs, kept apart on purpose
  *
  * `c` closes a socket. The credential stays valid and the browser may come
  * back; it is "hang up", for the tab you left open somewhere else.
  * `r` revokes the device. That is permanent and it un-pairs.
+ * `e` renames it, which changes nothing about what it may do — it is there
+ * because three rows reading "Chrome on macOS" is a list you cannot act on.
  *
- * Both are offered, and they are offered together, precisely so that nobody
- * reaches for the permanent one to solve a temporary problem — which is what
- * happens when the only tool in reach is `mtmux devices revoke`. Revoke asks
- * for confirmation and close does not, because the cost of a wrong close is
- * one reconnect and the cost of a wrong revoke is pairing again from scratch.
+ * `c` and `r` are offered together, precisely so that nobody reaches for the
+ * permanent one to solve a temporary problem. Revoke asks for confirmation
+ * and close does not, because the cost of a wrong close is one reconnect and
+ * the cost of a wrong revoke is pairing again from scratch.
  *
  * ## Rendering rules
  *
@@ -42,20 +58,63 @@ import type { ConnectedDevice } from "./serve.js";
  * has to survive a 40-column terminal and a label full of emoji.
  */
 
+/** A device this machine trusts, whether or not it is here right now. */
+export type PanelPeer = {
+  deviceId: string;
+  /** What the browser called itself. */
+  label: string;
+  /** What the owner called it, if they have. */
+  name?: string;
+  pairedAt: number;
+  lastSeenAt: number;
+  /** Idle past `PEER_EXPIRY_MS` — it will not be restored on the next boot. */
+  expired: boolean;
+};
+
+/**
+ * One line in the list: a live connection, a trusted device, or both.
+ *
+ * Both is the common case and the reason this is one type rather than two
+ * lists rendered separately — a connected phone that is also paired is one
+ * thing to the person reading, and splitting it in two would make `r` act on a
+ * row that looks like a different device from the one `c` acts on.
+ */
+export type PanelRow = {
+  /**
+   * Stable identity for the cursor.
+   *
+   * The device id when there is one, otherwise the socket id. Cursors used to
+   * be plain indices, which meant a device dropping off the top of the list
+   * silently moved the selection onto whichever row slid into that slot — so
+   * the confirmation you were reading was about a different device by the time
+   * you pressed `y`.
+   */
+  key: string;
+  /** What to call it: the owner's name if set, else the browser's label. */
+  name: string;
+  deviceId: string | null;
+  /** The socket, when it is connected right now. */
+  live: ConnectedDevice | null;
+  /** The stored record, when this machine trusts it. */
+  peer: PanelPeer | null;
+};
+
 export type PanelMode =
   | { kind: "list" }
   | { kind: "help" }
   /**
-   * Everything known about one connection.
+   * Everything known about one row.
    *
-   * Held by connection id rather than by cursor index, so a device that drops
-   * while its card is open shows "it has gone" instead of silently becoming
-   * whichever device slid into that row.
+   * Held by key rather than by cursor index, so a device that drops while its
+   * card is open shows "it has gone" instead of silently becoming whichever
+   * device slid into that row.
    */
-  | { kind: "details"; id: string | null }
+  | { kind: "details"; key: string | null }
   /** A destructive action waiting on y/n, holding what it will act on. */
-  | { kind: "confirm"; action: "revoke"; id: string; label: string }
-  /** A device is asking to be let in. Nothing else is reachable until it is answered. */
+  | { kind: "confirm"; action: "revoke"; deviceId: string; label: string }
+  /** Typing a new name. `draft` is what has been typed so far. */
+  | { kind: "rename"; deviceId: string; label: string; draft: string }
+  /** A device is asking to be let in. Nothing else is reachable until answered. */
   | {
       kind: "approval";
       label: string;
@@ -65,8 +124,8 @@ export type PanelMode =
     };
 
 export type PanelState = {
-  devices: ConnectedDevice[];
-  /** Index into `devices`. Clamped at render, never trusted. */
+  rows: PanelRow[];
+  /** Index into `rows`. Clamped at render, never trusted. */
   cursor: number;
   mode: PanelMode;
   /** Shown under the table for a few seconds after an action. */
@@ -80,6 +139,15 @@ export type PanelState = {
    * the key would be offering a key that does nothing.
    */
   canOpenTunnel: boolean;
+  /**
+   * Whether a device that has paired before is asked about when it comes back.
+   *
+   * On screen because it is the answer to the most common complaint about this
+   * product's approval model — "it did not ask me" — which is almost always a
+   * device that was approved once, weeks ago, doing exactly what it was told
+   * it could. A setting nobody can see is a setting nobody can be wrong about.
+   */
+  askOnReconnect: boolean;
   /** Set while the panel cannot act — during shutdown. */
   frozen: boolean;
 };
@@ -90,55 +158,160 @@ export const FLASH_MS = 4000;
 /** Rows the table gives to devices before it starts saying "+N more". */
 const MAX_ROWS = 8;
 
+/** Longest name the rename editor will take. Matches `MAX_PEER_NAME`. */
+export const MAX_NAME_INPUT = 32;
+
 export function render(state: PanelState, columns: number): string[] {
   const width = Math.max(40, columns);
   switch (state.mode.kind) {
     case "approval":
       return approval(state, state.mode, width);
     case "help":
-      return help(width);
+      return help(state, width);
     case "details":
       return detailCard(state, state.mode, width);
     case "confirm":
       return confirm(state.mode, width);
+    case "rename":
+      return rename(state.mode, width);
     default:
       return list(state, width);
   }
 }
 
+/**
+ * Build the list: connected first, then everything else this machine trusts.
+ *
+ * Exported and pure so the ordering — which is the whole readability of the
+ * panel — can be asserted directly rather than inferred from rendered strings.
+ */
+export function buildRows(
+  devices: ConnectedDevice[],
+  peers: PanelPeer[],
+): PanelRow[] {
+  const byId = new Map(peers.map((peer) => [peer.deviceId, peer]));
+  const seen = new Set<string>();
+  const rows: PanelRow[] = [];
+
+  for (const live of devices) {
+    const peer = live.deviceId ? (byId.get(live.deviceId) ?? null) : null;
+    if (peer) seen.add(peer.deviceId);
+    rows.push({
+      key: live.deviceId ?? live.id ?? `socket-${rows.length}`,
+      // The stored name wins over the browser's label even for a live socket:
+      // the relay's label came from the token, which was issued before anybody
+      // had renamed anything.
+      name: peer ? displayName(peer) : live.label,
+      deviceId: live.deviceId ?? null,
+      live,
+      peer,
+    });
+  }
+
+  // Oldest contact last, so the thing most likely to be wanted is nearest the
+  // connected rows rather than buried under a year of forgotten tablets.
+  const offline = peers
+    .filter((peer) => !seen.has(peer.deviceId))
+    .sort((a, b) => b.lastSeenAt - a.lastSeenAt);
+
+  for (const peer of offline) {
+    rows.push({
+      key: peer.deviceId,
+      name: displayName(peer),
+      deviceId: peer.deviceId,
+      live: null,
+      peer,
+    });
+  }
+
+  return rows;
+}
+
+/** The owner's name if there is one, else what the browser said. */
+export function displayName(peer: { name?: string; label: string }): string {
+  return (peer.name ?? "").trim() || peer.label;
+}
+
 function list(state: PanelState, width: number): string[] {
   const lines = [rule(width)];
-  const count = state.devices.length;
+  const connected = state.rows.filter((row) => row.live !== null).length;
+  const offline = state.rows.length - connected;
 
   lines.push(
-    ` ${kleur.bold(headline(count))}` +
+    ` ${kleur.bold(headline(connected))}` +
+      (offline > 0 ? kleur.dim(`   ·   ${offline} paired, not here`) : "") +
       (state.hosted ? kleur.dim("   ·   tunnel up") : ""),
   );
 
-  if (count === 0) {
+  if (state.rows.length === 0) {
     // Not an empty table. A header row over nothing reads as a bug, and the
     // useful thing to say here is what to do next rather than what is absent.
     lines.push(
       kleur.dim(
         state.hosted
           ? "  Scan the code above, or press n for a fresh one."
-          : "  Open the address above on a device on this network.",
+          : "  Scan the code above, or type the six digits at the address.",
       ),
     );
   } else {
-    const shown = state.devices.slice(0, MAX_ROWS);
+    const shown = state.rows.slice(0, MAX_ROWS);
     const cursor = clamp(state.cursor, shown.length);
-    shown.forEach((device, i) => {
-      lines.push(row(device, i === cursor, state.now, width));
+    let drewDivider = false;
+    shown.forEach((row, i) => {
+      // One dim heading, exactly where the meaning of the rows changes. Two
+      // tables with two headers would cost four lines to say what one says.
+      if (!drewDivider && row.live === null && connected > 0) {
+        lines.push(kleur.dim("   ── paired, not connected ──"));
+        drewDivider = true;
+      }
+      lines.push(rowLine(row, i === cursor, state.now, width));
     });
-    if (count > shown.length) {
-      lines.push(kleur.dim(`  … and ${count - shown.length} more`));
+    if (state.rows.length > shown.length) {
+      lines.push(kleur.dim(`  … and ${state.rows.length - shown.length} more`));
     }
   }
 
   if (state.flash) lines.push(` ${state.flash}`);
+  /*
+   * The one line that keeps a local-only server from being a dead end.
+   *
+   * `t` is already in the key bar, where it is two characters next to six
+   * other pairs of characters — which is to say, invisible to anyone who has
+   * not already been told what it does. The thing being offered is the
+   * product's headline feature, reachable in one keypress, and it was going
+   * unnoticed because it was spelled as a key rather than as an offer.
+   *
+   * Suppressed while a flash is up: `doOpenTunnel` puts "Opening an encrypted
+   * tunnel…" there, and inviting someone to press the key they just pressed is
+   * worse than saying nothing.
+   */
+  if (state.canOpenTunnel && !state.flash) lines.push(tunnelOffer(width));
   lines.push(keyBar(state, width));
   return lines;
+}
+
+/**
+ * The offer, in whichever wording fits.
+ *
+ * Assembled from parts and measured as plain text rather than run through
+ * `fit`, because `fit` counts columns and a bolded `t` is nine characters of
+ * escape sequence for one column of ink. Truncating a sentence whose last
+ * three words are "sealed end to end" would also cut exactly the part worth
+ * reading, so the narrow terminal gets a different sentence rather than half
+ * of this one.
+ */
+function tunnelOffer(width: number): string {
+  const variants: [string, string][] = [
+    [
+      "This network only. Press ",
+      " to reach it from anywhere, sealed end to end.",
+    ],
+    ["Press ", " for an encrypted tunnel."],
+  ];
+  const [before, after] =
+    variants.find(([a, b]) => 2 + a.length + 1 + b.length <= width) ??
+    variants[1]!;
+  return ` ${kleur.dim(before)}${kleur.bold("t")}${kleur.dim(after)}`;
 }
 
 function headline(count: number): string {
@@ -150,9 +323,9 @@ function headline(count: number): string {
  * One device.
  *
  * The widths are computed from the terminal rather than fixed, because the
- * label is the only field whose length is not ours — it is whatever the
- * browser's user agent produced — and a fixed layout either truncates it to
- * uselessness at 120 columns or overflows at 60.
+ * name is the only field whose length is not ours — it is whatever the browser
+ * produced, or whatever the owner typed — and a fixed layout either truncates
+ * it to uselessness at 120 columns or overflows at 60.
  *
  * Everything is measured in one place and the line is assembled from exactly
  * those pieces. The first version of this computed a `fixed` cost separately
@@ -164,8 +337,8 @@ function headline(count: number): string {
  * a whole field is honest; three fields all cut to an ellipsis is a table that
  * has stopped being one.
  */
-function row(
-  device: ConnectedDevice,
+function rowLine(
+  row: PanelRow,
   isSelected: boolean,
   now: number,
   width: number,
@@ -174,14 +347,12 @@ function row(
   const IDLE_W = 9;
   const WHERE_W = 14;
 
-  const age = pad(since(device.connectedAt, now), AGE_W);
-  const idle =
-    device.lastActivityAt === undefined
-      ? pad("", IDLE_W)
-      : pad(idleText(device.lastActivityAt, now), IDLE_W);
-  const tag = badge(device);
+  const device = row.live;
+  const age = pad(device ? since(device.connectedAt, now) : "", AGE_W);
+  const idle = pad(statusText(row, now), IDLE_W);
+  const tag = badge(row);
   const showWhere = width >= 64;
-  const where = showWhere ? pad(sessionText(device), WHERE_W) : null;
+  const where = showWhere ? pad(whereText(row), WHERE_W) : null;
 
   // " " + marker + " " … then one space before each remaining field.
   const spent =
@@ -192,33 +363,45 @@ function row(
     IDLE_W +
     1 +
     displayWidth(stripAnsi(tag));
-  const label = pad(device.label, Math.max(6, width - spent));
+  const name = pad(row.name, Math.max(6, width - spent));
 
   const marker = isSelected ? kleur.cyan("▸") : " ";
-  const name = isSelected ? kleur.bold(label) : label;
+  // An offline row is dim in full, including its name: the list has to be
+  // readable as "who is here" at a glance, and colour is the only channel
+  // that survives being glanced at.
+  const shown = isSelected ? kleur.bold(name) : device ? name : kleur.dim(name);
   const middle = where ? ` ${kleur.dim(where)}` : "";
-  return ` ${marker} ${name}${middle} ${kleur.dim(age)} ${kleur.dim(idle)}${tag}`;
+  return ` ${marker} ${shown}${middle} ${kleur.dim(age)} ${kleur.dim(idle)}${tag}`;
 }
 
 /**
  * Measure a coloured string as the terminal will.
  *
  * `badge()` returns text wrapped in escapes, and counting those as columns
- * would steal ten of them from the label on every read-only row.
+ * would steal ten of them from the name on every read-only row.
  */
 function stripAnsi(text: string): string {
   // eslint-disable-next-line no-control-regex
   return text.replace(/\x1b\[[0-9;]*m/g, "");
 }
 
-function idleText(lastActivityAt: number, now: number): string {
-  const quiet = now - lastActivityAt;
+function statusText(row: PanelRow, now: number): string {
+  if (!row.live) {
+    if (!row.peer) return "";
+    return row.peer.expired ? "stale" : since(row.peer.lastSeenAt, now);
+  }
+  if (row.live.lastActivityAt === undefined) return "";
+  const quiet = now - row.live.lastActivityAt;
   // Under ten seconds is "now" rather than a number that changes every render
   // and draws the eye to a connection doing nothing interesting.
-  return quiet < 10_000 ? "live" : `idle ${since(lastActivityAt, now)}`;
+  return quiet < 10_000
+    ? "live"
+    : `idle ${since(row.live.lastActivityAt, now)}`;
 }
 
-function sessionText(device: ConnectedDevice): string {
+function whereText(row: PanelRow): string {
+  const device = row.live;
+  if (!device) return "—";
   if (device.attachedSession) return device.attachedSession;
   if (device.scope?.kind === "sessions") {
     return device.scope.sessions.join(",") || "—";
@@ -228,22 +411,28 @@ function sessionText(device: ConnectedDevice): string {
 }
 
 /** The one thing worth colouring: a connection that is not a full session. */
-function badge(device: ConnectedDevice): string {
+function badge(row: PanelRow): string {
+  const device = row.live;
+  if (!device) return "";
   if (device.readOnly) return kleur.yellow(" read-only");
   if (device.scope && device.scope.kind !== "all") return kleur.cyan(" shared");
   return "";
 }
 
 function keyBar(state: PanelState, width: number): string {
+  const row = selected(state);
   const keys: string[] = [];
-  if (state.devices.length > 1) keys.push(key("↑↓", "select"));
-  if (state.devices.length > 0) {
+  if (state.rows.length > 1) keys.push(key("↑↓", "select"));
+  if (row) {
     keys.push(key("d", "details"));
-    keys.push(key("c", "close"));
-    // Only when there is a device behind the socket. The machine's own token
-    // has none, and offering to revoke it would offer to revoke the credential
+    if (row.live) keys.push(key("c", "close"));
+    // Only when there is a device behind the row. The machine's own token has
+    // none, and offering to revoke it would offer to revoke the credential
     // this terminal is printing.
-    if (selected(state)?.deviceId) keys.push(key("r", "revoke"));
+    if (row.deviceId) {
+      keys.push(key("e", "rename"));
+      keys.push(key("r", "revoke"));
+    }
   }
   // Exactly one of these is ever offered, and the pair is why: `n` replaces a
   // code that exists, `t` creates the thing that has codes at all. Showing
@@ -255,12 +444,12 @@ function keyBar(state: PanelState, width: number): string {
 }
 
 /**
- * One connection, in full.
+ * One device, in full.
  *
  * The table row answers "who is here"; this answers "what exactly is it, and
  * what is it allowed to do". That second question had no answer anywhere short
  * of reading the config file by hand — `mtmux devices` lists paired devices
- * rather than live sockets, and the row has room for a label, an age and a
+ * rather than live sockets, and the row has room for a name, an age and a
  * badge.
  *
  * Fields are omitted when they have nothing to say, rather than printed as a
@@ -271,57 +460,86 @@ function detailCard(
   mode: Extract<PanelMode, { kind: "details" }>,
   width: number,
 ): string[] {
-  const device =
-    state.devices.find((d) => d.id === mode.id) ??
-    (mode.id === null ? selected(state) : null);
+  const row =
+    state.rows.find((r) => r.key === mode.key) ??
+    (mode.key === null ? selected(state) : null);
 
-  if (!device) {
+  if (!row) {
     return [
       rule(width),
-      ` ${kleur.bold("That connection has gone")}`,
+      ` ${kleur.bold("That device has gone")}`,
       ` ${kleur.dim(fit("It dropped while this was open. Any key to go back.", width - 2))}`,
     ];
   }
 
-  const lines = [rule(width), ` ${kleur.bold(fit(device.label, width - 2))}`];
+  const lines = [rule(width), ` ${kleur.bold(fit(row.name, width - 2))}`];
   const field = (label: string, value: string) => {
     lines.push(` ${kleur.dim(pad(label, 10))} ${fit(value, width - 13)}`);
   };
 
-  field(
-    "Connected",
-    `${since(device.connectedAt, state.now)} ago` +
-      (device.lastActivityAt === undefined
-        ? ""
-        : `   ·   ${idleText(device.lastActivityAt, state.now)}`),
-  );
-  if (device.attachedSession) field("Session", device.attachedSession);
-  if (device.size) field("Screen", `${device.size.cols}×${device.size.rows}`);
-  field("Can do", capabilities(device));
-  if (device.expiresAt) {
-    field(
-      "Expires",
-      device.expiresAt <= state.now
-        ? "already — it is running on a spent grant"
-        : `in ${since(state.now, device.expiresAt)}`,
-    );
+  // What the browser claims, when it is not what the row already says. Shown
+  // only when a rename has made the two differ, because that is the only time
+  // it carries information.
+  if (row.peer?.name && row.peer.label && row.peer.label !== row.name) {
+    field("Browser", row.peer.label);
   }
-  field("Reached me", whereFrom(device));
-  if (device.userAgent) field("It says", device.userAgent);
+
+  const device = row.live;
+  if (device) {
+    field(
+      "Connected",
+      `${since(device.connectedAt, state.now)} ago` +
+        (device.lastActivityAt === undefined
+          ? ""
+          : `   ·   ${statusText(row, state.now)}`),
+    );
+    if (device.attachedSession) field("Session", device.attachedSession);
+    if (device.size) field("Screen", `${device.size.cols}×${device.size.rows}`);
+    field("Can do", capabilities(device));
+    if (device.expiresAt) {
+      field(
+        "Expires",
+        device.expiresAt <= state.now
+          ? "already — it is running on a spent grant"
+          : `in ${since(state.now, device.expiresAt)}`,
+      );
+    }
+    field("Reached me", whereFrom(device));
+    if (device.userAgent) field("It says", device.userAgent);
+  } else {
+    field("Connected", "not right now");
+  }
+
+  if (row.peer) {
+    field("Paired", `${since(row.peer.pairedAt, state.now)} ago`);
+    field(
+      "Last seen",
+      row.peer.expired
+        ? "over 90 days ago — it must pair again"
+        : `${since(row.peer.lastSeenAt, state.now)} ago`,
+    );
+  } else if (device) {
+    // A live socket with no stored record: the machine's own token, or a
+    // share. Worth naming, because `r` is about to be missing from the footer.
+    field("Paired", "no — it is using this machine's own token");
+  }
+
   // The device id is what `mtmux devices revoke` takes, so it is printed in
   // full rather than shortened — a truncated id is a thing you cannot act on.
-  if (device.deviceId) field("Device", device.deviceId);
-  else field("Device", kleur.dim("signed in with this machine's token"));
-  if (device.id) field("Socket", device.id);
+  if (row.deviceId) field("Device", row.deviceId);
+  if (device?.id) field("Socket", device.id);
 
   lines.push("");
   // Fitted like every other line here: at 40 columns the hint is what goes,
   // not the keys, because the keys are the part you cannot guess.
-  const footer =
-    `${kleur.bold("c")} ${kleur.dim("close")}` +
-    (device.deviceId ? `   ${kleur.bold("r")} ${kleur.dim("revoke")}` : "") +
-    kleur.dim("   ·   any other key goes back");
-  lines.push(` ${fit(footer, width - 2)}`);
+  const parts: string[] = [];
+  if (device) parts.push(`${kleur.bold("c")} ${kleur.dim("close")}`);
+  if (row.deviceId) {
+    parts.push(`${kleur.bold("e")} ${kleur.dim("rename")}`);
+    parts.push(`${kleur.bold("r")} ${kleur.dim("revoke")}`);
+  }
+  parts.push(kleur.dim("any other key goes back"));
+  lines.push(` ${fit(parts.join(kleur.dim("   ·   ")), width - 2)}`);
   return lines;
 }
 
@@ -376,26 +594,34 @@ function key(k: string, label: string): string {
   return `${kleur.bold(k)} ${kleur.dim(label)}`;
 }
 
-function help(width: number): string[] {
-  return [
+function help(state: PanelState, width: number): string[] {
+  const lines = [
     rule(width),
     ` ${kleur.bold("Keys")}`,
-    `   ${kleur.bold("↑ ↓")}   ${kleur.dim("move between connected devices")}`,
-    `   ${kleur.bold("d")}     ${kleur.dim("everything about this connection — enter does it too")}`,
+    `   ${kleur.bold("↑ ↓")}   ${kleur.dim("move between devices — connected first, then paired")}`,
+    `   ${kleur.bold("d")}     ${kleur.dim("everything about this device — enter does it too")}`,
     `   ${kleur.bold("c")}     ${kleur.dim("close this connection — it may reconnect")}`,
+    `   ${kleur.bold("e")}     ${kleur.dim("rename it, so the list reads as yours")}`,
     `   ${kleur.bold("r")}     ${kleur.dim("revoke this device — permanent, it must pair again")}`,
+    `   ${kleur.bold("a")}     ${kleur.dim("ask again when a device you know comes back")}`,
     `   ${kleur.bold("t")}     ${kleur.dim("open an encrypted tunnel, so a device anywhere can pair")}`,
     `   ${kleur.bold("n")}     ${kleur.dim("throw away the printed code and arm a fresh one")}`,
     `   ${kleur.bold("l")}     ${kleur.dim("reprint the banner, code and addresses")}`,
     `   ${kleur.bold("q")}     ${kleur.dim("stop the server — the same as Ctrl+C")}`,
     "",
-    ` ${kleur.dim("Closing is temporary, revoking is not. mtmux devices lists every")}`,
-    ` ${kleur.dim("paired device, including the ones not connected right now.")}`,
+    ` ${kleur.dim("Closing is temporary, revoking is not. Renaming changes nothing")}`,
+    ` ${kleur.dim("about what a device may do — it is for you, not for it.")}`,
+    "",
+    ` ${kleur.dim("A new device is always asked about here before it gets in.")}`,
+    ` ${kleur.dim("Asking again when a known one returns is ")}` +
+      (state.askOnReconnect ? kleur.bold("on") : kleur.dim("off")) +
+      kleur.dim(` — press a.`),
     "",
     ` ${kleur.dim("t and n are never both offered: t opens the tunnel this machine")}`,
     ` ${kleur.dim("does not have, n replaces a code it already printed.")}`,
     ` ${kleur.dim("Any key to go back.")}`,
   ];
+  return lines.map((line) => fit(line, width));
 }
 
 function confirm(
@@ -409,6 +635,35 @@ function confirm(
     ` ${kleur.dim("To hang up without un-pairing, answer no and press")} ${kleur.bold("c")}${kleur.dim(".")}`,
     "",
     ` ${kleur.bold("y")} ${kleur.dim("revoke")}   ${kleur.bold("n")} ${kleur.dim("keep it paired")}`,
+  ];
+}
+
+/**
+ * The rename editor.
+ *
+ * A line editor rather than a readline, for the reason the whole panel exists:
+ * one owner of stdin. Opening a readline here would put two readers on the
+ * same tty, which is the defect `access-prompt.ts` records paying for once.
+ *
+ * Empty and Enter clears the name back to whatever the browser calls itself,
+ * which is the only way back and is said on screen rather than left to be
+ * discovered.
+ */
+function rename(
+  mode: Extract<PanelMode, { kind: "rename" }>,
+  width: number,
+): string[] {
+  return [
+    rule(width),
+    ` ${kleur.bold("Rename")} ${kleur.bold(kleur.cyan(fit(mode.label, Math.max(8, width - 12))))}`,
+    "",
+    ` ${kleur.dim("Name")}  ${kleur.bold(fit(mode.draft, Math.max(8, width - 10)))}${kleur.cyan("▏")}`,
+    "",
+    // Fitted, like every other prose line in this file. A 40-column terminal
+    // is the width this panel is tested at and these two sentences are the
+    // longest strings it draws.
+    ` ${kleur.dim(fit("Enter saves   ·   empty clears it back to what the browser says", width - 2))}`,
+    ` ${kleur.dim(fit("Esc cancels   ·   it changes nothing about what the device may do", width - 2))}`,
   ];
 }
 
@@ -439,8 +694,8 @@ function approval(
       ` ${kleur.dim("It is showing the same six digits. Deny if they differ.")}`,
     );
   } else {
-    // No digits, and the absence is the message. The nine-digit code was the
-    // shared secret, so there is nothing to compare; asking "do these match?"
+    // No digits, and the absence is the message. The code was the shared
+    // secret, so there is nothing to compare; asking "do these match?"
     // against a blank space teaches people to answer without looking.
     lines.push(
       ` ${kleur.dim("It entered this machine's code. Say yes only if that was you.")}`,
@@ -459,6 +714,6 @@ export function clamp(cursor: number, length: number): number {
   return Math.min(Math.max(0, cursor), length - 1);
 }
 
-export function selected(state: PanelState): ConnectedDevice | null {
-  return state.devices[clamp(state.cursor, state.devices.length)] ?? null;
+export function selected(state: PanelState): PanelRow | null {
+  return state.rows[clamp(state.cursor, state.rows.length)] ?? null;
 }

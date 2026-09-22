@@ -244,3 +244,61 @@ describe("reconnect policy", () => {
 function peerFixture(deviceId: string, label = "device") {
   return { deviceId, publicKey: "", label, pairedAt: 1000, lastSeenAt: 1000 };
 }
+
+/**
+ * A name is for the reader, not for the device. It must never be able to
+ * change what that device may do, and it must never destroy what the browser
+ * actually claimed to be — which is the one field that can contradict it.
+ */
+describe("naming a paired device", () => {
+  const peer = () => ({
+    deviceId: "dev-1",
+    publicKey: "",
+    label: "Chrome on macOS",
+    pairedAt: 1,
+    lastSeenAt: 2,
+  });
+
+  it("names a device and keeps the browser's own claim", async () => {
+    await store.addPeer(peer());
+    expect(await store.renamePeer("dev-1", "Work laptop")).toBe(true);
+    const [stored] = await store.listPeers();
+    expect(stored!.name).toBe("Work laptop");
+    expect(stored!.label).toBe("Chrome on macOS");
+    expect(store.displayName(stored!)).toBe("Work laptop");
+  });
+
+  it("clears back to the browser's label", async () => {
+    await store.addPeer({ ...peer(), name: "Work laptop" });
+    await store.renamePeer("dev-1", null);
+    const [stored] = await store.listPeers();
+    expect(stored!.name).toBeUndefined();
+    expect(store.displayName(stored!)).toBe("Chrome on macOS");
+  });
+
+  it("treats a name of only spaces as clearing it", async () => {
+    await store.addPeer({ ...peer(), name: "Work laptop" });
+    await store.renamePeer("dev-1", "   ");
+    expect((await store.listPeers())[0]!.name).toBeUndefined();
+  });
+
+  it("caps the length the table has to draw", async () => {
+    await store.addPeer(peer());
+    await store.renamePeer("dev-1", "x".repeat(500));
+    expect((await store.listPeers())[0]!.name).toHaveLength(
+      store.MAX_PEER_NAME,
+    );
+  });
+
+  it("changes nothing else about the record", async () => {
+    await store.addPeer({ ...peer(), directToken: "t", grantId: "g" });
+    await store.renamePeer("dev-1", "Work laptop");
+    const [stored] = await store.listPeers();
+    expect(stored!.directToken).toBe("t");
+    expect(stored!.grantId).toBe("g");
+  });
+
+  it("says so rather than inventing a peer that is not there", async () => {
+    expect(await store.renamePeer("nobody", "x")).toBe(false);
+  });
+});

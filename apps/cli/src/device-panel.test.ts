@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { clamp, render, selected, type PanelState } from "./device-panel.js";
+import {
+  buildRows,
+  clamp,
+  render,
+  selected,
+  type PanelPeer,
+  type PanelState,
+} from "./device-panel.js";
 import { displayWidth } from "./live-view.js";
 import type { ConnectedDevice } from "./serve.js";
 
@@ -32,17 +39,43 @@ function device(over: Partial<ConnectedDevice> = {}): ConnectedDevice {
   };
 }
 
-function state(over: Partial<PanelState> = {}): PanelState {
+function peer(over: Partial<PanelPeer> = {}): PanelPeer {
   return {
-    devices: [device()],
+    deviceId: "dev-1",
+    label: "iPhone · Safari",
+    pairedAt: NOW - 86_400_000,
+    lastSeenAt: NOW - 3_600_000,
+    expired: false,
+    ...over,
+  };
+}
+
+/**
+ * Built from `devices` and `peers` rather than taking `rows` directly.
+ *
+ * The ordering rule — connected first, then everything else this machine
+ * trusts — is part of what is being asserted, so the tests go through the same
+ * `buildRows` the panel does rather than hand-assembling a list that could be
+ * in an order the panel would never produce.
+ */
+function state(
+  over: Partial<Omit<PanelState, "rows">> & {
+    devices?: ConnectedDevice[];
+    peers?: PanelPeer[];
+  } = {},
+): PanelState {
+  const { devices = [device()], peers = [], ...rest } = over;
+  return {
+    rows: buildRows(devices, peers),
     cursor: 0,
     mode: { kind: "list" },
     flash: null,
     now: NOW,
     hosted: true,
     canOpenTunnel: false,
+    askOnReconnect: false,
     frozen: false,
-    ...over,
+    ...rest,
   };
 }
 
@@ -74,10 +107,12 @@ describe("the list", () => {
     expect(out).not.toContain("—");
   });
 
-  it("says something different when there is no tunnel to scan a code for", () => {
+  it("names the typed code too when there is no tunnel", () => {
+    // Local mode has six digits now, and this line is the one place an empty
+    // panel says how to use them.
     const out = text(state({ devices: [], hosted: false }));
-    expect(out).toContain("on this network");
-    expect(out).not.toContain("Scan the code");
+    expect(out).toContain("six digits");
+    expect(out).not.toContain("press n");
   });
 
   it("marks a read-only share as one", () => {
@@ -246,9 +281,12 @@ describe("the cursor", () => {
   it("survives the list shrinking under it", () => {
     // A device disconnecting while the cursor is on the last row is ordinary,
     // and an out-of-range index would render a row of `undefined`.
-    const s = state({ devices: [device(), device({ id: "c2" })], cursor: 1 });
-    const shrunk = { ...s, devices: [device()] };
-    expect(selected(shrunk)?.id).toBe("conn-1");
+    const s = state({
+      devices: [device(), device({ id: "c2", deviceId: "dev-2" })],
+      cursor: 1,
+    });
+    const shrunk = { ...s, rows: buildRows([device()], []) };
+    expect(selected(shrunk)?.live?.id).toBe("conn-1");
     expect(() => render(shrunk, 80)).not.toThrow();
   });
 });
@@ -274,6 +312,45 @@ describe("liveness", () => {
     const out = text(state({ devices: [rest] }));
     expect(out).not.toContain("idle");
     expect(out).toContain("iPhone · Safari");
+  });
+});
+
+describe("the tunnel offer", () => {
+  /*
+   * `t` in the key bar is two characters among six other pairs — invisible to
+   * anyone who has not already been told what it does, which is everyone. The
+   * thing on offer is the product's headline feature in one keypress.
+   */
+  it("spells out what t does, rather than leaving it as a letter", () => {
+    const out = text(state({ hosted: false, canOpenTunnel: true }));
+    expect(out).toContain("reach it from anywhere");
+    expect(out).toContain("sealed end to end");
+  });
+
+  it("shortens rather than truncating on a narrow terminal", () => {
+    for (const width of [40, 52, 64, 80, 120]) {
+      const lines = plain(
+        render(state({ hosted: false, canOpenTunnel: true }), width),
+      );
+      const offer = lines.find((l) => l.includes("Press t"))!;
+      expect(displayWidth(offer)).toBeLessThanOrEqual(width);
+      // Never half a sentence: the last words are the ones worth reading.
+      expect(offer.trimEnd().endsWith(".")).toBe(true);
+    }
+  });
+
+  it("says nothing once there is a tunnel", () => {
+    expect(text(state({ hosted: true, canOpenTunnel: false }))).not.toContain(
+      "Press t",
+    );
+  });
+
+  it("gets out of the way of a flash, which is the same row", () => {
+    const out = text(
+      state({ hosted: false, canOpenTunnel: true, flash: "Opening…" }),
+    );
+    expect(out).toContain("Opening…");
+    expect(out).not.toContain("Press t");
   });
 });
 
@@ -305,7 +382,10 @@ describe("the detail card", () => {
     text(
       state({
         devices: [device(over)],
-        mode: { kind: "details", id: "conn-1" },
+        // `null` means "whatever the cursor is on", which is the one row
+        // there is. Naming a key here would make every variation of this
+        // helper have to know how `buildRows` chose it.
+        mode: { kind: "details", key: null },
       }),
       width,
     );
@@ -332,7 +412,7 @@ describe("the detail card", () => {
 
   it("names the machine's own token rather than an absent device", () => {
     const out = open({ deviceId: null });
-    expect(out).toContain("this machine's token");
+    expect(out).toContain("this machine's own token");
     // Nothing to revoke, so nothing offers to.
     expect(out).not.toContain("r revoke");
   });
@@ -344,7 +424,7 @@ describe("the detail card", () => {
    */
   it("admits when the connection it describes has gone", () => {
     const out = text(
-      state({ devices: [], mode: { kind: "details", id: "conn-9" } }),
+      state({ devices: [], mode: { kind: "details", key: "nope" } }),
     );
     expect(out).toContain("has gone");
   });
@@ -361,7 +441,7 @@ describe("the detail card", () => {
         render(
           state({
             devices: [device({ label: "📱".repeat(30) })],
-            mode: { kind: "details", id: "conn-1" },
+            mode: { kind: "details", key: "dev-1" },
           }),
           width,
         ),
@@ -377,7 +457,7 @@ describe("where a connection came from", () => {
     text(
       state({
         devices: [device(over)],
-        mode: { kind: "details", id: "conn-1" },
+        mode: { kind: "details", key: "dev-1" },
       }),
     );
 
@@ -402,5 +482,210 @@ describe("where a connection came from", () => {
     });
     expect(out).toContain("10.0.0.9");
     expect(out).not.toContain("network");
+  });
+});
+
+/**
+ * Connected is not the same as paired, and the list has to hold both.
+ *
+ * The panel used to show live sockets only, which made it useless for the
+ * most common thing anyone wants to do to a device: get rid of one that is
+ * not here.
+ */
+describe("devices that are paired but not connected", () => {
+  it("lists them under the connected ones", () => {
+    const rows = buildRows(
+      [device()],
+      [peer(), peer({ deviceId: "dev-2", label: "Old iPad" })],
+    );
+    expect(rows.map((r) => r.key)).toEqual(["dev-1", "dev-2"]);
+    expect(rows[0]!.live).not.toBeNull();
+    expect(rows[1]!.live).toBeNull();
+  });
+
+  it("does not list a connected device twice", () => {
+    const rows = buildRows([device()], [peer()]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.peer).not.toBeNull();
+  });
+
+  it("puts the most recently seen first among the absent", () => {
+    const rows = buildRows(
+      [],
+      [
+        peer({ deviceId: "old", lastSeenAt: NOW - 90_000_000 }),
+        peer({ deviceId: "recent", lastSeenAt: NOW - 1000 }),
+      ],
+    );
+    expect(rows.map((r) => r.key)).toEqual(["recent", "old"]);
+  });
+
+  it("says how many are paired but absent, and when each was last here", () => {
+    const out = text(
+      state({
+        devices: [device()],
+        peers: [peer(), peer({ deviceId: "dev-2", label: "Old iPad" })],
+      }),
+    );
+    expect(out).toContain("1 paired, not here");
+    expect(out).toContain("paired, not connected");
+    expect(out).toContain("Old iPad");
+    expect(out).toContain("1h");
+  });
+
+  it("calls a long-idle one stale rather than printing a number", () => {
+    const out = text(
+      state({
+        devices: [],
+        peers: [peer({ deviceId: "dev-2", expired: true })],
+      }),
+    );
+    expect(out).toContain("stale");
+  });
+
+  it("offers rename and revoke but not close", () => {
+    const out = text(
+      state({ devices: [], peers: [peer({ deviceId: "dev-2" })] }),
+    );
+    expect(out).toContain("e rename");
+    expect(out).toContain("r revoke");
+    expect(out).not.toContain("c close");
+  });
+
+  it("says plainly that it is not here, rather than faking a connection", () => {
+    const out = plain(
+      render(
+        state({
+          devices: [],
+          peers: [peer({ deviceId: "dev-2" })],
+          mode: { kind: "details", key: "dev-2" },
+        }),
+        90,
+      ),
+    ).join("\n");
+    expect(out).toContain("not right now");
+    expect(out).toContain("Last seen");
+    expect(out).toContain("Paired");
+  });
+});
+
+/**
+ * Three rows reading "Chrome on macOS" is a list you cannot act on. The name
+ * is for the reader; it changes nothing about what the device may do.
+ */
+describe("names", () => {
+  it("prefers what the owner called it over what the browser did", () => {
+    const rows = buildRows([device()], [peer({ name: "Work laptop" })]);
+    expect(rows[0]!.name).toBe("Work laptop");
+    expect(text(state({ peers: [peer({ name: "Work laptop" })] }))).toContain(
+      "Work laptop",
+    );
+  });
+
+  it("falls back to the browser's label, including a name of only spaces", () => {
+    expect(buildRows([device()], [peer({ name: "   " })])[0]!.name).toBe(
+      "iPhone · Safari",
+    );
+  });
+
+  it("keeps the browser's own claim visible on the card", () => {
+    // The one field that can contradict a name, and therefore the one worth
+    // keeping when it does.
+    const out = plain(
+      render(
+        state({
+          peers: [peer({ name: "Work laptop" })],
+          mode: { kind: "details", key: "dev-1" },
+        }),
+        90,
+      ),
+    ).join("\n");
+    expect(out).toContain("Work laptop");
+    expect(out).toContain("Browser");
+    expect(out).toContain("iPhone · Safari");
+  });
+
+  it("does not repeat the label when there is no rename", () => {
+    const out = plain(
+      render(
+        state({ peers: [peer()], mode: { kind: "details", key: "dev-1" } }),
+        90,
+      ),
+    ).join("\n");
+    expect(out).not.toContain("Browser");
+  });
+
+  it("draws an editor that says how to clear the name", () => {
+    const out = plain(
+      render(
+        state({
+          mode: {
+            kind: "rename",
+            deviceId: "dev-1",
+            label: "iPhone · Safari",
+            draft: "Work",
+          },
+        }),
+        90,
+      ),
+    ).join("\n");
+    expect(out).toContain("Rename");
+    expect(out).toContain("Work");
+    expect(out).toContain("empty clears it");
+    expect(out).toContain("Esc cancels");
+  });
+
+  it("never overflows while a long name is being typed", () => {
+    for (const width of [40, 52, 80]) {
+      const lines = plain(
+        render(
+          state({
+            mode: {
+              kind: "rename",
+              deviceId: "dev-1",
+              label: "📱".repeat(30),
+              draft: "x".repeat(32),
+            },
+          }),
+          width,
+        ),
+      );
+      for (const line of lines)
+        expect(displayWidth(line)).toBeLessThanOrEqual(width);
+    }
+  });
+});
+
+/**
+ * "It never asked me" is almost always this setting, doing exactly what it was
+ * told. A setting nobody can see is a setting nobody can be wrong about.
+ */
+describe("the reconnect policy", () => {
+  it("says which way it is set, in help", () => {
+    const on = plain(
+      render(state({ mode: { kind: "help" }, askOnReconnect: true }), 90),
+    ).join("\n");
+    const off = plain(
+      render(state({ mode: { kind: "help" }, askOnReconnect: false }), 90),
+    ).join("\n");
+    expect(on).toContain("returns is on");
+    expect(off).toContain("returns is off");
+  });
+
+  it("says a new device is always asked about, whichever way it is set", () => {
+    const out = plain(
+      render(state({ mode: { kind: "help" }, askOnReconnect: false }), 90),
+    ).join("\n");
+    expect(out).toContain("A new device is always asked about");
+  });
+
+  it("never overflows", () => {
+    for (const width of [40, 52, 80, 120]) {
+      for (const line of plain(
+        render(state({ mode: { kind: "help" } }), width),
+      )) {
+        expect(displayWidth(line)).toBeLessThanOrEqual(width);
+      }
+    }
   });
 });

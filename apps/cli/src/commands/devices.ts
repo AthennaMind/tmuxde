@@ -91,22 +91,63 @@ export async function devicesList(): Promise<void> {
     return;
   }
 
-  const labelWidth = Math.max(...peers.map((p) => p.label.length), 6);
+  const named = peers.map((peer) => ({
+    peer,
+    shown: configStore.displayName(peer),
+  }));
+  const labelWidth = Math.max(...named.map((n) => n.shown.length), 6);
   console.log("");
-  for (const peer of peers) {
+  for (const { peer, shown } of named) {
     const stale = configStore.isPeerExpired(peer);
     const dot = stale ? kleur.dim("○") : kleur.green("●");
     console.log(
-      `  ${dot} ${peer.label.padEnd(labelWidth)}  ${kleur.dim(ago(peer.lastSeenAt))}` +
+      `  ${dot} ${shown.padEnd(labelWidth)}  ${kleur.dim(ago(peer.lastSeenAt))}` +
         `  ${kleur.dim(peer.deviceId)}` +
+        // Only when a rename has made the two differ. Printing the browser's
+        // own claim beside an identical name is a column of noise.
+        (peer.name && peer.label && peer.label !== shown
+          ? kleur.dim(`  (${peer.label})`)
+          : "") +
         (stale ? kleur.dim("  (stale)") : ""),
     );
   }
   console.log("");
   console.log(
+    kleur.dim("  Name one with  ") +
+      kleur.bold("mtmux devices rename <id> <name>"),
+  );
+  console.log(
     kleur.dim("  Revoke one with ") + kleur.bold("mtmux devices revoke <id>"),
   );
   console.log("");
+}
+
+/**
+ * Give a device a name of your own.
+ *
+ * The same thing `e` does in the live panel, for a machine whose panel is not
+ * up — a service unit, a pipe, an SSH session with no tty. Passing no name
+ * clears it back to whatever the browser calls itself, which is the only way
+ * back and is therefore worth having a spelling for.
+ */
+export async function devicesRename(
+  deviceId: string,
+  parts: string[],
+): Promise<void> {
+  const name = parts.join(" ").trim();
+  const ok = await configStore.renamePeer(deviceId, name || null);
+  if (!ok) {
+    console.error(kleur.red(`✗ No device with id ${deviceId}.`));
+    console.error(kleur.dim("  Run `mtmux devices` to see the list."));
+    process.exitCode = 1;
+    return;
+  }
+  console.log(
+    name
+      ? kleur.green(`✓ Now called ${name}.`)
+      : kleur.green("✓ Name cleared — back to what the browser calls it."),
+  );
+  console.log(kleur.dim("  It changes nothing about what that device may do."));
 }
 
 /**

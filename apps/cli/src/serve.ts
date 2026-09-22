@@ -191,7 +191,7 @@ export type RelayRuntime = {
       sas?: string;
       deviceLabel: string;
       accountEmail: string;
-      via?: "code" | "request";
+      via?: "code" | "request" | "returning";
     },
     opts?: { timeoutMs?: number; signal?: AbortSignal },
   ) => Promise<boolean | null>;
