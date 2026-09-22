@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { redeemLocalPairingNonce, PAIR_LOCAL_PATH } from "./local-pairing";
+import {
+  redeemLocalPairingCode,
+  redeemLocalPairingNonce,
+  PAIR_LOCAL_PATH,
+} from "./local-pairing";
+import { deviceLabel } from "./device-label";
 
 type FetchCall = { url: string; init: RequestInit };
 
@@ -16,7 +21,7 @@ function stubFetch(reply: { status: number; body?: unknown }): FetchCall[] {
   return calls;
 }
 
-describe("redeemLocalPairingNonce", () => {
+describe("redeeming a local pairing offer", () => {
   beforeEach(() => vi.unstubAllGlobals());
   afterEach(() => vi.unstubAllGlobals());
 
@@ -36,7 +41,35 @@ describe("redeemLocalPairingNonce", () => {
     expect(call!.init.method).toBe("POST");
     expect(JSON.parse(call!.init.body as string)).toEqual({
       nonce: "nonce-value",
+      // Self-reported, and display-only at the far end. It is here so the
+      // question on the terminal names a device instead of asking about an
+      // anonymous request nobody can identify.
+      label: deviceLabel(),
     });
+  });
+
+  it("posts the typed code in the body too", async () => {
+    const calls = stubFetch({
+      status: 200,
+      body: { token: "a".repeat(64), expiresAt: 1 },
+    });
+    await redeemLocalPairingCode("483921");
+    expect(calls[0]!.url).not.toContain("483921");
+    expect(JSON.parse(calls[0]!.init.body as string)).toMatchObject({
+      code: "483921",
+    });
+  });
+
+  /*
+   * 403 and 401 are different facts. Telling somebody whose code was right and
+   * was declined at the machine that it is "invalid or already used" sends
+   * them hunting for a typo that does not exist.
+   */
+  it("says a refusal was a refusal on 403", async () => {
+    stubFetch({ status: 403, body: { error: "no" } });
+    await expect(redeemLocalPairingCode("483921")).rejects.toThrow(
+      /refused this device/,
+    );
   });
 
   it("returns the issued session token", async () => {

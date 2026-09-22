@@ -10,11 +10,14 @@ export {
   PAIR_SESSION_PATH,
 } from "./server.js";
 export {
-  issuePairingNonce,
-  onPairingRedeemed,
+  armLocalPairing,
+  onLocalPairingSpent,
+  setLocalPairingGate,
   onSessionTokenUsed,
   registerSessionToken,
   revokeSessionToken,
+  type LocalPairingOutcome,
+  type LocalPairingRequest,
 } from "./pairing-local.js";
 export {
   connectionSummary,

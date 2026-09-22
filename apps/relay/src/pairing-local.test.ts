@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  issuePairingNonce,
-  redeemPairingNonce,
+  armLocalPairing,
+  redeemLocalPairing,
+  setLocalPairingGate,
+  onLocalPairingSpent,
   issueSessionToken,
   isValidSessionToken,
   revokeSessionToken,
@@ -19,49 +21,215 @@ import { FULL_GRANT } from "./grant.js";
 
 const T0 = 1_700_000_000_000;
 
-describe("local pairing nonces", () => {
+describe("local pairing offers", () => {
   beforeEach(resetPairingState);
 
-  it("is disarmed until a nonce is issued", () => {
+  const CODE = "483921";
+  const redeemNonce = (nonce: string, now = T0) =>
+    redeemLocalPairing({ nonce }, {}, now);
+  const redeemCode = (code: string, now = T0) =>
+    redeemLocalPairing({ code }, {}, now);
+
+  it("is disarmed until an offer is armed", async () => {
     expect(hasLivePairingNonce(T0)).toBe(false);
-    expect(redeemPairingNonce("anything", T0)).toBeNull();
+    expect(await redeemNonce("anything")).toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+    expect(await redeemCode(CODE)).toEqual({ ok: false, reason: "invalid" });
   });
 
-  it("redeems a fresh nonce for a session token", () => {
-    const { nonce } = issuePairingNonce(60_000, T0);
-    const session = redeemPairingNonce(nonce, T0);
-    expect(session).not.toBeNull();
-    expect(session!.token).toMatch(/^[0-9a-f]{64}$/);
-    expect(session!.expiresAt).toBeGreaterThan(T0);
+  it("redeems a fresh nonce for a session token", async () => {
+    const { nonce } = armLocalPairing(CODE, 60_000, T0);
+    const result = await redeemNonce(nonce);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.session.token).toMatch(/^[0-9a-f]{64}$/);
+    expect(result.session.expiresAt).toBeGreaterThan(T0);
   });
 
-  it("burns the nonce — a second redemption fails", () => {
-    const { nonce } = issuePairingNonce(60_000, T0);
-    expect(redeemPairingNonce(nonce, T0)).not.toBeNull();
-    expect(redeemPairingNonce(nonce, T0)).toBeNull();
+  it("redeems the typed code for a session token", async () => {
+    armLocalPairing(CODE, 60_000, T0);
+    expect((await redeemCode(CODE)).ok).toBe(true);
   });
 
-  it("rejects an expired nonce", () => {
-    const { nonce } = issuePairingNonce(60_000, T0);
-    expect(redeemPairingNonce(nonce, T0 + 60_001)).toBeNull();
+  it("accepts the code however it was spaced", async () => {
+    armLocalPairing(CODE, 60_000, T0);
+    expect((await redeemCode("483 921")).ok).toBe(true);
   });
 
-  it("rejects a nonce that was never issued", () => {
-    issuePairingNonce(60_000, T0);
-    expect(redeemPairingNonce("not-the-nonce", T0)).toBeNull();
+  it("burns the offer — a second redemption fails", async () => {
+    const { nonce } = armLocalPairing(CODE, 60_000, T0);
+    expect((await redeemNonce(nonce)).ok).toBe(true);
+    expect((await redeemNonce(nonce)).ok).toBe(false);
   });
 
-  it("keeps only the most recently issued nonce live", () => {
-    const first = issuePairingNonce(60_000, T0);
-    const second = issuePairingNonce(60_000, T0);
-    expect(redeemPairingNonce(first.nonce, T0)).toBeNull();
-    expect(redeemPairingNonce(second.nonce, T0)).not.toBeNull();
+  it("spends both halves at once — one offer, two spellings", async () => {
+    // The property that stops a photograph of the QR outliving the digits
+    // somebody has already typed.
+    const { nonce } = armLocalPairing(CODE, 60_000, T0);
+    expect((await redeemCode(CODE)).ok).toBe(true);
+    expect((await redeemNonce(nonce)).ok).toBe(false);
+  });
+
+  it("rejects an expired offer", async () => {
+    const { nonce } = armLocalPairing(CODE, 60_000, T0);
+    expect((await redeemNonce(nonce, T0 + 60_001)).ok).toBe(false);
+  });
+
+  it("rejects a credential that was never armed", async () => {
+    armLocalPairing(CODE, 60_000, T0);
+    expect((await redeemNonce("not-the-nonce")).ok).toBe(false);
+    expect((await redeemCode("000000")).ok).toBe(false);
+  });
+
+  it("keeps only the most recently armed offer live", async () => {
+    const first = armLocalPairing("111111", 60_000, T0);
+    const second = armLocalPairing("222222", 60_000, T0);
+    expect((await redeemNonce(first.nonce)).ok).toBe(false);
+    expect((await redeemCode("111111")).ok).toBe(false);
+    expect((await redeemNonce(second.nonce)).ok).toBe(true);
   });
 
   it("issues distinct nonces", () => {
     const seen = new Set<string>();
-    for (let i = 0; i < 50; i++) seen.add(issuePairingNonce(60_000, T0).nonce);
+    for (let i = 0; i < 50; i++) {
+      seen.add(armLocalPairing(CODE, 60_000, T0).nonce);
+    }
     expect(seen.size).toBe(50);
+  });
+
+  it("refuses to arm anything that is not digits", () => {
+    expect(() => armLocalPairing("hunter2", 60_000, T0)).toThrow();
+  });
+});
+
+/**
+ * Six digits are guessable. Six digits with five tries are not — the budget is
+ * the credential's security argument, not its length.
+ */
+describe("the guess budget", () => {
+  beforeEach(resetPairingState);
+
+  const CODE = "483921";
+
+  it("burns the offer after five wrong codes", async () => {
+    armLocalPairing(CODE, 60_000, T0);
+    for (let i = 0; i < 4; i++) {
+      expect((await redeemLocalPairing({ code: "000000" }, {}, T0)).ok).toBe(
+        false,
+      );
+    }
+    // Four wrong, and the real code still works.
+    expect(hasLivePairingNonce(T0)).toBe(true);
+
+    armLocalPairing(CODE, 60_000, T0);
+    for (let i = 0; i < 5; i++) {
+      await redeemLocalPairing({ code: "000000" }, {}, T0);
+    }
+    expect(hasLivePairingNonce(T0)).toBe(false);
+    expect((await redeemLocalPairing({ code: CODE }, {}, T0)).ok).toBe(false);
+  });
+
+  it("tells the terminal the code is dead, so it can print a fresh one", async () => {
+    const seen: string[] = [];
+    onLocalPairingSpent((outcome) => seen.push(outcome));
+    armLocalPairing(CODE, 60_000, T0);
+    for (let i = 0; i < 5; i++) {
+      await redeemLocalPairing({ code: "000000" }, {}, T0);
+    }
+    expect(seen).toEqual(["burned"]);
+  });
+
+  it("does not bill a stale nonce against the typed code's budget", async () => {
+    // A reloaded tab re-posts a spent nonce. Charging that to the digits would
+    // let a browser burn the code somebody is still reading off the screen.
+    armLocalPairing(CODE, 60_000, T0);
+    for (let i = 0; i < 20; i++) {
+      await redeemLocalPairing({ nonce: "stale" }, {}, T0);
+    }
+    expect((await redeemLocalPairing({ code: CODE }, {}, T0)).ok).toBe(true);
+  });
+});
+
+/**
+ * Knowing the code is not consent. Every local admission raises the same
+ * question every other path raises.
+ */
+describe("the approval gate", () => {
+  beforeEach(resetPairingState);
+
+  const CODE = "483921";
+
+  it("asks before issuing a token, and names the device", async () => {
+    const asked: unknown[] = [];
+    setLocalPairingGate(async (req) => {
+      asked.push(req);
+      return true;
+    });
+    armLocalPairing(CODE, 60_000, T0);
+    expect(
+      (await redeemLocalPairing({ code: CODE }, { label: "iPhone" }, T0)).ok,
+    ).toBe(true);
+    expect(asked).toEqual([{ label: "iPhone", via: "code" }]);
+  });
+
+  it("reports which half was used", async () => {
+    const asked: unknown[] = [];
+    setLocalPairingGate(async (req) => {
+      asked.push(req);
+      return true;
+    });
+    const { nonce } = armLocalPairing(CODE, 60_000, T0);
+    await redeemLocalPairing({ nonce }, { label: "iPad" }, T0);
+    expect(asked).toEqual([{ label: "iPad", via: "scan" }]);
+  });
+
+  it("issues nothing when the machine says no", async () => {
+    setLocalPairingGate(async () => false);
+    armLocalPairing(CODE, 60_000, T0);
+    expect(await redeemLocalPairing({ code: CODE }, {}, T0)).toEqual({
+      ok: false,
+      reason: "refused",
+    });
+  });
+
+  it("spends the offer even when refused", async () => {
+    // The ordering that matters: a correct code left live while the question
+    // sits on screen is a code an attacker can retry the moment it is denied.
+    setLocalPairingGate(async () => false);
+    armLocalPairing(CODE, 60_000, T0);
+    await redeemLocalPairing({ code: CODE }, {}, T0);
+    setLocalPairingGate(async () => true);
+    expect((await redeemLocalPairing({ code: CODE }, {}, T0)).ok).toBe(false);
+  });
+
+  it("treats a gate that throws as a refusal", async () => {
+    setLocalPairingGate(async () => {
+      throw new Error("the panel is gone");
+    });
+    armLocalPairing(CODE, 60_000, T0);
+    expect(await redeemLocalPairing({ code: CODE }, {}, T0)).toEqual({
+      ok: false,
+      reason: "refused",
+    });
+  });
+
+  it("admits when no gate is installed — split mode never arms an offer", async () => {
+    armLocalPairing(CODE, 60_000, T0);
+    expect((await redeemLocalPairing({ code: CODE }, {}, T0)).ok).toBe(true);
+  });
+
+  it("reports the outcome so the terminal can reprint", async () => {
+    const seen: string[] = [];
+    onLocalPairingSpent((outcome) => seen.push(outcome));
+    setLocalPairingGate(async () => true);
+    armLocalPairing(CODE, 60_000, T0);
+    await redeemLocalPairing({ code: CODE }, {}, T0);
+    setLocalPairingGate(async () => false);
+    armLocalPairing(CODE, 60_000, T0);
+    await redeemLocalPairing({ code: CODE }, {}, T0);
+    expect(seen).toEqual(["paired", "refused"]);
   });
 });
 

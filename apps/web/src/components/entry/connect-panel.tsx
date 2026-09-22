@@ -7,8 +7,16 @@ import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { describeBadCode, normalizeCode, parseCode } from "@repo/crypto";
+import {
+  describeBadCode,
+  normalizeCode,
+  normalizeLocalCode,
+  parseCode,
+} from "@repo/crypto";
 import { env } from "@/env";
+import { servesRelay } from "@/lib/origin-mode";
+import { redeemLocalPairingCode } from "@/lib/local-pairing";
+import { TOKEN_KEY, writeStored } from "@/lib/storage-keys";
 import {
   joinPairing,
   type PairingHandle,
@@ -34,6 +42,22 @@ import { pairedMessage, persistPairing } from "@/lib/persist-pairing";
  *
  * With a fragment this pairs with zero taps. Without one it falls back to the
  * nine-digit field, which is what someone typing the code by hand needs.
+ *
+ * ## One field, two kinds of code
+ *
+ * `mtmux start` on your own network prints six digits; `mtmux start --hosted`
+ * prints nine. They are genuinely different things — the nine-digit one is a
+ * CPace password routed through a broker, the six-digit one is redeemed
+ * straight against the machine serving this page — but that is the machine's
+ * business, not the reader's. Nobody holding a terminal full of digits should
+ * have to answer "which kind is this?" before they can type them.
+ *
+ * So the field takes both and tells them apart by length, which it can do
+ * safely: `parseCode` accepts only 9 or 26 characters and `normalizeLocalCode`
+ * only 6, and `local-code.ts` in `@repo/crypto` is where that non-overlap is
+ * asserted. A six-digit code typed into app.mtmux.com is the one case worth a
+ * sentence of its own, because the answer is not "wrong code" — it is "you are
+ * on the wrong page", and the page says so.
  */
 
 type State =
@@ -48,6 +72,15 @@ type State =
    * so the one moment worth confirming went unconfirmed.
    */
   | { phase: "connected"; message: string }
+  /**
+   * The local path, waiting on a human at the machine.
+   *
+   * Its own phase rather than reusing `verifying`, because the two are waiting
+   * on completely different things and only one of them can be helped along.
+   * "Verifying the code" under a terminal that is asking "let it in? [y/n]"
+   * tells the reader to keep waiting when what they should do is look up.
+   */
+  | { phase: "approving" }
   | { phase: "failed"; message: string };
 
 /** Long enough to read one line, short enough not to feel like a wait. */
@@ -111,6 +144,38 @@ export function ConnectPanel({ variant = "full" }: ConnectPanelProps) {
     [apiBase, onUpdate],
   );
 
+  /**
+   * The six-digit path: redeem straight against the machine serving this page.
+   *
+   * No broker, no CPace, no descriptor — there is no third party to route
+   * around, because the browser is already talking to the machine. What comes
+   * back is a scoped session token for this origin's relay, which is the same
+   * credential the QR's `#n=` handoff produces.
+   *
+   * It is stored and used without a validating round trip, unlike `/login`'s
+   * paste form. The difference is provenance: that form takes 64 characters a
+   * human typed from somewhere and has to find out whether they mean anything,
+   * whereas this token was minted thirty milliseconds ago by the relay on this
+   * very origin, in response to this very request.
+   */
+  const joinLocal = useCallback(
+    async (digits: string) => {
+      setState({ phase: "approving" });
+      try {
+        const { token } = await redeemLocalPairingCode(digits);
+        writeStored(TOKEN_KEY, token);
+        setState({
+          phase: "connected",
+          message: "Approved on the machine. You are in.",
+        });
+        setTimeout(() => router.push("/"), CONNECTED_DWELL_MS);
+      } catch (err) {
+        setState({ phase: "failed", message: (err as Error).message });
+      }
+    },
+    [router],
+  );
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -142,14 +207,14 @@ export function ConnectPanel({ variant = "full" }: ConnectPanelProps) {
       );
     }
 
-    if (!apiBase) {
-      setState({
-        phase: "failed",
-        message:
-          "This build has no pairing service configured. Self-hosted installs use the token shown by `mtmux start` instead.",
-      });
-      return;
-    }
+    /*
+     * A build with no broker still has a code field, and that is invariant #4
+     * rather than a nicety: `mtmux start` on your own machine prints six
+     * digits, redeems them against itself, and must work with zero contact
+     * with our servers. This used to fail the whole panel closed here, which
+     * turned the self-hosted front door into an apology.
+     */
+    if (!apiBase && !fromFragment) return;
 
     if (!fromFragment) {
       /*
@@ -165,13 +230,44 @@ export function ConnectPanel({ variant = "full" }: ConnectPanelProps) {
       if (raw) setState({ phase: "failed", message: describeBadCode(raw) });
       return;
     }
+    if (!apiBase) {
+      setState({
+        phase: "failed",
+        message:
+          "That is a hosted pairing code, and this build has no pairing service configured. Use the six digits `mtmux start` printed instead.",
+      });
+      return;
+    }
     join(fromFragment);
 
     return () => handleRef.current?.cancel();
   }, [apiBase, join]);
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    // Six digits first. The two forms cannot collide — see the header — so the
+    // order is about which question gets asked, not about resolving ambiguity.
+    const local = normalizeLocalCode(code);
+    if (local) {
+      if (await servesRelay()) {
+        void joinLocal(local);
+        return;
+      }
+      /*
+       * Right code, wrong page — and saying "invalid code" here would be a
+       * lie that costs somebody twenty minutes. Six digits are only ever
+       * printed by a machine serving its own web client, so the fix is an
+       * address, not a retype.
+       */
+      setState({
+        phase: "failed",
+        message:
+          "That is a six-digit local code. It only works on the address the machine printed — open that on this network. A code for this page is nine digits.",
+      });
+      return;
+    }
+
     const digits = normalizeCode(code);
     if (!digits) {
       // Names the lengths we accept rather than asserting one, so this survives
@@ -180,11 +276,20 @@ export function ConnectPanel({ variant = "full" }: ConnectPanelProps) {
       toast.error(describeBadCode(code));
       return;
     }
+    if (!apiBase) {
+      setState({
+        phase: "failed",
+        message:
+          "This build has no pairing service configured, so a nine-digit code cannot be claimed here. Use the six digits `mtmux start` printed.",
+      });
+      return;
+    }
     join(digits);
   }
 
   const busy =
     state.phase === "verifying" ||
+    state.phase === "approving" ||
     state.phase === "connecting" ||
     state.phase === "connected";
 
@@ -209,6 +314,17 @@ export function ConnectPanel({ variant = "full" }: ConnectPanelProps) {
         </p>
       )}
 
+      {state.phase === "approving" && (
+        <div className="space-y-1 text-center" role="status">
+          <p className="text-sm font-medium text-foreground">
+            Waiting for approval on the machine
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Your terminal is asking whether to let this device in.
+          </p>
+        </div>
+      )}
+
       {state.phase === "connecting" && (
         <p className="text-center text-sm text-muted-foreground" role="status">
           Connecting…
@@ -230,7 +346,7 @@ export function ConnectPanel({ variant = "full" }: ConnectPanelProps) {
         </p>
       )}
 
-      {!busy && apiBase && (
+      {!busy && (
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="code">Pairing code</Label>
@@ -264,8 +380,10 @@ export function ConnectPanel({ variant = "full" }: ConnectPanelProps) {
             two different claims.
           */}
           <p className="text-center text-xs text-muted-foreground">
-            Only the first three digits reach our servers. Everything after is
-            sealed end to end — we pass it on, we can&apos;t read it.
+            Six digits go straight to your machine and reach nobody else. For
+            the nine-digit kind, only the first three reach our servers and
+            everything after is sealed end to end — we pass it on, we can&apos;t
+            read it.
           </p>
         </form>
       )}

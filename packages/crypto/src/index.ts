@@ -6,3 +6,4 @@ export * from "./device-key";
 export * from "./pairing-code";
 export * from "./envelope";
 export * from "./sas";
+export * from "./local-code";

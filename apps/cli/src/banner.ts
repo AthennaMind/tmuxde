@@ -1,6 +1,10 @@
 import kleur from "kleur";
 import qrcode from "qrcode-terminal";
-import { formatCodeForDisplay } from "@repo/crypto";
+import {
+  formatCodeForDisplay,
+  formatLocalCodeForDisplay,
+  isLocalCode,
+} from "@repo/crypto";
 
 /**
  * What `mtmux start` prints.
@@ -26,6 +30,19 @@ export type PairingInvite = {
   url: string | null;
   /** Origin shown to someone typing the code by hand, e.g. "app.mtmux.com". */
   host: string;
+  /**
+   * How far this invite reaches, which decides what is claimed beside it.
+   *
+   * `hosted` is the tunnel: the code is a CPace password, the broker routes
+   * ciphertext, and `SEALED` is the honest thing to say. `local` is this
+   * network only, where the six digits are redeemed straight against this
+   * machine and nothing leaves it — a different and, on its own terms,
+   * stronger claim, which `LOCAL_ONLY` makes.
+   *
+   * Defaulted rather than required so every existing hosted call site reads
+   * the same as it did.
+   */
+  reach?: "hosted" | "local";
 };
 
 export type BannerOpts = {
@@ -41,11 +58,7 @@ export type BannerOpts = {
    * when the broker could not be reached — in which case `note` explains why.
    */
   invite?: PairingInvite | null;
-  /**
-   * A LAN sign-in URL to encode instead, used in `--local` mode. Ignored when
-   * `invite` is set.
-   */
-  lanQrPayload?: string | null;
+
   /**
    * Draw the QR block. `--no-qr` clears this and the code is still printed —
    * the two are separate because a terminal that mangles block characters can
@@ -101,12 +114,19 @@ const SEALED = [
   kleur.dim("read it."),
 ];
 
-/** The other half of the same honesty: local mode is not the tunnel. */
+/**
+ * The other half of the same honesty: local mode is not the tunnel.
+ *
+ * Note what it does *not* apologise for. On this path there is no broker, no
+ * ciphertext in transit through anyone else's process, and no code that has
+ * ever left the building — so the limitation worth naming is reach, and the
+ * property worth naming is that nothing reaches us at all. Wrapped by hand at
+ * 26 columns for the same reason `SEALED` is.
+ */
 const LOCAL_ONLY = [
-  kleur.dim("On this network only. The"),
-  kleur.dim("link signs the device in —"),
-  kleur.dim("nothing reaches our"),
-  kleur.dim("servers."),
+  kleur.dim("On this network only —"),
+  kleur.dim("the code goes to this"),
+  kleur.dim("machine and nowhere else."),
 ];
 
 /**
@@ -172,9 +192,18 @@ function twoColumn(left: string[], right: string[], columns: number): string[] {
   return out;
 }
 
-/** `482913` → `48 2913`, so it can be read aloud and typed without losing place. */
+/**
+ * `492716384` → `492 716 384`, so it can be read aloud without losing place.
+ *
+ * Two formats, told apart the same way every other reader tells them apart —
+ * by length. A local code is six digits and groups as `483 921`; a broker code
+ * is nine and groups `492 716 384`, with the slot on its own because the
+ * leading group is the only part that reaches our servers.
+ */
 function renderCode(code: string): string {
-  return formatCodeForDisplay(code);
+  return isLocalCode(code)
+    ? formatLocalCodeForDisplay(code)
+    : formatCodeForDisplay(code);
 }
 
 function addressBlock(opts: BannerOpts): string[] {
@@ -209,9 +238,21 @@ export function renderBannerLines(opts: BannerOpts): string[] {
     "",
   ];
 
-  const qrPayload = opts.invite ? opts.invite.url : (opts.lanQrPayload ?? null);
+  const qrPayload = opts.invite?.url ?? null;
   const showQr = opts.showQr !== false && qrPayload !== null;
-  const qr = showQr ? colorizeQr(qrLines(qrPayload!)) : [];
+  const qr = showQr ? colorizeQr(qrLines(qrPayload)) : [];
+
+  /*
+   * What is claimed beside the code.
+   *
+   * Local mode used to fall through a separate branch that printed a QR and no
+   * digits at all — which is how `mtmux start` on your own network ended up
+   * being the one mode with nothing to type. There is one invite now and it
+   * carries its reach, so both modes render through the same three lines and
+   * the only thing that varies is the sentence underneath.
+   */
+  const local = opts.invite?.reach === "local";
+  const promise = local ? LOCAL_ONLY : SEALED;
 
   const aside: string[] = [];
   const typedCode = opts.invite?.code ?? null;
@@ -229,7 +270,7 @@ export function renderBannerLines(opts: BannerOpts): string[] {
     );
     aside.push(kleur.dim("and enter ") + kleur.bold(renderCode(typedCode)));
     aside.push("");
-    aside.push(...SEALED);
+    aside.push(...promise);
   } else if (opts.invite && showQr) {
     // The typed half is spent but the QR is not. Say what is left rather than
     // pointing at a code that no longer exists.
@@ -238,11 +279,7 @@ export function renderBannerLines(opts: BannerOpts): string[] {
     aside.push(kleur.dim("There is no code to type"));
     aside.push(kleur.dim("for this one."));
     aside.push("");
-    aside.push(...SEALED);
-  } else if (opts.lanQrPayload && showQr) {
-    aside.push(kleur.bold("Scan to open your terminal"));
-    aside.push("");
-    aside.push(...LOCAL_ONLY);
+    aside.push(...promise);
   }
 
   if (qr.length > 0) {

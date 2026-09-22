@@ -27,6 +27,7 @@ import {
   decodeSessionKeys,
   encodeSessionKeys,
   formatSas,
+  generateLocalCode,
   generateLongSecret,
   generateSecret,
   type SessionKeys,
@@ -76,7 +77,17 @@ const RELAY_RUNTIME = path.resolve(DIST_DIR, "relay/runtime.js");
 const LOOPBACK = new Set(["127.0.0.1", "::1", "localhost"]);
 const WILDCARD = new Set(["0.0.0.0", "::"]);
 
-/** The QR code outlives the terminal scrollback; keep the nonce alive as long. */
+/**
+ * The banner outlives the terminal scrollback; keep the local offer alive as
+ * long.
+ *
+ * A day, not fifteen minutes, and the reason is what `mtmux start` is for: it
+ * is left running. Somebody who starts it in the morning and picks up a tablet
+ * after lunch should not find the digits on their own screen have quietly
+ * stopped meaning anything. The bound that matters is not the clock — it is
+ * that the offer is single-use, survives only five wrong guesses, and buys
+ * nothing without a human saying yes.
+ */
 const PAIRING_NONCE_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** How often a signed-in server tells the registry it is still here. */
@@ -1523,6 +1534,27 @@ export async function start(opts: StartOpts) {
   // Optional on the runtime, so a bundle that predates in-app approval leaves
   // this null and the TTY/`mtmux approve` channels carry on alone.
   askInApp = relay.askDeviceApproval ?? null;
+
+  /*
+   * The local path gets the same gate as every other one, and until now it had
+   * none at all.
+   *
+   * Scanning the QR on your own wifi minted a full-grant session token with no
+   * question asked anywhere — on the reasoning that being on the network was
+   * itself the proof. It is not. A network is not a person: a housemate, a
+   * guest, a laptop somebody else left on the wifi, anyone who can see the
+   * screen through a window. That is the *same* argument `confirmCodePairing`
+   * above makes about the nine-digit code, and it does not stop being true
+   * because the packets took a shorter route.
+   *
+   * So the relay asks before it answers, through the identical race — the app
+   * on a connected phone, the TTY or the live panel, `mtmux approve` — and
+   * silence denies. Wired here because this is where the relay runtime first
+   * exists; `pairing-local.ts` treats an uninstalled gate as an approval, so
+   * installing it late would leave a window, and there is none: nothing is
+   * listening on the port yet.
+   */
+  relay.setLocalPairingGate?.((req) => confirmCodePairing(req.label));
   connectedCount = relay.connectionSummary
     ? () => relay.connectionSummary!().count
     : null;
@@ -1617,12 +1649,40 @@ export async function start(opts: StartOpts) {
 
   const confirmReturning = confirmReconnect ? makeReturningGate() : undefined;
 
-  // Tokenless LAN sign-in only makes sense for a *different* device, so the
-  // nonce is armed exactly when there is an address such a device could reach.
-  const armLanNonce = () =>
-    lanUrl
-      ? `${lanUrl}/login#n=${relay.issuePairingNonce(PAIRING_NONCE_TTL_MS).nonce}`
-      : null;
+  /**
+   * Arm the local invite: a QR to scan and six digits to type.
+   *
+   * ## Why this is no longer conditional on there being a LAN
+   *
+   * It used to arm only when `lanUrl` existed, on the reasoning that tokenless
+   * sign-in "only makes sense for a *different* device". That is true of the
+   * QR — nobody scans their own screen — and it was quietly applied to the
+   * whole credential, so a machine bound to loopback, a laptop with wifi off,
+   * or anyone running `mtmux start` over SSH got a banner with no way in at
+   * all except a 64-character token. The most common single-machine case had
+   * the worst front door in the product.
+   *
+   * The digits do not need a second device. `http://localhost:PORT` is a real
+   * address on a real browser, and typing six digits into it beats pasting
+   * sixty-four every time. So the offer is always armed and the QR simply
+   * points at the best address there is — the LAN one when it exists, because
+   * that is the one a phone can reach, and loopback otherwise.
+   */
+  const localBase = () => lanUrl ?? localUrl;
+
+  const armLocalInvite = (): PairingInvite => {
+    const code = generateLocalCode();
+    const { nonce } = relay.armLocalPairing(code, PAIRING_NONCE_TTL_MS);
+    return {
+      code,
+      url: `${localBase()}/login#n=${nonce}`,
+      host: localBase().replace(/^https?:\/\//, ""),
+      reach: "local",
+    };
+  };
+
+  /** The local invite currently on screen, re-armed whenever it is spent. */
+  let localInvite: PairingInvite | null = null;
 
   let hosted: Hosted | null = null;
   let note: string | null = null;
@@ -1663,6 +1723,10 @@ export async function start(opts: StartOpts) {
       say(line);
     }
   };
+
+  /** Whatever is currently claimable: the tunnel's invite, or the local one. */
+  const liveInvite = (): PairingInvite | null =>
+    hosted?.invite ?? localInvite ?? null;
 
   // Resolved once, before any code is armed, so a typo in --share is a clean
   // refusal rather than a code that turns out to grant nothing.
@@ -1948,7 +2012,7 @@ export async function start(opts: StartOpts) {
         kleur.dim(`   ·   always:  mtmux config set reach hosted`)
       : null;
 
-  const lanQrPayload = hosted ? null : armLanNonce();
+  localInvite = hosted ? null : armLocalInvite();
 
   if (opts.json) {
     say(
@@ -1958,8 +2022,11 @@ export async function start(opts: StartOpts) {
           localUrl,
           lanUrl,
           mode: hosted ? "tunnel" : "local",
-          code: hosted?.invite.code ?? null,
-          joinUrl: hosted?.invite.url ?? null,
+          // Both reaches report a code now. `mode` already says which kind it
+          // is, and a consumer that only knew how to read a null here was
+          // reading "local mode has no code", which stopped being true.
+          code: liveInvite()?.code ?? null,
+          joinUrl: liveInvite()?.url ?? null,
           trustedDevices: restored,
           connectedDevices: relay.connectionSummary?.().count ?? 0,
           token: cfg.token,
@@ -1970,14 +2037,13 @@ export async function start(opts: StartOpts) {
       ),
     );
   } else {
-    waitingLineOnScreen = hosted !== null;
+    waitingLineOnScreen = true;
     banner({
       version,
       localUrl,
       lanUrl,
       lanInterface,
-      invite: hosted?.invite ?? null,
-      lanQrPayload,
+      invite: liveInvite(),
       showQr: opts.qr,
       token: cfg.token,
       note,
@@ -2136,27 +2202,44 @@ export async function start(opts: StartOpts) {
     });
   });
 
-  await serverState.write(record(hosted?.invite.url ?? null));
+  await serverState.write(record(liveInvite()?.url ?? null));
 
-  // A LAN nonce is single-use, so once a phone has signed in the code on screen
-  // is spent. Mint another and reprint rather than leaving a dead QR up.
-  if (!hosted && lanUrl) {
-    relay.onPairingRedeemed(() => {
+  /*
+   * The local offer is single-use, so the moment it is spent the thing on
+   * screen is wrong. Mint another and reprint.
+   *
+   * All three outcomes, not only success — that is the change. A code burned
+   * by five wrong guesses used to leave the banner claiming a credential that
+   * had stopped working, with nothing said, which is the one failure mode a
+   * printed secret must never have. Now each outcome gets the sentence it
+   * deserves and the same fresh code underneath it.
+   */
+  relay.onLocalPairingSpent((outcome) => {
+    // With the tunnel up the banner is the hosted one, so re-arm quietly
+    // rather than reprinting over it. The local code stays live either way —
+    // a phone on this wifi should not lose the short route because a long one
+    // opened.
+    if (hosted) {
+      localInvite = armLocalInvite();
+      return;
+    }
+    clearWaitingLine();
+    if (outcome === "paired") {
       say(kleur.green("  ✓ Device signed in."));
       say(kleur.dim("    Here's a fresh code for the next one:"));
-      for (const line of renderBannerLines({
-        version,
-        localUrl,
-        lanUrl,
-        lanInterface,
-        lanQrPayload: armLanNonce(),
-        showQr: opts.qr,
-        token: cfg.token,
-      })) {
-        say(line);
-      }
-    });
-  }
+    } else if (outcome === "refused") {
+      say(kleur.yellow("  ✗ Refused. Nothing was shared."));
+      say(kleur.dim("    That code is spent either way — here's a new one:"));
+    } else {
+      // Worth a yellow line rather than a dim one. Five wrong guesses on a
+      // local network is either a typo storm or somebody guessing, and the
+      // owner is the only person who can tell which.
+      say(kleur.yellow("  ✗ Too many wrong codes. That one is dead."));
+      say(kleur.dim("    Here's a fresh one:"));
+    }
+    localInvite = armLocalInvite();
+    reprint(localInvite);
+  });
 
   const { key } = await configStore.ensureDeviceKey();
   const stopHeartbeat = await registerWithAccount(

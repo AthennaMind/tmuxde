@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { renderBannerLines, qrLines, type PairingInvite } from "./banner.js";
+import {
+  renderBannerLines,
+  qrLines,
+  type BannerOpts,
+  type PairingInvite,
+} from "./banner.js";
 
 const TOKEN = "a".repeat(64);
 
@@ -75,38 +80,59 @@ describe("renderBannerLines", () => {
   });
 
   describe("local mode", () => {
-    const lanQrPayload = "http://192.168.1.5:14100/login#n=" + "a".repeat(32);
+    const LOCAL: PairingInvite = {
+      code: "483921",
+      url: "http://192.168.1.5:14100/login#n=" + "a".repeat(32),
+      host: "192.168.1.5:14100",
+      reach: "local",
+    };
+    const local = (extra: Partial<BannerOpts> = {}) =>
+      render({ lanUrl: "http://192.168.1.5:14100", invite: LOCAL, ...extra });
 
-    it("encodes the LAN sign-in URL instead of an invite", () => {
-      const out = render({
-        lanUrl: "http://192.168.1.5:14100",
-        lanQrPayload,
-      }).join("\n");
+    it("encodes the sign-in URL as a QR", () => {
+      const out = local().join("\n");
       expect(out).toContain("Scan to open your terminal");
       expect(out).toMatch(QR_GLYPHS);
     });
 
+    /*
+     * The gap this closes: local mode used to print a QR, an address and a
+     * 64-character token, and nothing a person could type. "I cannot scan
+     * that" had no answer short of copying a hex string off a screen.
+     */
+    it("prints six digits to type, grouped", () => {
+      const out = local().join("\n");
+      expect(out).toContain("483 921");
+      expect(out).toContain("192.168.1.5:14100");
+    });
+
+    it("still prints the digits with the QR turned off", () => {
+      const out = local({ showQr: false }).join("\n");
+      expect(out).toContain("483 921");
+      expect(out).not.toMatch(QR_GLYPHS);
+    });
+
     it("says the local path stays local, and does not claim a tunnel", () => {
-      const out = render({
-        lanUrl: "http://192.168.1.5:14100",
-        lanQrPayload,
-      }).join("\n");
+      const out = local().join("\n");
       expect(out).toContain("On this network only");
       expect(out).not.toContain("Sealed end to end");
     });
 
+    it("does not group six digits the way it groups nine", () => {
+      // `483 921`, not `483 921 ` — the two formats are different and the
+      // banner is where a reader sees which one they are holding.
+      expect(local().join("\n")).not.toContain("483 921 ");
+    });
+
     /*
-     * The regression this replaces: the banner used to say "No token to type"
-     * next to a QR, which is a dead end for any device that cannot scan one.
+     * The token is demoted now that there is a code, by the same rule the
+     * hosted banner follows: a short credential that expires beats a permanent
+     * 64-character secret, and printing both invites the wrong one to be
+     * copied. It is still there for a run that has no code at all.
      */
-    it("offers the token beside the QR, not only instead of it", () => {
-      expect(
-        render({ lanUrl: "http://192.168.1.5:14100", lanQrPayload }).join("\n"),
-      ).toContain(TOKEN);
+    it("demotes the token once there is a code, and keeps it when there is none", () => {
+      expect(local().join("\n")).not.toContain(TOKEN);
       expect(render({}).join("\n")).toContain(TOKEN);
-      expect(render({ lanQrPayload, showQr: false }).join("\n")).toContain(
-        TOKEN,
-      );
     });
   });
 
@@ -152,7 +178,12 @@ describe("renderBannerLines", () => {
   it("keeps the QR beside the text in every mode a wide terminal has", () => {
     const local = render({
       lanUrl: "http://192.168.1.5:14100",
-      lanQrPayload: "http://192.168.1.5:14100/login#n=" + "a".repeat(32),
+      invite: {
+        code: "483921",
+        url: "http://192.168.1.5:14100/login#n=" + "a".repeat(32),
+        host: "192.168.1.5:14100",
+        reach: "local",
+      },
       columns: 100,
     });
     expect(local.find((l) => l.includes("On this network only"))).toMatch(

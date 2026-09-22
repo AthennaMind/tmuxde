@@ -81,27 +81,19 @@ export default function StartPage() {
       )}
 
       {/*
-        A build with no broker has no pairing-code path at all, so leading with a
-        code field there would be leading with a dead error and no input. That
-        is a real configuration — `NEXT_PUBLIC_API_URL` is legitimately absent —
-        and the honest front door for it is the token.
+        The code field leads unconditionally now, and the change is invariant #4
+        showing up in the UI.
+
+        This used to branch on `hasBroker`: a build with no `NEXT_PUBLIC_API_URL`
+        got an apology and a link to the token form, on the reasoning that a
+        build with no broker has no pairing codes. That reasoning was true right
+        up until `mtmux start` began printing six digits of its own, which are
+        redeemed against the machine serving this very page and involve no
+        broker at all. Leading with "there are no pairing codes" in front of
+        somebody holding six of them is the worst kind of wrong — confidently,
+        and about the thing they are looking at.
       */}
-      {hasBroker ? (
-        <ConnectPanel variant="full" />
-      ) : (
-        <div className="space-y-4 text-center">
-          <h1 className="text-xl font-semibold tracking-tight">
-            Connect to your terminal
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            This build runs entirely on your own machine, so there are no
-            pairing codes. Use the token <code>mtmux start</code> printed.
-          </p>
-          <Button asChild className="h-11 w-full">
-            <Link href="/login">Connect with a token</Link>
-          </Button>
-        </div>
-      )}
+      <ConnectPanel variant="full" />
 
       <div className="space-y-3 border-t border-border pt-5 text-sm">
         <div>

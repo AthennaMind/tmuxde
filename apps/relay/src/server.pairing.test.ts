@@ -7,8 +7,9 @@ import {
   PAIR_SESSION_PATH,
 } from "./server.js";
 import {
-  issuePairingNonce,
+  armLocalPairing,
   resetPairingState,
+  setLocalPairingGate,
   isValidSessionToken,
   grantForToken,
   onSessionTokenUsed,
@@ -75,6 +76,8 @@ async function post(body?: string): Promise<Captured> {
   return captured;
 }
 
+const CODE = "483921";
+
 describe("POST /_pair/local", () => {
   beforeEach(() => {
     resetPairingState();
@@ -82,7 +85,7 @@ describe("POST /_pair/local", () => {
   });
 
   it("turns a live nonce into a session token the relay will accept", async () => {
-    const { nonce } = issuePairingNonce();
+    const { nonce } = armLocalPairing(CODE);
 
     const captured = await post(JSON.stringify({ nonce }));
     expect(captured.status).toBe(200);
@@ -100,13 +103,13 @@ describe("POST /_pair/local", () => {
   });
 
   it("never caches the response", async () => {
-    const { nonce } = issuePairingNonce();
+    const { nonce } = armLocalPairing(CODE);
     const captured = await post(JSON.stringify({ nonce }));
     expect(captured.headers["Cache-Control"]).toBe("no-store");
   });
 
   it("refuses a nonce that was already spent", async () => {
-    const { nonce } = issuePairingNonce();
+    const { nonce } = armLocalPairing(CODE);
     expect((await post(JSON.stringify({ nonce }))).status).toBe(200);
 
     const second = await post(JSON.stringify({ nonce }));
@@ -115,7 +118,7 @@ describe("POST /_pair/local", () => {
   });
 
   it("refuses an unknown nonce", async () => {
-    issuePairingNonce();
+    armLocalPairing(CODE);
     expect((await post(JSON.stringify({ nonce: "wrong" }))).status).toBe(401);
   });
 
@@ -130,6 +133,52 @@ describe("POST /_pair/local", () => {
     expect((await post("not json")).status).toBe(400);
     expect((await post("{}")).status).toBe(400);
     expect((await post(JSON.stringify({ nonce: 42 }))).status).toBe(400);
+  });
+
+  it("turns the typed code into a session token too", async () => {
+    armLocalPairing(CODE);
+    const captured = await post(JSON.stringify({ code: "483 921" }));
+    expect(captured.status).toBe(200);
+    const { token } = JSON.parse(captured.body) as { token: string };
+    expect(token).toMatch(/^[0-9a-f]{64}$/);
+    expect(token).not.toBe(config.authToken);
+  });
+
+  it("refuses a wrong code without saying it was wrong", async () => {
+    armLocalPairing(CODE);
+    const captured = await post(JSON.stringify({ code: "000000" }));
+    expect(captured.status).toBe(401);
+    // No oracle: the same answer a never-armed offer gives.
+    expect(captured.body).not.toContain(CODE);
+  });
+
+  it("says 403, not 401, when a human refused it", async () => {
+    // The difference is the whole message. "Invalid or already used" sends
+    // someone who typed the right code hunting for a typo that is not there.
+    setLocalPairingGate(async () => false);
+    armLocalPairing(CODE);
+    const captured = await post(JSON.stringify({ code: CODE }));
+    expect(captured.status).toBe(403);
+  });
+
+  it("carries the browser's own name to the question, capped", async () => {
+    const asked: { label: string; via: string }[] = [];
+    setLocalPairingGate(async (req) => {
+      asked.push(req);
+      return true;
+    });
+    armLocalPairing(CODE);
+    await post(JSON.stringify({ code: CODE, label: "x".repeat(500) }));
+    expect(asked[0]!.via).toBe("code");
+    expect(asked[0]!.label).toHaveLength(80);
+  });
+
+  it("burns the offer after five wrong codes", async () => {
+    armLocalPairing(CODE);
+    for (let i = 0; i < 5; i++) {
+      expect((await post(JSON.stringify({ code: "000000" }))).status).toBe(401);
+    }
+    expect((await post(JSON.stringify({ code: CODE }))).status).toBe(401);
   });
 
   it("rejects GET — the nonce must never ride in a query string", async () => {
@@ -190,7 +239,7 @@ describe("session tokens and the auth throttle together", () => {
   });
 
   it("rejects a session token after the pairing state is reset", async () => {
-    const { nonce } = issuePairingNonce();
+    const { nonce } = armLocalPairing(CODE);
     const { token } = JSON.parse(
       (await post(JSON.stringify({ nonce }))).body,
     ) as {

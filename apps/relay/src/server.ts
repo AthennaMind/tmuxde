@@ -8,7 +8,7 @@ import { isPathAllowed } from "./file-service.js";
 import { getMimeType } from "./mime.js";
 import { timingSafeEqualToken } from "./auth.js";
 import {
-  redeemPairingNonce,
+  redeemLocalPairing,
   registerSessionToken,
   grantForToken,
   revokeGrant,
@@ -23,7 +23,8 @@ import { GrantRecord } from "@repo/protocol";
 const logger = createLogger("relay:http");
 
 /**
- * Redeems the one-time nonce from the startup QR for a scoped session token.
+ * Redeems the one-time credential from the startup banner — the QR's nonce or
+ * the six digits under it — for a scoped session token.
  *
  * POST rather than the more obvious `GET /_pair/local?n=…`: a query string ends
  * up in access logs, shell history and `Referer` headers, and this one carries
@@ -62,23 +63,45 @@ async function handleLocalPairing(
   }
 
   const raw = await readBody(req);
-  let nonce: unknown;
+  let body: { nonce?: unknown; code?: unknown; label?: unknown } = {};
   try {
-    nonce = raw ? (JSON.parse(raw) as { nonce?: unknown }).nonce : undefined;
+    if (raw) body = JSON.parse(raw) as typeof body;
   } catch {
-    nonce = undefined;
+    body = {};
   }
 
-  if (typeof nonce !== "string" || nonce.length === 0) {
+  const nonce = typeof body.nonce === "string" ? body.nonce : "";
+  const code = typeof body.code === "string" ? body.code : "";
+  if (!nonce && !code) {
     res.writeHead(400, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "Missing nonce" }));
+    res.end(JSON.stringify({ error: "Missing nonce or code" }));
     return true;
   }
 
-  const session = redeemPairingNonce(nonce);
-  if (!session) {
-    // Deliberately vague and deliberately unlogged — no nonce material, and no
-    // signal about whether this code never existed or was already spent.
+  /*
+   * A self-reported name, carried so the person at the machine is asked about
+   * "iPhone · Safari" rather than about an anonymous request. It decides
+   * nothing — see `LocalPairingRequest` — and it is length-capped here because
+   * it is the one field in this request that reaches a human's screen.
+   */
+  const label =
+    typeof body.label === "string" ? body.label.slice(0, 80).trim() : "";
+
+  const result = await redeemLocalPairing({ nonce, code }, { label });
+
+  if (!result.ok && result.reason === "refused") {
+    // Said plainly, and distinct from 401 on purpose: the credential was
+    // right and a human said no. Telling that person "invalid or already
+    // used" would send them looking for a typo that does not exist.
+    logger.warn("Local pairing refused at the machine");
+    res.writeHead(403, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Refused at the machine" }));
+    return true;
+  }
+
+  if (!result.ok) {
+    // Deliberately vague and deliberately unlogged — no credential material,
+    // and no signal about whether this code never existed or was already spent.
     logger.warn("Local pairing rejected");
     res.writeHead(401, { "Content-Type": "application/json" });
     res.end(
@@ -93,7 +116,10 @@ async function handleLocalPairing(
     "Cache-Control": "no-store",
   });
   res.end(
-    JSON.stringify({ token: session.token, expiresAt: session.expiresAt }),
+    JSON.stringify({
+      token: result.session.token,
+      expiresAt: result.session.expiresAt,
+    }),
   );
   return true;
 }
