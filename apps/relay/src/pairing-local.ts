@@ -580,6 +580,24 @@ export function revokeSessionToken(token: string): void {
   emitRevocation({ tokenIds: [key], grantId: entry.grant.id });
 }
 
+/**
+ * Take the local offer down without spending it.
+ *
+ * For the moment a tunnel opens on a server that started local-only. The
+ * banner is replaced by the hosted one, so the six digits stop being on
+ * screen — and a six-digit credential that is live for another day with
+ * nothing displaying it is the one shape a printed secret must never take.
+ * Nothing is lost by dropping it: a hosted pairing seals the machine's LAN
+ * candidates into its descriptor, so a browser on this network still gets a
+ * direct socket rather than a tunnelled one.
+ *
+ * Silent when nothing is armed, which is the normal case — split mode never
+ * arms an offer at all.
+ */
+export function disarmLocalPairing(): void {
+  offer = null;
+}
+
 /** True when an offer is outstanding — i.e. local pairing is armed. */
 export function hasLivePairingNonce(now: number = Date.now()): boolean {
   if (offer && offer.expiresAt <= now) offer = null;

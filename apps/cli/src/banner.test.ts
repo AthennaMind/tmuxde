@@ -265,3 +265,94 @@ describe("a code that has been replaced", () => {
     expect(out).toContain("fresh QR");
   });
 });
+
+/**
+ * Local mode's way out, printed where the need for it appears.
+ *
+ * "On this network only" is the sentence that makes somebody decide this
+ * product is not for them. An offer two paragraphs below it arrives after that
+ * decision has already been made.
+ */
+describe("the tunnel offer beside the code", () => {
+  const LOCAL: PairingInvite = {
+    code: "344511",
+    url: "http://192.168.1.5:14100/login#n=x",
+    host: "192.168.1.5:14100",
+    reach: "local",
+  };
+
+  it("sits under the limitation it answers", () => {
+    const out = render({
+      invite: LOCAL,
+      lanUrl: "http://192.168.1.5:14100",
+      canOpenTunnel: true,
+    }).join("\n");
+    const limitation = out.indexOf("On this network only");
+    const offer = out.indexOf("to reach it from");
+    expect(limitation).toBeGreaterThan(-1);
+    expect(offer).toBeGreaterThan(limitation);
+    expect(out).toContain("Press ");
+  });
+
+  it("is absent when there is no tunnel to open", () => {
+    // `--local` is a decision already made, and a key that does nothing is
+    // worse than no key at all.
+    const out = render({ invite: LOCAL, canOpenTunnel: false }).join("\n");
+    expect(out).toContain("On this network only");
+    expect(out).not.toContain("to reach it from");
+  });
+
+  it("never appears on a hosted banner, which has no such limitation", () => {
+    const out = render({ invite: INVITE, canOpenTunnel: true }).join("\n");
+    expect(out).not.toContain("to reach it from");
+    expect(out).toContain("Sealed end to end");
+  });
+});
+
+/**
+ * One address, said once.
+ *
+ * In local mode the code block already names the best address there is, and
+ * the block below it printed the same thing again with a label on — two lines
+ * the reader has to compare character by character to find out they are the
+ * same place.
+ */
+describe("the address block", () => {
+  const LOCAL: PairingInvite = {
+    code: "344511",
+    url: "http://192.168.1.5:14100/login#n=x",
+    host: "192.168.1.5:14100",
+    reach: "local",
+  };
+
+  it("drops the row the code block has already named", () => {
+    const out = render({
+      invite: LOCAL,
+      lanUrl: "http://192.168.1.5:14100",
+      lanInterface: "wlp3s0",
+    }).join("\n");
+    expect(out).toContain("192.168.1.5:14100");
+    expect(out).not.toContain("Network");
+    // The one that is genuinely new information stays.
+    expect(out).toContain("Local");
+    expect(out).toContain("http://localhost:14100");
+  });
+
+  it("never renders empty, even when the invite names the only address", () => {
+    const out = render({
+      invite: { ...LOCAL, host: "localhost:14100" },
+      lanUrl: null,
+    }).join("\n");
+    expect(out).toContain("Local");
+    expect(out).toContain("http://localhost:14100");
+  });
+
+  it("keeps both rows for a hosted invite, which names neither", () => {
+    const out = render({
+      invite: INVITE,
+      lanUrl: "http://192.168.1.5:14100",
+    }).join("\n");
+    expect(out).toContain("Local");
+    expect(out).toContain("Network");
+  });
+});

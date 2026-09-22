@@ -119,7 +119,7 @@ twelve rows — where the output stays a plain append-only log.
 Listing the absent ones is not cosmetic. The most common thing anyone wants to
 do to a device is get rid of one that is _not_ here — a phone you lent out, a
 laptop you sold — and until they were on this list that meant quitting the
-server and running `mtmux devices revoke <id>` with an id you had to go and
+server and running `mtmux devices remove <id>` with an id you had to go and
 find.
 
 | Key     | What it does                                                |
@@ -152,6 +152,14 @@ asking me": it _had_ asked, once, when that device first paired. A new device is
 always asked about, either way. The banner names the trusted count and says
 which way this is set, because a setting nobody can see is one nobody can be
 wrong about.
+
+**The panel carries the live code**, above the key bar: `Code 492 716 384 at
+app.mtmux.com`, and with a tunnel up, `· n for a new one`. The banner prints a
+code once and then the session scrolls — three pairings and a handful of
+connect lines later, the one fact you need in order to add a laptop is several
+screens up. The panel is the surface that does not scroll, so it holds it. On a
+narrow terminal the trailing offer goes first, then the host; the digits are the
+part that cannot be reconstructed from anything else on screen.
 
 `t` and `n` are never both offered: `t` opens the tunnel a machine does not
 have, `n` replaces a code it already printed. A key that cannot work is worse
@@ -335,17 +343,23 @@ Browsers this machine has paired with. These are **local** records, kept in
 mtmux devices                    # list (the default subcommand)
 mtmux devices list
 mtmux devices rename <deviceId> [name...]
-mtmux devices revoke <deviceId>
+mtmux devices remove <deviceId>
 ```
 
 `rename` with no name clears it back to whatever the browser calls itself. It
 changes nothing about what that device may do — it exists so the list reads as
 yours rather than as three rows of user-agent strings.
 
+`remove` is what the live panel's `r` does, under the name the panel uses:
+the peer record goes, the running server is told to drop the session token, and
+the device needs a new code and a fresh approval to come back. `mtmux devices
+revoke` is kept as an alias and always will be — it is in scripts, in older
+docs, and in the scrollback of every terminal that has run it.
+
 Paired devices survive a restart: `mtmux start` restores both halves of what it
 derived with each one — the relay token for the direct/LAN path and the key
 schedule the sealed tunnel needs — so a browser stays trusted until it is
-revoked or goes stale.
+removed or goes stale.
 
 Before 0.6.2 only the relay token was restored. A device paired by an older
 version therefore reconnects on the local network but not through the tunnel.

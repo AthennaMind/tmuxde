@@ -75,6 +75,16 @@ export type BannerOpts = {
   /** A dim line under the addresses — degradation notices go here. */
   note?: string | null;
   /**
+   * Whether `t` can actually open a tunnel from here.
+   *
+   * Drives one sentence, and it is the one that keeps local mode from reading
+   * as a dead end: "this reaches your network only" is a limitation, and a
+   * limitation is only worth printing beside the way out of it. False on a
+   * run that asked for `--local` (the decision is made), on a relay bundle
+   * with no tunnel wired, and off a TTY where there is no key to press.
+   */
+  canOpenTunnel?: boolean;
+  /**
    * How to do the thing this run deliberately did not do.
    *
    * Separate from `note` because the two say opposite things: a note explains
@@ -127,6 +137,25 @@ const LOCAL_ONLY = [
   kleur.dim("On this network only —"),
   kleur.dim("the code goes to this"),
   kleur.dim("machine and nowhere else."),
+];
+
+/**
+ * The way out of that limitation, said where the limitation is said.
+ *
+ * `t` already had a line of its own further down the banner, under the
+ * addresses, and a second in the panel's key bar — and it was still being
+ * missed, because neither of those is where the reader forms the thought it
+ * answers. That thought happens at "on this network only", three lines above,
+ * and by the time the eye reaches an offer two paragraphs later the question
+ * has already been resolved as "then this is not for me".
+ *
+ * So it sits directly under the sentence that creates the need for it. Wrapped
+ * by hand at 26 columns like everything else in this column — see `SEALED`.
+ */
+const REACH_FURTHER = [
+  "",
+  kleur.dim("Press ") + kleur.bold("t") + kleur.dim(" to reach it from"),
+  kleur.dim("anywhere, sealed."),
 ];
 
 /**
@@ -200,14 +229,24 @@ function twoColumn(left: string[], right: string[], columns: number): string[] {
  * is nine and groups `492 716 384`, with the slot on its own because the
  * leading group is the only part that reaches our servers.
  */
-function renderCode(code: string): string {
+export function formatInviteCode(code: string): string {
   return isLocalCode(code)
     ? formatLocalCodeForDisplay(code)
     : formatCodeForDisplay(code);
 }
 
+/**
+ * Where this is served — minus whatever the code block has already said.
+ *
+ * In local mode the aside points at the best address there is, and then this
+ * block printed it again one line later with a label on it. Two lines, one
+ * address, and the reader has to compare them character by character to
+ * discover they are the same place. A row is dropped when the invite above
+ * already names it, and never when it is the last one standing: an address
+ * block that renders empty is worse than one that repeats.
+ */
 function addressBlock(opts: BannerOpts): string[] {
-  const rows: [string, string, string][] = [
+  const all: [string, string, string][] = [
     ["Local", opts.localUrl, ""],
     ...(opts.lanUrl
       ? ([["Network", opts.lanUrl, opts.lanInterface ?? ""]] as [
@@ -217,6 +256,12 @@ function addressBlock(opts: BannerOpts): string[] {
         ][])
       : []),
   ];
+  const shown = opts.invite?.host
+    ? all.filter(
+        ([, url]) => url.replace(/^https?:\/\//, "") !== opts.invite!.host,
+      )
+    : all;
+  const rows = shown.length > 0 ? shown : all;
   const labelWidth = Math.max(...rows.map(([label]) => label.length));
   return rows.map(
     ([label, url, iface]) =>
@@ -252,7 +297,9 @@ export function renderBannerLines(opts: BannerOpts): string[] {
    * the only thing that varies is the sentence underneath.
    */
   const local = opts.invite?.reach === "local";
-  const promise = local ? LOCAL_ONLY : SEALED;
+  const promise = local
+    ? [...LOCAL_ONLY, ...(opts.canOpenTunnel ? REACH_FURTHER : [])]
+    : SEALED;
 
   const aside: string[] = [];
   const typedCode = opts.invite?.code ?? null;
@@ -268,7 +315,9 @@ export function renderBannerLines(opts: BannerOpts): string[] {
       // with its two answers a character out of line.
       kleur.dim(showQr ? "or go to  " : "Go to     ") + brand(opts.invite.host),
     );
-    aside.push(kleur.dim("and enter ") + kleur.bold(renderCode(typedCode)));
+    aside.push(
+      kleur.dim("and enter ") + kleur.bold(formatInviteCode(typedCode)),
+    );
     aside.push("");
     aside.push(...promise);
   } else if (opts.invite && showQr) {
@@ -385,7 +434,7 @@ export function renderCodeUpdateLines(
   const line =
     INDENT +
     kleur.dim("New code  ") +
-    kleur.bold(renderCode(code)) +
+    kleur.bold(formatInviteCode(code)) +
     (opts.showQr === false
       ? ""
       : kleur.dim("   ·   press ") +

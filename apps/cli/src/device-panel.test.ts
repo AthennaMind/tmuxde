@@ -6,6 +6,7 @@ import {
   displayName,
   render,
   selected,
+  type PanelMode,
   type PanelPeer,
   type PanelState,
 } from "./device-panel.js";
@@ -75,6 +76,7 @@ function state(
     hosted: true,
     canOpenTunnel: false,
     askOnReconnect: false,
+    invite: null,
     frozen: false,
     ...rest,
   };
@@ -108,12 +110,34 @@ describe("the list", () => {
     expect(out).not.toContain("—");
   });
 
-  it("names the typed code too when there is no tunnel", () => {
-    // Local mode has six digits now, and this line is the one place an empty
-    // panel says how to use them.
-    const out = text(state({ devices: [], hosted: false }));
-    expect(out).toContain("six digits");
-    expect(out).not.toContain("press n");
+  it("says the digits themselves once there is a code to say", () => {
+    // The banner prints the code once and then the session scrolls. This is
+    // the surface that does not, so it carries the one fact somebody needs to
+    // get a second device in — and when it does, the vaguer sentence above it
+    // is the same instruction with the useful half missing.
+    const out = text(
+      state({
+        devices: [],
+        hosted: false,
+        invite: { code: "344511", host: "192.168.1.5:14100" },
+      }),
+    );
+    expect(out).toContain("344 511");
+    expect(out).toContain("192.168.1.5:14100");
+    expect(out).not.toContain("Scan the code above");
+  });
+
+  it("keeps the code on screen while devices are connected", () => {
+    // Adding a laptop is a thing you do with a phone already attached.
+    const out = text(
+      state({ invite: { code: "482913756", host: "app.mtmux.com" } }),
+    );
+    expect(out).toContain("482 913 756");
+  });
+
+  it("falls back to the vaguer sentence when there is no code at all", () => {
+    const out = text(state({ devices: [], invite: null }));
+    expect(out).toContain("Scan the code above");
   });
 
   it("marks a read-only share as one", () => {
@@ -173,9 +197,15 @@ describe("the key bar", () => {
     expect(out).not.toContain("close");
   });
 
-  it("offers a new code only when there is a tunnel", () => {
-    expect(text(state({ hosted: true }))).toContain("new code");
-    expect(text(state({ hosted: false }))).not.toContain("new code");
+  it("offers a fresh code beside the code itself, and only with a tunnel", () => {
+    // `n` re-arms a broker code. A local offer re-arms itself the moment it is
+    // spent, so there would be nothing for the key to do — and it is named
+    // next to the digits it replaces rather than as one more pair in the bar.
+    const invite = { code: "482913756", host: "app.mtmux.com" };
+    expect(text(state({ hosted: true, invite }))).toContain("n for a new one");
+    expect(text(state({ hosted: false, invite }))).not.toContain(
+      "n for a new one",
+    );
   });
 });
 
@@ -383,12 +413,11 @@ describe("the tunnel key", () => {
     expect(out).not.toMatch(/\bt tunnel\b/);
   });
 
-  it("offers n instead of t once the tunnel is up", () => {
+  it("stops offering the tunnel once it is up", () => {
+    // `t` creates the thing that has codes at all; once it exists the offer is
+    // a key that cannot work, which is worse than a key that is absent.
     const out = text(state({ hosted: true, canOpenTunnel: false }));
-    expect(out).toContain("new code");
-    // The two are never both on screen: `n` replaces a code that exists, `t`
-    // creates the thing that has codes at all, and a key that cannot work is
-    // worse than a key that is absent.
+    expect(out).not.toContain("Press t");
     expect(out).not.toMatch(/\bt tunnel\b/);
   });
 
@@ -766,5 +795,176 @@ describe("hostile labels", () => {
     // "nothing reaches the terminal unstripped" is worth more than the
     // exception is worth saving.
     expect(displayName({ name: NASTY, label: "x" })).not.toContain("\x1b");
+  });
+});
+
+/**
+ * The summary row, which was the one line in this panel nobody measured.
+ *
+ * At 56 columns it ran off the edge, the terminal wrapped it, and every row
+ * below shifted down by one — so the panel's own rule ended up orphaned above
+ * a line that was not supposed to exist.
+ */
+describe("the headline", () => {
+  /** One line, stripped — `plain` above takes the whole frame. */
+  const bare = (line: string) => line.replace(/\x1b\[[0-9;]*m/g, "");
+
+  const wide = (over = {}) =>
+    state({
+      devices: [device()],
+      peers: [peer({ deviceId: "d9" }), peer({ deviceId: "d8" })],
+      hosted: true,
+      ...over,
+    });
+
+  it("fits, and drops whole facts rather than halves of them", () => {
+    const line = bare(render(wide(), 40)[1]!);
+    expect(line.length).toBeLessThanOrEqual(40);
+    // Whatever survived is a complete phrase, never a truncation.
+    expect(line).not.toContain("…");
+    expect(line).toContain("1 device connected");
+  });
+
+  it("keeps the most important facts when it has to choose", () => {
+    // Who is here beats how many are not, which beats how they got here.
+    const narrow = bare(render(wide(), 46)[1]!);
+    expect(narrow).toContain("paired, not here");
+    expect(narrow).not.toContain("tunnel up");
+  });
+
+  it("says when a device it knows will be asked about, and only then", () => {
+    // Off is the default, and a line permanently announcing a default is the
+    // noise that teaches people to stop reading a panel.
+    expect(bare(render(wide({ askOnReconnect: true }), 120)[1]!)).toContain(
+      "asks on return",
+    );
+    expect(
+      bare(render(wide({ askOnReconnect: false }), 120)[1]!),
+    ).not.toContain("asks on return");
+  });
+});
+
+/**
+ * Nothing this panel draws may be wider than the terminal it is drawn in.
+ *
+ * A line that overflows wraps, every row below it shifts by one, and the
+ * panel's own accounting of how many rows it occupies goes wrong — so the next
+ * repaint erases the wrong part of the screen. The approval screen was doing
+ * exactly this at 64 columns: its answer line was 68 wide, which means on a
+ * narrow terminal the one line telling a human how to say no was the line that
+ * wrapped off the bottom.
+ *
+ * Swept rather than asserted one screen at a time, because the defect is not
+ * in any particular sentence — it is in forgetting to measure a new one.
+ */
+describe("every mode, at every width", () => {
+  const NOW_LOCAL = NOW;
+  const modes: PanelMode[] = [
+    { kind: "list" },
+    { kind: "help" },
+    { kind: "details", key: "dev-1" },
+    { kind: "details", key: "gone" },
+    {
+      kind: "confirm",
+      action: "remove",
+      deviceId: "dev-1",
+      connectionId: "c1",
+      label: "A rather long device name from a browser",
+    },
+    {
+      kind: "confirm",
+      action: "disconnect",
+      deviceId: null,
+      connectionId: "c1",
+      label: "A rather long device name from a browser",
+    },
+    {
+      kind: "rename",
+      deviceId: "dev-1",
+      label: "A rather long device name from a browser",
+      draft: "something being typed right now, quite long",
+    },
+    {
+      kind: "approval",
+      label: "Safari on an iPhone with a very long user agent string",
+      account: "somebody-with-a-long-address@example.com",
+      expiresAt: NOW_LOCAL + 97_000,
+    },
+    {
+      kind: "approval",
+      label: "Safari on iPhone",
+      account: "dp@example.com",
+      sas: "419 082",
+      expiresAt: NOW_LOCAL + 97_000,
+    },
+  ];
+
+  for (const width of [40, 56, 64, 80, 120]) {
+    for (const mode of modes) {
+      const name =
+        mode.kind === "confirm" || mode.kind === "approval"
+          ? `${mode.kind}/${"action" in mode ? mode.action : mode.sas ? "sas" : "code"}`
+          : mode.kind;
+      it(`${name} fits ${width} columns`, () => {
+        const lines = plain(
+          render(
+            state({
+              mode,
+              hosted: true,
+              askOnReconnect: true,
+              invite: { code: "482913756", host: "app.mtmux.com" },
+              peers: [peer({ deviceId: "d9" })],
+            }),
+            width,
+          ),
+        );
+        for (const line of lines) {
+          expect([line.length, line]).toEqual([
+            Math.min(line.length, width),
+            line,
+          ]);
+        }
+      });
+    }
+  }
+});
+
+/**
+ * One browser, two tabs — one pairing, two sockets, one device id.
+ *
+ * Both rows used to take that id as their key, so every lookup by key matched
+ * the first: `d` on the second tab described the first, and anything acting on
+ * "the row the card is describing" acted on the wrong socket.
+ */
+describe("two connections from one device", () => {
+  const rows = () =>
+    buildRows(
+      [
+        device({ id: "conn-a", deviceId: "dev-1" }),
+        device({ id: "conn-b", deviceId: "dev-1", attachedSession: "logs" }),
+      ],
+      [peer({ deviceId: "dev-1" })],
+    );
+
+  it("gives them different keys", () => {
+    const [a, b] = rows();
+    expect(a!.key).not.toBe(b!.key);
+  });
+
+  it("keeps the plain device id on the first, so an open card survives", () => {
+    // A card left open while the device reconnects has to find it again, and
+    // the row it comes back as is the one holding the unadorned id.
+    expect(rows()[0]!.key).toBe("dev-1");
+  });
+
+  it("still points both at the same device for anything that acts on it", () => {
+    for (const row of rows()) expect(row.deviceId).toBe("dev-1");
+  });
+
+  it("finds each row by its own key", () => {
+    const list = rows();
+    for (const row of list) {
+      expect(list.filter((r) => r.key === row.key)).toHaveLength(1);
+    }
   });
 });

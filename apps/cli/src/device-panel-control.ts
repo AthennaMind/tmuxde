@@ -73,6 +73,14 @@ export type PanelDeps = {
   /** Throw away the printed code and arm a fresh one. */
   rearm?: () => void;
   /**
+   * The code that is claimable right now, read at render time.
+   *
+   * A function rather than a value because it changes under the panel: every
+   * pairing spends one and arms another, and a panel holding the code it was
+   * built with would be pointing at a dead credential within a minute.
+   */
+  invite?: () => { code: string | null; host: string } | null;
+  /**
    * Open the sealed tunnel on a machine that started local-only.
    *
    * Resolves with a failure message rather than throwing: the caller is a
@@ -157,6 +165,7 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
       now: now(),
       hosted: deps.hosted(),
       canOpenTunnel: !deps.hosted() && deps.openTunnel !== undefined,
+      invite: deps.invite?.() ?? null,
       askOnReconnect: deps.askOnReconnect?.() ?? false,
       frozen: stopped,
     };

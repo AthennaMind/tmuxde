@@ -116,15 +116,22 @@ than routed through anything:
   █ ▄▄▄▄▄ █▄█ █▀ ▄▄▄▄█▄ █▄█ ▄▄███   the code goes to this
   █ █   █ █ ▀▀█▄█▄▄█ ▀█  ▄ ▄▄▄  █   machine and nowhere else.
   █ ▄▄▄▄▄ █▄█ █▀ ▄▄▄▄█▄ █▄█ ▄▄███
-  █ █   █ █ ▀▀█▄█▄▄█ ▀█  ▄ ▄▄▄  █
-  █ █▄▄▄█ █  ▀ ▄█▀▄▀█▄▄ ▀▄▀ ▄█ ██
+  █ █   █ █ ▀▀█▄█▄▄█ ▀█  ▄ ▄▄▄  █   Press t to reach it from
+  █ █▄▄▄█ █  ▀ ▄█▀▄▀█▄▄ ▀▄▀ ▄█ ██   anywhere, sealed.
   █▄▄▄▄▄▄▄█▄█▄▄█████▄███████▄▄███
 
-  Local    http://localhost:14100
-  Network  http://192.168.1.5:14100  (wlp3s0)
+  Local  http://localhost:14100
 
-  Want it from anywhere?  Press t for an encrypted tunnel
+  Always open a tunnel:  mtmux config set reach hosted
 ```
+
+Two things about that layout are deliberate. The way out of "on this network
+only" sits directly under the sentence that creates the need for it, rather
+than in a key bar or a line two paragraphs below — by the time the eye reaches
+an offer that far away, the question has already been answered as "then this is
+not for me". And the address block does not repeat `192.168.1.5:14100`, because
+the code block three lines above has already named it; a row is dropped when the
+invite above has said it, and never when it is the last one standing.
 
 Type the six digits at either address, or scan. The field is the same one that
 takes a nine-digit hosted code — six and nine cannot be confused, so nobody has
@@ -366,7 +373,7 @@ paired browser is stored in `~/.mtmux/config.json`, and `mtmux start` replays
 them to the relay on boot. A paired device is therefore trusted until you revoke
 it — which is what the word "paired" ought to mean, and covers a deploy, a crash
 and a reboot as well as a deliberate restart. The bound is still real: entries
-expire after **90 days** of not being seen, and `mtmux devices revoke` drops one
+expire after **90 days** of not being seen, and `mtmux devices remove` drops one
 immediately. This adds no secret to a file that was not already holding the
 machine's auth token and its Ed25519 secret key.
 
@@ -390,7 +397,7 @@ challenge.
 
 | To revoke                               | Do this                                      |
 | --------------------------------------- | -------------------------------------------- |
-| One device, permanently                 | `mtmux devices revoke <id>`                  |
+| One device, permanently                 | `mtmux devices remove <id>`                  |
 | A live socket that device already holds | Restart mtmux after revoking                 |
 | Every LAN-nonce sign-in                 | Restart mtmux — those tokens are memory-only |
 

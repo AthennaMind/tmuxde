@@ -284,7 +284,7 @@ or put the single port behind a reverse proxy that terminates TLS. See
 2. Keep `~/.mtmux/config.json` at mode `0600` — [`mtmux doctor`](/docs/doctor)
    checks this.
 3. Narrow `ALLOWED_PATHS` to what you actually need.
-4. Revoke with `mtmux devices revoke <id>`, then restart to drop any socket that
+4. Remove it with `mtmux devices remove <id>`, then restart to drop any socket that
    device still holds. A restart alone no longer un-pairs anything.
 5. Never put the raw port on the public internet without TLS in front.
 6. In split deployments set `CORS_ORIGINS` to your exact production origin.

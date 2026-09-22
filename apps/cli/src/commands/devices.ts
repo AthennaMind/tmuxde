@@ -120,7 +120,7 @@ export async function devicesList(): Promise<void> {
       kleur.bold("mtmux devices rename <id> <name>"),
   );
   console.log(
-    kleur.dim("  Revoke one with ") + kleur.bold("mtmux devices revoke <id>"),
+    kleur.dim("  Remove one with ") + kleur.bold("mtmux devices remove <id>"),
   );
   console.log("");
 }
@@ -205,14 +205,16 @@ export async function devicesRevoke(deviceId: string): Promise<void> {
     ? await revokeOnRunningServer(peer.directToken)
     : false;
 
-  console.log(kleur.green("✓ Revoked."));
+  console.log(kleur.green("✓ Removed."));
   console.log(
     dropped
-      ? kleur.dim("  Its session is gone and it can no longer reconnect.")
+      ? // The whole consequence, in the words the panel uses: not "revoked",
+        // which says what happened to a token, but what it costs to come back.
+        kleur.dim("  Its session is gone. It needs a new code to come back.")
       : // Still said out loud when it could not be applied, because the
         // difference matters: an attached browser keeps its live socket.
         kleur.dim(
-          "  It can no longer reconnect. Restart mtmux to drop it now.",
+          "  It needs a new code to come back. Restart mtmux to drop it now.",
         ),
   );
 }

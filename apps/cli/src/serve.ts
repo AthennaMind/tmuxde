@@ -88,6 +88,14 @@ export type RelayRuntime = {
     ttlMs?: number,
   ) => { nonce: string; expiresAt: number };
   /**
+   * Take the offer down without spending it, for when a tunnel opens and the
+   * banner holding the six digits is replaced by the hosted one.
+   *
+   * Optional, like every other capability here: a relay bundle that predates
+   * it simply lets the offer age out on its own.
+   */
+  disarmLocalPairing?: () => void;
+  /**
    * Fires when the printed credential is spent — used, refused, or burned by
    * wrong guesses — so the CLI can arm a fresh one and reprint.
    *

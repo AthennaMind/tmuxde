@@ -11,6 +11,7 @@ export {
 } from "./server.js";
 export {
   armLocalPairing,
+  disarmLocalPairing,
   onLocalPairingSpent,
   setLocalPairingGate,
   onSessionTokenUsed,

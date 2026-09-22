@@ -11,6 +11,68 @@ release that shipped them.
 
 ## [Unreleased]
 
+### Added
+
+- **The panel carries the live code.** The banner prints one and then the
+  session scrolls — three pairings and a handful of connect lines later, the
+  one fact you need in order to add a laptop is several screens up. The answer
+  used to be `l`, which redraws seventeen rows of QR to show nine digits, and
+  which nobody knew about. The panel is the surface that does not scroll, so it
+  holds `Code 492 716 384 at app.mtmux.com` above the key bar. On a narrow
+  terminal the trailing offer goes first, then the host; the digits are the
+  part that cannot be reconstructed from anything else on screen.
+- **`t` is offered where the need for it appears.** "On this network only" is
+  the sentence that makes somebody decide this product is not for them, and the
+  way out of it was printed two paragraphs below, under the addresses — by the
+  time the eye gets there the question has already been answered. It now sits
+  directly under that sentence, beside the QR.
+- **`mtmux devices remove`**, which is what the panel's `r` already called it.
+  One act with two names is one act somebody has to look up. `revoke` stays as
+  an alias forever: it is in scripts, in older docs, and in the scrollback of
+  every terminal that has run it.
+
+### Changed
+
+- **The banner says each address once.** In local mode the code block names the
+  best address there is, and the block below it printed the same thing again
+  with a label on — two lines the reader has to compare character by character
+  to discover they are the same place. A row is dropped when the invite above
+  has already named it, and never when it is the last one standing.
+- **Nothing the panel draws can be wider than the terminal.** The approval
+  screen's answer line was 68 columns wide and had never been measured, so on
+  anything narrower it wrapped — and the line that wrapped off the bottom was
+  the one telling a human how to say no. Every mode is now swept at five widths
+  by a test, and whole clauses are dropped rather than sentences truncated:
+  half of "4 paired, not he" is not a fact. The help screen was rewritten to
+  fit 40 columns rather than end every line in an ellipsis.
+- **Two tabs of one browser are two rows again.** They share a pairing and
+  therefore a device id, which both rows used as their key — so every lookup
+  matched the first: `d` on the second tab described the first, and a
+  confirmation acted on whichever the lookup found.
+- **The detail card wraps what a device may do, instead of cutting it.** That
+  field is the one somebody reads for a security reason, and "every session ·
+  type i…" hides whether it can write to files. The raw user agent is dropped
+  below 64 columns, where it was a row reading "Mozilla/5.0 (Macintosh; In…".
+
+### Security
+
+- **A live local code is taken down when a tunnel opens.** A server started
+  local-only arms six digits for a day and prints them on its banner. Pressing
+  `t` replaces that banner with the hosted one, and the local offer went on
+  being claimable with nothing anywhere displaying it — a printed secret that
+  is no longer printed. Nothing is lost: a hosted pairing seals this machine's
+  LAN candidates into its descriptor, so a browser on the same network still
+  races straight to a direct socket.
+- **The approval prompt can no longer become a second reader on stdin.** There
+  is a window between the tunnel arming a code and the panel appearing below
+  the banner. A pairing landing in it was answered by a readline — and then the
+  panel started, put the terminal in raw mode and installed its own reader.
+  That is the defect this project records paying for once already: a dead
+  `[y/N]` eating keystrokes on the machine. The prompt is now bound to the
+  panel's takeover as well as to its own question, and a question taken down
+  that way reports "could not ask", never a refusal, so it moves on to `mtmux
+approve` rather than silently denying.
+
 ## [0.9.0] — 2026-09-22
 
 ### Changed

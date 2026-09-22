@@ -489,8 +489,12 @@ devices
   .description("Call a device something of your own — no name clears it")
   .action((deviceId: string, name: string[]) => devicesRename(deviceId, name));
 devices
-  .command("revoke <deviceId>")
-  .description("Forget a device so it cannot reconnect")
+  // `remove` is what the live panel calls it, and one act with two names is
+  // one act somebody has to look up. `revoke` stays as an alias forever: it
+  // is in scripts, in older docs and in this terminal's own scrollback.
+  .command("remove <deviceId>")
+  .alias("revoke")
+  .description("Forget a device — it must pair again, with a new code")
   .action(devicesRevoke);
 
 const token = program.command("token").description("Manage the auth token");

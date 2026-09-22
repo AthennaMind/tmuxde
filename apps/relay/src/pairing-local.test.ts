@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   armLocalPairing,
+  disarmLocalPairing,
   redeemLocalPairing,
   setLocalPairingGate,
   onLocalPairingSpent,
@@ -464,5 +465,47 @@ describe("revocation reaches live sockets", () => {
     registerSessionToken(token, 60_000, T0, scoped, "iPhone", "dev-1");
     revokeSessionToken(token);
     expect(isValidSessionToken(token, T0 + 1_000)).toBe(false);
+  });
+});
+
+/**
+ * Taking the offer down without spending it.
+ *
+ * The case is a server that started local-only and then opened a tunnel: its
+ * banner is replaced, so the six digits stop being on screen, and an offer
+ * armed for a day would go on being claimable with nothing displaying it.
+ */
+describe("disarming a local offer", () => {
+  it("stops the code working", async () => {
+    armLocalPairing("123456");
+    disarmLocalPairing();
+    await expect(redeemLocalPairing({ code: "123456" })).resolves.toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+  });
+
+  it("stops the QR's nonce working too", async () => {
+    const { nonce } = armLocalPairing("123456");
+    disarmLocalPairing();
+    await expect(redeemLocalPairing({ nonce })).resolves.toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+  });
+
+  it("is not a spend, so nothing re-arms behind it", () => {
+    const seen: string[] = [];
+    onLocalPairingSpent((o) => seen.push(o));
+    armLocalPairing("123456");
+    disarmLocalPairing();
+    // A spend is what tells the CLI to print a fresh code. Disarming is the
+    // opposite instruction, and firing it here would put a dead code back on
+    // a banner that has just been replaced.
+    expect(seen).toEqual([]);
+  });
+
+  it("says nothing when there was nothing armed", () => {
+    expect(() => disarmLocalPairing()).not.toThrow();
   });
 });

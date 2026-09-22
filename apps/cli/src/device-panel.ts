@@ -2,6 +2,7 @@ import kleur from "kleur";
 import { sanitizeLabel } from "@repo/protocol";
 
 import { displayWidth, fit, pad, rule, since } from "./live-view.js";
+import { formatInviteCode } from "./banner.js";
 import type { ConnectedDevice } from "./serve.js";
 
 /**
@@ -158,6 +159,19 @@ export type PanelState = {
    */
   canOpenTunnel: boolean;
   /**
+   * The code that is live right now, and where to type it.
+   *
+   * The banner prints it once and then the session scrolls: three pairings,
+   * a tunnel coming up and a handful of connect lines later, the one fact
+   * somebody needs in order to add a laptop is several screens up. The answer
+   * used to be "press l", which reprints seventeen rows of QR to show nine
+   * digits, and which nobody knew about anyway.
+   *
+   * So the panel — the surface that does not scroll — carries it. Null when
+   * this run has no claimable code at all.
+   */
+  invite: { code: string | null; host: string } | null;
+  /**
    * Whether a device that has paired before is asked about when it comes back.
    *
    * On screen because it is the answer to the most common complaint about this
@@ -211,11 +225,35 @@ export function buildRows(
   const seen = new Set<string>();
   const rows: PanelRow[] = [];
 
+  /**
+   * Keys have to be unique, and a device id is not.
+   *
+   * One browser with two tabs open holds one pairing and therefore one device
+   * id, and arrives here as two live sockets. Both rows used to take that id
+   * as their key, so `rows().find(r => r.key === …)` matched the first one
+   * every time — `d` on the second tab opened a card describing the first, and
+   * a confirmation on the second acted on whichever the lookup found.
+   *
+   * The socket id disambiguates, and only where it has to: the first row keeps
+   * the plain device id, so a card left open across a reconnect still finds
+   * its device rather than reporting it gone.
+   */
+  const taken = new Set<string>();
+  const unique = (base: string, socketId: string | undefined): string => {
+    if (!taken.has(base)) {
+      taken.add(base);
+      return base;
+    }
+    const key = `${base}#${socketId ?? taken.size}`;
+    taken.add(key);
+    return key;
+  };
+
   for (const live of devices) {
     const peer = live.deviceId ? (byId.get(live.deviceId) ?? null) : null;
     if (peer) seen.add(peer.deviceId);
     rows.push({
-      key: live.deviceId ?? live.id ?? `socket-${rows.length}`,
+      key: unique(live.deviceId ?? live.id ?? `socket-${rows.length}`, live.id),
       // The stored name wins over the browser's label even for a live socket:
       // the relay's label came from the token, which was issued before anybody
       // had renamed anything.
@@ -234,7 +272,7 @@ export function buildRows(
 
   for (const peer of offline) {
     rows.push({
-      key: peer.deviceId,
+      key: unique(peer.deviceId, undefined),
       name: displayName(peer),
       deviceId: peer.deviceId,
       live: null,
@@ -267,22 +305,18 @@ function list(state: PanelState, width: number): string[] {
   const connected = state.rows.filter((row) => row.live !== null).length;
   const offline = state.rows.length - connected;
 
-  lines.push(
-    ` ${kleur.bold(headline(connected))}` +
-      (offline > 0 ? kleur.dim(`   ·   ${offline} paired, not here`) : "") +
-      (state.hosted ? kleur.dim("   ·   tunnel up") : ""),
-  );
+  lines.push(headlineRow(state, connected, offline, width));
+
+  const code = codeLine(state, width);
 
   if (state.rows.length === 0) {
     // Not an empty table. A header row over nothing reads as a bug, and the
     // useful thing to say here is what to do next rather than what is absent.
-    lines.push(
-      kleur.dim(
-        state.hosted
-          ? "  Scan the code above, or press n for a fresh one."
-          : "  Scan the code above, or type the six digits at the address.",
-      ),
-    );
+    // When the code line below is about to say exactly that, in digits, this
+    // would be the same instruction twice with the useful half missing.
+    if (!code) {
+      lines.push(kleur.dim("  Scan the code above to get a device in."));
+    }
   } else {
     const shown = state.rows.slice(0, MAX_ROWS);
     const cursor = clamp(state.cursor, shown.length);
@@ -315,9 +349,38 @@ function list(state: PanelState, width: number): string[] {
    * tunnel…" there, and inviting someone to press the key they just pressed is
    * worse than saying nothing.
    */
+  if (code) lines.push(code);
   if (state.canOpenTunnel && !state.flash) lines.push(tunnelOffer(width));
   lines.push(keyBar(state, width));
   return lines;
+}
+
+/**
+ * The live code, and where to type it.
+ *
+ * Assembled from parts and measured as plain text for the same reason
+ * `tunnelOffer` is: `fit` counts columns, and a bolded run of digits is a
+ * dozen bytes of escape sequence for nine columns of ink. Narrow terminals
+ * drop the trailing offer and then the host, in that order — the digits are
+ * the part that cannot be reconstructed from anything else on screen.
+ */
+function codeLine(state: PanelState, width: number): string | null {
+  const raw = state.invite?.code;
+  if (!raw) return null;
+  const digits = formatInviteCode(raw);
+  const host = state.invite?.host ?? "";
+  // Only with a tunnel: `n` re-arms a broker code. The local offer re-arms
+  // itself the moment it is spent, so there would be nothing for it to do.
+  const tail = state.hosted ? "   ·   n for a new one" : "";
+
+  const variants = [
+    `Code  ${digits}  at ${host}${tail}`,
+    `Code  ${digits}  at ${host}`,
+    `Code  ${digits}`,
+  ];
+  const chosen = variants.find((v) => 2 + v.length <= width) ?? variants[2]!;
+  const [, after = ""] = chosen.split(digits);
+  return ` ${kleur.dim("Code  ")}${kleur.bold(digits)}${kleur.dim(after)}`;
 }
 
 /**
@@ -350,6 +413,44 @@ function headline(count: number): string {
 }
 
 /**
+ * The summary row, dropping what will not fit rather than being cut.
+ *
+ * This line was the one thing in the panel that was never measured, so at 56
+ * columns it ran off the edge and the terminal wrapped it — which pushes every
+ * row below it down by one and leaves the panel's own top line orphaned above
+ * the rule. `fit` would truncate it mid-word instead, which is no better: the
+ * segments are independent facts, and half of "4 paired, not he" is not a
+ * fact. So whole segments go, least important first, and what is left is
+ * always true.
+ */
+function headlineRow(
+  state: PanelState,
+  connected: number,
+  offline: number,
+  width: number,
+): string {
+  const rest: string[] = [];
+  if (offline > 0) rest.push(`${offline} paired, not here`);
+  if (state.hosted) rest.push("tunnel up");
+  // Only when it is on. Off is the default, and a permanent line announcing a
+  // default is the kind of noise that teaches people to stop reading a panel.
+  if (state.askOnReconnect) rest.push("asks on return");
+
+  const head = headline(connected);
+  const JOIN = "   ·   ";
+  while (
+    rest.length > 0 &&
+    1 + head.length + rest.reduce((n, r) => n + JOIN.length + r.length, 0) >
+      width
+  ) {
+    rest.pop();
+  }
+  return (
+    ` ${kleur.bold(head)}` + rest.map((part) => kleur.dim(JOIN + part)).join("")
+  );
+}
+
+/**
  * One device.
  *
  * The widths are computed from the terminal rather than fixed, because the
@@ -379,8 +480,14 @@ function rowLine(
 
   const device = row.live;
   const age = pad(device ? since(device.connectedAt, now) : "", AGE_W);
-  const idle = pad(statusText(row, now), IDLE_W);
   const tag = badge(row);
+  // Padded only when something follows it. Most rows have no badge, so the
+  // padding was nine trailing spaces per row inside a dim escape — invisible
+  // until you select the output with a mouse or diff a captured frame. The
+  // name column is still sized against the full `IDLE_W` below, so dropping
+  // the padding here cannot make two rows disagree about where a column is.
+  const status = statusText(row, now);
+  const idle = tag ? pad(status, IDLE_W) : status;
   const showWhere = width >= 64;
   const where = showWhere ? pad(whereText(row), WHERE_W) : null;
 
@@ -473,7 +580,6 @@ function keyBar(state: PanelState, width: number): string {
     // for any row: a paired device is forgotten, a bare socket is hung up.
     if (row.deviceId || row.live) keys.push(key("r", "remove"));
   }
-  if (state.hosted) keys.push(key("n", "new code"));
   keys.push(key("?", "keys"), key("q", "quit"));
   return ` ${fit(keys.join(kleur.dim("   ")), width - 2)}`;
 }
@@ -511,6 +617,37 @@ function detailCard(
   const field = (label: string, value: string) => {
     lines.push(` ${kleur.dim(pad(label, 10))} ${fit(value, width - 13)}`);
   };
+  /**
+   * A field whose value is worth more than one line.
+   *
+   * Only `Can do` uses it, and only because that value is the answer to "what
+   * can this thing actually reach" — the one field on this card somebody is
+   * reading for a security reason. Truncating it to "every session · type i…"
+   * hides the half that says whether it can write to files.
+   */
+  const wrapped = (label: string, value: string) => {
+    const room = Math.max(12, width - 13);
+    const parts = value.split("   ·   ");
+    let line = "";
+    const flush = (head: string) => {
+      lines.push(` ${kleur.dim(pad(head, 10))} ${line}`);
+      line = "";
+    };
+    let head = label;
+    for (const part of parts) {
+      const next = line ? `${line}   ·   ${part}` : part;
+      if (displayWidth(next) <= room) {
+        line = next;
+        continue;
+      }
+      if (line) {
+        flush(head);
+        head = "";
+      }
+      line = fit(part, room);
+    }
+    if (line) flush(head);
+  };
 
   // What the browser claims, when it is not what the row already says. Shown
   // only when a rename has made the two differ, because that is the only time
@@ -530,7 +667,7 @@ function detailCard(
     );
     if (device.attachedSession) field("Session", device.attachedSession);
     if (device.size) field("Screen", `${device.size.cols}×${device.size.rows}`);
-    field("Can do", capabilities(device));
+    wrapped("Can do", capabilities(device));
     if (device.expiresAt) {
       field(
         "Expires",
@@ -540,7 +677,12 @@ function detailCard(
       );
     }
     field("Reached me", whereFrom(device));
-    if (device.userAgent) field("It says", sanitizeLabel(device.userAgent));
+    // The raw user agent is the least information per column on this card and
+    // the first thing to be cut to an ellipsis. Below 64 it is a row that says
+    // "Mozilla/5.0 (Macintosh; In…" and nothing else, so it goes instead.
+    if (device.userAgent && width >= 64) {
+      field("It says", sanitizeLabel(device.userAgent));
+    }
   } else {
     field("Connected", "not right now");
   }
@@ -559,7 +701,7 @@ function detailCard(
     field("Paired", "no — it is using this machine's own token");
   }
 
-  // The device id is what `mtmux devices revoke` takes, so it is printed in
+  // The device id is what `mtmux devices remove` takes, so it is printed in
   // full rather than shortened — a truncated id is a thing you cannot act on.
   if (row.deviceId) field("Device", row.deviceId);
   if (device?.id) field("Socket", device.id);
@@ -634,23 +776,28 @@ function help(state: PanelState, width: number): string[] {
   const lines = [
     rule(width),
     ` ${kleur.bold("Keys")}`,
-    `   ${kleur.bold("↑ ↓")}   ${kleur.dim("move between devices — connected first, then paired")}`,
-    `   ${kleur.bold("d")}     ${kleur.dim("everything about this device — enter does it too")}`,
-    `   ${kleur.bold("r")}     ${kleur.dim("remove it — it must pair again, with a new code")}`,
-    `   ${kleur.bold("e")}     ${kleur.dim("rename it, so the list reads as yours")}`,
-    `   ${kleur.bold("a")}     ${kleur.dim("ask again when a device you know comes back")}`,
-    `   ${kleur.bold("t")}     ${kleur.dim("open an encrypted tunnel, so a device anywhere can pair")}`,
-    `   ${kleur.bold("n")}     ${kleur.dim("throw away the printed code and arm a fresh one")}`,
-    `   ${kleur.bold("l")}     ${kleur.dim("reprint the banner, code and addresses")}`,
-    `   ${kleur.bold("q")}     ${kleur.dim("stop the server — the same as Ctrl+C")}`,
+    `   ${kleur.bold("↑ ↓")}   ${kleur.dim("move between devices")}`,
+    `   ${kleur.bold("d")}     ${kleur.dim("everything about this one")}`,
+    `   ${kleur.bold("r")}     ${kleur.dim("remove it — must pair again")}`,
+    `   ${kleur.bold("e")}     ${kleur.dim("rename it")}`,
+    `   ${kleur.bold("a")}     ${kleur.dim("ask when a known device returns")}`,
+    `   ${kleur.bold("t")}     ${kleur.dim("open an encrypted tunnel")}`,
+    `   ${kleur.bold("n")}     ${kleur.dim("new code — the old one dies")}`,
+    `   ${kleur.bold("l")}     ${kleur.dim("reprint the banner and code")}`,
+    `   ${kleur.bold("q")}     ${kleur.dim("stop the server (Ctrl+C)")}`,
     "",
-    ` ${kleur.dim("A new device is always asked about here before it gets in.")}`,
-    ` ${kleur.dim("Asking again when a known one returns is ")}` +
+    ` ${kleur.dim("A new device is always asked about")}`,
+    ` ${kleur.dim("here before it gets in. Asking again")}`,
+    ` ${kleur.dim("when a known one returns is ")}` +
       (state.askOnReconnect ? kleur.bold("on") : kleur.dim("off")) +
-      kleur.dim(` — press a.`),
+      kleur.dim("."),
     "",
     ` ${kleur.dim("Any key to go back.")}`,
   ];
+  // Written to fit the narrowest terminal this panel runs in, so `fit` is the
+  // safety net rather than the layout. A help screen whose every line ends in
+  // an ellipsis is a help screen that has stopped helping — which is what the
+  // long-form wording here used to become at 40 columns.
   return lines.map((line) => fit(line, width));
 }
 
@@ -668,11 +815,17 @@ function confirm(
   mode: Extract<PanelMode, { kind: "confirm" }>,
   width: number,
 ): string[] {
-  const name = kleur.bold(kleur.yellow(sanitizeLabel(mode.label)));
+  // Fitted against the verb it sits beside: a device name is whatever a
+  // browser claimed to be, and "Chrome on macOS 14.4 (Apple Silicon)" is
+  // ordinary rather than adversarial. An unmeasured title wraps, and the row
+  // that falls off the bottom of a confirmation is the one holding y and n.
+  const room = (verb: string) => Math.max(8, width - verb.length - 4);
+  const named = (verb: string) =>
+    kleur.bold(kleur.yellow(fit(sanitizeLabel(mode.label), room(verb))));
   if (mode.action === "disconnect") {
     return [
       rule(width),
-      ` ${kleur.bold("Disconnect")} ${name}${kleur.bold("?")}`,
+      ` ${kleur.bold("Disconnect")} ${named("Disconnect")}${kleur.bold("?")}`,
       ` ${kleur.dim(fit("It is not paired — it is using this machine's own token, so it can come straight back.", width - 2))}`,
       "",
       ` ${kleur.bold("y")} ${kleur.dim("hang up")}   ${kleur.bold("n")} ${kleur.dim("leave it")}`,
@@ -680,7 +833,7 @@ function confirm(
   }
   return [
     rule(width),
-    ` ${kleur.bold("Remove")} ${name}${kleur.bold("?")}`,
+    ` ${kleur.bold("Remove")} ${named("Remove")}${kleur.bold("?")}`,
     ` ${kleur.dim(fit("It is disconnected now, and to come back it needs a new code and your approval.", width - 2))}`,
     "",
     ` ${kleur.bold("y")} ${kleur.dim("remove")}   ${kleur.bold("n")} ${kleur.dim("keep it")}`,
@@ -731,36 +884,62 @@ function approval(
   width: number,
 ): string[] {
   const left = Math.max(0, Math.ceil((mode.expiresAt - state.now) / 1000));
+  // Everything here is measured, and that is not tidiness. This is the one
+  // strong human gate in the product; a line that overflows wraps, every row
+  // below it shifts, and on a short terminal the `y`/`n` line is what falls
+  // off the bottom — leaving a question with no visible way to answer it.
+  const value = (label: string, text: string) =>
+    ` ${kleur.dim(label)}  ${fit(text, Math.max(6, width - 3 - label.length))}`;
+
   const lines = [
     rule(width),
     ` ${kleur.bold(kleur.yellow("A device wants in"))}`,
-    // Stripped at the render site as well as at ingress. This is the one
-    // strong human gate in the product, and a label that can move the cursor
-    // can erase the question and draw a friendlier one.
-    ` ${kleur.dim("Device ")}  ${sanitizeLabel(mode.label)}`,
+    // Stripped at the render site as well as at ingress. A label that can move
+    // the cursor can erase the question and draw a friendlier one.
+    value("Device ", sanitizeLabel(mode.label)),
   ];
   if (mode.account) {
-    lines.push(` ${kleur.dim("Account")}  ${sanitizeLabel(mode.account)}`);
+    lines.push(value("Account", sanitizeLabel(mode.account)));
   }
   if (mode.sas) {
     lines.push(` ${kleur.dim("Code   ")}  ${kleur.bold(mode.sas)}`);
     lines.push(
-      ` ${kleur.dim("It is showing the same six digits. Deny if they differ.")}`,
+      ` ${kleur.dim(fit("It is showing the same six digits. Deny if they differ.", width - 2))}`,
     );
   } else {
     // No digits, and the absence is the message. The code was the shared
     // secret, so there is nothing to compare; asking "do these match?"
     // against a blank space teaches people to answer without looking.
     lines.push(
-      ` ${kleur.dim("It entered this machine's code. Say yes only if that was you.")}`,
+      ` ${kleur.dim(fit("It entered this machine's code. Say yes only if that was you.", width - 2))}`,
     );
   }
   lines.push("");
-  lines.push(
-    ` ${kleur.bold("y")} ${kleur.dim("let it in")}   ${kleur.bold("n")} ${kleur.dim("refuse")}` +
-      kleur.dim(`   ·   ${left}s left, and doing nothing refuses it`),
-  );
+  lines.push(answerLine(left, width));
   return lines;
+}
+
+/**
+ * `y`, `n`, and as much of the countdown as fits.
+ *
+ * Whole clauses go, longest first, and the two keys never do — a question you
+ * cannot see how to answer is worse than one with no timer on it. Measured as
+ * plain text and coloured afterwards, because `fit` counts a bolded `y` as
+ * nine columns of escape sequence for one column of ink.
+ */
+function answerLine(secondsLeft: number, width: number): string {
+  const tails = [
+    `   ·   ${secondsLeft}s left, and doing nothing refuses it`,
+    `   ·   ${secondsLeft}s left — silence refuses`,
+    `   ·   ${secondsLeft}s`,
+    "",
+  ];
+  const head = "y let it in   n refuse";
+  const tail = tails.find((t) => 1 + head.length + t.length <= width) ?? "";
+  return (
+    ` ${kleur.bold("y")} ${kleur.dim("let it in")}   ` +
+    `${kleur.bold("n")} ${kleur.dim("refuse")}${kleur.dim(tail)}`
+  );
 }
 
 export function clamp(cursor: number, length: number): number {

@@ -51,7 +51,12 @@ import {
 } from "./pair.js";
 import * as account from "../account.js";
 import { resolveShareSessions, shareBanner } from "../share-grants.js";
-import { decideAccess, type AccessPromptInput } from "../access-prompt.js";
+import {
+  decideAccess,
+  promptForAccess,
+  type AccessPromptInput,
+  type AccessPromptResult,
+} from "../access-prompt.js";
 import {
   createDevicePanel,
   type DevicePanel,
@@ -446,6 +451,43 @@ function say(...lines: string[]): void {
 /** The live panel, once the relay exists. Null when it declined to start. */
 let panel: DevicePanel | null = null;
 
+/**
+ * Fires the moment the panel takes stdin, so no readline can outlive it.
+ *
+ * There is a window between the tunnel arming a code and the panel appearing
+ * below the banner. A pairing landing in it is answered by the readline
+ * prompt, because there is no panel yet to ask in — and then the panel starts,
+ * puts the terminal in raw mode and installs its own reader, and there are two
+ * readers on one stdin. That is the exact defect `access-prompt.ts`'s header
+ * records paying for once already: "a dead `[y/N]` eating keystrokes on the
+ * machine".
+ *
+ * So the readline is bound to this as well as to its own question's signal.
+ * When the panel starts, any prompt still standing is taken down and reports
+ * "could not ask" — never a refusal — which sends the question on to `park`,
+ * and the terminal says how to answer it. A question that moves is recoverable;
+ * a terminal with two readers is not.
+ */
+const stdinTakeover = new AbortController();
+
+/**
+ * Ask on the machine, through whatever owns stdin at the time.
+ *
+ * Resolved per call rather than captured, because which of the two it is
+ * changes exactly once, part-way through start-up, and the wrong answer in
+ * either direction is a bug: the panel's seam before the panel exists is a
+ * question drawn nowhere, and the readline after it is a second reader.
+ */
+function askOnThisMachine(
+  req: AccessPromptInput,
+  signal: AbortSignal,
+): Promise<AccessPromptResult> {
+  if (panel?.enabled) return panel.promptForAccess(req, signal);
+  return promptForAccess(req, {
+    signal: AbortSignal.any([signal, stdinTakeover.signal]),
+  });
+}
+
 /** How many devices are connected right now, for what the parked notice says. */
 let connectedCount: (() => number) | null = null;
 
@@ -478,10 +520,8 @@ async function confirmCodePairing(label: string): Promise<boolean> {
   const answer = await decideAccess(req, {
     ask: askInApp ? (r, signal) => askInApp!(r, { signal }) : undefined,
     offer: approvals ? (r) => approvals!.offer(r) : undefined,
-    // The panel owns stdin while it is up, so it *is* the TTY channel. When it
-    // is not up this stays undefined and `decideAccess` falls back to
-    // `promptForAccess`'s readline, which is the pre-panel behaviour.
-    ...(panel?.enabled ? { prompt: panel.promptForAccess } : {}),
+    // Whichever of the two owns stdin right now — see `askOnThisMachine`.
+    prompt: askOnThisMachine,
     park: approvals
       ? (r, signal) =>
           approvals!.offer(r, { park: true, signal }).then((v) => v === true)
@@ -623,8 +663,8 @@ async function startHosted(opts: {
          */
         ask: askInApp ? (req, signal) => askInApp!(req, { signal }) : undefined,
         offer: approvals ? (req) => approvals!.offer(req) : undefined,
-        // See `confirmCodePairing`: while the panel is up it is the TTY.
-        ...(panel?.enabled ? { prompt: panel.promptForAccess } : {}),
+        // See `askOnThisMachine`: whichever of the two owns stdin right now.
+        prompt: askOnThisMachine,
         // Reached only when the TTY prompt could not ask at all, which is the
         // common case rather than the exotic one: a machine started by systemd,
         // by `nohup`, or left in a detached pane. Rather than denying instantly
@@ -1246,7 +1286,7 @@ function makeReturningGate(): (peer: PeerIdentity) => Promise<boolean> {
         {
           ask: askInApp ? (r, signal) => askInApp!(r, { signal }) : undefined,
           offer: approvals ? (r) => approvals!.offer(r) : undefined,
-          ...(panel?.enabled ? { prompt: panel.promptForAccess } : {}),
+          prompt: askOnThisMachine,
         },
       );
       if (answer.approved) {
@@ -1498,6 +1538,16 @@ export async function start(opts: StartOpts) {
       ? false
       : (await configStore.getReach()) !== "hosted";
 
+  /**
+   * Whether `t` is a real offer on this run, and therefore worth printing.
+   *
+   * Only when this run was local *by default*. Someone who typed `--local` has
+   * made this decision and does not need it explained, and a run where the
+   * tunnel was asked for and failed has `note` saying what happened — the key
+   * is live in both cases, it is just not advertised.
+   */
+  const offersTunnel = localOnly && !opts.local;
+
   const updateCheck =
     localOnly || opts.json
       ? Promise.resolve(null)
@@ -1723,6 +1773,25 @@ export async function start(opts: StartOpts) {
   /** The local invite currently on screen, re-armed whenever it is spent. */
   let localInvite: PairingInvite | null = null;
 
+  /**
+   * The tunnel is up: stop offering the short route nobody can read.
+   *
+   * A server that started local-only has six digits on its banner and an
+   * offer armed for a day. Opening a tunnel replaces that banner with the
+   * hosted one, and without this the local code stays live and claimable with
+   * nothing anywhere displaying it — a printed secret that is no longer
+   * printed, which is the one thing a printed secret must never become.
+   *
+   * Nothing is lost. A hosted pairing seals this machine's LAN candidates
+   * into its descriptor, so a browser on this network still races straight to
+   * a direct socket instead of going through the tunnel.
+   */
+  const dropLocalInvite = (): void => {
+    if (!localInvite) return;
+    localInvite = null;
+    relay.disarmLocalPairing?.();
+  };
+
   let hosted: Hosted | null = null;
   let note: string | null = null;
   /**
@@ -1758,6 +1827,9 @@ export async function start(opts: StartOpts) {
       showQr: opts.qr,
       token: cfg.token,
       note,
+      // Read at print time, not captured: `l` after pressing `t` must not
+      // redraw an offer to do the thing that has already been done.
+      canOpenTunnel: offersTunnel && hosted === null,
     })) {
       say(line);
     }
@@ -1977,6 +2049,7 @@ export async function start(opts: StartOpts) {
         // The banner has already been printed, saying the machine is serving
         // locally. Correct that rather than leaving a stale claim on screen.
         hosted = late;
+        dropLocalInvite();
         note = null;
         void serverState.write(record(late.invite.url)).catch(() => {});
         // `--json` printed one object and is being read by a script, not a
@@ -2028,6 +2101,7 @@ export async function start(opts: StartOpts) {
     }
     const invite = hosted?.invite;
     if (!invite) return "the tunnel opened without a code";
+    dropLocalInvite();
     // The banner on screen says this machine is local-only, and it is now
     // wrong. `note` may also be carrying a failure from the start-up attempt,
     // which this supersedes.
@@ -2059,11 +2133,13 @@ export async function start(opts: StartOpts) {
    * where the tunnel was asked for and failed has `note` saying what happened
    * — the key is still live in both cases, it is just not advertised.
    */
-  const hint =
-    localOnly && !opts.local
-      ? `Want it from anywhere?  Press ${kleur.bold("t")} for an encrypted tunnel` +
-        kleur.dim(`   ·   always:  mtmux config set reach hosted`)
-      : null;
+  const hint = offersTunnel
+    ? // The keypress is offered beside the QR now, under the sentence that
+      // creates the need for it. What is left here is the other half — not
+      // having to press anything next time — which is a different thought and
+      // belongs nowhere near the code somebody is in the middle of typing.
+      kleur.dim("Always open a tunnel:  ") + "mtmux config set reach hosted"
+    : null;
 
   localInvite = hosted ? null : armLocalInvite();
 
@@ -2101,6 +2177,7 @@ export async function start(opts: StartOpts) {
       token: cfg.token,
       note,
       hint,
+      canOpenTunnel: offersTunnel && hosted === null,
     });
   }
 
@@ -2212,6 +2289,7 @@ export async function start(opts: StartOpts) {
 
   panel = createDevicePanel({
     peers: () => peerRows,
+    invite: liveInvite,
     askOnReconnect: () => askOnReconnect,
     setAskOnReconnect: async (value) => {
       askOnReconnect = value;
@@ -2269,6 +2347,9 @@ export async function start(opts: StartOpts) {
   });
   if (panel.enabled) {
     screen = panel;
+    // From here the panel is the only reader on stdin. Anything still sitting
+    // at a readline is taken down rather than left to fight it for keystrokes.
+    stdinTakeover.abort();
     // The banner's trailing "Waiting…" is the panel's job now, and leaving the
     // claim on screen above a table that says the same thing better is two
     // writers disagreeing in the same column of pixels.
