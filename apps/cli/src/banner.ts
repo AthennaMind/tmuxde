@@ -352,6 +352,48 @@ export function renderBannerLines(opts: BannerOpts): string[] {
   return out;
 }
 
+/**
+ * A new code, and nothing else.
+ *
+ * Every pairing spends the code that was on screen, so something has to say
+ * what the next one is. Until now that something was the whole banner again —
+ * the version header, seventeen rows of QR, both addresses, the promise and
+ * the "Waiting for a device…" line — for a change of nine digits. Pair three
+ * phones and the terminal holds four copies of the same block, and the reader
+ * has to diff two QRs to find the one line that moved.
+ *
+ * So the re-arm says the one thing that changed. The QR is not redrawn here
+ * and it is *stale* the moment this prints, which is why the offer to redraw
+ * it is part of the sentence rather than a thing to know: somebody who needs
+ * to scan must be able to get a live QR without guessing that `l` exists.
+ */
+export function renderCodeUpdateLines(
+  invite: PairingInvite,
+  opts: { showQr?: boolean } = {},
+): string[] {
+  const code = invite.code;
+  // No digits left to show — the typed half is spent and only the QR is live.
+  // There is nothing compact to say, so say the useful thing instead.
+  if (!code) {
+    return [
+      INDENT +
+        kleur.dim("Press ") +
+        kleur.bold("l") +
+        kleur.dim(" for a fresh QR."),
+    ];
+  }
+  const line =
+    INDENT +
+    kleur.dim("New code  ") +
+    kleur.bold(renderCode(code)) +
+    (opts.showQr === false
+      ? ""
+      : kleur.dim("   ·   press ") +
+        kleur.bold("l") +
+        kleur.dim(" for a fresh QR"));
+  return [line];
+}
+
 export function banner(opts: BannerOpts) {
   for (const line of renderBannerLines(opts)) console.log(line);
 }

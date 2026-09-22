@@ -253,15 +253,14 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
       const target = rows().find((r) => r.key === describing) ?? null;
       mode = { kind: "list" };
       if (target) cursor = rows().indexOf(target);
-      if (key === "c") return doClose();
-      if (key === "r" && target?.deviceId) return askRevoke();
+      if (key === "r" || key === "c") return askRemove();
       if (key === "e" && target?.deviceId) return openRename();
       paint();
       return;
     }
 
     if (mode.kind === "confirm") {
-      if (key === "y") await doRevoke(mode.deviceId, mode.label);
+      if (key === "y") await doRemove(mode);
       else if (key === "n" || raw === KEY.escape) {
         mode = { kind: "list" };
         paint();
@@ -301,12 +300,15 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
       case "d":
       case KEY.enter:
         return openDetails();
-      case "c":
-        return doClose();
       case "e":
         return openRename();
+      // One destructive key, and two spellings of it. `c` used to hang up the
+      // socket and leave the credential alone, which the device spent within
+      // the second undoing; anyone still reaching for it means "get rid of
+      // this", and the confirmation says which kind of getting-rid this is.
       case "r":
-        return askRevoke();
+      case "c":
+        return askRemove();
     }
   }
 
@@ -350,7 +352,7 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
       mode = { kind: "list" };
       const ok = await deps
         .rename?.(current.deviceId, name || null)
-        .catch(() => false);
+        ?.catch(() => false);
       setFlash(
         !ok
           ? kleur.dim("That device is gone — nothing was renamed.")
@@ -421,37 +423,65 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
     paint();
   }
 
-  async function doClose(): Promise<void> {
+  /**
+   * Ask before getting rid of a row, in whichever sense applies to it.
+   *
+   * A paired device is forgotten outright — that is what stops it coming
+   * back, and the reason this key exists in this shape at all. A live socket
+   * with no pairing record of ours (the machine's own token, a share) has no
+   * credential here to destroy, so the only honest offer is to hang up, and
+   * the confirmation is worded so nobody reads it as the stronger thing.
+   */
+  function askRemove(): void {
     const row = selected(state());
-    if (!row?.live?.id || !deps.disconnect) return;
-    const closed = await deps.disconnect(row.live.id);
-    setFlash(
-      closed
-        ? kleur.dim(`Closed ${row.name}. It may reconnect.`)
-        : kleur.dim(`${row.name} had already gone.`),
-    );
+    if (!row) return;
+    if (row.deviceId && deps.revoke) {
+      mode = {
+        kind: "confirm",
+        action: "remove",
+        deviceId: row.deviceId,
+        connectionId: row.live?.id ?? null,
+        label: row.name,
+      };
+      return paint();
+    }
+    if (row.live?.id && deps.disconnect) {
+      mode = {
+        kind: "confirm",
+        action: "disconnect",
+        deviceId: null,
+        connectionId: row.live.id,
+        label: row.name,
+      };
+      return paint();
+    }
   }
 
-  function askRevoke(): void {
-    const row = selected(state());
-    // No device id means the machine's own token, which has nothing to revoke.
-    if (!row?.deviceId || !deps.revoke) return;
-    mode = {
-      kind: "confirm",
-      action: "revoke",
-      deviceId: row.deviceId,
-      label: row.name,
-    };
-    paint();
-  }
-
-  async function doRevoke(deviceId: string, label: string): Promise<void> {
+  async function doRemove(
+    target: Extract<PanelMode, { kind: "confirm" }>,
+  ): Promise<void> {
     mode = { kind: "list" };
-    const ok = await deps.revoke?.(deviceId).catch(() => false);
+    if (target.action === "disconnect") {
+      const closed = target.connectionId
+        ? await deps.disconnect?.(target.connectionId)?.catch(() => false)
+        : false;
+      setFlash(
+        closed
+          ? kleur.dim(`Hung up on ${target.label}.`)
+          : kleur.dim(`${target.label} had already gone.`),
+      );
+      return;
+    }
+    const ok = target.deviceId
+      ? await deps.revoke?.(target.deviceId)?.catch(() => false)
+      : false;
+    // Revoking drops the token, and the relay closes every socket holding it
+    // — so there is nothing to hang up separately here, and saying "removed"
+    // is saying the whole truth rather than half of it.
     setFlash(
       ok
-        ? kleur.yellow(`Revoked ${label}. It must pair again.`)
-        : kleur.dim(`Could not revoke ${label}.`),
+        ? kleur.yellow(`Removed ${target.label}. It must pair again.`)
+        : kleur.dim(`Could not remove ${target.label}.`),
     );
   }
 

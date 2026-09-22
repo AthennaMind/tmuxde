@@ -1039,3 +1039,84 @@ describe("broker keepalive", () => {
     expect(clock.timers).toBe(0);
   });
 });
+
+/**
+ * A device that has been removed, over the tunnel.
+ *
+ * Revoking its relay token is what stops it authenticating, and that alone is
+ * enough for it to be denied. It is not enough for it to be *gone*: with its
+ * keys still on the ring it can open a sealed stream, be bound by trial
+ * decryption, reach loopback and be refused one frame later — a working tunnel
+ * to a closed door, and a stream the machine keeps paying for.
+ */
+describe("forgetting a device", () => {
+  it("drops its keys, so a new stream cannot bind", async () => {
+    const h = harness();
+    const keys = sessionKeys();
+    h.agent.addSessionKeys(keys, {
+      deviceId: "dev-1",
+      label: "iPhone",
+      restored: false,
+    });
+    const browser = browserEnd(keys);
+    h.agent.start();
+    register(h);
+
+    expect(h.agent.removeSessionKeys("dev-1")).toBe(1);
+
+    h.brokers[0]!.deliver({ type: "stream:open", streamId: "str-1" });
+    h.locals[0]?.open();
+    h.brokers[0]!.deliver({
+      type: "stream:frame",
+      streamId: "str-1",
+      data: await browser.seal(JSON.stringify({ type: "auth", token: "t" })),
+    });
+    await flush();
+
+    // Nothing reached the relay: the frame matched no key on the ring.
+    expect(h.locals[0]?.sent ?? []).toEqual([]);
+  });
+
+  it("closes the stream it already had open", async () => {
+    const h = harness();
+    const keys = sessionKeys();
+    h.agent.addSessionKeys(keys, {
+      deviceId: "dev-1",
+      label: "iPhone",
+      restored: false,
+    });
+    const browser = browserEnd(keys);
+    h.agent.start();
+    register(h);
+    h.brokers[0]!.deliver({ type: "stream:open", streamId: "str-1" });
+    const local = h.locals[0]!;
+    local.open();
+    h.brokers[0]!.deliver({
+      type: "stream:frame",
+      streamId: "str-1",
+      data: await browser.seal(JSON.stringify({ type: "auth", token: "t" })),
+    });
+    await flush();
+    expect(local.sent.length).toBeGreaterThan(0);
+
+    h.agent.removeSessionKeys("dev-1");
+    expect(local.closed).toBe(true);
+  });
+
+  it("leaves every other device alone", () => {
+    const h = harness();
+    h.agent.addSessionKeys(sessionKeys(), {
+      deviceId: "dev-1",
+      label: "iPhone",
+      restored: false,
+    });
+    h.agent.addSessionKeys(sessionKeys(), {
+      deviceId: "dev-2",
+      label: "iPad",
+      restored: false,
+    });
+    expect(h.agent.removeSessionKeys("dev-1")).toBe(1);
+    expect(h.agent.removeSessionKeys("dev-1")).toBe(0);
+    expect(h.agent.removeSessionKeys("dev-2")).toBe(1);
+  });
+});

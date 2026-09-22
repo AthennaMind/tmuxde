@@ -111,8 +111,25 @@ export type PanelMode =
    * device slid into that row.
    */
   | { kind: "details"; key: string | null }
-  /** A destructive action waiting on y/n, holding what it will act on. */
-  | { kind: "confirm"; action: "revoke"; deviceId: string; label: string }
+  /**
+   * A destructive action waiting on y/n, holding what it will act on.
+   *
+   * Two actions, because one key means one thing to the reader — "get rid of
+   * this row" — and two different things to the machine. A row with a device
+   * behind it is forgotten: the credential dies and it must pair again. A row
+   * that is only a live socket has no credential of ours to destroy, so the
+   * honest offer is to hang up, and the confirmation says which of the two is
+   * about to happen rather than letting the reader assume the stronger one.
+   */
+  | {
+      kind: "confirm";
+      action: "remove" | "disconnect";
+      /** Null for a socket with no pairing record — nothing to forget. */
+      deviceId: string | null;
+      /** The socket to hang up, when there is one. */
+      connectionId: string | null;
+      label: string;
+    }
   /** Typing a new name. `draft` is what has been typed so far. */
   | { kind: "rename"; deviceId: string; label: string; draft: string }
   /** A device is asking to be let in. Nothing else is reachable until answered. */
@@ -432,27 +449,32 @@ function badge(row: PanelRow): string {
   return "";
 }
 
+/**
+ * The bar, and what is deliberately not in it.
+ *
+ * It used to carry up to seven pairs — select, details, close, rename,
+ * revoke, tunnel-or-new-code, help, quit — which is a row of characters
+ * nobody reads, and two of those pairs (`c` and `r`) looked like a choice
+ * between a soft and a hard version of the same thing when only one of them
+ * did anything lasting.
+ *
+ * So the bar carries what someone would reach for without being told, and
+ * `?` carries the rest. `t` is not here because the line above it is a whole
+ * sentence offering exactly that, and printing the key twice is how a screen
+ * starts to feel like a cockpit.
+ */
 function keyBar(state: PanelState, width: number): string {
   const row = selected(state);
   const keys: string[] = [];
   if (state.rows.length > 1) keys.push(key("↑↓", "select"));
   if (row) {
     keys.push(key("d", "details"));
-    if (row.live) keys.push(key("c", "close"));
-    // Only when there is a device behind the row. The machine's own token has
-    // none, and offering to revoke it would offer to revoke the credential
-    // this terminal is printing.
-    if (row.deviceId) {
-      keys.push(key("e", "rename"));
-      keys.push(key("r", "revoke"));
-    }
+    // One destructive key, whose meaning the confirmation spells out. Offered
+    // for any row: a paired device is forgotten, a bare socket is hung up.
+    if (row.deviceId || row.live) keys.push(key("r", "remove"));
   }
-  // Exactly one of these is ever offered, and the pair is why: `n` replaces a
-  // code that exists, `t` creates the thing that has codes at all. Showing
-  // both would invite someone with no tunnel to press the one that cannot work.
   if (state.hosted) keys.push(key("n", "new code"));
-  else if (state.canOpenTunnel) keys.push(key("t", "tunnel"));
-  keys.push(key("?", "help"), key("q", "quit"));
+  keys.push(key("?", "keys"), key("q", "quit"));
   return ` ${fit(keys.join(kleur.dim("   ")), width - 2)}`;
 }
 
@@ -546,10 +568,11 @@ function detailCard(
   // Fitted like every other line here: at 40 columns the hint is what goes,
   // not the keys, because the keys are the part you cannot guess.
   const parts: string[] = [];
-  if (device) parts.push(`${kleur.bold("c")} ${kleur.dim("close")}`);
-  if (row.deviceId) {
-    parts.push(`${kleur.bold("e")} ${kleur.dim("rename")}`);
-    parts.push(`${kleur.bold("r")} ${kleur.dim("revoke")}`);
+  if (row.deviceId) parts.push(`${kleur.bold("e")} ${kleur.dim("rename")}`);
+  if (row.deviceId || device) {
+    parts.push(
+      `${kleur.bold("r")} ${kleur.dim(row.deviceId ? "remove" : "disconnect")}`,
+    );
   }
   parts.push(kleur.dim("any other key goes back"));
   lines.push(` ${fit(parts.join(kleur.dim("   ·   ")), width - 2)}`);
@@ -613,41 +636,54 @@ function help(state: PanelState, width: number): string[] {
     ` ${kleur.bold("Keys")}`,
     `   ${kleur.bold("↑ ↓")}   ${kleur.dim("move between devices — connected first, then paired")}`,
     `   ${kleur.bold("d")}     ${kleur.dim("everything about this device — enter does it too")}`,
-    `   ${kleur.bold("c")}     ${kleur.dim("close this connection — it may reconnect")}`,
+    `   ${kleur.bold("r")}     ${kleur.dim("remove it — it must pair again, with a new code")}`,
     `   ${kleur.bold("e")}     ${kleur.dim("rename it, so the list reads as yours")}`,
-    `   ${kleur.bold("r")}     ${kleur.dim("revoke this device — permanent, it must pair again")}`,
     `   ${kleur.bold("a")}     ${kleur.dim("ask again when a device you know comes back")}`,
     `   ${kleur.bold("t")}     ${kleur.dim("open an encrypted tunnel, so a device anywhere can pair")}`,
     `   ${kleur.bold("n")}     ${kleur.dim("throw away the printed code and arm a fresh one")}`,
     `   ${kleur.bold("l")}     ${kleur.dim("reprint the banner, code and addresses")}`,
     `   ${kleur.bold("q")}     ${kleur.dim("stop the server — the same as Ctrl+C")}`,
     "",
-    ` ${kleur.dim("Closing is temporary, revoking is not. Renaming changes nothing")}`,
-    ` ${kleur.dim("about what a device may do — it is for you, not for it.")}`,
-    "",
     ` ${kleur.dim("A new device is always asked about here before it gets in.")}`,
     ` ${kleur.dim("Asking again when a known one returns is ")}` +
       (state.askOnReconnect ? kleur.bold("on") : kleur.dim("off")) +
       kleur.dim(` — press a.`),
     "",
-    ` ${kleur.dim("t and n are never both offered: t opens the tunnel this machine")}`,
-    ` ${kleur.dim("does not have, n replaces a code it already printed.")}`,
     ` ${kleur.dim("Any key to go back.")}`,
   ];
   return lines.map((line) => fit(line, width));
 }
 
+/**
+ * The one destructive question, in whichever of its two meanings applies.
+ *
+ * The wording is the feature. "Close" used to be a separate key that hung up
+ * the socket and nothing else — so the device, still holding a perfectly good
+ * credential, reconnected within the second and the list looked untouched.
+ * That is not a thing a person can want, and reading it as one made the panel
+ * feel broken. Getting rid of a device now means forgetting it, and the line
+ * under the question says exactly what coming back will cost.
+ */
 function confirm(
   mode: Extract<PanelMode, { kind: "confirm" }>,
   width: number,
 ): string[] {
+  const name = kleur.bold(kleur.yellow(sanitizeLabel(mode.label)));
+  if (mode.action === "disconnect") {
+    return [
+      rule(width),
+      ` ${kleur.bold("Disconnect")} ${name}${kleur.bold("?")}`,
+      ` ${kleur.dim(fit("It is not paired — it is using this machine's own token, so it can come straight back.", width - 2))}`,
+      "",
+      ` ${kleur.bold("y")} ${kleur.dim("hang up")}   ${kleur.bold("n")} ${kleur.dim("leave it")}`,
+    ];
+  }
   return [
     rule(width),
-    ` ${kleur.bold("Revoke")} ${kleur.bold(kleur.yellow(sanitizeLabel(mode.label)))}${kleur.bold("?")}`,
-    ` ${kleur.dim("It is disconnected now and must pair again to come back.")}`,
-    ` ${kleur.dim("To hang up without un-pairing, answer no and press")} ${kleur.bold("c")}${kleur.dim(".")}`,
+    ` ${kleur.bold("Remove")} ${name}${kleur.bold("?")}`,
+    ` ${kleur.dim(fit("It is disconnected now, and to come back it needs a new code and your approval.", width - 2))}`,
     "",
-    ` ${kleur.bold("y")} ${kleur.dim("revoke")}   ${kleur.bold("n")} ${kleur.dim("keep it paired")}`,
+    ` ${kleur.bold("y")} ${kleur.dim("remove")}   ${kleur.bold("n")} ${kleur.dim("keep it")}`,
   ];
 }
 

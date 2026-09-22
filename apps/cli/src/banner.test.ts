@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   renderBannerLines,
+  renderCodeUpdateLines,
   qrLines,
   type BannerOpts,
   type PairingInvite,
@@ -204,5 +205,63 @@ describe("qrLines", () => {
     expect(lines.every((l) => l.trim().length > 0)).toBe(true);
     const widths = new Set(lines.map((l) => [...l].length));
     expect(widths.size).toBe(1);
+  });
+});
+
+/**
+ * The re-arm, which used to be the whole banner again.
+ *
+ * Every pairing spends the printed code, and the old answer was to redraw the
+ * version header, the QR, both addresses and the promise to say that nine
+ * digits had changed. Three phones later the terminal held four near-identical
+ * blocks and the reader had to diff two QRs to find the line that moved.
+ */
+describe("a code that has been replaced", () => {
+  const plain = (lines: string[]) =>
+    lines.map((l) => l.replace(/\x1b\[[0-9;]*m/g, "")).join("\n");
+
+  it("says the new code and nothing else", () => {
+    const out = plain(
+      renderCodeUpdateLines({
+        code: "492716384",
+        url: "https://app.mtmux.com/j#c=492716384",
+        host: "app.mtmux.com",
+      }),
+    );
+    expect(out).toContain("492 716 384");
+    expect(out).not.toContain("mtmux");
+    expect(out).not.toContain("Waiting");
+    expect(out.split("\n")).toHaveLength(1);
+  });
+
+  it("offers a fresh QR, because the one above it is now stale", () => {
+    const out = plain(
+      renderCodeUpdateLines({
+        code: "344511",
+        url: null,
+        host: "x",
+        reach: "local",
+      }),
+    );
+    expect(out).toContain("344 511");
+    expect(out).toContain("l");
+  });
+
+  it("says nothing about a QR when the run has none", () => {
+    const out = plain(
+      renderCodeUpdateLines(
+        { code: "344511", url: null, host: "x", reach: "local" },
+        { showQr: false },
+      ),
+    );
+    expect(out).toContain("344 511");
+    expect(out).not.toContain("QR");
+  });
+
+  it("points at the QR when the typed half is the part that is gone", () => {
+    const out = plain(
+      renderCodeUpdateLines({ code: null, url: "https://x/j", host: "x" }),
+    );
+    expect(out).toContain("fresh QR");
   });
 });

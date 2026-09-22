@@ -11,6 +11,41 @@ release that shipped them.
 
 ## [Unreleased]
 
+### Changed
+
+- **One key gets rid of a device, and it means it.** The panel offered two:
+  `c` closed the socket and `r` un-paired. `c` was sold as the reversible one,
+  and it was reversible in the worst way — the device still held a working
+  credential and was back within the second, so the list looked untouched and
+  the panel looked broken. `r` now removes: the token is revoked, the socket
+  closes, the keys leave the tunnel agent's ring, and coming back costs a new
+  code and a fresh approval. The confirmation says that before anything
+  happens. `c` still lands on the same question, because it is the key people
+  learned. A connection with no pairing record — this machine's own token, a
+  share — has nothing of ours to forget, so there the offer is to hang up and
+  it says plainly that it can come straight back.
+- **A new code no longer reprints the whole banner.** Every pairing spends the
+  code on screen, and the old answer was to redraw the version header, the QR,
+  both addresses and the promise, to report that nine digits had changed. Pair
+  three phones and the terminal held four near-identical blocks. The re-arm is
+  one line now — the new code, and the offer of a fresh QR, because the one
+  above it is stale the moment it prints.
+- **The log stopped repeating what the panel already shows.** "3 devices
+  connected" was printed after every connect and drawn continuously in the
+  panel headline two lines below, which is what made three phones reconnecting
+  at boot read as nine events. It is still printed where there is no panel: a
+  pipe, a service unit, a short terminal. A pairing is one line rather than
+  four, and the trusted-devices notice is one line rather than three.
+
+### Security
+
+- **A removed device loses its tunnel keys, not just its token.** Revoking the
+  relay token is what stops it authenticating, and that was already enough for
+  it to be _denied_. It was not enough for it to be _gone_: with its keys still
+  on the agent's ring it could open a sealed stream, be bound by trial
+  decryption, reach loopback and be refused one frame later — a working tunnel
+  to a closed door, and a stream the machine kept paying for.
+
 ## [0.8.0] — 2026-09-22
 
 ### Added

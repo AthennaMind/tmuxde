@@ -81,42 +81,29 @@ function harness(over: Parameters<typeof createDevicePanel>[0] | object = {}) {
 
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
-describe("closing a connection", () => {
-  it("does it on one key, because it is reversible", () => {
-    // No confirmation. The cost of a wrong close is one reconnect, and a
-    // confirmation on the cheap action is what trains people to confirm the
-    // expensive one without reading it.
-    const disconnect = vi.fn().mockResolvedValue(true);
-    const h = harness({ disconnect });
-    h.press("c");
-    expect(disconnect).toHaveBeenCalledWith("conn-1");
-  });
-
-  it("says so, and says it may come back", async () => {
-    const h = harness({ disconnect: vi.fn().mockResolvedValue(true) });
-    h.press("c");
-    await settle();
-    expect(h.frame()).toContain("may reconnect");
-  });
-
-  it("says plainly when it had already gone", async () => {
-    // The panel races the list against a socket closing on its own. Claiming
-    // to have closed something that had already left would be a small lie the
-    // user could catch.
-    const h = harness({ disconnect: vi.fn().mockResolvedValue(false) });
-    h.press("c");
-    await settle();
-    expect(h.frame()).toContain("had already gone");
-  });
-});
-
-describe("revoking a device", () => {
-  it("asks first, because it is not reversible", () => {
+/**
+ * Getting rid of a device.
+ *
+ * There used to be two keys here: `c` hung up the socket and `r` forgot the
+ * device. The first was sold as "the reversible one", which was true and
+ * useless — the device still held its credential and was back within the
+ * second, so the list looked untouched and the panel looked broken. One key
+ * now, one confirmation, and the confirmation says which of the two things is
+ * about to happen to the row under the cursor.
+ */
+describe("removing a device", () => {
+  it("asks first, because it cannot be taken back", () => {
     const revoke = vi.fn().mockResolvedValue(true);
     const h = harness({ revoke });
     h.press("r");
     expect(revoke).not.toHaveBeenCalled();
-    expect(h.frame()).toContain("Revoke iPhone?");
+    expect(h.frame()).toContain("Remove iPhone?");
+  });
+
+  it("says what coming back will cost, which is the whole point", () => {
+    const h = harness({ revoke: vi.fn() });
+    h.press("r");
+    expect(h.frame()).toContain("new code and your approval");
   });
 
   it("goes through on y", async () => {
@@ -141,12 +128,68 @@ describe("revoking a device", () => {
     expect(revoke).not.toHaveBeenCalled();
   });
 
-  it("will not offer to revoke the machine's own token", () => {
-    const revoke = vi.fn();
-    const h = harness({ details: () => [device({ deviceId: null })], revoke });
+  it("takes c too, because that is the key people learned", () => {
+    // The old spelling still lands on the new question rather than on
+    // nothing. It is a confirmation either way, so nobody can arrive at a
+    // destructive act by muscle memory alone.
+    const revoke = vi.fn().mockResolvedValue(true);
+    const h = harness({ revoke });
+    h.press("c");
+    expect(h.frame()).toContain("Remove iPhone?");
+    h.press("y");
+    expect(revoke).toHaveBeenCalledWith("dev-1");
+  });
+
+  it("says so when it could not", async () => {
+    const h = harness({ revoke: vi.fn().mockResolvedValue(false) });
     h.press("r");
-    expect(h.frame()).not.toContain("Revoke");
+    h.press("y");
+    await settle();
+    expect(h.frame()).toContain("Could not remove");
+  });
+});
+
+/**
+ * The row with no pairing record: the machine's own token, or a share.
+ *
+ * There is no credential of ours to destroy, so offering to "remove" it would
+ * promise something that cannot happen. Hanging up is the honest offer, and
+ * the question says outright that it can come straight back.
+ */
+describe("a connection that is not a paired device", () => {
+  const bare = { details: () => [device({ deviceId: null })] };
+
+  it("offers to hang up rather than to remove", () => {
+    const h = harness({ ...bare, disconnect: vi.fn().mockResolvedValue(true) });
+    h.press("r");
+    expect(h.frame()).toContain("Disconnect iPhone?");
+    expect(h.frame()).toContain("come straight back");
+  });
+
+  it("hangs up on y and never revokes", async () => {
+    const disconnect = vi.fn().mockResolvedValue(true);
+    const revoke = vi.fn();
+    const h = harness({ ...bare, disconnect, revoke });
+    h.press("r");
+    h.press("y");
+    await settle();
+    expect(disconnect).toHaveBeenCalledWith("conn-1");
     expect(revoke).not.toHaveBeenCalled();
+    expect(h.frame()).toContain("Hung up on iPhone");
+  });
+
+  it("says plainly when it had already gone", async () => {
+    // The panel races the list against a socket closing on its own. Claiming
+    // to have closed something that had already left would be a small lie the
+    // user could catch.
+    const h = harness({
+      ...bare,
+      disconnect: vi.fn().mockResolvedValue(false),
+    });
+    h.press("r");
+    h.press("y");
+    await settle();
+    expect(h.frame()).toContain("had already gone");
   });
 });
 
@@ -266,11 +309,11 @@ describe("the other keys", () => {
       disconnect: vi.fn().mockResolvedValue(true),
     });
     h.press(KEY.down);
-    h.press("c");
+    h.press("r");
     await settle();
     // The second row, not the first. A cursor that does not move is a list
     // where only the top entry can ever be acted on.
-    expect(h.frame()).toContain("Closed Second");
+    expect(h.frame()).toContain("Second?");
   });
 });
 
@@ -394,11 +437,12 @@ describe("the detail card", () => {
   });
 
   it("acts on the device it is describing, not the cursor", () => {
-    const disconnect = vi.fn(async () => true);
-    const h = harness({ disconnect });
+    const revoke = vi.fn(async () => true);
+    const h = harness({ revoke });
     h.press("d");
-    h.press("c");
-    expect(disconnect).toHaveBeenCalledWith("conn-1");
+    h.press("r");
+    h.press("y");
+    expect(revoke).toHaveBeenCalledWith("dev-1");
     h.panel.stop();
   });
 });
@@ -559,17 +603,18 @@ describe("devices that are not connected", () => {
     const h = harness({ peers: () => [absent], revoke });
     h.press(KEY.down);
     h.press("r");
-    expect(h.frame()).toContain("Revoke");
+    expect(h.frame()).toContain("Remove");
     h.press("y");
     await settle();
     expect(revoke).toHaveBeenCalledWith("dev-2");
   });
 
-  it("is not offered a close, because there is no socket to close", () => {
+  it("is never hung up on, because there is no socket to hang up", () => {
     const disconnect = vi.fn();
-    const h = harness({ peers: () => [absent], disconnect });
+    const h = harness({ peers: () => [absent], disconnect, revoke: vi.fn() });
     h.press(KEY.down);
-    h.press("c");
+    h.press("r");
+    h.press("y");
     expect(disconnect).not.toHaveBeenCalled();
   });
 });

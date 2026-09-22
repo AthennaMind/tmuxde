@@ -246,6 +246,17 @@ export type TunnelAgent = {
    * opened. Called once `mtmux pair` finishes its PAKE.
    */
   addSessionKeys(keys: SessionKeys, peer?: PeerIdentity): void;
+  /**
+   * Forget a device's keys, and drop whatever it has open.
+   *
+   * Revoking the relay's session token already stops that device
+   * authenticating, so this is not what keeps it out. It is what stops it
+   * *reaching* loopback at all: without it a removed browser can still open
+   * a sealed stream, be bound by trial decryption and be refused one frame
+   * later, which is a working tunnel to a closed door. Returns how many
+   * entries went, so the caller can say nothing when there was nothing.
+   */
+  removeSessionKeys(deviceId: string): number;
   readonly tunnelId: string | null;
   readonly status: AgentStatus;
 };
@@ -756,6 +767,21 @@ export function createTunnelAgent(opts: TunnelAgentOptions): TunnelAgent {
     addSessionKeys(keys, peer) {
       keyring.push({ keys, peer });
       if (keyring.length > MAX_KEYRING) keyring.shift();
+    },
+    removeSessionKeys(deviceId) {
+      let removed = 0;
+      for (let i = keyring.length - 1; i >= 0; i--) {
+        if (keyring[i]?.peer?.deviceId !== deviceId) continue;
+        keyring.splice(i, 1);
+        removed += 1;
+      }
+      // The keys are gone, but a stream already bound under them is still
+      // pumping bytes. Closing it here is the difference between "cannot come
+      // back" and "is gone".
+      for (const [streamId, stream] of [...streams]) {
+        if (stream.peer?.deviceId === deviceId) dropStream(streamId, "revoked");
+      }
+      return removed;
     },
     get tunnelId() {
       return tunnelId;

@@ -165,13 +165,12 @@ describe("the key bar", () => {
     ).toContain("select");
   });
 
-  it("does not offer to revoke the machine's own token", () => {
-    // A browser signed in with the token printed on this screen has no paired
-    // device behind it. Offering "revoke" would offer to revoke the machine's
-    // own credential, which is not what the word means anywhere else here.
-    const out = text(state({ devices: [device({ deviceId: null })] }));
-    expect(out).toContain("close");
-    expect(out).not.toContain("revoke");
+  it("offers one way to get rid of a row, not two", () => {
+    // `c close` and `r revoke` used to sit side by side, which read as a soft
+    // and a hard version of the same thing when only one of them lasted.
+    const out = text(state());
+    expect(out).toContain("r remove");
+    expect(out).not.toContain("close");
   });
 
   it("offers a new code only when there is a tunnel", () => {
@@ -248,23 +247,41 @@ describe("the approval question", () => {
   });
 });
 
-describe("confirming a revoke", () => {
-  it("says it is permanent, and points at the reversible thing instead", () => {
+describe("confirming a removal", () => {
+  it("names what coming back will cost", () => {
     const out = text(
       state({
         mode: {
           kind: "confirm",
-          action: "revoke",
-          id: "conn-1",
+          action: "remove",
+          deviceId: "dev-1",
+          connectionId: "conn-1",
           label: "iPhone · Safari",
         },
       }),
     );
-    expect(out).toContain("Revoke iPhone · Safari?");
-    expect(out).toContain("must pair again");
-    // The whole reason both verbs exist: someone about to do the permanent
-    // thing should be told the temporary one is right there.
-    expect(out).toContain("without un-pairing");
+    expect(out).toContain("Remove iPhone · Safari?");
+    expect(out).toContain("new code and your approval");
+  });
+
+  it("promises only a hang-up for a row with nothing to forget", () => {
+    // Overstating this one would be the worse error: the reader would believe
+    // a device was gone when it holds the machine's own token and can return
+    // at will.
+    const out = text(
+      state({
+        mode: {
+          kind: "confirm",
+          action: "disconnect",
+          deviceId: null,
+          connectionId: "conn-1",
+          label: "iPhone",
+        },
+      }),
+    );
+    expect(out).toContain("Disconnect iPhone?");
+    expect(out).toContain("come straight back");
+    expect(out).not.toContain("pair again");
   });
 });
 
@@ -356,10 +373,14 @@ describe("the tunnel offer", () => {
 });
 
 describe("the tunnel key", () => {
-  it("offers t instead of n when there is no tunnel yet", () => {
+  it("offers the tunnel as a sentence rather than as a key", () => {
+    // `t` is the product's headline feature and it was two characters in a
+    // row of seven pairs. The offer above the bar says what it does; putting
+    // the letter in the bar as well is the same key twice.
     const out = text(state({ hosted: false, canOpenTunnel: true }));
-    expect(out).toContain("tunnel");
+    expect(out).toContain("Press t");
     expect(out).not.toContain("new code");
+    expect(out).not.toMatch(/\bt tunnel\b/);
   });
 
   it("offers n instead of t once the tunnel is up", () => {
@@ -544,13 +565,12 @@ describe("devices that are paired but not connected", () => {
     expect(out).toContain("stale");
   });
 
-  it("offers rename and revoke but not close", () => {
+  it("can still be removed, with nothing to hang up", () => {
     const out = text(
       state({ devices: [], peers: [peer({ deviceId: "dev-2" })] }),
     );
-    expect(out).toContain("e rename");
-    expect(out).toContain("r revoke");
-    expect(out).not.toContain("c close");
+    expect(out).toContain("r remove");
+    expect(out).not.toContain("close");
   });
 
   it("says plainly that it is not here, rather than faking a connection", () => {

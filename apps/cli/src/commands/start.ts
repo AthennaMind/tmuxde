@@ -7,7 +7,12 @@ import openBrowser from "open";
 import * as configStore from "../config-store.js";
 import * as grantsStore from "../grants-store.js";
 import * as serverState from "../server-state.js";
-import { banner, renderBannerLines, type PairingInvite } from "../banner.js";
+import {
+  banner,
+  renderBannerLines,
+  renderCodeUpdateLines,
+  type PairingInvite,
+} from "../banner.js";
 import { primaryLanAddress, type LanAddress } from "../lan.js";
 import { checkTmux, checkNode } from "../preflight.js";
 import { serve, type RelayRuntime } from "../serve.js";
@@ -1169,8 +1174,16 @@ function watchConnectedDevices(relay: RelayRuntime, json: boolean): void {
     for (const label of departed) {
       say(kleur.dim(`  · ${label} disconnected.`));
     }
-    say(kleur.dim(`    ${devicesOnline(current.length)}`));
-    say("");
+    // The running total, for the readers that have no other way to know it.
+    // The panel draws it in its headline and redraws it as it changes, so
+    // printing it again is the same number twice on one screen — and it was
+    // the line that made three phones reconnecting at boot look like nine
+    // events. A pipe, a service unit or a short terminal has no panel and
+    // still needs the count.
+    if (!panel?.enabled) {
+      say(kleur.dim(`    ${devicesOnline(current.length)}`));
+      say("");
+    }
   });
 }
 
@@ -1750,6 +1763,21 @@ export async function start(opts: StartOpts) {
     }
   };
 
+  /**
+   * The same news, at the size the news actually is.
+   *
+   * `reprint` is for a banner that has become wrong — a tunnel came up, the
+   * reach changed, somebody pressed `l`. A code being spent does not make the
+   * banner wrong; it makes one line of it wrong, and redrawing all of it to
+   * fix that line is how the terminal ended up holding four QRs.
+   */
+  const reprintCode = (invite: PairingInvite) => {
+    for (const line of renderCodeUpdateLines(invite, { showQr: opts.qr })) {
+      say(line);
+    }
+    say("");
+  };
+
   /** Whatever is currently claimable: the tunnel's invite, or the local one. */
   const liveInvite = (): PairingInvite | null =>
     hosted?.invite ?? localInvite ?? null;
@@ -1864,14 +1892,12 @@ export async function start(opts: StartOpts) {
         // "Paired", not "connected". The socket authenticating is what
         // connected means, and `onConnectionsChanged` says so a moment later
         // — claiming it here too printed the same news twice.
+        //
+        // One line, where there used to be four. The address it is served at
+        // is two lines further up the screen and has not changed; that it
+        // stays paired across restarts is true of every device and so says
+        // nothing about this one. Both were printed again on every pairing.
         say(kleur.green(`  ✓ Paired with ${label}.`));
-        say(kleur.dim(`    It has the terminal at ${lanUrl ?? localUrl}.`));
-        say(
-          kleur.dim(
-            "    It stays paired across restarts — mtmux devices lists it.",
-          ),
-        );
-        say("");
       },
       onWarn: (notice) => {
         clearWaitingLine();
@@ -1915,8 +1941,11 @@ export async function start(opts: StartOpts) {
         );
       },
       onRearm: (invite, reason) => {
-        say(kleur.dim(`    ${REARM_LINES[reason]}`));
-        reprint(invite);
+        // Only when something went wrong. "Here's a fresh code for the next
+        // device" under a line that already says a device paired is a
+        // sentence whose only content is that this program is still running.
+        if (reason !== "paired") say(kleur.dim(`    ${REARM_LINES[reason]}`));
+        reprintCode(invite);
         void serverState.write(record(invite.url)).catch(() => {});
       },
       onIdle: () => {
@@ -2008,11 +2037,9 @@ export async function start(opts: StartOpts) {
     say(
       kleur.green("  ✓ Tunnel open. This machine is reachable from anywhere."),
     );
-    say(
-      kleur.dim(
-        "    Sealed end to end — the pairing service passes it on and cannot read it.",
-      ),
-    );
+    // The banner that follows carries "Sealed end to end — we pass it on, we
+    // can't read it." beside the QR. Saying it here as well is the same
+    // promise twice in four lines.
     reprint(invite);
     return null;
   };
@@ -2100,18 +2127,10 @@ export async function start(opts: StartOpts) {
     say(
       kleur.dim(
         `  ${restored} device${restored === 1 ? "" : "s"} already trusted — ` +
-          `${restored === 1 ? "it comes" : "they come"} straight back in, no code and no prompt.`,
-      ),
-    );
-    say(
-      kleur.dim("    Anything new still has to be let in here. To be asked "),
-    );
-    say(
-      kleur.dim("    every time as well, press ") +
+          `${restored === 1 ? "it comes" : "they come"} straight back in. Press `,
+      ) +
         kleur.bold("a") +
-        kleur.dim(" — or ") +
-        kleur.bold("mtmux devices") +
-        kleur.dim(" to drop one."),
+        kleur.dim(" to be asked."),
     );
     say("");
   }
@@ -2122,15 +2141,9 @@ export async function start(opts: StartOpts) {
     // to someone whose phone is working fine on the sofa reads as a lie.
     say(
       kleur.yellow(
-        `  ${needRekey} device${needRekey === 1 ? "" : "s"} can reach this machine on the local network only.`,
-      ),
+        `  ${needRekey} device${needRekey === 1 ? "" : "s"} can reach this machine on this network only.`,
+      ) + kleur.dim(" Pair again, once, to fix that."),
     );
-    say(
-      kleur.dim(
-        `    ${needRekey === 1 ? "It was" : "They were"} paired before mtmux could restore a tunnel across restarts.`,
-      ),
-    );
-    say(kleur.dim("    Pair again, once, to reach it from anywhere."));
     say("");
   }
 
@@ -2141,9 +2154,6 @@ export async function start(opts: StartOpts) {
       kleur.yellow(
         `  ${needRepair} device${needRepair === 1 ? "" : "s"} need${needRepair === 1 ? "s" : ""} to pair again (one-time).`,
       ),
-    );
-    say(
-      kleur.dim("    They were paired before mtmux stored a per-device token."),
     );
     say("");
   }
@@ -2235,6 +2245,10 @@ export async function start(opts: StartOpts) {
       // it is what stops the next start re-admitting it.
       if (!peer) return false;
       if (peer.directToken) relay.revokeSessionToken?.(peer.directToken);
+      // And the third place a removed device still lives: the tunnel agent's
+      // key ring. Revoking the token stops it authenticating; this stops it
+      // opening a sealed stream to loopback at all, and closes the one it has.
+      hosted?.agent.removeSessionKeys(deviceId);
       await configStore.removePeer(deviceId);
       await refreshPeers();
       return true;
@@ -2324,19 +2338,16 @@ export async function start(opts: StartOpts) {
     clearWaitingLine();
     if (outcome === "paired") {
       say(kleur.green("  ✓ Device signed in."));
-      say(kleur.dim("    Here's a fresh code for the next one:"));
     } else if (outcome === "refused") {
       say(kleur.yellow("  ✗ Refused. Nothing was shared."));
-      say(kleur.dim("    That code is spent either way — here's a new one:"));
     } else {
       // Worth a yellow line rather than a dim one. Five wrong guesses on a
       // local network is either a typo storm or somebody guessing, and the
       // owner is the only person who can tell which.
       say(kleur.yellow("  ✗ Too many wrong codes. That one is dead."));
-      say(kleur.dim("    Here's a fresh one:"));
     }
     localInvite = armLocalInvite();
-    reprint(localInvite);
+    reprintCode(localInvite);
   });
 
   const { key } = await configStore.ensureDeviceKey();

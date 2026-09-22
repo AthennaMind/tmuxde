@@ -122,19 +122,23 @@ laptop you sold — and until they were on this list that meant quitting the
 server and running `mtmux devices revoke <id>` with an id you had to go and
 find.
 
-| Key     | What it does                                                     |
-| ------- | ---------------------------------------------------------------- |
-| `↑` `↓` | Move between devices                                             |
-| `d`     | Everything about this device. `enter` does it too                |
-| `c`     | Close this connection. The credential stays valid; it may return |
-| `e`     | Rename it, so the list reads as yours                            |
-| `r`     | Revoke this device. Permanent — it has to pair again             |
-| `a`     | Ask again when a device you know comes back                      |
-| `t`     | Open the encrypted tunnel, on a server started local-only        |
-| `n`     | Throw away the printed code and arm a fresh one                  |
-| `l`     | Reprint the banner, code and addresses                           |
-| `?`     | These keys                                                       |
-| `q`     | Stop the server, the same as `Ctrl+C`                            |
+| Key     | What it does                                                |
+| ------- | ----------------------------------------------------------- |
+| `↑` `↓` | Move between devices                                        |
+| `d`     | Everything about this device. `enter` does it too           |
+| `r`     | Remove it. It must pair again, with a new code and approval |
+| `e`     | Rename it, so the list reads as yours                       |
+| `a`     | Ask again when a device you know comes back                 |
+| `t`     | Open the encrypted tunnel, on a server started local-only   |
+| `n`     | Throw away the printed code and arm a fresh one             |
+| `l`     | Reprint the banner, code and addresses                      |
+| `?`     | These keys                                                  |
+| `q`     | Stop the server, the same as `Ctrl+C`                       |
+
+The bar along the bottom carries five of these and `?` carries the rest. A row
+of seven key-and-word pairs is a row nobody reads, and `t` in particular is
+offered as a whole sentence above the bar rather than as two more characters
+inside it.
 
 **`e` renames.** Three rows all reading "Chrome on macOS" is a list you cannot
 act on. A name is yours, changes nothing about what the device may do, and never
@@ -153,10 +157,20 @@ wrong about.
 have, `n` replaces a code it already printed. A key that cannot work is worse
 than a key that is absent.
 
-**`c` and `r` are deliberately different verbs.** Closing is hanging up on a tab
-you left open somewhere; revoking un-pairs the device. Revoke asks for
-confirmation and close does not, because the cost of a wrong close is one
-reconnect and the cost of a wrong revoke is pairing again from scratch.
+**`r` removes, and there is no second, softer key beside it.** There used to be:
+`c` hung up the socket and left the credential alone, sold as the reversible
+one. It was reversible in the worst way — the device still held a working token
+and was back within the second, so the list looked untouched and the panel
+looked broken. Getting rid of a device now means forgetting it: the token is
+revoked, its socket closes, its keys leave the tunnel agent's ring, and coming
+back costs a new code and a fresh approval. The confirmation says exactly that
+before anything happens.
+
+`c` still lands on the same question, because it is the key people learned, and
+arriving at a confirmation is not the same as arriving at a consequence. A
+connection with no pairing record behind it — a browser using this machine's own
+token, or a share — has no credential of ours to destroy, so there `r` offers to
+hang up instead and says outright that it can come straight back.
 
 `d` opens a card for the selected connection: what it is attached to, the
 viewer's screen size, what the grant allows in a sentence, how it reached this

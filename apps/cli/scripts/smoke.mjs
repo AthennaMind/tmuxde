@@ -330,6 +330,44 @@ await check("the banner prints six digits to type", () => {
   return match[1];
 });
 
+/*
+ * The whole point of the gate, end to end: the *right* code is not enough.
+ *
+ * This process has no TTY, no panel and no connected browser, so there is
+ * nobody to ask — and "could not ask" has to land as a refusal rather than as
+ * an admission. Before the gate existed, a correct code here minted a
+ * full-grant session token with no human anywhere in the loop.
+ *
+ * It also spends the code, so the offer re-arms and the next reader gets a
+ * different six digits. That is the behaviour under test as much as the 403.
+ */
+await check(
+  "the right code still needs a human, and there is none",
+  async () => {
+    const printed = /and enter (\d{3} \d{3})/.exec(
+      Buffer.concat(stdout).toString("utf8"),
+    );
+    if (!printed) throw new Error("no typed code on the banner");
+    // Either answer is the gate working. With nobody to ask, the request is
+    // *held* for the offer window so `mtmux approve` in another shell can still
+    // answer it — so this times out rather than returning, and a refusal is
+    // what it becomes. The property under test is the one thing neither of them
+    // is: a session token.
+    const reply = await request(
+      "POST",
+      "/_pair/local",
+      JSON.stringify({ code: printed[1].replace(" ", ""), label: "smoke" }),
+    ).catch(() => ({ status: "held", body: "" }));
+    if (reply.status === 200 || /"session"/.test(reply.body ?? "")) {
+      throw new Error("the right code alone minted a session");
+    }
+    if (reply.status !== "held" && reply.status !== 403) {
+      throw new Error(`expected a refusal or a hold, got ${reply.status}`);
+    }
+    return reply.status === "held" ? "held for a human" : "refused";
+  },
+);
+
 // Runs last: it deliberately locks 127.0.0.1 out, so anything needing a
 // successful auth must already have happened.
 await check("failed auth locks the address out after five tries", async () => {
