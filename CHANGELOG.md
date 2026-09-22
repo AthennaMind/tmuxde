@@ -11,6 +11,8 @@ release that shipped them.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-09-22
+
 ### Added
 
 - **The panel carries the live code.** The banner prints one and then the
