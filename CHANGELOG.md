@@ -11,6 +11,8 @@ release that shipped them.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-09-22
+
 ### Changed
 
 - **One key gets rid of a device, and it means it.** The panel offered two:
