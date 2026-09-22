@@ -11,6 +11,8 @@ release that shipped them.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-22
+
 ### Added
 
 - **Six digits to type in local mode.** `mtmux start` on your own network
