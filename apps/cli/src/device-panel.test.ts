@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildRows,
   clamp,
+  displayName,
   render,
   selected,
   type PanelPeer,
@@ -687,5 +688,63 @@ describe("the reconnect policy", () => {
         expect(displayWidth(line)).toBeLessThanOrEqual(width);
       }
     }
+  });
+});
+
+/**
+ * A device label is whatever a peer claimed to be, and it is drawn onto
+ * somebody's terminal beside a security question. `sanitizeLabel`'s header
+ * makes the argument; these are the render sites it names.
+ */
+describe("hostile labels", () => {
+  const NASTY = "\x1b[2AEvil\x1b[0m‮oops";
+
+  it("strips escapes out of the list", () => {
+    const out = text(state({ devices: [device({ label: NASTY })] }));
+    expect(out).not.toContain("\x1b[2A");
+    expect(out).not.toContain("‮");
+    expect(out).toContain("Evil");
+  });
+
+  it("strips them out of the approval question, which is the one that matters", () => {
+    const out = plain(
+      render(
+        state({
+          mode: {
+            kind: "approval",
+            label: NASTY,
+            account: "\x1b[1Aroot@example.com",
+            expiresAt: NOW + 60_000,
+          },
+        }),
+        90,
+      ),
+    ).join("\n");
+    expect(out).not.toContain("\x1b[2A");
+    expect(out).not.toContain("\x1b[1A");
+    expect(out).toContain("Evil");
+  });
+
+  it("strips them out of the revoke confirmation and the rename editor", () => {
+    for (const mode of [
+      {
+        kind: "confirm" as const,
+        action: "revoke" as const,
+        deviceId: "d",
+        label: NASTY,
+      },
+      { kind: "rename" as const, deviceId: "d", label: NASTY, draft: "" },
+    ]) {
+      const out = plain(render(state({ mode }), 90)).join("\n");
+      expect(out).not.toContain("\x1b[2A");
+      expect(out).not.toContain("‮");
+    }
+  });
+
+  it("strips them out of a stored name as well as a claimed label", () => {
+    // The owner's own name cannot be hostile by construction. The rule
+    // "nothing reaches the terminal unstripped" is worth more than the
+    // exception is worth saving.
+    expect(displayName({ name: NASTY, label: "x" })).not.toContain("\x1b");
   });
 });

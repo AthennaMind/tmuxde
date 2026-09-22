@@ -45,7 +45,7 @@ function fetch(path) {
   });
 }
 
-function request(method, path, body) {
+function request(method, path, body, headers) {
   return new Promise((resolve, reject) => {
     const payload = body === undefined ? null : Buffer.from(body);
     const req = http.request(
@@ -55,12 +55,15 @@ function request(method, path, body) {
         path,
         method,
         timeout: 3000,
-        headers: payload
-          ? {
-              "Content-Type": "application/json",
-              "Content-Length": payload.length,
-            }
-          : {},
+        headers: {
+          ...(payload
+            ? {
+                "Content-Type": "application/json",
+                "Content-Length": payload.length,
+              }
+            : {}),
+          ...headers,
+        },
       },
       (res) => {
         const chunks = [];
@@ -297,6 +300,34 @@ await check("/_pair/local rejects a malformed body", async () => {
   const r = await request("POST", "/_pair/local", "{ not json");
   if (r.status !== 400) throw new Error(`expected 400, got ${r.status}`);
   return r.status;
+});
+
+/*
+ * A JSON content type is not a "simple request", so a cross-origin POST has to
+ * preflight and this origin answers no preflight. Without the check, a page on
+ * the open internet could burn the code on screen from the browser of anyone
+ * sitting on this wifi.
+ */
+await check("/_pair/local refuses a form-style content type", async () => {
+  const r = await request(
+    "POST",
+    "/_pair/local",
+    JSON.stringify({ code: "1" }),
+    {
+      "Content-Type": "text/plain",
+    },
+  );
+  if (r.status !== 415) throw new Error(`expected 415, got ${r.status}`);
+  return r.status;
+});
+
+/* The banner is the front door in local mode, and it has to hold a code. */
+await check("the banner prints six digits to type", () => {
+  const match = /and enter (\d{3} \d{3})/.exec(
+    Buffer.concat(stdout).toString("utf8"),
+  );
+  if (!match) throw new Error("no typed code on the banner");
+  return match[1];
 });
 
 // Runs last: it deliberately locks 127.0.0.1 out, so anything needing a

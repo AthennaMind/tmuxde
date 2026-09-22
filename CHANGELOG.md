@@ -13,6 +13,33 @@ release that shipped them.
 
 ### Added
 
+- **Six digits to type in local mode.** `mtmux start` on your own network
+  printed a QR, two addresses and a 64-character token, and nothing a person
+  could type — so "I cannot scan that" had no answer short of copying hex off a
+  screen. It prints a code now, and it works from a phone on the wifi or from
+  `http://localhost:PORT` on the machine itself. That last case was the one
+  worst served: a box bound to loopback, a laptop with wifi off, anyone over
+  SSH. One field takes both kinds of code, because six digits and nine cannot
+  be confused and nobody should have to know there are two kinds.
+- **Every path asks before it lets a device in.** Scanning the QR on your own
+  wifi used to mint a full-grant session token with nobody asked anywhere, on
+  the reasoning that being on the network was itself the proof. A network is
+  not a person. Local pairing now raises the same question every other path
+  raises — the app on a connected phone, the TTY or the live panel, `mtmux
+approve` — and silence denies.
+- **The device list is every device, not just the connected ones.** The most
+  common thing anyone wants to do to a device is get rid of one that is _not_
+  here, and until now that meant quitting the server and running `mtmux devices
+revoke <id>` with an id you had to go and find. Paired-but-absent devices are
+  listed dim, with when each was last seen, and rename and revoke work on them.
+- **`e` renames a device, and so does `mtmux devices rename`.** Three rows all
+  reading "Chrome on macOS" is a list you cannot act on. A name is yours,
+  changes nothing about what the device may do, and never overwrites what the
+  browser claimed — the card shows both when they differ.
+- **`a` flips "ask again when a device I know comes back", live.** That setting
+  is behind nearly every "it let something in without asking me": it had asked,
+  once, when that device first paired. The banner now says so beside the
+  trusted count, and says what to press.
 - **Press `t` in a running `mtmux start` to open the tunnel.** A local-only
   server was a decision you could not revisit: the banner's hint said to run
   `mtmux start --hosted`, which means stopping a server you may already have
@@ -36,6 +63,42 @@ release that shipped them.
   one you have switched off.
 
 ### Changed
+
+- **`t` is spelled as an offer rather than as a letter.** Opening the tunnel
+  from a running local server has been one keypress for a while, sitting in a
+  key bar among six other pairs of characters — invisible to anyone who had not
+  already been told. The panel says what it does now.
+- **The returning-device question goes through the same channels as every other
+  question.** It used to open its own readline, which with the live panel up in
+  raw mode meant two readers on one stdin and a keystroke going to whichever
+  got there first. It also now reaches a phone that is already connected and
+  `mtmux approve`, which it never did.
+- **`/start` no longer tells a broker-less build there are no pairing codes.**
+  There are; they are six digits long and they are redeemed against the machine
+  serving the page. Invariant #4 has a code field behind it now.
+
+### Security
+
+- **The local pairing code has a guess budget, and the endpoint has a
+  backoff.** Six digits are a small space, so the code is not the thing
+  protecting it: five wrong guesses burn the offer and print a fresh one, and
+  the endpoint applies the same per-address backoff that guards token
+  authentication — five rejections, then 30 seconds doubling to fifteen
+  minutes. Without the second, burning and re-arming would simply hand an
+  attacker five fresh guesses at a time.
+- **`POST /_pair/local` requires `Content-Type: application/json`.** A JSON
+  body is not a "simple request", so a cross-origin attempt must preflight and
+  this origin answers no preflight. Without it, a page on the open internet
+  could spend guesses and burn the code on screen through the browser of
+  anybody sitting on your wifi.
+- **The offer is burned before the human is asked, not after.** A correct code
+  left live while the question sits on screen is a code an attacker can retry
+  the instant it is denied.
+- **Peer-supplied names are stripped at every terminal render site.** A device
+  label is whatever a peer claimed to be, and the live panel drew it beside the
+  approval question — ample room for escape sequences that walk the cursor up
+  the screen and redraw the question. `sanitizeLabel` was already applied on
+  the wire; it is now applied where the text actually reaches a terminal.
 
 - **A connection with no pairing record is named from its user agent.** A
   browser signed in with the machine's own token showed as "A device", so

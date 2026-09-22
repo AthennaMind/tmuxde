@@ -109,23 +109,45 @@ service is absent.
 
 ### The live panel
 
-On a TTY, `mtmux start` keeps a panel at the bottom of the screen showing who is
-connected right now. Everything the command prints scrolls above it, so the
-panel is never left stranded in the scrollback. It is absent off a TTY — a pipe,
-a service unit, `--json`, or a terminal under twelve rows — where the output
-stays a plain append-only log.
+On a TTY, `mtmux start` keeps a panel at the bottom of the screen showing every
+device this machine trusts — connected ones first, then the ones that are
+paired but not here, dim, with when each was last seen. Everything the command
+prints scrolls above it, so the panel is never left stranded in the scrollback.
+It is absent off a TTY — a pipe, a service unit, `--json`, or a terminal under
+twelve rows — where the output stays a plain append-only log.
+
+Listing the absent ones is not cosmetic. The most common thing anyone wants to
+do to a device is get rid of one that is _not_ here — a phone you lent out, a
+laptop you sold — and until they were on this list that meant quitting the
+server and running `mtmux devices revoke <id>` with an id you had to go and
+find.
 
 | Key     | What it does                                                     |
 | ------- | ---------------------------------------------------------------- |
-| `↑` `↓` | Move between connected devices                                   |
-| `d`     | Everything about this connection. `enter` does it too            |
+| `↑` `↓` | Move between devices                                             |
+| `d`     | Everything about this device. `enter` does it too                |
 | `c`     | Close this connection. The credential stays valid; it may return |
+| `e`     | Rename it, so the list reads as yours                            |
 | `r`     | Revoke this device. Permanent — it has to pair again             |
+| `a`     | Ask again when a device you know comes back                      |
 | `t`     | Open the encrypted tunnel, on a server started local-only        |
 | `n`     | Throw away the printed code and arm a fresh one                  |
 | `l`     | Reprint the banner, code and addresses                           |
 | `?`     | These keys                                                       |
 | `q`     | Stop the server, the same as `Ctrl+C`                            |
+
+**`e` renames.** Three rows all reading "Chrome on macOS" is a list you cannot
+act on. A name is yours, changes nothing about what the device may do, and never
+overwrites what the browser claimed to be — the detail card shows both when they
+differ, because that is the one field that can contradict a name. `mtmux devices
+rename` does the same thing on a machine with no panel.
+
+**`a` flips whether a device you already trust is asked about when it returns.**
+That setting is behind nearly every report of "it let something in without
+asking me": it _had_ asked, once, when that device first paired. A new device is
+always asked about, either way. The banner names the trusted count and says
+which way this is set, because a setting nobody can see is one nobody can be
+wrong about.
 
 `t` and `n` are never both offered: `t` opens the tunnel a machine does not
 have, `n` replaces a code it already printed. A key that cannot work is worse
@@ -298,8 +320,13 @@ Browsers this machine has paired with. These are **local** records, kept in
 ```bash
 mtmux devices                    # list (the default subcommand)
 mtmux devices list
+mtmux devices rename <deviceId> [name...]
 mtmux devices revoke <deviceId>
 ```
+
+`rename` with no name clears it back to whatever the browser calls itself. It
+changes nothing about what that device may do — it exists so the list reads as
+yours rather than as three rows of user-agent strings.
 
 Paired devices survive a restart: `mtmux start` restores both halves of what it
 derived with each one — the relay token for the direct/LAN path and the key

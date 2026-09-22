@@ -91,9 +91,12 @@ export async function devicesList(): Promise<void> {
     return;
   }
 
+  // `displayLabel` rather than the raw field: a peer-supplied label reaching
+  // a terminal unstripped is the defect `sanitizeLabel`'s header describes,
+  // and this command prints one per row.
   const named = peers.map((peer) => ({
     peer,
-    shown: configStore.displayName(peer),
+    shown: displayLabel(configStore.displayName(peer), "unknown device"),
   }));
   const labelWidth = Math.max(...named.map((n) => n.shown.length), 6);
   console.log("");
@@ -106,7 +109,7 @@ export async function devicesList(): Promise<void> {
         // Only when a rename has made the two differ. Printing the browser's
         // own claim beside an identical name is a column of noise.
         (peer.name && peer.label && peer.label !== shown
-          ? kleur.dim(`  (${peer.label})`)
+          ? kleur.dim(`  (${displayLabel(peer.label, "unnamed")})`)
           : "") +
         (stale ? kleur.dim("  (stale)") : ""),
     );

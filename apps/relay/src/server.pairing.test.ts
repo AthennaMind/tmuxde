@@ -28,12 +28,23 @@ function mockRequest(
   method: string,
   url: string,
   body?: string,
+  over: { contentType?: string | null; address?: string } = {},
 ): http.IncomingMessage {
   const stream = Readable.from(body === undefined ? [] : [Buffer.from(body)]);
   const req = stream as unknown as http.IncomingMessage;
   req.method = method;
   req.url = url;
-  req.headers = { host: "127.0.0.1:14100" };
+  const contentType =
+    over.contentType === undefined ? "application/json" : over.contentType;
+  req.headers = {
+    host: "127.0.0.1:14100",
+    ...(contentType === null ? {} : { "content-type": contentType }),
+  };
+  // The throttle is keyed by address, so every request in a test needs one —
+  // and tests that want to be throttled separately need different ones.
+  req.socket = {
+    remoteAddress: over.address ?? "192.168.1.9",
+  } as http.IncomingMessage["socket"];
   return req;
 }
 
@@ -65,10 +76,13 @@ function mockResponse(): {
   return { res, captured, done };
 }
 
-async function post(body?: string): Promise<Captured> {
+async function post(
+  body?: string,
+  over: { contentType?: string | null; address?: string } = {},
+): Promise<Captured> {
   const { res, captured, done } = mockResponse();
   const handled = await handleRelayRequest(
-    mockRequest("POST", PAIR_LOCAL_PATH, body),
+    mockRequest("POST", PAIR_LOCAL_PATH, body, over),
     res,
   );
   expect(handled).toBe(true);
@@ -175,10 +189,135 @@ describe("POST /_pair/local", () => {
 
   it("burns the offer after five wrong codes", async () => {
     armLocalPairing(CODE);
+    // One address per guess, so this measures the *code's* budget and not the
+    // per-address one — which is tested separately, below.
     for (let i = 0; i < 5; i++) {
-      expect((await post(JSON.stringify({ code: "000000" }))).status).toBe(401);
+      expect(
+        (
+          await post(JSON.stringify({ code: "000000" }), {
+            address: `1.1.1.${i}`,
+          })
+        ).status,
+      ).toBe(401);
     }
-    expect((await post(JSON.stringify({ code: CODE }))).status).toBe(401);
+    expect(
+      (await post(JSON.stringify({ code: CODE }), { address: "1.1.2.1" }))
+        .status,
+    ).toBe(401);
+  });
+
+  /*
+   * The code's own five-guess budget is not a bound on its own: burning it
+   * re-arms a fresh code and the attacker simply carries on. The per-address
+   * backoff is what turns a few hours of requests into centuries of them.
+   */
+  it("locks an address out after five rejections, and holds through a re-arm", async () => {
+    armLocalPairing(CODE);
+    for (let i = 0; i < 5; i++) {
+      await post(JSON.stringify({ code: "000000" }), { address: "10.0.0.7" });
+    }
+    armLocalPairing(CODE);
+    const locked = await post(JSON.stringify({ code: CODE }), {
+      address: "10.0.0.7",
+    });
+    expect(locked.status).toBe(429);
+    expect(Number(locked.headers["Retry-After"])).toBeGreaterThan(0);
+  });
+
+  it("leaves a different address alone", async () => {
+    armLocalPairing(CODE);
+    for (let i = 0; i < 6; i++) {
+      await post(JSON.stringify({ code: "000000" }), { address: "10.0.0.8" });
+    }
+    armLocalPairing(CODE);
+    expect(
+      (await post(JSON.stringify({ code: CODE }), { address: "10.0.0.9" }))
+        .status,
+    ).toBe(200);
+  });
+
+  it("does not bill a refusal against the address", async () => {
+    // The credential was right. Billing it would let somebody lock their own
+    // laptop out of pairing by pressing "no" twice.
+    setLocalPairingGate(async () => false);
+    for (let i = 0; i < 6; i++) {
+      armLocalPairing(CODE);
+      expect(
+        (await post(JSON.stringify({ code: CODE }), { address: "10.0.0.6" }))
+          .status,
+      ).toBe(403);
+    }
+  });
+
+  it("clears the backoff on a success", async () => {
+    armLocalPairing(CODE);
+    for (let i = 0; i < 4; i++) {
+      await post(JSON.stringify({ code: "000000" }), { address: "10.0.0.5" });
+    }
+    armLocalPairing(CODE);
+    expect(
+      (await post(JSON.stringify({ code: CODE }), { address: "10.0.0.5" }))
+        .status,
+    ).toBe(200);
+    armLocalPairing(CODE);
+    for (let i = 0; i < 4; i++) {
+      expect(
+        (
+          await post(JSON.stringify({ code: "000000" }), {
+            address: "10.0.0.5",
+          })
+        ).status,
+      ).toBe(401);
+    }
+  });
+
+  /*
+   * A JSON content type is not a "simple request", so a cross-origin POST has
+   * to preflight and this origin answers no preflight. Without the check, a
+   * page on the open internet could spend guesses and burn the code on screen
+   * from the browser of anyone sitting on this wifi — it could never read the
+   * answer, but it would not need to.
+   */
+  it("refuses a content type that would skip the browser's preflight", async () => {
+    armLocalPairing(CODE);
+    for (const contentType of [
+      "text/plain",
+      "application/x-www-form-urlencoded",
+      null,
+    ]) {
+      const captured = await post(JSON.stringify({ code: CODE }), {
+        contentType,
+      });
+      expect(captured.status).toBe(415);
+    }
+    // And the offer is untouched by any of it.
+    expect((await post(JSON.stringify({ code: CODE }))).status).toBe(200);
+  });
+
+  it("ignores parameters on the content type", async () => {
+    armLocalPairing(CODE);
+    expect(
+      (
+        await post(JSON.stringify({ code: CODE }), {
+          contentType: "application/json; charset=utf-8",
+        })
+      ).status,
+    ).toBe(200);
+  });
+
+  it("strips escape sequences out of the name it shows a human", async () => {
+    // The label lands beside a security question on somebody's terminal.
+    const asked: { label: string }[] = [];
+    setLocalPairingGate(async (req) => {
+      asked.push(req);
+      return true;
+    });
+    armLocalPairing(CODE);
+    await post(JSON.stringify({ code: CODE, label: "\u001b[2AEvil" }));
+    // Defanged rather than rejected: a hostile label must not be able to fail
+    // a pairing either, or the sanitiser becomes its own denial of service.
+    expect(asked[0]!.label).toBe("[2AEvil");
+    expect(asked[0]!.label).not.toContain("\u001b");
   });
 
   it("rejects GET — the nonce must never ride in a query string", async () => {

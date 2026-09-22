@@ -96,8 +96,9 @@ reached over SSH, or when you want `--tunnel-only`.
 
 ## On your own network, with no broker at all
 
-`mtmux start` contacts no broker unless you ask for one. The QR then encodes a LAN sign-in URL
-instead of a pairing code:
+`mtmux start` contacts no broker unless you ask for one. It still prints a QR
+and a code — a **six-digit** one, redeemed straight against the machine rather
+than routed through anything:
 
 ```
   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
@@ -108,10 +109,12 @@ instead of a pairing code:
   █ ▄  ▄▀▄▄  ▄█▄▄▄▄▀  ▀▄▄▀▄▀▄█▄▀█
   █▄▄ ▄ ▄▄▀▄ ▀ ▄█▀ █▄██▄▀▀▄ ██▀██   Scan to open your terminal
   █▀█    ▄▄▄ ▀▄▀▄▀█▄ ▀▀▄▄▀▄▀▄ █▀█
-  █▄ ▄▄▀█▄▀█  █▀██  █▀▀█ ▄▀██▄▀██   On this network only. The
-  █▀▄▀█▀█▄  █ █▄▄▄█▄ ▀ ▄ ▀█▀▀ █▀█   link signs the device in —
-  █ █▄▀ ▀▄█▀▄█ ▄█ ▄▀▄██ ▀ █▀▄▄▀██   nothing reaches our
-  █▄█▄██▄▄█▀ ▀▄▀▀██▀▄▀▀ ▄▄▄ ▀   █   servers.
+  █▄ ▄▄▀█▄▀█  █▀██  █▀▀█ ▄▀██▄▀██   or go to  192.168.1.5:14100
+  █▀▄▀█▀█▄  █ █▄▄▄█▄ ▀ ▄ ▀█▀▀ █▀█   and enter 483 921
+  █ █▄▀ ▀▄█▀▄█ ▄█ ▄▀▄██ ▀ █▀▄▄▀██
+  █▄█▄██▄▄█▀ ▀▄▀▀██▀▄▀▀ ▄▄▄ ▀   █   On this network only —
+  █ ▄▄▄▄▄ █▄█ █▀ ▄▄▄▄█▄ █▄█ ▄▄███   the code goes to this
+  █ █   █ █ ▀▀█▄█▄▄█ ▀█  ▄ ▄▄▄  █   machine and nowhere else.
   █ ▄▄▄▄▄ █▄█ █▀ ▄▄▄▄█▄ █▄█ ▄▄███
   █ █   █ █ ▀▀█▄█▄▄█ ▀█  ▄ ▄▄▄  █
   █ █▄▄▄█ █  ▀ ▄█▀▄▀█▄▄ ▀▄▀ ▄█ ██
@@ -121,35 +124,65 @@ instead of a pairing code:
   Network  http://192.168.1.5:14100  (wlp3s0)
 
   Want it from anywhere?  Press t for an encrypted tunnel
-
-  Can't scan? Open an address above and paste this token:
-  0a1b2c3d4e5f...
 ```
 
-The token is printed here and not under a pairing code, because in local mode it
-is the only credential a second device can use by hand — a laptop on the same
-wifi, a phone that will not give the browser its camera, a machine you are
-reading this on over SSH. Paste it at `/login`. Under a hosted invite it is
-suppressed: nine digits that expire are the better answer, and printing both
-invites the wrong one to be copied.
+Type the six digits at either address, or scan. The field is the same one that
+takes a nine-digit hosted code — six and nine cannot be confused, so nobody has
+to know there are two kinds.
+
+The digits work from `http://localhost:14100` on the machine itself, which
+matters more than it sounds: a box bound to loopback, a laptop with wifi off, or
+a session you reached over SSH has no second device to scan with, and used to
+have no way in short of pasting a 64-character token.
+
+### Six digits is not much entropy, and it is not meant to be
+
+A million is a small number. Three things stand in front of the code, and the
+code is only the first.
+
+1. **You have to be on the network already.** There is no route to this
+   endpoint from the internet. That is what "contacts no broker" means.
+2. **The code survives five wrong guesses.** The sixth burns it; the terminal
+   says so and prints a fresh one. A million-guess search needs the code to
+   live through a million guesses, and it does not live through six.
+3. **A correct guess still has to be let in by a human.** Redemption raises the
+   approval question on the machine — the same one every other path raises.
+   Knowing the code is not consent.
+
+On top of those, the relay applies the same per-address backoff it uses for
+token authentication: five rejections and that address waits 30 seconds, then a
+minute, then two, up to fifteen. Without it, burning and re-arming would simply
+hand an attacker five fresh guesses at a time.
+
+### The two halves are one offer
 
 Scanning opens `http://192.168.1.5:14100/login#n=<nonce>`. The nonce is in the
 fragment for the same reason the pairing code is. The page posts it to
-`POST /_pair/local` and gets back a session token scoped to 24 hours.
+`POST /_pair/local`, which is also where the typed digits go, and gets back a
+session token scoped to 24 hours.
 
-That endpoint is `POST`-only on purpose — a `GET` would put the nonce in access
-logs and `Referer` headers — and it answers a spent, unknown or expired nonce
-with a generic `401` that reveals nothing about which.
+Spending either half spends both, so a photograph of the QR cannot outlive
+digits somebody has already typed. Only one offer is ever live: arming a new one
+clears the old.
 
-The nonce is **single-use**, and burned on redemption whether or not the caller
-does anything with the token it got back. Only one is ever live: issuing a new
-one clears the old. Once a device signs in, mtmux mints another and reprints the
-code, so what is on screen is always current.
+The offer is burned **before** the human is asked. A correct code left live
+while the question sits on screen is a code an attacker can simply retry the
+moment it is denied; the cost of doing it this way is that a refusal also costs
+the legitimate owner one glance at a freshly printed code.
 
-Unlike a paired device, a LAN nonce sign-in is **not** remembered across
+That endpoint is `POST`-only on purpose — a `GET` would put the credential in
+access logs and `Referer` headers — and it requires `Content-Type:
+application/json`, which forces a browser to preflight any cross-origin attempt
+and so keeps a page on the open internet from spending guesses through the
+browser of somebody sitting on your wifi. It answers a spent, unknown or expired
+credential with a generic `401` that reveals nothing about which, and a refusal
+at the machine with a `403` that says so plainly.
+
+Unlike a paired device, a local sign-in is **not** remembered across
 restarts — see [Staying paired](#staying-paired).
 
-`--host 127.0.0.1` suppresses all of this and keeps the server on loopback.
+`--host 127.0.0.1` keeps the server off the network entirely; the digits still
+work at `http://localhost:14100`.
 
 ### Changing your mind, without restarting
 

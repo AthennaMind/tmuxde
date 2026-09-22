@@ -1,4 +1,5 @@
 import kleur from "kleur";
+import { sanitizeLabel } from "@repo/protocol";
 
 import { displayWidth, fit, pad, rule, since } from "./live-view.js";
 import type { ConnectedDevice } from "./serve.js";
@@ -201,7 +202,7 @@ export function buildRows(
       // The stored name wins over the browser's label even for a live socket:
       // the relay's label came from the token, which was issued before anybody
       // had renamed anything.
-      name: peer ? displayName(peer) : live.label,
+      name: peer ? displayName(peer) : sanitizeLabel(live.label),
       deviceId: live.deviceId ?? null,
       live,
       peer,
@@ -227,9 +228,21 @@ export function buildRows(
   return rows;
 }
 
-/** The owner's name if there is one, else what the browser said. */
+/**
+ * The owner's name if there is one, else what the browser said.
+ *
+ * Sanitised, and that is not belt-and-braces. `label` is whatever a peer
+ * claimed to be, and it is drawn into a table on somebody's terminal — 120
+ * bytes is ample room for ANSI that walks the cursor up the screen and
+ * redraws the approval prompt above it. `sanitizeLabel`'s own header makes
+ * that argument at length; this is the render site it names.
+ *
+ * The owner's own `name` goes through it too. It cannot be hostile by
+ * construction, but the rule "nothing reaches the terminal unstripped" is
+ * worth more than the one exception is worth saving.
+ */
 export function displayName(peer: { name?: string; label: string }): string {
-  return (peer.name ?? "").trim() || peer.label;
+  return sanitizeLabel(peer.name ?? "") || sanitizeLabel(peer.label);
 }
 
 function list(state: PanelState, width: number): string[] {
@@ -481,7 +494,7 @@ function detailCard(
   // only when a rename has made the two differ, because that is the only time
   // it carries information.
   if (row.peer?.name && row.peer.label && row.peer.label !== row.name) {
-    field("Browser", row.peer.label);
+    field("Browser", sanitizeLabel(row.peer.label));
   }
 
   const device = row.live;
@@ -505,7 +518,7 @@ function detailCard(
       );
     }
     field("Reached me", whereFrom(device));
-    if (device.userAgent) field("It says", device.userAgent);
+    if (device.userAgent) field("It says", sanitizeLabel(device.userAgent));
   } else {
     field("Connected", "not right now");
   }
@@ -630,7 +643,7 @@ function confirm(
 ): string[] {
   return [
     rule(width),
-    ` ${kleur.bold("Revoke")} ${kleur.bold(kleur.yellow(mode.label))}${kleur.bold("?")}`,
+    ` ${kleur.bold("Revoke")} ${kleur.bold(kleur.yellow(sanitizeLabel(mode.label)))}${kleur.bold("?")}`,
     ` ${kleur.dim("It is disconnected now and must pair again to come back.")}`,
     ` ${kleur.dim("To hang up without un-pairing, answer no and press")} ${kleur.bold("c")}${kleur.dim(".")}`,
     "",
@@ -655,7 +668,7 @@ function rename(
 ): string[] {
   return [
     rule(width),
-    ` ${kleur.bold("Rename")} ${kleur.bold(kleur.cyan(fit(mode.label, Math.max(8, width - 12))))}`,
+    ` ${kleur.bold("Rename")} ${kleur.bold(kleur.cyan(fit(sanitizeLabel(mode.label), Math.max(8, width - 12))))}`,
     "",
     ` ${kleur.dim("Name")}  ${kleur.bold(fit(mode.draft, Math.max(8, width - 10)))}${kleur.cyan("▏")}`,
     "",
@@ -685,9 +698,14 @@ function approval(
   const lines = [
     rule(width),
     ` ${kleur.bold(kleur.yellow("A device wants in"))}`,
-    ` ${kleur.dim("Device ")}  ${mode.label}`,
+    // Stripped at the render site as well as at ingress. This is the one
+    // strong human gate in the product, and a label that can move the cursor
+    // can erase the question and draw a friendlier one.
+    ` ${kleur.dim("Device ")}  ${sanitizeLabel(mode.label)}`,
   ];
-  if (mode.account) lines.push(` ${kleur.dim("Account")}  ${mode.account}`);
+  if (mode.account) {
+    lines.push(` ${kleur.dim("Account")}  ${sanitizeLabel(mode.account)}`);
+  }
   if (mode.sas) {
     lines.push(` ${kleur.dim("Code   ")}  ${kleur.bold(mode.sas)}`);
     lines.push(

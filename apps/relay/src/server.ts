@@ -8,6 +8,11 @@ import { isPathAllowed } from "./file-service.js";
 import { getMimeType } from "./mime.js";
 import { timingSafeEqualToken } from "./auth.js";
 import {
+  checkAuthThrottle,
+  recordAuthFailure,
+  recordAuthSuccess,
+} from "./auth-throttle.js";
+import {
   redeemLocalPairing,
   registerSessionToken,
   grantForToken,
@@ -18,7 +23,7 @@ import * as recordings from "./recordings-index.js";
 import { broadcastToAll } from "./connection-manager.js";
 import { isCloneSession } from "./tmux-clone.js";
 import { listSessions } from "./tmux-manager.js";
-import { GrantRecord } from "@repo/protocol";
+import { GrantRecord, sanitizeLabel } from "@repo/protocol";
 
 const logger = createLogger("relay:http");
 
@@ -62,6 +67,51 @@ async function handleLocalPairing(
     return true;
   }
 
+  /*
+   * `application/json`, required — which is a CSRF control, not a parser
+   * nicety.
+   *
+   * A cross-origin `fetch` with a JSON content type is not a "simple request",
+   * so the browser must preflight it and this origin never answers a
+   * preflight. With any content type accepted, a page on the open internet
+   * could POST here from the browser of anybody sitting on this wifi. It could
+   * not *read* the answer — no CORS headers come back — so it could never
+   * steal a session token. What it could do is spend guesses and burn the code
+   * on screen, over and over, from a tab the victim does not know is open.
+   */
+  const contentType = (req.headers["content-type"] ?? "").split(";")[0]!.trim();
+  if (contentType.toLowerCase() !== "application/json") {
+    res.writeHead(415, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Expected application/json" }));
+    return true;
+  }
+
+  /*
+   * The same per-address backoff that guards token authentication, and for the
+   * same reason.
+   *
+   * The six-digit code has a five-guess budget of its own, after which it
+   * burns and the terminal prints a fresh one — which on its own is not a
+   * bound at all, because the attacker simply keeps going against the new
+   * code. Five guesses per re-arm over a million codes is a few hours of
+   * requests. With this in front, an address gets roughly five attempts per
+   * quarter hour, and the same search is measured in centuries.
+   *
+   * Shared deliberately with `authenticateMessage`: somebody guessing pairing
+   * codes on this network has no business getting a fresh token-guessing
+   * budget by switching ports.
+   */
+  const address = req.socket.remoteAddress ?? null;
+  const throttled = checkAuthThrottle(address);
+  if (!throttled.allowed) {
+    res.writeHead(429, {
+      "Content-Type": "application/json",
+      "Retry-After": String(Math.ceil(throttled.retryAfterMs / 1000)),
+    });
+    res.end(JSON.stringify({ error: "Too many attempts" }));
+    return true;
+  }
+
   const raw = await readBody(req);
   let body: { nonce?: unknown; code?: unknown; label?: unknown } = {};
   try {
@@ -85,10 +135,13 @@ async function handleLocalPairing(
    * it is the one field in this request that reaches a human's screen.
    */
   const label =
-    typeof body.label === "string" ? body.label.slice(0, 80).trim() : "";
+    typeof body.label === "string" ? sanitizeLabel(body.label, 80) : "";
 
   const result = await redeemLocalPairing({ nonce, code }, { label });
 
+  // A refusal is not a failed guess — the credential was right — so it does
+  // not feed the backoff. Billing it would let somebody lock their own laptop
+  // out of pairing by pressing "no" twice.
   if (!result.ok && result.reason === "refused") {
     // Said plainly, and distinct from 401 on purpose: the credential was
     // right and a human said no. Telling that person "invalid or already
@@ -100,6 +153,7 @@ async function handleLocalPairing(
   }
 
   if (!result.ok) {
+    recordAuthFailure(address);
     // Deliberately vague and deliberately unlogged — no credential material,
     // and no signal about whether this code never existed or was already spent.
     logger.warn("Local pairing rejected");
@@ -110,6 +164,7 @@ async function handleLocalPairing(
     return true;
   }
 
+  recordAuthSuccess(address);
   logger.info("Local pairing succeeded — session token issued");
   res.writeHead(200, {
     "Content-Type": "application/json",
