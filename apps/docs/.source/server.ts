@@ -1,11 +1,11 @@
 // @ts-nocheck
-import * as __fd_glob_33 from "../content/docs/web-app/terminal.mdx?collection=docs"
-import * as __fd_glob_32 from "../content/docs/web-app/sessions.mdx?collection=docs"
-import * as __fd_glob_31 from "../content/docs/web-app/mobile.mdx?collection=docs"
-import * as __fd_glob_30 from "../content/docs/web-app/index.mdx?collection=docs"
-import * as __fd_glob_29 from "../content/docs/web-app/files.mdx?collection=docs"
-import * as __fd_glob_28 from "../content/docs/relay/protocol.mdx?collection=docs"
-import * as __fd_glob_27 from "../content/docs/relay/index.mdx?collection=docs"
+import * as __fd_glob_33 from "../content/docs/relay/protocol.mdx?collection=docs"
+import * as __fd_glob_32 from "../content/docs/relay/index.mdx?collection=docs"
+import * as __fd_glob_31 from "../content/docs/web-app/terminal.mdx?collection=docs"
+import * as __fd_glob_30 from "../content/docs/web-app/sessions.mdx?collection=docs"
+import * as __fd_glob_29 from "../content/docs/web-app/mobile.mdx?collection=docs"
+import * as __fd_glob_28 from "../content/docs/web-app/index.mdx?collection=docs"
+import * as __fd_glob_27 from "../content/docs/web-app/files.mdx?collection=docs"
 import * as __fd_glob_26 from "../content/docs/agents/session-persistence.mdx?collection=docs"
 import * as __fd_glob_25 from "../content/docs/agents/notifications.mdx?collection=docs"
 import * as __fd_glob_24 from "../content/docs/agents/multi-agent-layouts.mdx?collection=docs"
@@ -47,4 +47,4 @@ const create = server<typeof Config, import("fumadocs-mdx/runtime/types").Intern
   }
 }>();
 
-export const docs = await create.docs("docs", "content/docs", {"meta.json": __fd_glob_0, "agents/meta.json": __fd_glob_1, "relay/meta.json": __fd_glob_2, "web-app/meta.json": __fd_glob_3, }, {"accounts.mdx": __fd_glob_4, "architecture.mdx": __fd_glob_5, "cli.mdx": __fd_glob_6, "configuration.mdx": __fd_glob_7, "deployment.mdx": __fd_glob_8, "doctor.mdx": __fd_glob_9, "getting-started.mdx": __fd_glob_10, "index.mdx": __fd_glob_11, "pairing.mdx": __fd_glob_12, "recording.mdx": __fd_glob_13, "sealed-tunnel.mdx": __fd_glob_14, "security.mdx": __fd_glob_15, "self-hosting.mdx": __fd_glob_16, "sharing.mdx": __fd_glob_17, "troubleshooting.mdx": __fd_glob_18, "agents/approvals.mdx": __fd_glob_19, "agents/claude-code.mdx": __fd_glob_20, "agents/codex-cli.mdx": __fd_glob_21, "agents/index.mdx": __fd_glob_22, "agents/long-running-jobs.mdx": __fd_glob_23, "agents/multi-agent-layouts.mdx": __fd_glob_24, "agents/notifications.mdx": __fd_glob_25, "agents/session-persistence.mdx": __fd_glob_26, "relay/index.mdx": __fd_glob_27, "relay/protocol.mdx": __fd_glob_28, "web-app/files.mdx": __fd_glob_29, "web-app/index.mdx": __fd_glob_30, "web-app/mobile.mdx": __fd_glob_31, "web-app/sessions.mdx": __fd_glob_32, "web-app/terminal.mdx": __fd_glob_33, });
+export const docs = await create.docs("docs", "content/docs", {"meta.json": __fd_glob_0, "agents/meta.json": __fd_glob_1, "relay/meta.json": __fd_glob_2, "web-app/meta.json": __fd_glob_3, }, {"accounts.mdx": __fd_glob_4, "architecture.mdx": __fd_glob_5, "cli.mdx": __fd_glob_6, "configuration.mdx": __fd_glob_7, "deployment.mdx": __fd_glob_8, "doctor.mdx": __fd_glob_9, "getting-started.mdx": __fd_glob_10, "index.mdx": __fd_glob_11, "pairing.mdx": __fd_glob_12, "recording.mdx": __fd_glob_13, "sealed-tunnel.mdx": __fd_glob_14, "security.mdx": __fd_glob_15, "self-hosting.mdx": __fd_glob_16, "sharing.mdx": __fd_glob_17, "troubleshooting.mdx": __fd_glob_18, "agents/approvals.mdx": __fd_glob_19, "agents/claude-code.mdx": __fd_glob_20, "agents/codex-cli.mdx": __fd_glob_21, "agents/index.mdx": __fd_glob_22, "agents/long-running-jobs.mdx": __fd_glob_23, "agents/multi-agent-layouts.mdx": __fd_glob_24, "agents/notifications.mdx": __fd_glob_25, "agents/session-persistence.mdx": __fd_glob_26, "web-app/files.mdx": __fd_glob_27, "web-app/index.mdx": __fd_glob_28, "web-app/mobile.mdx": __fd_glob_29, "web-app/sessions.mdx": __fd_glob_30, "web-app/terminal.mdx": __fd_glob_31, "relay/index.mdx": __fd_glob_32, "relay/protocol.mdx": __fd_glob_33, });

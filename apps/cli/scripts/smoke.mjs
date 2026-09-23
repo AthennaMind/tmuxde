@@ -13,15 +13,42 @@ import { existsSync } from "node:fs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const BIN = path.join(ROOT, "dist/bin.js");
-const PORT = Number(process.env.SMOKE_PORT ?? 0) || pickPort();
+/**
+ * A port nothing is on, asked of the kernel rather than guessed.
+ *
+ * This used to be `39000 + random(500)`, which cost a release: three servers
+ * are started over one run, the runner has its own listeners, and a blind draw
+ * from a 500-wide range collides often enough to fail a green build. Binding
+ * to port 0 and reading back what the OS gave us is not race-free either —
+ * nothing that returns a number can be — but the window is microseconds rather
+ * than the whole run, and `handed` keeps this run from drawing its own port
+ * twice, which was the likeliest collision of all.
+ */
+const handed = new Set();
+async function pickPort() {
+  const { createServer } = await import("node:net");
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const port = await new Promise((resolve, reject) => {
+      const probe = createServer();
+      probe.on("error", reject);
+      probe.listen(0, "127.0.0.1", () => {
+        const { port } = probe.address();
+        probe.close(() => resolve(port));
+      });
+    });
+    if (!handed.has(port)) {
+      handed.add(port);
+      return port;
+    }
+  }
+  throw new Error("could not find a free port");
+}
+
+const PORT = Number(process.env.SMOKE_PORT ?? 0) || (await pickPort());
 
 if (!existsSync(BIN)) {
   console.error(`✗ ${BIN} missing — run \`pnpm --filter mtmux build\` first.`);
   process.exit(1);
-}
-
-function pickPort() {
-  return 39000 + Math.floor(Math.random() * 500);
 }
 
 function fetch(path) {
@@ -403,7 +430,7 @@ await check("stdout carries no log lines", async () => {
 await check(
   "--json prints one parseable document and nothing else",
   async () => {
-    const port = pickPort();
+    const port = await pickPort();
     const out = await runToCompletion([
       BIN,
       "start",
@@ -447,7 +474,7 @@ await check(
       await readFile(join(homedir(), ".mtmux/config.json"), "utf8"),
     );
 
-    const port = pickPort();
+    const port = await pickPort();
     const gated = spawn(
       "node",
       [BIN, "start", "--port", String(port), "--local"],
