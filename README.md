@@ -96,12 +96,13 @@ $ mtmux --no-qr
 
 And one more, because it is the one people are surprised by: **a valid token is
 not permission.** Approval is asked per _connection_ — loopback, LAN and
-tunnelled alike — not once per credential. A credential is a file on somebody
-else's computer, and that it paired last month is a fact about the past. One
-answer covers a device while it stays connected and for two minutes after, so
-tabs and a reconnect on a train do not each ring the bell; a machine with no
-terminal attached trusts what it already knows, because refusing everything for
-want of anyone to ask is not safer, it is broken.
+tunnelled alike, on the websocket and on the routes that hand over files — not
+once per credential. A credential is a file on somebody else's computer, and
+that it paired last month is a fact about the past. One answer covers a device
+while it stays connected and for two minutes after, so tabs and a reconnect on
+a train do not each ring the bell. Turning the question off with
+`reconnectPolicy trust` waives it only for devices already on the machine's own
+list; a token the machine has no record of is asked about either way.
 
 On the **direct** path the two devices talk over your own network and we are simply
 not in it; there the browser's own TLS, or on a plain LAN nothing, is what protects

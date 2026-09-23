@@ -514,8 +514,16 @@ export function askSessions(
             return;
           }
           if (msg.type === "auth:failure") {
+            // The census probes machines the browser already has tokens for,
+            // so "unapproved" here means the owner has not answered yet — a
+            // live machine, not a dead pairing. Saying so keeps the card from
+            // reading like the credential has expired.
             finish(
-              new Error(msg.reason || "That machine refused this device."),
+              new Error(
+                msg.code === "unapproved"
+                  ? "Waiting to be approved on that machine."
+                  : msg.reason || "That machine refused this device.",
+              ),
             );
             return;
           }

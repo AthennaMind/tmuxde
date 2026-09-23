@@ -201,10 +201,15 @@ describe("peers", () => {
 });
 
 describe("reconnect policy", () => {
-  it("defaults to trust — paired means paired", async () => {
-    // Changing this default would break every unattended server on upgrade,
-    // which is exactly the population `mtmux approve` exists for.
-    expect(await store.getReconnectPolicy()).toBe("trust");
+  it("defaults to confirm, with or without a terminal", async () => {
+    // This default used to depend on `process.stdout.isTTY`, which meant the
+    // machines least likely to be watched were the ones that quietly stopped
+    // asking. A headless box can still be asked — `mtmux approve` and the app
+    // on a connected phone both work with no tty — so there is one default
+    // now and it is the safe one.
+    expect(await store.getReconnectPolicy()).toBe("confirm");
+    expect(await store.getReconnectPolicy(true)).toBe("confirm");
+    expect(await store.getReconnectPolicy(false)).toBe("confirm");
   });
 
   it("round-trips a stored policy", async () => {
@@ -214,13 +219,13 @@ describe("reconnect policy", () => {
     expect(await store.getReconnectPolicy()).toBe("trust");
   });
 
-  it("falls back to trust when the file holds something else", async () => {
+  it("falls back to the safe default when the file holds something else", async () => {
     const cfg = await store.load();
     await store.save({
       ...cfg,
       reconnectPolicy: "yes-please" as never,
     });
-    expect(await store.getReconnectPolicy()).toBe("trust");
+    expect(await store.getReconnectPolicy()).toBe("confirm");
   });
 
   it("keeps the token and peers when the policy changes", async () => {

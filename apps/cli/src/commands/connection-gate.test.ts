@@ -193,6 +193,72 @@ describe("the connection gate", () => {
     expect(ask).toHaveBeenCalledTimes(1);
   });
 
+  it("still asks about a device it has no record of, even under trust", async () => {
+    // `trust` is a *reconnect* policy. A credential this machine has never
+    // issued a pairing for is not reconnecting, and this is the case the
+    // setting was silently covering: a stolen token, a directToken lifted off
+    // a shared laptop, a device the owner removed an hour ago.
+    const ask = vi.fn(async () => true);
+    const gate = makeConnectionGate({
+      asks: () => false,
+      connected: () => [],
+      known: () => false,
+      ask,
+    });
+    expect(await gate.admit(socket())).toBe(true);
+    expect(ask).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets trust waive the question for a device on the peer list", async () => {
+    const ask = vi.fn(async () => true);
+    const gate = makeConnectionGate({
+      asks: () => false,
+      connected: () => [],
+      known: (id) => id === "device-1",
+      ask,
+    });
+    expect(await gate.admit(socket())).toBe(true);
+    expect(ask).not.toHaveBeenCalled();
+  });
+
+  it("admits the machine's own token on loopback without asking", async () => {
+    // Whoever sent it is already on the box and read it out of a 0600 file,
+    // so the gate would be guarding a shell they already have — and a prompt
+    // there is what breaks every headless `mtmux start` with nobody to answer.
+    const ask = vi.fn(async () => true);
+    const gate = makeConnectionGate({
+      asks: () => true,
+      connected: () => [],
+      known: () => false,
+      ask,
+    });
+    expect(
+      await gate.admit(
+        socket({ deviceId: null, tokenId: null, transport: "loopback" }),
+      ),
+    ).toBe(true);
+    expect(ask).not.toHaveBeenCalled();
+  });
+
+  it("asks about the machine's token the moment it arrives from elsewhere", async () => {
+    // A token copied off the machine is precisely what this gate is for, and
+    // `trust` must not cover it: it names no device, so nothing about it is
+    // a reconnect.
+    const ask = vi.fn(async () => true);
+    const gate = makeConnectionGate({
+      asks: () => false,
+      connected: () => [],
+      known: () => false,
+      ask,
+    });
+    expect(
+      await gate.admit(
+        socket({ deviceId: null, tokenId: null, transport: "lan" }),
+      ),
+    ).toBe(true);
+    expect(ask).toHaveBeenCalledTimes(1);
+  });
+
   it("asks under the name the owner gave it", async () => {
     const named: string[] = [];
     const gate = makeConnectionGate({

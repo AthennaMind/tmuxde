@@ -11,6 +11,45 @@ release that shipped them.
 
 ## [Unreleased]
 
+### Security
+
+- **The file and recording endpoints go through the approval gate too.**
+  `GET /file` and `GET /recording` authenticated a bearer token and then served
+  bytes off the machine's disk without asking anybody. The websocket carrying
+  the very same token put a question on the owner's screen; these did not — so
+  the shortest way past the entire approval model was to stop using the
+  terminal and ask for a file instead. Both now cross the same gate, and a
+  refusal is `403` rather than `401` because the credential was fine and
+  re-presenting it is not the way back in. The gate's answer is cached per
+  device, so a browser somebody is actively using downloads files without
+  asking anything; it is the request arriving on its own that stops.
+- **`reconnectPolicy` defaults to `confirm` everywhere, tty or not.** It used
+  to depend on `process.stdout.isTTY`, so a run under systemd, `nohup` or a
+  detached pane trusted silently. That is the wrong way round: the deployments
+  least likely to be watched, most likely to be reachable and least able to
+  notice were exactly the ones that quietly stopped asking. A headless machine
+  can still be asked — `mtmux approve` in any other shell and the app on a
+  connected phone both work with no tty in sight. A machine that wants
+  unattended reconnects now says so, once, in a way its owner chose.
+- **`trust` no longer covers a device the machine has never recorded.** It is a
+  _reconnect_ policy, and there is no such thing as trusting a reconnect from
+  something that has never connected. It now waives the question only for
+  devices on this machine's own list; a token copied off a shared laptop, or
+  one belonging to a device removed an hour ago whose token has not yet aged
+  out, is asked about under either setting. The single deliberate exception is
+  the machine's own token presented from the machine itself, because whoever
+  can read it out of a `0600` file can run `tmux attach` and skip this product
+  entirely.
+
+### Fixed
+
+- Signing in with a token no longer throws that token away when the machine
+  simply has not approved the connection yet. The login form treated every
+  `auth:failure` as a dead credential and cleared storage, so being slow to
+  reach the laptop meant going and finding the token again. The same
+  distinction the terminal already made — `code: "unapproved"` — now reaches
+  the login form and the machine census.
+
 ## [0.11.0] — 2026-09-23
 
 ### Security

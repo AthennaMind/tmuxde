@@ -16,8 +16,13 @@ import {
   redeemLocalPairing,
   registerSessionToken,
   grantForToken,
+  labelForToken,
+  sessionTokenId,
+  deviceIdForTokenId,
   revokeGrant,
 } from "./pairing-local.js";
+import { admitConnection } from "./connection-gate.js";
+import * as accessLog from "./access-log.js";
 import { allowsRecording, FULL_GRANT } from "./grant.js";
 import * as recordings from "./recordings-index.js";
 import { broadcastToAll } from "./connection-manager.js";
@@ -424,6 +429,70 @@ async function handleSessionListing(
   return true;
 }
 
+/**
+ * Resolve a bearer token to a grant, then ask whether this device is allowed
+ * in at all.
+ *
+ * The websocket has had this since the connection gate landed; these two HTTP
+ * routes did not, and that was a hole in the product's central claim rather
+ * than a rough edge. `/file` and `/recording` accepted any live session token
+ * from any address and served bytes off the machine's disk — so a copied token
+ * read files without a soul being asked, while the same token on a websocket
+ * put a question on the owner's screen. "Every connection is approved" has to
+ * mean every connection, or it means nothing.
+ *
+ * The gate's own cache is what keeps this from being a nuisance: it is keyed
+ * by device, and a device with a live socket is already covered, so the file
+ * downloads a browser makes while someone is using it ask nothing. It is the
+ * request arriving on its own, from a device nobody has let in, that stops.
+ *
+ * Returns the grant when the request may proceed, having already written the
+ * response when it may not.
+ */
+async function admitHttpRequest(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  token: string | null,
+): Promise<GrantRecord | null> {
+  const isMachineToken =
+    token !== null && timingSafeEqualToken(token, config.authToken);
+  const grant =
+    token === null ? null : isMachineToken ? FULL_GRANT : grantForToken(token);
+  if (!grant || token === null) {
+    res.writeHead(401);
+    res.end("Unauthorized");
+    return null;
+  }
+
+  const transport = accessLog.transportFor(
+    req.socket.remoteAddress ?? null,
+    req.headers["user-agent"] ?? null,
+  );
+  const tokenId = isMachineToken ? null : sessionTokenId(token);
+  const admitted = await admitConnection({
+    tokenId,
+    deviceId: tokenId ? deviceIdForTokenId(tokenId) : null,
+    label: isMachineToken ? null : labelForToken(token),
+    transport,
+    userAgent: req.headers["user-agent"] ?? null,
+  });
+  if (!admitted) {
+    void accessLog.record({
+      at: new Date().toISOString(),
+      event: "refused",
+      ...accessLog.describeGrant(grant),
+      label: isMachineToken ? null : labelForToken(token),
+      transport,
+    });
+    // 403 and not 401: the credential was fine. Re-presenting it is not the
+    // way back in — being approved on the machine is.
+    res.writeHead(403);
+    res.end("Not approved on the machine");
+    return null;
+  }
+  return grant;
+}
+
 // Matches HTTP header-unsafe characters (C0 controls, DEL, double-quote,
 // backslash) used to sanitize the Content-Disposition ASCII filename fallback.
 // eslint-disable-next-line no-control-regex
@@ -510,17 +579,9 @@ export async function handleRelayRequest(
 
     // Either the long-lived token or a scoped session token from pairing —
     // otherwise a paired device could read the terminal but not open a file.
-    const grant =
-      token === null
-        ? null
-        : timingSafeEqualToken(token, config.authToken)
-          ? FULL_GRANT
-          : grantForToken(token);
-    if (!grant) {
-      res.writeHead(401);
-      res.end("Unauthorized");
-      return true;
-    }
+    // And then, credential or not, the same question the websocket asks.
+    const grant = await admitHttpRequest(req, res, token);
+    if (!grant) return true;
 
     // The same hole as `file:*` on the WebSocket, but outside it: this
     // endpoint accepted any valid session token and checked only
@@ -641,17 +702,8 @@ async function handleRecordingDownload(
     ? authHeader.slice("Bearer ".length)
     : null;
 
-  const grant =
-    token === null
-      ? null
-      : timingSafeEqualToken(token, config.authToken)
-        ? FULL_GRANT
-        : grantForToken(token);
-  if (!grant) {
-    res.writeHead(401);
-    res.end("Unauthorized");
-    return true;
-  }
+  const grant = await admitHttpRequest(req, res, token);
+  if (!grant) return true;
 
   const id = url.searchParams.get("id");
   // "Not found" for out of scope as well as absent — the same rule the

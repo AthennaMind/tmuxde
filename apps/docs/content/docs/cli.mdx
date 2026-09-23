@@ -407,17 +407,29 @@ did.
 **`reconnectPolicy`** — whether a device this machine already trusts is asked
 about when it connects.
 
-| Value     | Meaning                                                                                                    |
-| --------- | ---------------------------------------------------------------------------------------------------------- |
-| `confirm` | Every connection raises a question here before the device is let in. The default when you have a terminal. |
-| `trust`   | A device that paired before comes straight back. The default when nothing is attached to ask on.           |
+| Value               | Meaning                                                                 |
+| ------------------- | ----------------------------------------------------------------------- |
+| `confirm` (default) | Every connection raises a question here before the device is let in.    |
+| `trust`             | A device **already on this machine's device list** comes straight back. |
 
-The default is conditional, and that is deliberate. A run with a terminal
-attached asks, because there is somebody there to ask. A run started by systemd,
-by `nohup`, or in a detached pane trusts, because `confirm` there would refuse
-every reconnect for want of anyone to answer — a product that stops working
-after an upgrade rather than one that got safer. An explicit setting beats both,
-and `--confirm-reconnect` / `--trust-reconnect` beat that for one run.
+One default, on every run, with or without a terminal. This used to depend on
+whether stdout was a tty — a run under systemd, `nohup` or a detached pane
+trusted silently — and that was the wrong way round: the deployments least
+likely to be watched were the ones that quietly stopped asking. A headless
+machine can still be asked. `mtmux approve` in any other shell and the app on a
+phone that is already connected both work with no tty in sight; it is only the
+_screen_ that is missing. A machine that genuinely wants unattended reconnects
+says so once, and `--confirm-reconnect` / `--trust-reconnect` beat the setting
+for a single run.
+
+`trust` is a **reconnect** policy and nothing wider. It waives the question for
+devices on this machine's own list — the ones `mtmux devices` shows. It does
+not, and never could sensibly, waive it for a credential this machine has no
+record of: a token copied off a shared laptop, or one belonging to a device you
+removed an hour ago whose token has not yet aged out. Those are asked about
+under either setting. The one thing admitted outright is the machine's own
+token presented from the machine itself, because whoever can read it out of
+`~/.mtmux/config.json` can run `tmux attach` and skip this product entirely.
 
 This is asked per **connection**, not per credential. A credential is a file on
 somebody else's computer: that it paired once is a fact about the past, and

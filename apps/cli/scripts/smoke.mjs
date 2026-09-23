@@ -425,11 +425,16 @@ await check(
  *
  * Every connection is put to a human at the machine — see
  * `connection-gate.ts` — so on a server with no terminal, no panel and no
- * `mtmux approve` window, a *correct* token must still get nowhere. This runs
- * a second server with `--confirm-reconnect` because that is what a person
- * sitting at a terminal gets by default; the first server in this file is
- * headless and deliberately trusts, which is the behaviour that keeps systemd
- * units working across an upgrade.
+ * `mtmux approve` window, a *correct* token must still get nowhere.
+ *
+ * Two details make this the real test rather than a rehearsal of one. It runs
+ * the second server with no policy flag at all, because `confirm` is now the
+ * only default and a test that has to ask for the safe behaviour is not
+ * testing the shipped one. And it presents the token wearing the tunnel
+ * agent's user-agent, which is what makes the relay resolve this socket as
+ * arriving over the tunnel: the gate deliberately admits the machine's own
+ * token from loopback — whoever sends it there can run `tmux attach` anyway —
+ * so a loopback socket would prove nothing at all.
  */
 await check(
   "a valid token is not permission, and nobody is there",
@@ -445,7 +450,7 @@ await check(
     const port = pickPort();
     const gated = spawn(
       "node",
-      [BIN, "start", "--port", String(port), "--local", "--confirm-reconnect"],
+      [BIN, "start", "--port", String(port), "--local"],
       {
         stdio: ["ignore", "ignore", "ignore"],
         env: { ...process.env, NODE_ENV: "production" },
@@ -479,7 +484,8 @@ await check(
         const ws = new WS(`ws://127.0.0.1:${port}/_relay`, {
           headers: {
             Origin: `http://127.0.0.1:${port}`,
-            "User-Agent": "Mozilla/5.0 SmokeTest",
+            // Resolves to `transport: "tunnel"` at the relay. See above.
+            "User-Agent": "mtmux-tunnel-agent",
           },
         });
         // Long enough for the question to be raised, parked and refused with
@@ -509,7 +515,47 @@ await check(
         // dead credential, or every slow answer wipes a working pairing.
         throw new Error(`refused without the code: ${reply.reason}`);
       }
-      return reply.type === "silence" ? "held, never admitted" : reply.reason;
+
+      /*
+       * And the same token on the file endpoint, which is where this was a
+       * hole rather than a rough edge.
+       *
+       * `/file` authenticated a bearer token and served bytes off the disk
+       * without asking anybody — so the shortest way past the entire approval
+       * model was to stop using the terminal and start using this. It has to
+       * refuse for the same reason and say so differently from a bad
+       * credential: 403, because the token was fine and re-presenting it is
+       * not the way back in.
+       */
+      const fileStatus = await new Promise((resolve, reject) => {
+        const req = http.request(
+          {
+            host: "127.0.0.1",
+            port,
+            path: `/file?path=${encodeURIComponent(join(homedir(), ".mtmux/config.json"))}`,
+            headers: {
+              Authorization: `Bearer ${cfg.token}`,
+              "User-Agent": "mtmux-tunnel-agent",
+            },
+            timeout: 25000,
+          },
+          (res) => {
+            res.resume();
+            resolve(res.statusCode);
+          },
+        );
+        req.on("error", reject);
+        req.on("timeout", () => {
+          req.destroy();
+          resolve("timeout");
+        });
+        req.end();
+      });
+      if (fileStatus === 200) {
+        throw new Error("/file served a token nobody had approved");
+      }
+
+      return `${reply.type === "silence" ? "held, never admitted" : reply.reason}; /file ${fileStatus}`;
     } finally {
       gated.kill("SIGKILL");
     }

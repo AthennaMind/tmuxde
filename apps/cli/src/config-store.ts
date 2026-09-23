@@ -195,23 +195,36 @@ export async function setReach(reach: Reach): Promise<Config> {
 export type ReconnectPolicy = "trust" | "confirm";
 
 /**
- * What an unconfigured machine does when a device it knows connects.
+ * What an unconfigured machine does when a device it already knows connects.
  *
- * `trust`, and only because of who is left holding the question when nobody
- * answers it. A machine started by systemd, by `nohup`, or in a detached pane
- * has no terminal and no panel: `confirm` there means every reconnect is
- * refused for want of anyone to ask, which is a product that stops working
- * after an upgrade rather than one that got safer.
+ * `confirm`, on every run, with or without a terminal — and the conditional
+ * default this replaces was a mistake worth naming, because it was invisible.
  *
- * So the default is conditional and `getReconnectPolicy` takes the condition:
- * a run with a terminal attached asks, because there is somebody there to ask
- * and "it never asked me" is the complaint this whole gate exists to answer;
- * a run without one trusts, exactly as every release before this did. An
- * explicit setting beats both, in either direction.
+ * The reasoning for it was that a machine started by systemd, by `nohup` or in
+ * a detached pane has no terminal to ask at, so `confirm` there would refuse
+ * every reconnect for want of anyone to answer. That is true of the *terminal*
+ * and false of the machine: `decideAccess` races three channels, and two of
+ * them — the app on a phone that is already connected, and `mtmux approve` in
+ * any other shell — work perfectly well with no tty in sight. A headless box
+ * can be asked. It just cannot be asked *on the screen it does not have*.
+ *
+ * What the conditional actually bought, then, was not availability. It was a
+ * silent downgrade: the deployments least likely to be watched, most likely to
+ * be reachable, and least able to notice were the ones that quietly stopped
+ * asking. A security default that weakens itself exactly where the machine is
+ * least supervised is the wrong way round.
+ *
+ * So there is one default and it is the safe one. A machine that genuinely
+ * wants unattended reconnects says so, once, in a way its owner chose:
+ * `mtmux config set reconnectPolicy trust`, or `--trust-reconnect`.
  */
-export const DEFAULT_RECONNECT_POLICY: ReconnectPolicy = "trust";
+export const DEFAULT_RECONNECT_POLICY: ReconnectPolicy = "confirm";
 
-/** What a run with somebody sitting in front of it does when unconfigured. */
+/**
+ * Kept so the signature of `getReconnectPolicy` does not change under callers
+ * and tests that pass the interactivity hint. Both defaults are now the same
+ * value, deliberately — see above.
+ */
 export const INTERACTIVE_RECONNECT_POLICY: ReconnectPolicy = "confirm";
 
 export function isReconnectPolicy(value: unknown): value is ReconnectPolicy {

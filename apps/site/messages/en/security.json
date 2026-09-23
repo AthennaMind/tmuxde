@@ -67,7 +67,7 @@
       },
       {
         "title": "A valid token is not permission",
-        "description": "Approval is asked per connection, not per credential \u2014 loopback, LAN and tunnelled alike. A credential proves what was true when it was issued; the question is whether the person holding it now is you, and nothing about the machine is sent before the answer."
+        "description": "Approval is asked per connection, not per credential \u2014 loopback, LAN and tunnelled alike, on the websocket and on the routes that serve files. A credential proves what was true when it was issued; the question is whether the person holding it now is you, and nothing about the machine is sent before the answer."
       },
       {
         "title": "Revocation forgets a key",
@@ -83,7 +83,7 @@
         "A broker that knows the whole code and tries to pair your CLI to its own browser.",
         "Passive network capture on hotel, café or cellular networks.",
         "Someone who watches you scan and captures the code after it is spent.",
-        "A copied session token used from somewhere else \u2014 every connection is asked about at the machine.",
+        "A copied session token used from somewhere else \u2014 every connection is asked about at the machine, and a token the machine has no record of is asked about whatever your settings say.",
         "Replay or reordering of captured frames, via the per-direction nonce counter.",
         "A lost phone: remove its device id and its key is worthless."
       ]

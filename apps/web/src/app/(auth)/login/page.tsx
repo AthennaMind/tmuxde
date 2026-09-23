@@ -71,6 +71,24 @@ export default function LoginPage() {
             clearTimeout(timeoutId);
             clientRef.current = null;
             client.disconnect();
+            /*
+             * A refusal is not a bad token, and this used to throw away a
+             * perfectly good one for it.
+             *
+             * Every connection is now put to a human at the machine, so "no"
+             * and "nobody reached the keyboard in time" are ordinary answers
+             * on a token that is in perfect health. Wiping it here meant the
+             * form came back empty and the person had to go and find the
+             * token again because somebody was slow — punishing the user for
+             * the machine's caution.
+             */
+            if (msg.code === "unapproved") {
+              setIsLoading(false);
+              toast.error(
+                "Not approved on the machine. Say yes there, then try again.",
+              );
+              return;
+            }
             clearStored(TOKEN_KEY);
             setIsLoading(false);
             toast.error(msg.reason || "Authentication failed");

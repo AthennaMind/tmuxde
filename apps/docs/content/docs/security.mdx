@@ -128,7 +128,8 @@ query parameter:
 Authenticating gets a socket as far as the door. Whether it comes in is a
 separate question, put to a human at the machine — the app on a device already
 connected, the terminal or live panel, or `mtmux approve` — and asked of
-**every** connection: loopback, LAN and tunnelled alike. Silence denies.
+**every** connection: loopback, LAN and tunnelled alike, over the websocket and
+over the file and recording endpoints. Silence denies.
 
 This is the one check that is not about a credential. A credential is a file on
 somebody else's computer; that it paired once is a fact about the past. The
@@ -146,8 +147,14 @@ asked now.
 - A refusal carries `code: "unapproved"`, which tells the browser its
   credential is healthy. Without it, a slow answer would wipe a working pairing
   and send the user back to pairing from scratch.
-- `reconnectPolicy` decides whether a device you already trust is asked. It
-  defaults to `confirm` with a terminal attached and `trust` without one — see
+- The HTTP routes that serve bytes — `/file` and `/recording` — go through the
+  same gate. They did not until 0.12.0, which meant the shortest way past the
+  whole approval model was to stop using the terminal and ask for a file
+  instead. A refusal there is `403`, not `401`: the credential was fine, and
+  re-presenting it is not the way back in.
+- `reconnectPolicy` decides whether a device **already on this machine's device
+  list** is asked. It defaults to `confirm` everywhere, tty or not, and `trust`
+  never covers a credential the machine has no record of — see
   [the CLI reference](/docs/cli#mtmux-config).
 
 ## Failed-auth throttling

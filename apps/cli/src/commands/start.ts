@@ -464,6 +464,15 @@ let panel: DevicePanel | null = null;
 let peerNameFor: (deviceId: string) => string | null = () => null;
 
 /**
+ * Whether this machine has a pairing record for a device, on the same terms.
+ *
+ * Deliberately `false` until the cache is built: a device that connects inside
+ * the boot window is one this process genuinely cannot vouch for yet, and the
+ * only safe reading of "I do not know" in a gate is the one that asks.
+ */
+let peerIsKnown: (deviceId: string) => boolean = () => false;
+
+/**
  * The gate every socket passes, once the relay exists.
  *
  * Module-level for the same reason `approvals` and `askInApp` are: the tunnel
@@ -1351,6 +1360,13 @@ export function makeConnectionGate(deps: {
   asks: () => boolean;
   /** Device ids with a live socket right now. */
   connected: () => string[];
+  /**
+   * Whether this machine holds a pairing record for a device.
+   *
+   * Optional, and absence reads as "yes" so the unit tests below can drive
+   * the caching rules without standing up a peer list.
+   */
+  known?: (deviceId: string) => boolean;
   /** The owner's name for a device, when they have given it one. */
   nameFor?: (deviceId: string) => string | null;
   /**
@@ -1395,10 +1411,61 @@ export function makeConnectionGate(deps: {
     admit(req) {
       const key = keyFor(req);
       if (covered(key, req.deviceId)) return decided.get(key)!.answer;
+
+      /*
+       * The machine's own bearer token, presented from the machine itself.
+       *
+       * Admitted outright, and this is the one place the gate steps aside on
+       * purpose. Whoever sent it is already on the box: they read a 256-bit
+       * token out of a file at mode 0600 in the owner's home directory, which
+       * means they can also run `tmux attach` and skip this product entirely.
+       * A prompt there guards a door in the middle of an open field, and the
+       * cost of putting one up is that every headless `mtmux start` — systemd,
+       * nohup, a detached pane — stops working with nobody to answer it.
+       *
+       * The narrowness is the point. `loopback` here is resolved from the
+       * socket's own peer address, not from anything the client says; a
+       * tunnelled browser arrives as `tunnel` because the agent stamps its own
+       * user-agent on the hop, and a browser on this machine pairs and so
+       * carries a device id. Neither reaches this line.
+       */
+      if (
+        req.deviceId === null &&
+        req.tokenId === null &&
+        req.transport === "loopback"
+      ) {
+        return Promise.resolve(true);
+      }
+
+      /*
+       * Whether the policy gets a say at all.
+       *
+       * It is a *reconnect* policy, and there is no such thing as trusting a
+       * reconnect from something that has never connected. `trust` means "the
+       * devices I paired may come back without asking me every time" — it has
+       * never meant "admit whoever holds a credential", and until now it said
+       * the second thing, because the gate applied it to every socket without
+       * first asking whether this machine had ever seen the device.
+       *
+       * That is the difference between a setting and a hole. A stolen session
+       * token, a directToken lifted off a shared laptop, a device the owner
+       * removed an hour ago and whose token has not yet aged out: none of
+       * those are on the peer list, and none of them are what anybody meant by
+       * turning reconnect prompts off.
+       *
+       * The machine's own bearer token has no device record by construction,
+       * and the only reading of it that this gate waives is the loopback one
+       * handled above. Arriving from anywhere else it is a credential like any
+       * other — a token copied off the machine is exactly the thing the gate
+       * is for — so it is asked about whatever the policy says.
+       */
+      const recognised =
+        req.deviceId !== null ? deps.known?.(req.deviceId) !== false : false;
+
       // The policy is read now, not captured: `a` in the live panel flips it
       // without a restart, and a gate holding the value it booted with would
       // be the one control on this panel that quietly does nothing.
-      if (!deps.asks()) return Promise.resolve(true);
+      if (recognised && !deps.asks()) return Promise.resolve(true);
 
       const named =
         (req.deviceId ? deps.nameFor?.(req.deviceId) : null) ||
@@ -1811,6 +1878,7 @@ export async function start(opts: StartOpts) {
    */
   connectionGate = makeConnectionGate({
     asks: () => askOnReconnect,
+    known: (deviceId) => peerIsKnown(deviceId),
     connected: () =>
       (relay.connectionDetails?.() ?? [])
         .map((device) => device.deviceId)
@@ -2525,6 +2593,8 @@ export async function start(opts: StartOpts) {
   };
   peerNameFor = (deviceId) =>
     peerRows.find((peer) => peer.deviceId === deviceId)?.name ?? null;
+  peerIsKnown = (deviceId) =>
+    peerRows.some((peer) => peer.deviceId === deviceId);
   await refreshPeers();
 
   panel = createDevicePanel({
