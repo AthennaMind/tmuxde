@@ -1,6 +1,6 @@
 {
   "name": "mtmux",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "description": "tmux in your browser. One command, any device.",
   "keywords": [
     "mtmux",

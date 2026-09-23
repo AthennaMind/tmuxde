@@ -11,6 +11,8 @@ release that shipped them.
 
 ## [Unreleased]
 
+## [0.12.2] — 2026-09-23
+
 ### Security
 
 - **Hosted code pairing never asked anybody, and now does.** A browser that
