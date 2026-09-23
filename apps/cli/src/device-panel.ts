@@ -124,12 +124,21 @@ export type PanelMode =
    */
   | {
       kind: "confirm";
-      action: "remove" | "disconnect";
+      /**
+       * `remove-all` is the same act applied to the whole list, and it is one
+       * question rather than N: a panel that asks eight times is a panel whose
+       * eighth answer is reflex. It says the count, because "remove all" with
+       * no number is the one wording where somebody can be surprised by what
+       * they agreed to.
+       */
+      action: "remove" | "disconnect" | "remove-all";
       /** Null for a socket with no pairing record — nothing to forget. */
       deviceId: string | null;
       /** The socket to hang up, when there is one. */
       connectionId: string | null;
       label: string;
+      /** How many rows `remove-all` is about. Unused by the other two. */
+      count?: number;
     }
   /** Typing a new name. `draft` is what has been typed so far. */
   | { kind: "rename"; deviceId: string; label: string; draft: string }
@@ -139,6 +148,17 @@ export type PanelMode =
       label: string;
       account: string;
       sas?: string;
+      /** Which question this is; it changes the words, not the mechanics. */
+      via?: "code" | "request" | "returning";
+      /**
+       * Where the device is reaching this machine from.
+       *
+       * The single fact that most changes the answer, and the one a label
+       * cannot tell you: "a device you paired earlier is connecting" reads
+       * very differently when it is arriving over the tunnel from an unknown
+       * network than when it is a laptop on the same wifi.
+       */
+      transport?: "loopback" | "lan" | "tunnel";
       expiresAt: number;
     };
 
@@ -152,6 +172,17 @@ export type PanelState = {
   now: number;
   /** Whether a tunnel is up, which decides if `n` can mean anything. */
   hosted: boolean;
+  /**
+   * What the tunnel is actually doing, when this run has one at all.
+   *
+   * `hosted` is a boolean and a tunnel is not: it spends real seconds
+   * connecting at boot and real minutes retrying after a broker restart, and
+   * during both of those the panel used to say nothing whatsoever — so the
+   * honest reading of the screen was "this machine is local-only", which was
+   * false and about to become visibly false. Absent means there is no tunnel
+   * in this run's future and nothing to report.
+   */
+  tunnel?: "connecting" | "up" | "retrying";
   /**
    * Whether `t` can mean anything: no tunnel yet, and something able to open
    * one. False on a relay bundle with no `openTunnel` wired, where offering
@@ -423,6 +454,22 @@ function headline(count: number): string {
  * fact. So whole segments go, least important first, and what is left is
  * always true.
  */
+/**
+ * What to say about the tunnel, or nothing.
+ *
+ * "tunnel up" was the only thing this line could ever say, so a run spending
+ * twelve seconds registering — or ten minutes retrying after the broker
+ * bounced — looked exactly like a run that had no tunnel at all. Those are
+ * different facts and the second one is the one somebody needs, because it is
+ * the one that explains why the code on screen is not working yet.
+ */
+function tunnelText(state: PanelState): string | null {
+  if (state.hosted) return "tunnel up";
+  if (state.tunnel === "connecting") return "tunnel connecting…";
+  if (state.tunnel === "retrying") return "tunnel down, retrying";
+  return null;
+}
+
 function headlineRow(
   state: PanelState,
   connected: number,
@@ -431,7 +478,8 @@ function headlineRow(
 ): string {
   const rest: string[] = [];
   if (offline > 0) rest.push(`${offline} paired, not here`);
-  if (state.hosted) rest.push("tunnel up");
+  const tunnel = tunnelText(state);
+  if (tunnel) rest.push(tunnel);
   // Only when it is on. Off is the default, and a permanent line announcing a
   // default is the kind of noise that teaches people to stop reading a panel.
   if (state.askOnReconnect) rest.push("asks on return");
@@ -580,6 +628,10 @@ function keyBar(state: PanelState, width: number): string {
     // for any row: a paired device is forgotten, a bare socket is hung up.
     if (row.deviceId || row.live) keys.push(key("r", "remove"));
   }
+  // Only once there is more than one thing to clear. On a list of one it is
+  // the same act as `r` under a second name, which is how a key bar grows
+  // until nobody reads it.
+  if (state.rows.length > 1) keys.push(key("x", "clear all"));
   keys.push(key("?", "keys"), key("q", "quit"));
   return ` ${fit(keys.join(kleur.dim("   ")), width - 2)}`;
 }
@@ -779,6 +831,7 @@ function help(state: PanelState, width: number): string[] {
     `   ${kleur.bold("↑ ↓")}   ${kleur.dim("move between devices")}`,
     `   ${kleur.bold("d")}     ${kleur.dim("everything about this one")}`,
     `   ${kleur.bold("r")}     ${kleur.dim("remove it — must pair again")}`,
+    `   ${kleur.bold("x")}     ${kleur.dim("remove every device, at once")}`,
     `   ${kleur.bold("e")}     ${kleur.dim("rename it")}`,
     `   ${kleur.bold("a")}     ${kleur.dim("ask when a known device returns")}`,
     `   ${kleur.bold("t")}     ${kleur.dim("open an encrypted tunnel")}`,
@@ -786,10 +839,10 @@ function help(state: PanelState, width: number): string[] {
     `   ${kleur.bold("l")}     ${kleur.dim("reprint the banner and code")}`,
     `   ${kleur.bold("q")}     ${kleur.dim("stop the server (Ctrl+C)")}`,
     "",
-    ` ${kleur.dim("A new device is always asked about")}`,
-    ` ${kleur.dim("here before it gets in. Asking again")}`,
-    ` ${kleur.dim("when a known one returns is ")}` +
-      (state.askOnReconnect ? kleur.bold("on") : kleur.dim("off")) +
+    ` ${kleur.dim("Every connection is asked about here")}`,
+    ` ${kleur.dim("before it is let in — new or known.")}`,
+    ` ${kleur.dim("Asking a device you know is ")}` +
+      (state.askOnReconnect ? kleur.bold("on") : kleur.bold("off")) +
       kleur.dim("."),
     "",
     ` ${kleur.dim("Any key to go back.")}`,
@@ -822,6 +875,17 @@ function confirm(
   const room = (verb: string) => Math.max(8, width - verb.length - 4);
   const named = (verb: string) =>
     kleur.bold(kleur.yellow(fit(sanitizeLabel(mode.label), room(verb))));
+  if (mode.action === "remove-all") {
+    const n = mode.count ?? 0;
+    return [
+      rule(width),
+      ` ${kleur.bold("Remove")} ${kleur.bold(kleur.yellow(`all ${n} device${n === 1 ? "" : "s"}`))}${kleur.bold("?")}`,
+      ` ${kleur.dim(fit("Every one is hung up and forgotten. Each needs a new code to come back.", width - 2))}`,
+      ` ${kleur.dim(fit("Your sessions, your files and this server keep running.", width - 2))}`,
+      "",
+      ` ${kleur.bold("y")} ${kleur.dim("remove them all")}   ${kleur.bold("n")} ${kleur.dim("keep them")}`,
+    ];
+  }
   if (mode.action === "disconnect") {
     return [
       rule(width),
@@ -891,9 +955,10 @@ function approval(
   const value = (label: string, text: string) =>
     ` ${kleur.dim(label)}  ${fit(text, Math.max(6, width - 3 - label.length))}`;
 
+  const returning = mode.via === "returning";
   const lines = [
     rule(width),
-    ` ${kleur.bold(kleur.yellow("A device wants in"))}`,
+    ` ${kleur.bold(kleur.yellow(fit(returning ? "A device you know is connecting" : "A device wants in", width - 2)))}`,
     // Stripped at the render site as well as at ingress. A label that can move
     // the cursor can erase the question and draw a friendlier one.
     value("Device ", sanitizeLabel(mode.label)),
@@ -901,6 +966,11 @@ function approval(
   if (mode.account) {
     lines.push(value("Account", sanitizeLabel(mode.account)));
   }
+  // Where from, in words. This is the field that tells somebody the request
+  // is not theirs: a phone in their pocket does not arrive from a network
+  // they have never been on.
+  const where = whereWord(mode.transport);
+  if (where) lines.push(value("Coming ", where));
   if (mode.sas) {
     lines.push(` ${kleur.dim("Code   ")}  ${kleur.bold(mode.sas)}`);
     lines.push(
@@ -911,7 +981,7 @@ function approval(
     // secret, so there is nothing to compare; asking "do these match?"
     // against a blank space teaches people to answer without looking.
     lines.push(
-      ` ${kleur.dim(fit("It entered this machine's code. Say yes only if that was you.", width - 2))}`,
+      ` ${kleur.dim(fit(returning ? "Say no if you are not the one opening it right now." : "It entered this machine's code. Say yes only if that was you.", width - 2))}`,
     );
   }
   lines.push("");
@@ -927,6 +997,15 @@ function approval(
  * plain text and coloured afterwards, because `fit` counts a bolded `y` as
  * nine columns of escape sequence for one column of ink.
  */
+function whereWord(
+  transport: "loopback" | "lan" | "tunnel" | undefined,
+): string | null {
+  if (transport === "tunnel") return "over the tunnel, from anywhere";
+  if (transport === "lan") return "from this network";
+  if (transport === "loopback") return "from this machine";
+  return null;
+}
+
 function answerLine(secondsLeft: number, width: number): string {
   const tails = [
     `   ·   ${secondsLeft}s left, and doing nothing refuses it`,

@@ -718,15 +718,20 @@ describe("the reconnect policy", () => {
     const off = plain(
       render(state({ mode: { kind: "help" }, askOnReconnect: false }), 90),
     ).join("\n");
-    expect(on).toContain("returns is on");
-    expect(off).toContain("returns is off");
+    expect(on).toContain("you know is on");
+    expect(off).toContain("you know is off");
   });
 
-  it("says a new device is always asked about, whichever way it is set", () => {
+  /*
+   * The setting is about *repeat* questions, not about whether there is one.
+   * Every connection is gated now — see `connection-gate.ts` — and a help
+   * screen that says otherwise is the one place somebody would go to find out.
+   */
+  it("says every connection is asked about, whichever way it is set", () => {
     const out = plain(
       render(state({ mode: { kind: "help" }, askOnReconnect: false }), 90),
     ).join("\n");
-    expect(out).toContain("A new device is always asked about");
+    expect(out).toContain("Every connection is asked about");
   });
 
   it("never overflows", () => {
@@ -879,6 +884,14 @@ describe("every mode, at every width", () => {
       label: "A rather long device name from a browser",
     },
     {
+      kind: "confirm",
+      action: "remove-all",
+      deviceId: null,
+      connectionId: null,
+      label: "",
+      count: 12,
+    },
+    {
       kind: "rename",
       deviceId: "dev-1",
       label: "A rather long device name from a browser",
@@ -895,6 +908,14 @@ describe("every mode, at every width", () => {
       label: "Safari on iPhone",
       account: "dp@example.com",
       sas: "419 082",
+      expiresAt: NOW_LOCAL + 97_000,
+    },
+    {
+      kind: "approval",
+      label: "Safari on an iPhone with a very long user agent string",
+      account: "",
+      via: "returning",
+      transport: "tunnel",
       expiresAt: NOW_LOCAL + 97_000,
     },
   ];
@@ -966,5 +987,132 @@ describe("two connections from one device", () => {
     for (const row of list) {
       expect(list.filter((r) => r.key === row.key)).toHaveLength(1);
     }
+  });
+});
+
+/**
+ * Clearing the list, which is one question rather than N.
+ *
+ * The act somebody reaches for after handing a laptop back, selling a phone,
+ * or seeing a row they cannot account for. Doing it with `r` eight times is
+ * seven chances to slip and a lot of reasons not to bother — and the eighth
+ * answer is reflex, which is the opposite of what a destructive confirmation
+ * is for.
+ */
+describe("removing every device at once", () => {
+  const confirmAll = (count: number, width = 90) =>
+    text(
+      state({
+        mode: {
+          kind: "confirm",
+          action: "remove-all",
+          deviceId: null,
+          connectionId: null,
+          label: "",
+          count,
+        },
+      }),
+      width,
+    );
+
+  it("says how many, because 'all' is where somebody can be surprised", () => {
+    expect(confirmAll(7)).toContain("all 7 devices");
+  });
+
+  it("counts one device as one", () => {
+    expect(confirmAll(1)).toContain("all 1 device?");
+  });
+
+  it("says what it costs, and what it does not touch", () => {
+    const out = confirmAll(4);
+    expect(out).toContain("needs a new code");
+    // The fear this answers: "will this kill the sessions I am running?"
+    expect(out).toContain("keep running");
+  });
+
+  it("offers the key only once there is more than one thing to clear", () => {
+    const one = text(state({ devices: [device()], peers: [] }));
+    const two = text(
+      state({
+        devices: [device()],
+        peers: [peer({ deviceId: "dev-2", label: "iPad" })],
+      }),
+    );
+    expect(one).not.toContain("clear all");
+    expect(two).toContain("clear all");
+  });
+});
+
+/**
+ * What the tunnel is doing, rather than only whether it is up.
+ *
+ * `hosted` is a boolean and a tunnel is not: it spends real seconds
+ * registering at boot and real minutes retrying after a broker restart. During
+ * both of those the panel said nothing at all, so the honest reading of the
+ * screen was "this machine is local-only" — which was false, and about to be
+ * visibly false the moment a code appeared.
+ */
+describe("the tunnel's status", () => {
+  it("says it is up when it is up", () => {
+    expect(text(state({ hosted: true }))).toContain("tunnel up");
+  });
+
+  it("says it is still connecting, rather than nothing at all", () => {
+    const out = text(state({ hosted: false, tunnel: "connecting" }));
+    expect(out).toContain("tunnel connecting");
+    expect(out).not.toContain("tunnel up");
+  });
+
+  it("says a tunnel that dropped is being retried", () => {
+    expect(text(state({ hosted: false, tunnel: "retrying" }))).toContain(
+      "retrying",
+    );
+  });
+
+  it("says nothing on a run that has no tunnel in its future", () => {
+    const out = text(state({ hosted: false }));
+    expect(out).not.toContain("tunnel");
+  });
+});
+
+/**
+ * Where a connection is arriving from, on the screen that decides it.
+ *
+ * The one fact a self-reported label cannot carry, and the one most likely to
+ * change the answer: a phone in your pocket does not arrive over the tunnel
+ * from a network you have never been on.
+ */
+describe("the approval question names where it came from", () => {
+  const ask = (over: Partial<Extract<PanelMode, { kind: "approval" }>>) =>
+    text(
+      state({
+        mode: {
+          kind: "approval",
+          label: "iPhone · Safari",
+          account: "",
+          expiresAt: NOW + 90_000,
+          ...over,
+        },
+      }),
+    );
+
+  it("says when it is coming over the tunnel", () => {
+    expect(ask({ transport: "tunnel" })).toContain("over the tunnel");
+  });
+
+  it("says when it is only this network", () => {
+    expect(ask({ transport: "lan" })).toContain("from this network");
+  });
+
+  it("asks a known device the question that fits it", () => {
+    const out = ask({ via: "returning", transport: "tunnel" });
+    expect(out).toContain("A device you know is connecting");
+    expect(out).toContain("Say no if you are not the one");
+  });
+
+  it("still asks a first-time device the pairing question", () => {
+    const out = ask({});
+    expect(out).toContain("A device wants in");
+    expect(out).not.toContain("Coming");
   });
 });

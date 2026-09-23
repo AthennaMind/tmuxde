@@ -420,6 +420,102 @@ await check(
   },
 );
 
+/*
+ * The headline claim, proved end to end: a valid credential is not entry.
+ *
+ * Every connection is put to a human at the machine — see
+ * `connection-gate.ts` — so on a server with no terminal, no panel and no
+ * `mtmux approve` window, a *correct* token must still get nowhere. This runs
+ * a second server with `--confirm-reconnect` because that is what a person
+ * sitting at a terminal gets by default; the first server in this file is
+ * headless and deliberately trusts, which is the behaviour that keeps systemd
+ * units working across an upgrade.
+ */
+await check(
+  "a valid token is not permission, and nobody is there",
+  async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { homedir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { default: WS } = await import("ws");
+    const cfg = JSON.parse(
+      await readFile(join(homedir(), ".mtmux/config.json"), "utf8"),
+    );
+
+    const port = pickPort();
+    const gated = spawn(
+      "node",
+      [BIN, "start", "--port", String(port), "--local", "--confirm-reconnect"],
+      {
+        stdio: ["ignore", "ignore", "ignore"],
+        env: { ...process.env, NODE_ENV: "production" },
+      },
+    );
+    try {
+      // Polled rather than slept on: this one boots Next a second time on a
+      // busy machine, and a fixed wait here is a flaky test rather than a fast
+      // one.
+      let listening = false;
+      for (let i = 0; i < 40 && !listening; i++) {
+        await sleep(1000);
+        listening = await new Promise((resolve) => {
+          const req = http.request(
+            { host: "127.0.0.1", port, path: "/health", timeout: 1000 },
+            (res) => {
+              res.resume();
+              resolve(res.statusCode === 200);
+            },
+          );
+          req.on("error", () => resolve(false));
+          req.on("timeout", () => {
+            req.destroy();
+            resolve(false);
+          });
+          req.end();
+        });
+      }
+      if (!listening) throw new Error("the gated server never came up");
+      const reply = await new Promise((resolve, reject) => {
+        const ws = new WS(`ws://127.0.0.1:${port}/_relay`, {
+          headers: {
+            Origin: `http://127.0.0.1:${port}`,
+            "User-Agent": "Mozilla/5.0 SmokeTest",
+          },
+        });
+        // Long enough for the question to be raised, parked and refused with
+        // nothing to answer on — which is the outcome being asserted.
+        const t = setTimeout(() => {
+          ws.close();
+          resolve({ type: "silence" });
+        }, 20000);
+        ws.on("open", () =>
+          ws.send(JSON.stringify({ type: "auth", token: cfg.token })),
+        );
+        ws.on("message", (d) => {
+          clearTimeout(t);
+          ws.close();
+          resolve(JSON.parse(d.toString()));
+        });
+        ws.on("error", (e) => {
+          clearTimeout(t);
+          reject(e);
+        });
+      });
+      if (reply.type === "auth:success") {
+        throw new Error("a token alone got in with nobody to approve it");
+      }
+      if (reply.type === "auth:failure" && reply.code !== "unapproved") {
+        // The distinction the browser branches on: a refusal must not read as a
+        // dead credential, or every slow answer wipes a working pairing.
+        throw new Error(`refused without the code: ${reply.reason}`);
+      }
+      return reply.type === "silence" ? "held, never admitted" : reply.reason;
+    } finally {
+      gated.kill("SIGKILL");
+    }
+  },
+);
+
 await check("mtmux logs reads back what left the terminal", async () => {
   const out = await runToCompletion([BIN, "logs", "-n", "20"], 4000);
   // Either real lines, or the honest "nothing yet" message — never a crash.

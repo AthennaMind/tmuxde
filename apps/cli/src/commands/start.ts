@@ -53,6 +53,7 @@ import * as account from "../account.js";
 import { resolveShareSessions, shareBanner } from "../share-grants.js";
 import {
   decideAccess,
+  transportText,
   promptForAccess,
   type AccessPromptInput,
   type AccessPromptResult,
@@ -452,6 +453,28 @@ function say(...lines: string[]): void {
 let panel: DevicePanel | null = null;
 
 /**
+ * The owner's own name for a device, once the peer cache exists.
+ *
+ * A holder rather than a direct read, because the connection gate is installed
+ * before the port is bound and the cache is built after — so for a few hundred
+ * milliseconds of boot there is a real device that can connect and no list to
+ * look it up in. Answering "no name yet" there is right; throwing a reference
+ * error into a security gate that reads a throw as a refusal is not.
+ */
+let peerNameFor: (deviceId: string) => string | null = () => null;
+
+/**
+ * The gate every socket passes, once the relay exists.
+ *
+ * Module-level for the same reason `approvals` and `askInApp` are: the tunnel
+ * agent that closes over `admitStream` is built before the relay bundle is
+ * imported, and the two halves of one decision must not end up as two
+ * different decisions. Sharing the one gate is what makes the tunnel's own
+ * check and the relay's check a single question with a single answer.
+ */
+let connectionGate: ConnectionGate | null = null;
+
+/**
  * Fires the moment the panel takes stdin, so no readline can outlive it.
  *
  * There is a window between the tunnel arming a code and the panel appearing
@@ -587,13 +610,6 @@ async function startHosted(opts: {
   onPaired: (label: string) => void;
   /** A restored device came back on the tunnel, named. */
   onReturned?: (peer: PeerIdentity) => void;
-  /**
-   * Ask before admitting a device that paired in an earlier run.
-   *
-   * Undefined means the default: paired is paired, which is what every release
-   * so far has done and what an unattended server needs.
-   */
-  confirmReturning?: (peer: PeerIdentity) => Promise<boolean>;
   onRearm: (invite: PairingInvite, reason: RearmReason) => void;
   /**
    * A half failed in a way worth saying out loud, and its replacement is
@@ -770,6 +786,9 @@ async function startHosted(opts: {
         label: request.deviceLabel,
         restored: false,
       });
+      // The human just said yes to this device. The socket it opens a moment
+      // from now is that same yes arriving, not a new question.
+      connectionGate?.approve(deviceId);
       await configStore.addPeer({
         deviceId,
         publicKey: "",
@@ -790,15 +809,30 @@ async function startHosted(opts: {
     onStreamBound: (peer) => {
       if (peer?.restored) opts.onReturned?.(peer);
     },
-    admitStream: opts.confirmReturning
-      ? async (peer) => {
-          // Only devices restored from disk are gated. One that paired in this
-          // process was approved seconds ago, by someone standing here typing
-          // a code — asking again would be asking the same question twice.
-          if (!peer?.restored) return true;
-          return opts.confirmReturning!(peer);
-        }
-      : undefined,
+    /*
+     * Every stream, not only the ones restored from disk.
+     *
+     * The old rule here was "a device that paired in this process was approved
+     * seconds ago, so do not ask again" — which is true of the first stream
+     * and false of every one after it, and those later streams are the whole
+     * of the problem: a browser that paired once could come back through the
+     * tunnel from any network, at any hour, in silence.
+     *
+     * Asking twice about one act is still wrong, and it is not what happens:
+     * the pairing seeds `connectionGate.approve` with the device it just
+     * admitted, and the shared answer covers the connection that follows. See
+     * `makeConnectionGate`.
+     */
+    admitStream: async (peer) => {
+      if (!peer || !connectionGate) return true;
+      return connectionGate.admit({
+        tokenId: null,
+        deviceId: peer.deviceId,
+        label: peer.label,
+        transport: "tunnel",
+        userAgent: null,
+      });
+    },
   });
 
   // Before `start()`, so a device that reconnects the instant the tunnel comes
@@ -966,6 +1000,7 @@ async function startHosted(opts: {
             label: result.peerLabel,
             restored: false,
           });
+          connectionGate?.approve(peerDeviceId);
           if (grant) await grantsStore.add(grant);
           await configStore.addPeer({
             deviceId: peerDeviceId,
@@ -1250,71 +1285,209 @@ export function devicesOnline(count: number): string {
 }
 
 /**
- * The reconnect gate, remembering what it was already told.
+ * How long one approval covers a device after its last socket goes away.
  *
- * Cached per device for the process lifetime: a browser opens a stream per tab
- * and reconnects on every network blip, so asking per stream would turn one
- * policy decision into a prompt that never stops. The cache is deliberately
- * *not* persisted — the whole point of `confirm` is that a restart is where
- * the question gets asked again.
+ * The gate below asks about *connections*, not credentials, and a browser is
+ * not one connection: it opens a socket per tab, races several candidates on
+ * every sign-in, and drops and remakes the lot whenever a phone changes cell.
+ * Asking about each of those literally would be a prompt every few minutes on
+ * a device the owner is actively using — which is not security, it is a
+ * doorbell nobody answers any more.
  *
- * Concurrent streams from the same device share one prompt rather than racing
- * two, which is why the map holds the promise and not the answer.
+ * So an approval covers a device for as long as it stays connected, and for
+ * two minutes after the last of its sockets closes. That window is chosen
+ * against the thing being defended: somebody holding a copied credential can
+ * only use it silently inside a window the real device opened seconds ago and
+ * is about to reuse. Close the laptop, walk away, come back — and the machine
+ * asks again.
  */
-function makeReturningGate(): (peer: PeerIdentity) => Promise<boolean> {
-  const decided = new Map<string, Promise<boolean>>();
+const ADMIT_GRACE_MS = 120_000;
 
-  return (peer) => {
-    const existing = decided.get(peer.deviceId);
-    if (existing) return existing;
+/** A refusal stands this long, so a rejected device cannot ring the bell again. */
+const REFUSAL_GRACE_MS = 15_000;
 
-    const asking = (async () => {
-      clearWaitingLine();
-      /*
-       * Through `decideAccess`, like every other question this command asks.
-       *
-       * It used to open its own readline. That is the two-readers-on-one-stdin
-       * defect `access-prompt.ts` records paying for, and it had come back by
-       * the side door: with the live panel up, a returning device opened a
-       * `[y/N]` underneath a panel that already owned the tty in raw mode, so
-       * the keystroke that answered it went to whichever reader got there
-       * first. Routing it here also means the question reaches a phone that is
-       * already connected and `mtmux approve`, which it never did.
-       */
-      const answer = await decideAccess(
-        { deviceLabel: peer.label, accountEmail: "", via: "returning" },
-        {
-          ask: askInApp ? (r, signal) => askInApp!(r, { signal }) : undefined,
-          offer: approvals ? (r) => approvals!.offer(r) : undefined,
-          prompt: askOnThisMachine,
+/** What the relay hands the gate about a socket that has just authenticated. */
+type ConnectionRequest = {
+  tokenId: string | null;
+  deviceId: string | null;
+  label: string | null;
+  transport: "loopback" | "lan" | "tunnel";
+  userAgent: string | null;
+};
+
+export type ConnectionGate = {
+  /** The relay's seam: may this socket in? */
+  admit: (req: ConnectionRequest) => Promise<boolean>;
+  /**
+   * Record that this device was just approved by a human, so the connection
+   * it is about to open is not a second question about the same act.
+   */
+  approve: (deviceId: string) => void;
+};
+
+/**
+ * The question asked of every socket, and the reason it is asked at all.
+ *
+ * Approval used to happen once per *credential*: you typed the code, somebody
+ * said yes, and from then on that browser came and went as it pleased — from
+ * any network, through the tunnel, at any hour, silently. Every release before
+ * this one behaved that way, and it is the wrong model for the thing being
+ * protected. A credential is a file on somebody else's computer. That it
+ * paired once is a fact about the past; whether the person holding it now is
+ * the owner is the question, and it can only be asked now.
+ *
+ * So this sits on `wire-connections.ts`'s one choke point — a socket that has
+ * authenticated and has been told nothing yet — and every path crosses it:
+ * loopback, LAN, and the sealed tunnel alike. It is deliberately *not* on the
+ * tunnel agent, which is where the old gate lived and why it only ever covered
+ * a third of the cases.
+ *
+ * Answers are shared by device rather than by socket. Concurrent sockets from
+ * one browser — tabs, the candidate race, a reconnect storm — collapse into a
+ * single question, and see `ADMIT_GRACE_MS` for how long that answer lasts.
+ */
+export function makeConnectionGate(deps: {
+  /** Whether a device that already paired is asked about when it connects. */
+  asks: () => boolean;
+  /** Device ids with a live socket right now. */
+  connected: () => string[];
+  /** The owner's name for a device, when they have given it one. */
+  nameFor?: (deviceId: string) => string | null;
+  /**
+   * Put the question to a human. Defaults to the full `decideAccess` race —
+   * the app on a connected phone, this terminal, `mtmux approve` — and is
+   * injectable so the caching rules above can be tested without a tty.
+   */
+  ask?: (req: ConnectionRequest, named: string) => Promise<boolean>;
+}): ConnectionGate {
+  const decided = new Map<
+    string,
+    { answer: Promise<boolean>; until: number; approved: boolean }
+  >();
+
+  const keyFor = (req: ConnectionRequest): string =>
+    req.deviceId ?? (req.tokenId ? `token:${req.tokenId}` : "machine-token");
+
+  const covered = (key: string, deviceId: string | null): boolean => {
+    const record = decided.get(key);
+    if (!record) return false;
+    const live = deviceId !== null && deps.connected().includes(deviceId);
+    if (record.approved && live) {
+      // Still on screen somewhere. Keep the cover alive rather than letting it
+      // lapse under a device that never went away.
+      record.until = Date.now() + ADMIT_GRACE_MS;
+      return true;
+    }
+    if (Date.now() < record.until) return true;
+    decided.delete(key);
+    return false;
+  };
+
+  return {
+    approve(deviceId) {
+      decided.set(deviceId, {
+        answer: Promise.resolve(true),
+        until: Date.now() + ADMIT_GRACE_MS,
+        approved: true,
+      });
+    },
+
+    admit(req) {
+      const key = keyFor(req);
+      if (covered(key, req.deviceId)) return decided.get(key)!.answer;
+      // The policy is read now, not captured: `a` in the live panel flips it
+      // without a restart, and a gate holding the value it booted with would
+      // be the one control on this panel that quietly does nothing.
+      if (!deps.asks()) return Promise.resolve(true);
+
+      const named =
+        (req.deviceId ? deps.nameFor?.(req.deviceId) : null) ||
+        req.label ||
+        "An unnamed device";
+
+      const asking = deps.ask
+        ? deps.ask(req, named)
+        : (async () => {
+            clearWaitingLine();
+            const answer = await decideAccess(
+              {
+                deviceLabel: named,
+                accountEmail: "",
+                via: "returning",
+                transport: req.transport,
+              },
+              {
+                ask: askInApp
+                  ? (r, signal) => askInApp!(r, { signal })
+                  : undefined,
+                offer: approvals ? (r) => approvals!.offer(r) : undefined,
+                prompt: askOnThisMachine,
+                park: approvals
+                  ? (r, signal) =>
+                      approvals!
+                        .offer(r, { park: true, signal })
+                        .then((v) => v === true)
+                  : undefined,
+                onParked: (r) => {
+                  clearWaitingLine();
+                  say("");
+                  say(kleur.bold("  A device you know is connecting"));
+                  say("");
+                  say(`    ${kleur.dim("Device ")}  ${r.deviceLabel}`);
+                  const where = transportText(req.transport);
+                  if (where) say(`    ${kleur.dim("Coming ")}  ${where}`);
+                  say("");
+                  say(
+                    kleur.dim("    Run ") +
+                      kleur.bold("mtmux approve") +
+                      kleur.dim(" in another shell to let it in."),
+                  );
+                  say("");
+                },
+              },
+            );
+            if (answer.approved) {
+              say(kleur.green(`  ✓ ${named} let in.`));
+              return true;
+            }
+            if (answer.reason === "no-tty") {
+              // Refusing *is* the setting applying. Admitting because nobody could
+              // be asked would be the setting quietly not applying, which is the
+              // worst outcome available for a control somebody turned on.
+              say(
+                kleur.yellow(`  ! Refused ${named}: nothing here to ask on.`),
+              );
+              say(
+                kleur.dim("    Start with ") +
+                  kleur.bold("--trust-reconnect") +
+                  kleur.dim(", or ") +
+                  kleur.bold("mtmux config set reconnectPolicy trust") +
+                  kleur.dim("."),
+              );
+            } else {
+              say(kleur.yellow(`  ✗ Refused ${named}. Nothing was shared.`));
+            }
+            return false;
+          })();
+
+      // Held with an open-ended window while the question stands, so every
+      // other socket that arrives meanwhile waits on this one answer instead
+      // of raising a second copy of it.
+      const record = {
+        answer: asking,
+        until: Number.POSITIVE_INFINITY,
+        approved: false,
+      };
+      decided.set(key, record);
+      void asking.then(
+        (ok) => {
+          record.approved = ok;
+          record.until = Date.now() + (ok ? ADMIT_GRACE_MS : REFUSAL_GRACE_MS);
         },
+        () => decided.delete(key),
       );
-      if (answer.approved) {
-        say(kleur.green(`  ✓ ${peer.label} let back in.`));
-        say("");
-        return true;
-      }
-      if (answer.reason === "no-tty") {
-        // Refusing is the setting applying. Admitting because nobody could be
-        // asked would be the setting quietly not applying, which is the worst
-        // outcome available for a control someone deliberately turned on.
-        say(kleur.yellow(`  ! Refused ${peer.label}: nothing to ask on.`));
-        say(
-          kleur.dim("    Start with ") +
-            kleur.bold("--trust-reconnect") +
-            kleur.dim(", or ") +
-            kleur.bold("mtmux config set reconnectPolicy trust") +
-            kleur.dim("."),
-        );
-      } else {
-        say(kleur.dim(`  · Refused ${peer.label}.`));
-      }
-      say("");
-      return false;
-    })();
-
-    decided.set(peer.deviceId, asking);
-    return asking;
+      return asking;
+    },
   };
 }
 
@@ -1614,6 +1787,39 @@ export async function start(opts: StartOpts) {
   askInApp = relay.askDeviceApproval ?? null;
 
   /*
+   * The reconnect policy, resolved before anything can connect.
+   *
+   * It has to be: the gate below is installed before `serve` binds the port,
+   * and a gate that read a value initialised later would be a gate with a hole
+   * in it exactly during boot — the window a device racing the restore lands
+   * in. Flags beat the stored setting, and `--trust-reconnect` beats
+   * `--confirm-reconnect` if somebody passes both: the explicit "not now" is
+   * the one you want to win when you are about to walk away from the machine.
+   */
+  let askOnReconnect = opts.trustReconnect
+    ? false
+    : (opts.confirmReconnect ??
+      (await configStore.getReconnectPolicy(process.stdout.isTTY === true)) ===
+        "confirm");
+
+  /*
+   * Read at the moment a device connects, not captured at boot, so `a` in the
+   * live panel flips it without a restart. A setting you have to stop the
+   * server to change is a setting nobody changes, and this is exactly the one
+   * people want on when they walk away from the machine and off when they are
+   * sitting in front of it.
+   */
+  connectionGate = makeConnectionGate({
+    asks: () => askOnReconnect,
+    connected: () =>
+      (relay.connectionDetails?.() ?? [])
+        .map((device) => device.deviceId)
+        .filter((id): id is string => typeof id === "string"),
+    nameFor: (deviceId) => peerNameFor(deviceId),
+  });
+  relay.setConnectionGate?.((req) => connectionGate!.admit(req));
+
+  /*
    * The local path gets the same gate as every other one, and until now it had
    * none at all.
    *
@@ -1632,7 +1838,15 @@ export async function start(opts: StartOpts) {
    * installing it late would leave a window, and there is none: nothing is
    * listening on the port yet.
    */
-  relay.setLocalPairingGate?.((req) => confirmCodePairing(req.label));
+  relay.setLocalPairingGate?.(async (req) => {
+    const allowed = await confirmCodePairing(req.label);
+    // The pairing approval covers the socket it was granted for. Without this
+    // the browser is asked again the instant it connects — the same question,
+    // thirty milliseconds later, which is how a product teaches people to hit
+    // yes without reading.
+    if (allowed && req.deviceId) connectionGate?.approve(req.deviceId);
+    return allowed;
+  });
   connectedCount = relay.connectionSummary
     ? () => relay.connectionSummary!().count
     : null;
@@ -1717,27 +1931,6 @@ export async function start(opts: StartOpts) {
   const { restored, needRepair, needRekey, trusted } =
     earlyRestore ?? (await restoreTrustedDevices(opts.port, cfg.token));
 
-  // Flags beat the stored setting, and `--trust-reconnect` beats
-  // `--confirm-reconnect` if somebody passes both — the explicit "not now" is
-  // the one you want to win when you are about to walk away from the machine.
-  let askOnReconnect = opts.trustReconnect
-    ? false
-    : (opts.confirmReconnect ??
-      (await configStore.getReconnectPolicy()) === "confirm");
-
-  /*
-   * Read at the moment a device returns, not captured at boot.
-   *
-   * The gate is always installed and consults the flag, so `a` in the live
-   * panel can flip it without a restart. A setting you have to stop the server
-   * to change is a setting nobody changes, and this is exactly the one people
-   * want on when they walk away from the machine and off when they are sitting
-   * in front of it.
-   */
-  const returningGate = makeReturningGate();
-  const confirmReturning = (peer: PeerIdentity): Promise<boolean> =>
-    askOnReconnect ? returningGate(peer) : Promise.resolve(true);
-
   /**
    * Arm the local invite: a QR to scan and six digits to type.
    *
@@ -1793,6 +1986,18 @@ export async function start(opts: StartOpts) {
   };
 
   let hosted: Hosted | null = null;
+
+  /**
+   * What the tunnel is doing, for the one line on the panel that says so.
+   *
+   * `hosted` answers "is it up" and nothing else, so the twelve seconds it
+   * spends registering at boot and the minutes it spends retrying after a
+   * broker restart both read as "this machine is local-only" — which is false,
+   * and about to be visibly false when a code appears. Undefined means this
+   * run has no tunnel in its future at all, which is a third thing again.
+   */
+  let tunnelState: "connecting" | "up" | "retrying" | undefined;
+  const tunnelPanelStatus = () => (hosted ? "up" : tunnelState);
   let note: string | null = null;
   /**
    * Set by `shutdown()` below, and read by anything that can still fire after
@@ -1848,6 +2053,10 @@ export async function start(opts: StartOpts) {
       say(line);
     }
     say("");
+    // The panel carries the code too, and it does not repaint on its own
+    // unless something on screen depends on the clock — so on an idle machine
+    // it would keep showing the code that was just spent.
+    panel?.refresh();
   };
 
   /** Whatever is currently claimable: the tunnel's invite, or the local one. */
@@ -1947,15 +2156,16 @@ export async function start(opts: StartOpts) {
    * to `null` and then to `never` — so the compiler would reject `hosted.invite`
    * throughout a file where it is plainly reachable.
    */
-  const openTunnel = async (): Promise<Hosted> =>
-    startHosted({
+  const openTunnel = async (): Promise<Hosted> => {
+    tunnelState = "connecting";
+    panel?.refresh();
+    return startHosted({
       buildGrant,
       port: opts.port,
       base,
       cfg,
       tunnelOnly: false,
       trusted,
-      confirmReturning,
       onPaired: (label) => {
         // Redrawn, not appended. The banner's last line still says "Waiting
         // for a device…", and printing underneath it leaves a stale claim on
@@ -2049,6 +2259,7 @@ export async function start(opts: StartOpts) {
         // The banner has already been printed, saying the machine is serving
         // locally. Correct that rather than leaving a stale claim on screen.
         hosted = late;
+        tunnelState = "up";
         dropLocalInvite();
         note = null;
         void serverState.write(record(late.invite.url)).catch(() => {});
@@ -2061,11 +2272,36 @@ export async function start(opts: StartOpts) {
         reprint(late.invite);
       },
     });
+  };
 
   if (!localOnly) {
+    /*
+     * Say what is happening while it happens.
+     *
+     * Registering with the broker and arming two mailboxes takes a few
+     * seconds on a good connection and fifteen on a bad one, and until now the
+     * terminal printed nothing at all for that whole stretch — so a machine
+     * that was working looked identical to one that had hung, and `--hosted`
+     * in particular looked like a flag that did nothing.
+     */
+    if (!opts.json) {
+      say("");
+      say(
+        kleur.dim("  Opening a sealed tunnel… ") +
+          kleur.dim(
+            opts.hosted
+              ? "(--hosted)"
+              : "(mtmux config set reach local to skip)",
+          ),
+      );
+    }
     try {
       hosted = await openTunnel();
+      tunnelState = "up";
     } catch (err) {
+      // The boot deadline passed. The agent is deliberately left retrying, so
+      // "down" would be a third of the truth — the panel says which.
+      tunnelState = "retrying";
       // The tunnel is a convenience, not a dependency. An offline machine, a
       // blocked outbound connection or a broker outage must all land here and
       // leave a working LAN server behind — this is what keeps `mtmux start`
@@ -2094,7 +2330,9 @@ export async function start(opts: StartOpts) {
     openingTunnel = true;
     try {
       hosted = await openTunnel();
+      tunnelState = "up";
     } catch (err) {
+      tunnelState = "retrying";
       return (err as Error).message;
     } finally {
       openingTunnel = false;
@@ -2285,6 +2523,8 @@ export async function start(opts: StartOpts) {
     }));
     panel?.refresh();
   };
+  peerNameFor = (deviceId) =>
+    peerRows.find((peer) => peer.deviceId === deviceId)?.name ?? null;
   await refreshPeers();
 
   panel = createDevicePanel({
@@ -2311,6 +2551,30 @@ export async function start(opts: StartOpts) {
     ...(relay.disconnectConnection
       ? { disconnect: relay.disconnectConnection }
       : {}),
+    /**
+     * Clear the list: every pairing forgotten, every socket hung up.
+     *
+     * Three stores, like `revoke`, plus the sockets that have no pairing
+     * record at all — the machine's own token, a share. Those are the ones a
+     * per-row loop would miss, and they are exactly the rows somebody
+     * reaching for "get rid of everything" means to include.
+     */
+    removeAll: async () => {
+      const peers = await configStore.listPeers();
+      for (const peer of peers) {
+        if (peer.directToken) relay.revokeSessionToken?.(peer.directToken);
+        hosted?.agent.removeSessionKeys(peer.deviceId);
+        await configStore.removePeer(peer.deviceId);
+      }
+      // Anything still holding a socket — the machine's own token, a share —
+      // is hung up. Revoking closed the paired ones already, so this is the
+      // remainder rather than a second pass over the same list.
+      for (const device of relay.connectionDetails?.() ?? []) {
+        if (device.id) await relay.disconnectConnection?.(device.id);
+      }
+      await refreshPeers();
+      return peers.length;
+    },
     revoke: async (deviceId: string) => {
       // Both halves, and in this order. Dropping the peer record without
       // revoking the live token leaves the device connected until it happens
@@ -2342,6 +2606,7 @@ export async function start(opts: StartOpts) {
       if (invite) reprint(invite);
     },
     hosted: () => hosted !== null,
+    tunnelStatus: () => tunnelPanelStatus(),
     openTunnel: openTunnelFromPanel,
     onQuit: () => shutdown(),
   });

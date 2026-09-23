@@ -155,6 +155,11 @@ code is only the first.
 3. **A correct guess still has to be let in by a human.** Redemption raises the
    approval question on the machine — the same one every other path raises.
    Knowing the code is not consent.
+4. **And so does every connection after it.** The session token that pairing
+   mints opens a door; it does not walk through it. Each socket is put to a
+   human again, with one answer covering a device while it is connected and
+   for two minutes after. See [A valid token is not
+   permission](/docs/security#a-valid-token-is-not-permission).
 
 On top of those, the relay applies the same per-address backoff it uses for
 token authentication: five rejections and that address waits 30 seconds, then a

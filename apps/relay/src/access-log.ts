@@ -45,7 +45,13 @@ export type AccessTransport = "loopback" | "lan" | "tunnel";
 export type AccessEvent = {
   /** ISO-8601, so the file is readable without the CLI. */
   at: string;
-  event: "connected" | "disconnected";
+  /**
+   * `refused` is a socket that had a valid credential and was still not let
+   * in — the gate in `connection-gate.ts` said no, or nobody was there to say
+   * yes. Worth a line of its own: it is the difference between "somebody
+   * guessed a token" and "somebody is holding a token they should not have".
+   */
+  event: "connected" | "disconnected" | "refused";
   /** Which credential. `null` for the machine's own `AUTH_TOKEN`. */
   grantId: string | null;
   /** "all" for a full grant, otherwise the share's scope kind. */

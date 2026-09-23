@@ -11,6 +11,73 @@ release that shipped them.
 
 ## [Unreleased]
 
+### Security
+
+- **Every connection is asked about, not every credential.** Approval used to
+  happen once, at pairing time: after that a browser came and went as it
+  pleased — from any network, through the tunnel, at any hour, in silence. A
+  credential is a file on somebody else's computer, and that it paired once is
+  a fact about the past. The question is whether the person holding it now is
+  you, and it can only be asked now. So the gate moved to the one line every
+  path crosses: a socket that has authenticated and been told nothing yet.
+  Loopback, LAN and tunnelled connections all pass through it, and nothing
+  about the machine — capabilities, hostname, session names — is sent before
+  the answer.
+  - One answer covers a device for as long as it stays connected and for two
+    minutes after its last socket closes, so tabs, the candidate race and a
+    reconnect on a train are one act of connecting rather than eight prompts.
+  - A pairing approval seeds the gate with the device it just admitted, so
+    nobody is asked the same question twice thirty milliseconds apart.
+  - The tunnel agent's own check now covers every stream rather than only
+    devices restored from disk, and shares the one answer with the relay's.
+  - `reconnectPolicy` defaults to `confirm` when a terminal is attached and
+    `trust` when one is not. `confirm` on a machine started by systemd would
+    refuse every reconnect for want of anyone to ask, which is a product that
+    stops working after an upgrade rather than one that got safer.
+- **`--confirm-reconnect` and `--trust-reconnect` were being ignored.** Both
+  flags were declared on the command and never carried across into `start`, so
+  the stored `reconnectPolicy` decided every run whatever was typed, and
+  nothing said so. The smoke test now boots a second server with
+  `--confirm-reconnect` and proves a correct token gets nowhere with nobody
+  there to approve it.
+- **A refusal no longer destroys a working pairing.** `auth:failure` made the
+  browser wipe its token and session keys and bounce to `/start` — correct for
+  a credential the machine has forgotten, catastrophic for a connection that
+  was merely not approved. Refusals now carry `code: "unapproved"`, and the
+  browser keeps everything on disk and says what happened.
+
+### Added
+
+- **`x` in the live panel removes every device at once.** One question naming
+  the count, rather than `r` once per row — which on a list of eight is seven
+  chances to slip and an eighth answer given by reflex. Every pairing is
+  forgotten, every socket is hung up, and the confirmation says what it does
+  not touch: your sessions, your files and the server keep running.
+- **The panel says what the tunnel is doing.** `hosted` is a boolean and a
+  tunnel is not: it spends real seconds registering at boot and real minutes
+  retrying after a broker restart, and during both the panel said nothing at
+  all — so the honest reading of the screen was "this machine is local-only".
+  It now reads `tunnel connecting…` or `tunnel down, retrying`, and `mtmux
+start` says it is opening one while it opens it.
+- **The approval question says where the connection came from** — over the
+  tunnel from anywhere, from this network, or from this machine. It is the one
+  fact a self-reported label cannot carry, and the one most likely to change
+  the answer.
+
+### Changed
+
+- **A spent code is replaced with a live QR, not an offer to press `l`.** Every
+  pairing spends the code _and_ the QR on screen; the one-line re-arm left a
+  dead credential drawn in full colour above it and put the working one behind
+  a keybinding nobody had been told about. The pairing block now redraws whole
+  — QR, digits, where to put them — and the rest of the banner does not.
+- **The mobile toolbar leads with copy mode, wearing a clipboard.** It is the
+  only way to get text out of a phone terminal — the pane is a WebGL canvas,
+  so there is nothing to press and hold — and it was sitting under a scroll
+  icon that was accurate about what the view is and told nobody what it is
+  for. The composer takes the pinned slot beside it, where it stays live while
+  the socket is down.
+
 ## [0.10.0] — 2026-09-22
 
 ### Added

@@ -618,3 +618,78 @@ describe("devices that are not connected", () => {
     expect(disconnect).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Clearing the list.
+ *
+ * One question for the whole list rather than one per row — and, because it is
+ * the most destructive thing this panel can do, it goes through exactly the
+ * same y/n it would for a single device rather than acting on the keypress.
+ */
+describe("removing every device", () => {
+  const withAll = (removeAll: () => Promise<number>) =>
+    harness({
+      details: () => [device(), device({ id: "conn-2", deviceId: "dev-2" })],
+      peers: () => [
+        {
+          deviceId: "dev-1",
+          label: "iPhone",
+          pairedAt: NOW - 1000,
+          lastSeenAt: NOW,
+          expired: false,
+        },
+      ],
+      removeAll,
+      hosted: () => true,
+      onQuit: vi.fn(),
+      now: () => NOW,
+    });
+
+  it("asks first, naming the count", async () => {
+    const removeAll = vi.fn(async () => 2);
+    const h = withAll(removeAll);
+    h.press("x");
+    expect(h.frame()).toContain("all 2 devices");
+    expect(removeAll).not.toHaveBeenCalled();
+  });
+
+  it("does it on yes, and says how many went", async () => {
+    const removeAll = vi.fn(async () => 2);
+    const h = withAll(removeAll);
+    h.press("x");
+    h.press("y");
+    await vi.waitFor(() => expect(removeAll).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(h.frame()).toContain("Removed 2 devices"));
+  });
+
+  it("does nothing on no", async () => {
+    const removeAll = vi.fn(async () => 2);
+    const h = withAll(removeAll);
+    h.press("x");
+    h.press("n");
+    expect(removeAll).not.toHaveBeenCalled();
+    expect(h.frame()).not.toContain("all 2 devices");
+  });
+
+  it("says so rather than claiming a success when there was nothing to remove", async () => {
+    const h = withAll(vi.fn(async () => 0));
+    h.press("x");
+    h.press("y");
+    await vi.waitFor(() =>
+      expect(h.frame()).toContain("nothing left to remove"),
+    );
+  });
+
+  it("offers nothing when the caller cannot do it", () => {
+    // A relay bundle that predates the action. A key that silently does
+    // nothing is worse than no key at all.
+    const h = harness({
+      details: () => [device()],
+      hosted: () => true,
+      onQuit: vi.fn(),
+      now: () => NOW,
+    });
+    h.press("x");
+    expect(h.frame()).not.toContain("Remove all");
+  });
+});

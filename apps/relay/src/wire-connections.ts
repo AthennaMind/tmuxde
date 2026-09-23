@@ -17,6 +17,7 @@ import {
   notifyConnectionsChanged,
 } from "./connection-manager.js";
 import { noteApproversChanged, pendingApprovalFor } from "./device-approval.js";
+import { admitConnection } from "./connection-gate.js";
 import { allowsSession, allowsSessionName } from "./grant.js";
 import * as recorder from "./recorder.js";
 import { sweepRecordings } from "./recordings-index.js";
@@ -25,7 +26,7 @@ import { createRateLimiter } from "./rate-limiter.js";
 import { createSessionMonitor } from "./session-monitor.js";
 import { currentWindowPanes, routeMessage } from "./message-router.js";
 import { defaultBrowsePath } from "./file-service.js";
-import { onSessionTokenRevoked } from "./pairing-local.js";
+import { deviceIdForTokenId, onSessionTokenRevoked } from "./pairing-local.js";
 import * as accessLog from "./access-log.js";
 import { config } from "./config.js";
 
@@ -145,9 +146,23 @@ export function wireConnections(
       ws.close();
     });
 
+    /**
+     * True while a human is being asked about this socket.
+     *
+     * The gate below is awaited, and a socket is not authenticated until it
+     * returns — so without this, a client that sent `auth` twice (or sent
+     * anything at all while the question was on screen) would re-enter the
+     * unauthenticated branch and raise a second question about itself. Frames
+     * that arrive during the wait are dropped rather than queued: nothing said
+     * before admission has any standing.
+     */
+    let admitting = false;
+
     ws.on("message", async (raw) => {
       const data = raw.toString();
       conn.lastActivityAt = Date.now();
+
+      if (admitting) return;
 
       if (!conn.rateLimiter.check()) {
         sendJson(ws, {
@@ -181,6 +196,48 @@ export function wireConnections(
           sendJson(ws, {
             type: "auth:failure",
             reason: authResult.reason ?? "Authentication failed",
+          });
+          ws.close();
+          return;
+        }
+
+        /*
+         * The credential checked out. That is not the same as somebody being
+         * willing to let this device in, and the difference is the whole
+         * point of the gate: a token proves what was true when it was issued,
+         * and this asks what is true now. See `connection-gate.ts`.
+         *
+         * Nothing about this machine has been sent yet — no capabilities, no
+         * hostname, no session names — so a refusal reveals only that the
+         * token was not enough.
+         */
+        admitting = true;
+        const admitted = await admitConnection({
+          tokenId: authResult.tokenId ?? null,
+          deviceId: authResult.tokenId
+            ? deviceIdForTokenId(authResult.tokenId)
+            : null,
+          label: authResult.label ?? null,
+          transport,
+          userAgent: conn.userAgent,
+        });
+        admitting = false;
+        if (ws.readyState !== WebSocket.OPEN) return;
+        if (!admitted) {
+          void accessLog.record({
+            at: new Date().toISOString(),
+            event: "refused",
+            ...accessLog.describeGrant(authResult.grant ?? conn.grant),
+            label: authResult.label ?? null,
+            transport,
+          });
+          sendJson(ws, {
+            type: "auth:failure",
+            reason: "Not approved on the machine",
+            // Not a dead credential — see `AuthFailureMessage.code`. Without
+            // this the browser reads a refusal as "you have been forgotten",
+            // wipes the pairing and asks the user to start again.
+            code: "unapproved",
           });
           ws.close();
           return;

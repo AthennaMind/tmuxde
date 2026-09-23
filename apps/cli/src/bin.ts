@@ -67,6 +67,8 @@ type StartFlags = {
   share?: string;
   readOnly?: boolean;
   files?: string;
+  confirmReconnect?: boolean;
+  trustReconnect?: boolean;
 };
 
 const toStartOpts = (opts: StartFlags, local: boolean): StartOpts => ({
@@ -87,6 +89,19 @@ const toStartOpts = (opts: StartFlags, local: boolean): StartOpts => ({
   share: opts.share,
   shareReadOnly: opts.readOnly === true,
   shareFiles: parseFiles(opts.files) ?? "none",
+  /*
+   * Both flags, and both tri-state.
+   *
+   * They were declared on the command and never carried across this boundary,
+   * so `--confirm-reconnect` and `--trust-reconnect` had been accepted and
+   * silently ignored: the stored `reconnectPolicy` decided every run whatever
+   * was typed. Nothing said so — a flag that parses and does nothing is the
+   * quietest kind of wrong. `undefined` has to survive here for the same
+   * reason it does for `--local`: it is what lets the stored setting answer
+   * when nobody said.
+   */
+  confirmReconnect: opts.confirmReconnect,
+  trustReconnect: opts.trustReconnect,
   ...(program.opts<GlobalFlags>() as GlobalFlags),
 });
 

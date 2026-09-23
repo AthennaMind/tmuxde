@@ -61,6 +61,22 @@ export const AuthSuccessMessage = z.object({
 export const AuthFailureMessage = z.object({
   type: z.literal("auth:failure"),
   reason: z.string(),
+  /**
+   * Why it failed, in a form a client may branch on.
+   *
+   * The difference this exists to carry is the difference between "your
+   * credential is dead" and "nobody said yes". The browser's answer to an
+   * auth failure is to wipe the stored token and the session keys and bounce
+   * to `/start` — correct for a token the machine has forgotten, and
+   * catastrophic for a connection that was merely not approved, which would
+   * destroy a working pairing every time somebody was slow to answer.
+   *
+   * `unapproved` means the credential was fine and the human was not asked,
+   * said no, or never answered. Nothing is stored about it; trying again
+   * simply asks again. Optional so an older client — which cannot branch on
+   * it anyway — keeps parsing the message.
+   */
+  code: z.enum(["unapproved"]).optional(),
 });
 
 export const PongMessage = z.object({

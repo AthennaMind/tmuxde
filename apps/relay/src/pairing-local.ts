@@ -309,6 +309,18 @@ export type LocalPairingRequest = {
   label: string;
   /** How it redeemed: the QR, or the typed digits. */
   via: "scan" | "code";
+  /**
+   * The device id this pairing will be recorded under, minted before the
+   * question is asked.
+   *
+   * It exists so the answer can be *carried*. Approving a pairing and then
+   * asking again the moment the same browser opens its socket is the same
+   * question twice, thirty milliseconds apart, and a product that does that
+   * teaches people to hit yes without reading. The CLI seeds its connection
+   * gate with this id, so the pairing approval covers the connection it was
+   * given for — and nothing else.
+   */
+  deviceId: string;
 };
 
 let gate: ((req: LocalPairingRequest) => Promise<boolean>) | null = null;
@@ -423,15 +435,22 @@ export async function redeemLocalPairing(
   // Single use, and spent before the question is asked. See above.
   offer = null;
 
+  const deviceId = `local-${crypto.randomBytes(8).toString("hex")}`;
   const allowed = gate
-    ? await gate({ label: req.label ?? "", via }).catch(() => false)
+    ? await gate({ label: req.label ?? "", via, deviceId }).catch(() => false)
     : true;
   if (!allowed) {
     emitSpent("refused");
     return { ok: false, reason: "refused" };
   }
 
-  const session = issueSessionToken(SESSION_TTL_MS, now);
+  const session = issueSessionToken(
+    SESSION_TTL_MS,
+    now,
+    FULL_GRANT,
+    req.label,
+    deviceId,
+  );
   emitSpent("paired");
   return { ok: true, session };
 }
@@ -456,11 +475,19 @@ export function issueSessionToken(
   ttlMs: number = SESSION_TTL_MS,
   now: number = Date.now(),
   grant: GrantRecord = FULL_GRANT,
+  label?: string,
+  deviceId?: string,
 ): SessionToken {
   prune(sessions, now);
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = now + ttlMs;
-  sessions.set(digest(token), { expiresAt, renewMs: ttlMs, grant });
+  sessions.set(digest(token), {
+    expiresAt,
+    renewMs: ttlMs,
+    grant,
+    ...(label ? { label } : {}),
+    ...(deviceId ? { deviceId } : {}),
+  });
   return { token, expiresAt };
 }
 

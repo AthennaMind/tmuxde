@@ -402,45 +402,64 @@ export function renderBannerLines(opts: BannerOpts): string[] {
 }
 
 /**
- * A new code, and nothing else.
+ * The pairing block, redrawn the moment it changes.
  *
- * Every pairing spends the code that was on screen, so something has to say
- * what the next one is. Until now that something was the whole banner again —
- * the version header, seventeen rows of QR, both addresses, the promise and
- * the "Waiting for a device…" line — for a change of nine digits. Pair three
- * phones and the terminal holds four copies of the same block, and the reader
- * has to diff two QRs to find the one line that moved.
+ * Every pairing spends the code *and* the QR that were on screen, and for a
+ * while the answer to that was a single line saying the new digits with an
+ * offer to press `l` for a fresh QR. That is the right amount of ink and the
+ * wrong behaviour: the QR sitting above it is now a dead credential drawn in
+ * full colour, and the only way to get a live one is a key nobody was told
+ * about. A person with a phone in their hand does not want to learn a
+ * keybinding; they want to scan the thing on the screen.
  *
- * So the re-arm says the one thing that changed. The QR is not redrawn here
- * and it is *stale* the moment this prints, which is why the offer to redraw
- * it is part of the sentence rather than a thing to know: somebody who needs
- * to scan must be able to get a live QR without guessing that `l` exists.
+ * So the whole pairing block comes back — the QR, the digits, and where to
+ * put them — and nothing else does. The version header, both addresses, the
+ * promise and "Waiting for a device…" are unchanged and stay where they are,
+ * which is what stops this becoming the four-near-identical-banners problem it
+ * replaced.
  */
 export function renderCodeUpdateLines(
   invite: PairingInvite,
-  opts: { showQr?: boolean } = {},
+  opts: { showQr?: boolean; columns?: number } = {},
 ): string[] {
+  const columns = opts.columns ?? process.stdout.columns ?? 80;
   const code = invite.code;
-  // No digits left to show — the typed half is spent and only the QR is live.
-  // There is nothing compact to say, so say the useful thing instead.
-  if (!code) {
-    return [
-      INDENT +
-        kleur.dim("Press ") +
-        kleur.bold("l") +
-        kleur.dim(" for a fresh QR."),
-    ];
+  const local = invite.reach === "local";
+
+  const text: string[] = [];
+  if (code) {
+    text.push(
+      kleur.bold("New code") +
+        kleur.dim("   ") +
+        kleur.bold(formatInviteCode(code)),
+    );
+  } else {
+    // The typed half is spent and only the QR is live. There is nothing to
+    // read aloud, so the QR beside this is the whole of the offer.
+    text.push(kleur.bold("New code"));
   }
-  const line =
-    INDENT +
-    kleur.dim("New code  ") +
-    kleur.bold(formatInviteCode(code)) +
-    (opts.showQr === false
-      ? ""
-      : kleur.dim("   ·   press ") +
-        kleur.bold("l") +
-        kleur.dim(" for a fresh QR"));
-  return [line];
+  text.push(
+    kleur.dim(
+      code
+        ? `Scan this, or type it at ${invite.host}`
+        : `Scan this at ${invite.host}`,
+    ),
+  );
+  text.push(kleur.dim(local ? "On this network only." : "Sealed end to end."));
+  text.push(kleur.dim("The one above it is dead."));
+
+  const qr = opts.showQr === false || !invite.url ? [] : qrLines(invite.url);
+  if (qr.length === 0) return text.map((line) => INDENT + line);
+
+  return [
+    "",
+    ...twoColumn(
+      qr.map((l) => INDENT + l),
+      text,
+      columns,
+    ),
+    "",
+  ];
 }
 
 export function banner(opts: BannerOpts) {

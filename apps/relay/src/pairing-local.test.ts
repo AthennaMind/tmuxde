@@ -172,7 +172,12 @@ describe("the approval gate", () => {
     expect(
       (await redeemLocalPairing({ code: CODE }, { label: "iPhone" }, T0)).ok,
     ).toBe(true);
-    expect(asked).toEqual([{ label: "iPhone", via: "code" }]);
+    expect(asked).toMatchObject([{ label: "iPhone", via: "code" }]);
+    // The id the answer will be carried on. Minted before the question so the
+    // approval can cover the socket that follows it — see `LocalPairingRequest`.
+    expect((asked[0] as { deviceId: string }).deviceId).toMatch(
+      /^local-[0-9a-f]{16}$/,
+    );
   });
 
   it("reports which half was used", async () => {
@@ -183,7 +188,7 @@ describe("the approval gate", () => {
     });
     const { nonce } = armLocalPairing(CODE, 60_000, T0);
     await redeemLocalPairing({ nonce }, { label: "iPad" }, T0);
-    expect(asked).toEqual([{ label: "iPad", via: "scan" }]);
+    expect(asked).toMatchObject([{ label: "iPad", via: "scan" }]);
   });
 
   it("issues nothing when the machine says no", async () => {

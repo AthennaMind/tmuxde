@@ -127,13 +127,19 @@ find.
 | `↑` `↓` | Move between devices                                        |
 | `d`     | Everything about this device. `enter` does it too           |
 | `r`     | Remove it. It must pair again, with a new code and approval |
+| `x`     | Remove every device at once — one question, not one per row |
 | `e`     | Rename it, so the list reads as yours                       |
-| `a`     | Ask again when a device you know comes back                 |
+| `a`     | Ask again when a device you know connects                   |
 | `t`     | Open the encrypted tunnel, on a server started local-only   |
 | `n`     | Throw away the printed code and arm a fresh one             |
 | `l`     | Reprint the banner, code and addresses                      |
 | `?`     | These keys                                                  |
 | `q`     | Stop the server, the same as `Ctrl+C`                       |
+
+**The code and its QR refresh themselves.** Every pairing spends both, and the
+replacement is drawn the moment it is armed — the digits, a live QR and where to
+put them, and nothing else from the banner. `l` is still there for a banner that
+has scrolled away; it is not how you get a working QR.
 
 The bar along the bottom carries five of these and `?` carries the rest. A row
 of seven key-and-word pairs is a row nobody reads, and `t` in particular is
@@ -398,20 +404,36 @@ behaviour _and_ the one with consequences, and a default is whatever happens to
 someone who typed the shortest command in the product without reading what it
 did.
 
-**`reconnectPolicy`** — whether a device paired in an earlier run may reconnect
-without being asked.
+**`reconnectPolicy`** — whether a device this machine already trusts is asked
+about when it connects.
 
-| Value             | Meaning                                                                                                                   |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `trust` (default) | Paired means paired, the way a Bluetooth keyboard is paired. A machine under systemd survives a reboot with nobody at it. |
-| `confirm`         | A returning device raises a prompt on this machine the first time it reconnects after a restart.                          |
+| Value     | Meaning                                                                                                    |
+| --------- | ---------------------------------------------------------------------------------------------------------- |
+| `confirm` | Every connection raises a question here before the device is let in. The default when you have a terminal. |
+| `trust`   | A device that paired before comes straight back. The default when nothing is attached to ask on.           |
 
-Under `confirm` the prompt shows no comparison code, because there is nothing to
-compare: the device already proved itself cryptographically — its key schedule
-is what decrypted the frame. The question is policy, not verification.
+The default is conditional, and that is deliberate. A run with a terminal
+attached asks, because there is somebody there to ask. A run started by systemd,
+by `nohup`, or in a detached pane trusts, because `confirm` there would refuse
+every reconnect for want of anyone to answer — a product that stops working
+after an upgrade rather than one that got safer. An explicit setting beats both,
+and `--confirm-reconnect` / `--trust-reconnect` beat that for one run.
 
-With no TTY, `confirm` **refuses**. Admitting a device because nobody could be
-asked would be the setting quietly not applying.
+This is asked per **connection**, not per credential. A credential is a file on
+somebody else's computer: that it paired once is a fact about the past, and
+whether the person holding it now is you is the question. One answer covers a
+device for as long as it stays connected and for two minutes after its last
+socket closes, so tabs, the candidate race and a reconnect on a train do not
+each ring the bell.
+
+The prompt shows no comparison code, because there is nothing to compare: the
+device already proved itself cryptographically — its key schedule is what
+decrypted the frame. The question is policy, not verification. It says where the
+connection is arriving from, which is the part a self-reported label cannot
+carry.
+
+With no TTY and no `mtmux approve` window, `confirm` **refuses**. Admitting a
+device because nobody could be asked would be the setting quietly not applying.
 
 **`api`** — the pairing broker this machine uses. Set it once instead of
 exporting `MTMUX_API_URL` or passing `--api` on every invocation. Precedence,

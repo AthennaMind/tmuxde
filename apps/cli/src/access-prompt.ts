@@ -54,7 +54,27 @@ export type AccessPromptInput = {
    *   one of the two above.
    */
   via?: "code" | "request" | "returning";
+  /**
+   * How this device reached the machine, when the caller knows.
+   *
+   * On screen because it is the single fact that most changes the answer. "A
+   * device you paired earlier is reconnecting" is a different question when it
+   * is arriving over the sealed tunnel — from any network on earth — than when
+   * it is a laptop on the same wifi, and the person deciding cannot tell the
+   * two apart from a label a browser chose for itself.
+   */
+  transport?: "loopback" | "lan" | "tunnel";
 };
+
+/** Where a connection came from, in words rather than in jargon. */
+export function transportText(
+  transport: AccessPromptInput["transport"],
+): string | null {
+  if (transport === "tunnel") return "over the sealed tunnel, from anywhere";
+  if (transport === "lan") return "from this network";
+  if (transport === "loopback") return "from this machine";
+  return null;
+}
 
 export type AccessPromptResult =
   | { approved: true }
@@ -79,7 +99,10 @@ export type PromptDeps = {
  */
 export function renderAccessRequest(req: AccessPromptInput): string[] {
   if (req.via === "returning") {
-    return renderReturningDevice({ label: req.deviceLabel });
+    return renderReturningDevice({
+      label: req.deviceLabel,
+      ...(req.transport ? { transport: req.transport } : {}),
+    });
   }
   // No digits means a code pairing, and a different question entirely.
   if (!req.sas) return renderCodePairing(req);
@@ -394,19 +417,27 @@ export async function promptForAccess(
  * asked would be the setting quietly not applying — the worst outcome for a
  * security control. The refusal says how to change it.
  */
-export type ReturningDevice = { label: string; pairedAt?: number };
+export type ReturningDevice = {
+  label: string;
+  pairedAt?: number;
+  transport?: AccessPromptInput["transport"];
+};
 
 export function renderReturningDevice(device: ReturningDevice): string[] {
+  const where = transportText(device.transport);
   return [
     "",
-    kleur.bold("  A device you paired earlier is reconnecting"),
+    kleur.bold("  A device you paired earlier is connecting"),
     "",
     `    ${kleur.dim("Device")}  ${device.label || "unknown device"}`,
+    ...(where ? [`    ${kleur.dim("Coming")}  ${where}`] : []),
     ...(device.pairedAt
       ? [
           `    ${kleur.dim("Paired")}  ${new Date(device.pairedAt).toLocaleString()}`,
         ]
       : []),
+    "",
+    kleur.dim("    Say no if you are not the one opening it right now."),
     "",
   ];
 }

@@ -216,38 +216,60 @@ describe("qrLines", () => {
  * digits had changed. Three phones later the terminal held four near-identical
  * blocks and the reader had to diff two QRs to find the line that moved.
  */
+/**
+ * The re-arm, which is the pairing block again and nothing else.
+ *
+ * Every pairing spends the code *and* the QR on screen. For a while the answer
+ * was one line of digits with "press l for a fresh QR" on the end — the right
+ * amount of ink and the wrong behaviour, because the QR still sitting above it
+ * was a dead credential drawn in full colour and the live one was behind a
+ * keybinding nobody had been told about. So the block comes back whole, and
+ * the rest of the banner — version, addresses, the promise — does not.
+ */
 describe("a code that has been replaced", () => {
   const plain = (lines: string[]) =>
     lines.map((l) => l.replace(/\x1b\[[0-9;]*m/g, "")).join("\n");
 
-  it("says the new code and nothing else", () => {
+  const QR_GLYPHS_RE = /[█▀▄]/;
+
+  it("redraws the code and a live QR, without redrawing the banner", () => {
     const out = plain(
-      renderCodeUpdateLines({
-        code: "492716384",
-        url: "https://app.mtmux.com/j#c=492716384",
-        host: "app.mtmux.com",
-      }),
+      renderCodeUpdateLines(
+        {
+          code: "492716384",
+          url: "https://app.mtmux.com/j#c=492716384",
+          host: "app.mtmux.com",
+        },
+        { columns: 100 },
+      ),
     );
     expect(out).toContain("492 716 384");
-    expect(out).not.toContain("mtmux");
+    expect(out).toMatch(QR_GLYPHS_RE);
+    expect(out).toContain("app.mtmux.com");
+    // The parts of the banner that did not change stay where they are.
     expect(out).not.toContain("Waiting");
-    expect(out.split("\n")).toHaveLength(1);
+    expect(out).not.toContain("Local");
   });
 
-  it("offers a fresh QR, because the one above it is now stale", () => {
+  it("says the one above it is dead, because it is still on screen", () => {
     const out = plain(
-      renderCodeUpdateLines({
-        code: "344511",
-        url: null,
-        host: "x",
-        reach: "local",
-      }),
+      renderCodeUpdateLines(
+        {
+          code: "344511",
+          url: "http://x/login#n=y",
+          host: "x",
+          reach: "local",
+        },
+        { columns: 100 },
+      ),
     );
     expect(out).toContain("344 511");
-    expect(out).toContain("l");
+    expect(out).toContain("dead");
+    // A local code is local, and a re-arm is not where that stops being true.
+    expect(out).toContain("On this network only.");
   });
 
-  it("says nothing about a QR when the run has none", () => {
+  it("falls back to the digits alone when there is no QR to draw", () => {
     const out = plain(
       renderCodeUpdateLines(
         { code: "344511", url: null, host: "x", reach: "local" },
@@ -255,14 +277,18 @@ describe("a code that has been replaced", () => {
       ),
     );
     expect(out).toContain("344 511");
-    expect(out).not.toContain("QR");
+    expect(out).not.toMatch(QR_GLYPHS_RE);
   });
 
-  it("points at the QR when the typed half is the part that is gone", () => {
+  it("still draws the QR when the typed half is the part that is gone", () => {
     const out = plain(
-      renderCodeUpdateLines({ code: null, url: "https://x/j", host: "x" }),
+      renderCodeUpdateLines(
+        { code: null, url: "https://x/j", host: "x" },
+        { columns: 100 },
+      ),
     );
-    expect(out).toContain("fresh QR");
+    expect(out).toMatch(QR_GLYPHS_RE);
+    expect(out).toContain("New code");
   });
 });
 

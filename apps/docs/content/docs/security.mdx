@@ -123,6 +123,33 @@ query parameter:
 - On success the relay replies `auth:success` and a `server:info` frame.
 - On failure it replies `auth:failure` with a reason and **closes the socket**.
 
+### A valid token is not permission
+
+Authenticating gets a socket as far as the door. Whether it comes in is a
+separate question, put to a human at the machine — the app on a device already
+connected, the terminal or live panel, or `mtmux approve` — and asked of
+**every** connection: loopback, LAN and tunnelled alike. Silence denies.
+
+This is the one check that is not about a credential. A credential is a file on
+somebody else's computer; that it paired once is a fact about the past. The
+question here is whether the person holding it now is you, and it can only be
+asked now.
+
+- Nothing about the machine is sent before the answer — no capabilities, no
+  hostname, no session names. A refusal reveals only that the token was not
+  enough.
+- One answer covers a device while it stays connected, and for two minutes
+  after its last socket closes. Tabs, the candidate race and a reconnect on a
+  train are one act of connecting, not eight.
+- A pairing approval covers the socket it was granted for, so nobody is asked
+  the same question twice thirty milliseconds apart.
+- A refusal carries `code: "unapproved"`, which tells the browser its
+  credential is healthy. Without it, a slow answer would wipe a working pairing
+  and send the user back to pairing from scratch.
+- `reconnectPolicy` decides whether a device you already trust is asked. It
+  defaults to `confirm` with a terminal attached and `trust` without one — see
+  [the CLI reference](/docs/cli#mtmux-config).
+
 ## Failed-auth throttling
 
 Per remote address, in memory.

@@ -194,15 +194,36 @@ export async function setReach(reach: Reach): Promise<Config> {
 
 export type ReconnectPolicy = "trust" | "confirm";
 
+/**
+ * What an unconfigured machine does when a device it knows connects.
+ *
+ * `trust`, and only because of who is left holding the question when nobody
+ * answers it. A machine started by systemd, by `nohup`, or in a detached pane
+ * has no terminal and no panel: `confirm` there means every reconnect is
+ * refused for want of anyone to ask, which is a product that stops working
+ * after an upgrade rather than one that got safer.
+ *
+ * So the default is conditional and `getReconnectPolicy` takes the condition:
+ * a run with a terminal attached asks, because there is somebody there to ask
+ * and "it never asked me" is the complaint this whole gate exists to answer;
+ * a run without one trusts, exactly as every release before this did. An
+ * explicit setting beats both, in either direction.
+ */
 export const DEFAULT_RECONNECT_POLICY: ReconnectPolicy = "trust";
+
+/** What a run with somebody sitting in front of it does when unconfigured. */
+export const INTERACTIVE_RECONNECT_POLICY: ReconnectPolicy = "confirm";
 
 export function isReconnectPolicy(value: unknown): value is ReconnectPolicy {
   return value === "trust" || value === "confirm";
 }
 
-export async function getReconnectPolicy(): Promise<ReconnectPolicy> {
+export async function getReconnectPolicy(
+  interactive = false,
+): Promise<ReconnectPolicy> {
   const stored = (await load()).reconnectPolicy;
-  return isReconnectPolicy(stored) ? stored : DEFAULT_RECONNECT_POLICY;
+  if (isReconnectPolicy(stored)) return stored;
+  return interactive ? INTERACTIVE_RECONNECT_POLICY : DEFAULT_RECONNECT_POLICY;
 }
 
 export async function setReconnectPolicy(

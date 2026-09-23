@@ -8,8 +8,8 @@ import {
   Zap,
   Columns2,
   Rows2,
-  ScrollText,
   Clipboard,
+  ClipboardCopy,
   ClipboardPaste,
   ZoomIn,
   ZoomOut,
@@ -149,25 +149,22 @@ export function KeyboardToolbar({
         phone most of it is. What sits here is whichever thing the user most
         needs *right now*, which is not the same button in both states:
 
-         - Normally it is copy mode — the pane's text, captured into a view you
-           can select out of. On a phone that is the only way to get anything
-           out of the terminal at all: the rendered pane is a WebGL canvas, so
-           there is no text to press-and-hold, and the long press over it now
-           means "this pane's options" instead. Everything else in this row has
-           a second way in — the FAB, the palette, a gesture. Getting text out
-           had one, and it was buried past the fold of a strip most people
-           never realise scrolls.
-         - In tmux's own copy mode it is the way out. Keystrokes sent to a pane
-           in copy mode are copy-mode commands, so until this is tapped the
-           terminal looks focused and silently eats everything typed —
-           including anything sent from the composer, which is why the two swap
-           rather than sit side by side.
+         - In tmux's own copy mode it is the way out, and it is the reason this
+           zone exists. Keystrokes sent to a pane in copy mode are copy-mode
+           commands, so until this is tapped the terminal looks focused and
+           silently eats everything typed — including anything sent from the
+           composer. A way out that can scroll off the edge of the screen is
+           not a way out.
+         - Otherwise it is the composer: writing a command is the most common
+           thing anyone does down here, and it is purely local, so it stays
+           live while the socket is down — that is how you have a command ready
+           for when it comes back.
 
-        Note that the two are different things wearing one name: the amber chip
-        is tmux's mode, which a drag-to-scroll puts you in, and the button
-        under it opens our own capture-and-select view. They share the slot
-        because they are never both the answer, and because the chip's job is
-        to be unmissable when it applies.
+        Copy mode's *entrance* sits at the head of the strip instead, in the
+        first slot a thumb reaches, wearing a clipboard rather than a scroll:
+        on a phone it is the only way to get text out of the terminal at all —
+        the rendered pane is a WebGL canvas, so there is nothing to
+        press-and-hold — and an icon nobody recognises is a feature nobody has.
       */}
       <div className="flex shrink-0 items-center border-r border-border px-1">
         {inCopyMode ? (
@@ -182,38 +179,42 @@ export function KeyboardToolbar({
         ) : (
           <button
             className={iconBtnClass}
-            aria-label="Open copy mode"
-            disabled={!connected}
+            aria-label="Write a command"
             onClick={() => {
               if (hapticEnabled) triggerHaptic();
-              useUiStore.getState().setCopyModeOpen(true);
+              openComposer();
             }}
           >
-            <ScrollText className="h-4 w-4" />
+            <Type className="h-4 w-4" />
           </button>
         )}
       </div>
 
       <div className="flex flex-1 items-center gap-0.5 overflow-x-auto px-1 py-1 scrollbar-none">
         {/*
-          The composer, at the head of the strip rather than pinned beside it.
+          Copy mode, at the head of the strip.
 
-          It was the pinned slot until copy mode took that over, and it gives it
-          up cheaply: the one-line bar above is its other entry point, and this
-          position is still the first thing a thumb reaches. It stays ungated on
-          the socket, like the other purely local actions in this row — writing
-          a command while the connection is down is how you have one ready when
-          it comes back.
+          It is the first thing in the scrolling row and the first thing a
+          thumb reaches, because on a phone it is the only way to get text out
+          of the terminal: the pane is a WebGL canvas with no text to
+          press-and-hold, and the long press over it means "this pane's
+          options" instead. It wears a clipboard rather than a scroll for the
+          reason it moved out here at all — the old icon was accurate about
+          what the view is and told nobody what it is *for*.
+
+          Gated on the socket, unlike the composer: the view it opens is filled
+          from a `capture-pane` that has to travel.
         */}
         <button
           className={iconBtnClass}
-          aria-label="Write a command"
+          aria-label="Open copy mode"
+          disabled={!connected}
           onClick={() => {
             if (hapticEnabled) triggerHaptic();
-            openComposer();
+            useUiStore.getState().setCopyModeOpen(true);
           }}
         >
-          <Type className="h-4 w-4" />
+          <ClipboardCopy className="h-4 w-4" />
         </button>
 
         {/* Signal buttons */}

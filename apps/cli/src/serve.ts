@@ -115,7 +115,12 @@ export type RelayRuntime = {
    */
   setLocalPairingGate?: (
     gate:
-      | ((req: { label: string; via: "scan" | "code" }) => Promise<boolean>)
+      | ((req: {
+          label: string;
+          via: "scan" | "code";
+          /** Absent on a bundle that predates the approval hand-off. */
+          deviceId?: string;
+        }) => Promise<boolean>)
       | null,
   ) => void;
   /**
@@ -194,6 +199,28 @@ export type RelayRuntime = {
    * Optional like the rest of this block: an older bundle simply has no in-app
    * channel, and `decideAccess` degrades to the machine's own prompts.
    */
+  /**
+   * The question asked before *any* socket is let in, however it arrived.
+   *
+   * This is the one gate that is not about a credential. Pairing approval asks
+   * once, when a device is first trusted; this asks every time one connects,
+   * which is the only question that can be answered by the person actually
+   * sitting there now. Local, LAN and tunnelled sockets all pass through it.
+   *
+   * Optional like everything else here: a bundle that predates it admits every
+   * authenticated socket, exactly as every release before this one did.
+   */
+  setConnectionGate?: (
+    gate:
+      | ((req: {
+          tokenId: string | null;
+          deviceId: string | null;
+          label: string | null;
+          transport: "loopback" | "lan" | "tunnel";
+          userAgent: string | null;
+        }) => Promise<boolean>)
+      | null,
+  ) => void;
   askDeviceApproval?: (
     req: {
       sas?: string;

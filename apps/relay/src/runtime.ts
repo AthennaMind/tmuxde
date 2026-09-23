@@ -40,6 +40,8 @@ export {
  * security prompt for no gain.
  */
 export { askDeviceApproval } from "./device-approval.js";
+export { setConnectionGate } from "./connection-gate.js";
+export type { ConnectionRequest } from "./connection-gate.js";
 
 /**
  * Recording, for `mtmux record`'s loopback control endpoint.

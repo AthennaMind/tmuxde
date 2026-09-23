@@ -51,6 +51,15 @@ export type PanelDeps = {
   /** Un-pair a device, permanently. */
   revoke?: (deviceId: string) => Promise<boolean>;
   /**
+   * Get rid of everything: every pairing forgotten, every socket hung up.
+   *
+   * One call rather than a loop over `revoke` in here, because the honest
+   * version of this act has to include sockets that have no pairing record
+   * behind them — the machine's own token, a share — and only the caller knows
+   * how to reach those. Resolves with how many devices it actually removed.
+   */
+  removeAll?: () => Promise<number>;
+  /**
    * Every device this machine trusts, connected or not.
    *
    * Synchronous and cached by the caller rather than a promise, because it is
@@ -94,6 +103,13 @@ export type PanelDeps = {
   onQuit: () => void;
   /** Whether a tunnel is up, read at render time so a late one counts. */
   hosted: () => boolean;
+  /**
+   * What the tunnel is doing while it is not yet up.
+   *
+   * Absent on a run with no tunnel at all, which is not the same as a tunnel
+   * that is down — and the panel says something different for each.
+   */
+  tunnelStatus?: () => "connecting" | "up" | "retrying" | undefined;
   now?: () => number;
   view?: LiveView;
   keys?: KeyReader;
@@ -164,6 +180,7 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
       flash,
       now: now(),
       hosted: deps.hosted(),
+      ...(deps.tunnelStatus?.() ? { tunnel: deps.tunnelStatus()! } : {}),
       canOpenTunnel: !deps.hosted() && deps.openTunnel !== undefined,
       invite: deps.invite?.() ?? null,
       askOnReconnect: deps.askOnReconnect?.() ?? false,
@@ -318,6 +335,9 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
       case "r":
       case "c":
         return askRemove();
+      // The whole list, in one question. See `askRemoveAll`.
+      case "x":
+        return askRemoveAll();
     }
   }
 
@@ -466,10 +486,46 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
     }
   }
 
+  /**
+   * Clear the list.
+   *
+   * The act somebody reaches for after handing a laptop back, selling a phone,
+   * or seeing a row they cannot account for — and until now it was `r` once
+   * per row, which on a list of eight is seven chances to slip and a lot of
+   * reasons not to bother. One question, one answer, and the question says the
+   * count so nobody can be surprised by what they agreed to.
+   */
+  function askRemoveAll(): void {
+    if (!deps.removeAll) return;
+    const list = rows();
+    if (list.length === 0) return;
+    mode = {
+      kind: "confirm",
+      action: "remove-all",
+      deviceId: null,
+      connectionId: null,
+      label: "",
+      count: list.length,
+    };
+    paint();
+  }
+
   async function doRemove(
     target: Extract<PanelMode, { kind: "confirm" }>,
   ): Promise<void> {
     mode = { kind: "list" };
+    if (target.action === "remove-all") {
+      const removed = (await deps.removeAll?.()?.catch(() => 0)) ?? 0;
+      cursor = 0;
+      setFlash(
+        removed > 0
+          ? kleur.yellow(
+              `Removed ${removed} device${removed === 1 ? "" : "s"}. Each needs a new code.`,
+            )
+          : kleur.dim("There was nothing left to remove."),
+      );
+      return;
+    }
     if (target.action === "disconnect") {
       const closed = target.connectionId
         ? await deps.disconnect?.(target.connectionId)?.catch(() => false)
@@ -530,6 +586,8 @@ export function createDevicePanel(deps: PanelDeps): DevicePanel {
           label: req.deviceLabel,
           account: req.accountEmail,
           ...(req.sas ? { sas: req.sas } : {}),
+          ...(req.via ? { via: req.via } : {}),
+          ...(req.transport ? { transport: req.transport } : {}),
           expiresAt: now() + APPROVAL_WINDOW_MS,
         };
         const onAbort = () => {

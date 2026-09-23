@@ -159,6 +159,28 @@ export function useWebSocket(
           break;
         case "auth:failure":
           /*
+           * A refusal is not a dead credential, and telling the two apart is
+           * the whole of this branch.
+           *
+           * Every connection is now put to a human at the machine — see
+           * `connection-gate.ts` — so "no" and "nobody answered" are ordinary
+           * outcomes on a pairing that is in perfect health. Wiping the token
+           * and the session keys for one of those would destroy a working
+           * pairing because somebody was slow to reach their laptop, and the
+           * only way back would be to pair again. So this leaves everything
+           * on disk exactly as it is and says what happened.
+           */
+          if (msg.code === "unapproved") {
+            useAlertStore
+              .getState()
+              .push(
+                "error",
+                "Not approved on the machine. Say yes there, then reconnect.",
+              );
+            connectionStore.setStatus("disconnected");
+            break;
+          }
+          /*
            * The toast used to be the only explanation, and it never arrived.
            *
            * `window.location.href` is a full document navigation, so the alert
