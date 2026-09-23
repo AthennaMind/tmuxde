@@ -356,9 +356,15 @@ export function ConnectPanel({ variant = "full" }: ConnectPanelProps) {
               onChange={(e) => setCode(e.target.value)}
               inputMode="numeric"
               autoComplete="one-time-code"
-              placeholder="49 271 638"
+              // Nine, grouped 3-3-3, exactly as the CLI prints it: the slot
+              // gets its own group because it is the only part that reaches
+              // our servers. This read `49 271 638` — eight digits in the
+              // 2-3-3 shape of the old two-digit slot — so the hint under the
+              // one field people have to type into disagreed with both the
+              // banner they were copying from and the code they were holding.
+              placeholder="492 716 384"
               className="h-14 text-center font-mono text-2xl tracking-[0.3em] tabular-nums"
-              // Eight digits plus separators, and long enough to hold a pasted
+              // Nine digits plus separators, and long enough to hold a pasted
               // 26-character scan code — which is a thing people do when a QR
               // will not focus and they copy the link out of the page.
               maxLength={32}
