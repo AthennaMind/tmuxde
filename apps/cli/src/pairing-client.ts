@@ -253,6 +253,25 @@ export type HostOptions = {
     descriptor: SealedDescriptor,
   ) => Promise<Uint8Array>;
   /**
+   * The yes/no at the machine, asked after the key has proved who this is and
+   * before the descriptor is sealed for them.
+   *
+   * Optional only because `hostPairing` is also driven by tests that have
+   * nobody to ask. **Every caller that faces a real user must pass one**:
+   * without it, knowing the code *is* the approval, and the code is read off
+   * a screen and typed somewhere else — so what it proves is that somebody
+   * saw the screen, not that the person holding the browser is you.
+   *
+   * This declaration is the fix for a bug worth naming. `ExchangeOptions.admit`
+   * has existed, been documented and been honoured by `pairing-exchange.ts`
+   * since the gate was written — but it was never declared here and never
+   * forwarded, so `mtmux start` set `admit: confirmCodePairing` on an object
+   * that quietly dropped it. A spread into a call site takes no excess-property
+   * check, so nothing said a word: the seam was live at one end and unwired at
+   * the other, and every hosted pairing completed without a soul being asked.
+   */
+  admit?: (peerLabel: string) => Promise<boolean>;
+  /**
    * Overrides the deadline, which otherwise tracks the mailbox's own expiry.
    * A hosted code is dead the moment the broker forgets its mailbox, so
    * matching that is almost always what you want.
@@ -307,6 +326,11 @@ export async function hostPairing(opts: HostOptions): Promise<HostedPairing> {
     noMatchGraceMs: 0,
     buildDescriptor: opts.buildDescriptor,
     seal: opts.seal,
+    // Forwarded rather than defaulted: `runExchange` reads absence as "no gate
+    // installed", and which callers have one has to stay readable here. This
+    // line is the whole of the fix — the option was set by `mtmux start` and
+    // landed nowhere.
+    ...(opts.admit ? { admit: opts.admit } : {}),
     // The mailbox stops existing at `expiresAt`, so a deadline past it would
     // only mean waiting on a socket the broker has already given up on.
     timeoutMs: opts.timeoutMs ?? mailboxTimeoutMs(expiresAt, ttlMs),
@@ -519,7 +543,10 @@ export function httpTransport(apiBase: string): PairingTransport {
         const res = await fetch(`${apiBase}/v1/pair/new`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ v: PROTOCOL_VERSION, ...(space ? { space } : {}) }),
+          body: JSON.stringify({
+            v: PROTOCOL_VERSION,
+            ...(space ? { space } : {}),
+          }),
         });
         if (res.status === 426) throw tooOld();
         if (res.status === 429) {

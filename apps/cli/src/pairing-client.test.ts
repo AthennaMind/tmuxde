@@ -581,6 +581,58 @@ describe("hostPairing", () => {
     hosted.cancel();
   });
 
+  /**
+   * The gate on a hosted code, which for a while was declared at one end and
+   * unwired at the other.
+   *
+   * `ExchangeOptions.admit` existed, was documented and was honoured by
+   * `pairing-exchange.ts`. `HostOptions` never declared it and `hostPairing`
+   * never forwarded it, so `mtmux start` set `admit: confirmCodePairing` on an
+   * object that dropped it on the floor — and a spread into a call site takes
+   * no excess-property check, so the compiler had nothing to say. Every hosted
+   * pairing completed without a soul being asked: knowing the code *was* the
+   * approval, which is the exact belief the gate was written to end.
+   *
+   * These two tests are the wiring, asserted from the outside. They fail
+   * against a `hostPairing` that forgets to pass it on.
+   */
+  it("asks at the machine before it seals anything for the browser", async () => {
+    const asked: string[] = [];
+    const s = hostScenario();
+    const hosted = await hostPairing({
+      ...hostOpts(s.transport),
+      admit: async (label) => {
+        asked.push(label);
+        return true;
+      },
+    });
+    await s.ready;
+
+    const browser = s.claim("peer-0", hosted.code.slice(3));
+    browser.confirm();
+    await hosted.paired;
+
+    expect(asked).toEqual(["browser"]);
+  });
+
+  it("seals nothing when the answer is no", async () => {
+    const s = hostScenario();
+    const hosted = await hostPairing({
+      ...hostOpts(s.transport),
+      admit: async () => false,
+    });
+    await s.ready;
+
+    const browser = s.claim("peer-0", hosted.code.slice(3));
+    browser.confirm();
+    await expect(hosted.paired).rejects.toThrow();
+
+    // The descriptor is the only thing that tells a browser where this machine
+    // is. A refusal that still sent it would be a refusal in name only.
+    expect(s.sent.find((m) => m.type === "pair:establish")).toBeUndefined();
+    expect(s.closedPeers).toContain("peer-0");
+  });
+
   it("agrees on a key with a browser that claims the code", async () => {
     const s = hostScenario();
     const hosted = await hostPairing(hostOpts(s.transport));

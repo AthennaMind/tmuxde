@@ -11,6 +11,22 @@ release that shipped them.
 
 ## [Unreleased]
 
+### Security
+
+- **Hosted code pairing never asked anybody, and now does.** A browser that
+  typed the nine-digit code was paired outright: keys admitted, descriptor
+  sealed, device on the list, with no question raised on the machine and none
+  needed. `mtmux start` has been passing `admit: confirmCodePairing` since the
+  gate was written and `pairing-exchange.ts` has been honouring an `admit`
+  hook for just as long — but `HostOptions` never declared the field and
+  `hostPairing` never forwarded it, so the option was set at one end and
+  dropped at the other. A spread into a call site takes no excess-property
+  check, so nothing complained: the seam read as wired from either side alone.
+  The effect was the exact belief the gate exists to end — that knowing the
+  code is the same fact as consenting to the pairing, when a code is read off
+  a screen and typed somewhere else, and what it proves is that somebody saw
+  the screen.
+
 ## [0.12.1] — 2026-09-23
 
 ### Fixed
