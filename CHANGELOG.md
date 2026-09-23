@@ -11,6 +11,17 @@ release that shipped them.
 
 ## [Unreleased]
 
+### Fixed
+
+- A completed pairing says `paired`, not `connected`. Both that line and the
+  one the relay prints when a socket actually arrives read `✓ <device>
+connected.`, which made them impossible to tell apart — and the confusion is
+  specific and bad. Pairing seeds a two-minute grace, so the socket that
+  follows is admitted in silence; once the grace lapses the next reconnect
+  asks again. On screen that read as "it said connected, and now it is asking
+  about a device that is already in" — a product that looks like it is
+  approving things behind your back while doing exactly what it says.
+
 ## [0.12.0] — 2026-09-23
 
 ### Security

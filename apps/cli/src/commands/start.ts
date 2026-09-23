@@ -807,9 +807,23 @@ async function startHosted(opts: {
         directToken: request.keys.directToken,
         sessionKeys: encodeSessionKeys(request.keys),
       });
+      /*
+       * "Paired", not "connected", because nothing has connected yet.
+       *
+       * This fires when the human says yes and the sealed descriptor goes
+       * back; the browser opens its socket some time after, and
+       * `watchConnectedDevices` prints the real thing when it does. Both lines
+       * used to read `✓ <device> connected.`, which made the two impossible to
+       * tell apart — and the confusion that caused is specific and bad. The
+       * pairing seeds a two-minute grace, so the socket that follows is
+       * admitted in silence; once the grace lapses the next reconnect asks
+       * again. On screen that read as "it said connected, and now it is asking
+       * about a device that is already in" — a product that looks like it is
+       * approving things behind your back while doing exactly what it says.
+       */
       say(
         kleur.green(
-          `  ✓ ${displayLabel(request.deviceLabel, "A device")} connected.`,
+          `  ✓ ${displayLabel(request.deviceLabel, "A device")} paired.`,
         ),
       );
 
