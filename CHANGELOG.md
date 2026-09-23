@@ -11,6 +11,8 @@ release that shipped them.
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-09-23
+
 ### Security
 
 - **The file and recording endpoints go through the approval gate too.**
