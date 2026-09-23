@@ -23,9 +23,32 @@
   "firstRelease": "first published release",
   "releases": [
     {
+      "id": "v0-12-0",
+      "version": "0.12.0",
+      "date": "current release on npm",
+      "entries": [
+        {
+          "type": "fix",
+          "text": "The routes that hand over files were the one way past the approval model. <cmd>GET /file</cmd> and <cmd>GET /recording</cmd> authenticated a token and then served bytes off the machine's disk without asking anybody — while the same token on the websocket put a question on the owner's screen. Both now cross the same gate."
+        },
+        {
+          "type": "break",
+          "text": "Asking is the default everywhere, terminal or not. It used to depend on whether a terminal was attached, so a machine started by systemd or <cmd>nohup</cmd> trusted silently — the deployments least likely to be watched were the ones that quietly stopped asking. A headless machine can still be asked: <cmd>mtmux approve</cmd> in any other shell, or the app on a phone that is already connected."
+        },
+        {
+          "type": "break",
+          "text": "<cmd>trust</cmd> no longer covers a device the machine has never recorded. It is a reconnect policy, and nothing about a stolen token is a reconnect. It waives the question for devices on your own list and nothing else."
+        },
+        {
+          "type": "fix",
+          "text": "Signing in with a token no longer throws that token away because nobody has approved the connection yet. Being slow to reach the laptop used to mean going and finding the token again."
+        }
+      ]
+    },
+    {
       "id": "v0-11-0",
       "version": "0.11.0",
-      "date": "current release on npm",
+      "date": "2026-09-23",
       "entries": [
         {
           "type": "new",
