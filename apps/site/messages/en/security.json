@@ -66,8 +66,12 @@
         "description": "The CLI dials out to the broker. There is no firewall hole to open, <post>no sshd exposed</post>, and no reverse proxy to misconfigure."
       },
       {
+        "title": "A valid token is not permission",
+        "description": "Approval is asked per connection, not per credential \u2014 loopback, LAN and tunnelled alike. A credential proves what was true when it was issued; the question is whether the person holding it now is you, and nothing about the machine is sent before the answer."
+      },
+      {
         "title": "Revocation forgets a key",
-        "description": "Reconnecting a known browser is a signed Ed25519 challenge, so <cmd>mtmux devices revoke</cmd> on a device id is enough to lock it out permanently."
+        "description": "Reconnecting a known browser is a signed Ed25519 challenge, so <cmd>mtmux devices remove</cmd> on a device id is enough to lock it out permanently."
       }
     ]
   },
@@ -79,8 +83,9 @@
         "A broker that knows the whole code and tries to pair your CLI to its own browser.",
         "Passive network capture on hotel, café or cellular networks.",
         "Someone who watches you scan and captures the code after it is spent.",
+        "A copied session token used from somewhere else \u2014 every connection is asked about at the machine.",
         "Replay or reordering of captured frames, via the per-direction nonce counter.",
-        "A lost phone: revoke its device id and its key is worthless."
+        "A lost phone: remove its device id and its key is worthless."
       ]
     },
     "dont": {

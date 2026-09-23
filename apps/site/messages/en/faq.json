@@ -111,8 +111,12 @@
           "answer": "Nothing has to be forwarded or exposed to the internet. The CLI dials out, so there is no firewall hole, no VPN and no sshd facing the world. On a LAN it does listen locally so other devices in the house can reach it."
         },
         {
+          "question": "Does someone have to approve every connection?",
+          "answer": "Yes, and that is the point. Pairing approval is one question about a credential; this is a question about whoever is holding it now. One answer covers a device while it stays connected and for two minutes after its last socket closes, so tabs and a reconnect on a train are one act of connecting rather than a prompt every few minutes. A machine with no terminal attached \u2014 systemd, <cmd>nohup</cmd>, a detached pane \u2014 trusts a device it already knows, because refusing everything for want of anyone to ask is not safer, it is broken."
+        },
+        {
           "question": "What if I lose my phone?",
-          "answer": "<cmd>mtmux devices</cmd> lists the device ids this machine trusts and revoke forgets one, so that browser cannot reconnect. No password reset, and nothing left behind."
+          "answer": "<cmd>mtmux devices remove</cmd> forgets one, so that browser cannot reconnect \u2014 and until you get to a terminal, nothing it holds is enough on its own: every connection still has to be let in by somebody at the machine. No password reset, and nothing left behind."
         },
         {
           "question": "Can I run it fully self-hosted?",

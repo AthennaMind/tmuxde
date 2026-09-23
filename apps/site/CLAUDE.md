@@ -277,7 +277,7 @@ Exactly what `apps/cli/src/bin.ts` registers, and nothing else:
 `record [session]` (plus `record list [--json]`, `record stop [id] [--all]`, `record rm <id>`,
 `record share <id>`, and its `--pane`/`--title`/`--expires`/`--label`/`--no-qr` flags) ·
 `approve` · `status` · `stop` ·
-`doctor` · `login`/`logout`/`whoami` · `servers` · `devices [revoke <id>]` · `upgrade` ·
+`doctor` · `login`/`logout`/`whoami` · `servers` · `devices [remove|revoke <id>]` · `upgrade` ·
 `token print|rotate|set` · `config get [key]` · `config set <key> <value>` · `version` (alias `v`)
 
 Config lives at `~/.mtmux/config.json`, mode 0600. Shares live in
@@ -318,7 +318,13 @@ in a browser. Never write "notifies you", "pushes you" or "tells you when".
   The scanned form uses a separate 4-digit slot space; both are settled in that one file.
 - Keys come from an **HKDF-SHA256** schedule over the CPace transcript, one per direction.
 - Frames are **AES-256-GCM**, per-direction nonces, monotonic counter that rejects replays.
-- Reconnecting a known browser is a signed **Ed25519** challenge; revocation is by device id.
+- Reconnecting a known browser is a signed **Ed25519** challenge; revocation is by device id
+  (`mtmux devices remove`, with `revoke` kept as an alias).
+- **A valid token is not permission.** Approval is asked per _connection_ — loopback, LAN and
+  tunnelled alike — not once per credential, and nothing about the machine is sent before the
+  answer. One answer covers a device while it stays connected and for two minutes after its last
+  socket closes. `reconnectPolicy` defaults to `confirm` with a terminal attached and `trust`
+  without one.
 - The QR encodes the code in a **URL fragment**, which browsers never send to a server.
 - **No independent audit has been performed.** Never imply otherwise.
 

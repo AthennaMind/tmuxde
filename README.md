@@ -56,8 +56,9 @@ cp .env.example .env && docker compose up
 <img src=".github/assets/demo.svg" alt="A terminal running mtmux beside a phone browser: the terminal prints a QR and a nine-digit pairing code, and the phone is attached to the same tmux session, showing the dev server window" width="900">
 
 **Scan it, then say yes.** One command, no second terminal. The machine asks
-once before it lets anything in — answer in the terminal, in `mtmux approve`,
-or in the app on a phone already connected. If the camera won't
+before it lets anything in — answer in the terminal, in `mtmux approve`, or in
+the app on a phone already connected — and it asks every time a device
+connects, not once when it pairs. If the camera won't
 cooperate, type the nine digits at `app.mtmux.com`. It works the same on your own
 network and over cellular — mtmux takes the direct path when the device can reach
 your machine and falls back to a relayed tunnel when it can't. You don't choose,
@@ -92,6 +93,15 @@ $ mtmux --no-qr
 3. **One wrong guess burns the code.** A failed key confirmation destroys the
    mailbox, and the claim budget is charged when a socket attaches, not when a
    request arrives — so guessing is bounded online and impossible offline.
+
+And one more, because it is the one people are surprised by: **a valid token is
+not permission.** Approval is asked per _connection_ — loopback, LAN and
+tunnelled alike — not once per credential. A credential is a file on somebody
+else's computer, and that it paired last month is a fact about the past. One
+answer covers a device while it stays connected and for two minutes after, so
+tabs and a reconnect on a train do not each ring the bell; a machine with no
+terminal attached trusts what it already knows, because refusing everything for
+want of anyone to ask is not safer, it is broken.
 
 On the **direct** path the two devices talk over your own network and we are simply
 not in it; there the browser's own TLS, or on a plain LAN nothing, is what protects
@@ -156,6 +166,7 @@ mtmux status                   # what's running here
 mtmux stop                     # stop it
 mtmux doctor                   # why isn't this working?
 mtmux devices                  # browsers this machine trusts
+mtmux devices remove <id>      # forget one; it needs a new code to come back
 mtmux record <session>         # capture a session to an asciinema cast
 mtmux token rotate             # new token; paired devices are kept
 mtmux --help
@@ -289,8 +300,9 @@ is no offline attack because the secret is never transmitted in any form.
 <summary><strong>Does restarting mtmux un-pair my phone?</strong></summary>
 
 No. Pairing-derived tokens are replayed on boot, so a device stays trusted until it
-goes 90 days unseen or you run `mtmux devices revoke <id>`. Revoking now closes any
-socket that device is holding.
+goes 90 days unseen or you run `mtmux devices remove <id>` (`revoke` still works).
+Removing closes any socket that device is holding, and it will be asked about
+again next time it connects regardless.
 
 </details>
 

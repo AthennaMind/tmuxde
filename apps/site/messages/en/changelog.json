@@ -23,10 +23,140 @@
   "firstRelease": "first published release",
   "releases": [
     {
+      "id": "v0-11-0",
+      "version": "0.11.0",
+      "date": "current release on npm",
+      "entries": [
+        {
+          "type": "new",
+          "text": "A valid token is no longer permission. Approval is asked per connection — loopback, LAN and tunnelled alike — not once per credential, and nothing about the machine is sent before the answer."
+        },
+        {
+          "type": "new",
+          "text": "One answer covers a device while it stays connected and for two minutes after its last socket closes, so tabs and a reconnect on a train are one act of connecting rather than a prompt every few minutes."
+        },
+        {
+          "type": "new",
+          "text": "<cmd>x</cmd> in the live panel removes every device at once, in one question that names the count."
+        },
+        {
+          "type": "new",
+          "text": "The panel says what the tunnel is doing — connecting, up, or down and retrying — instead of only whether it is up."
+        },
+        {
+          "type": "fix",
+          "text": "<cmd>--confirm-reconnect</cmd> and <cmd>--trust-reconnect</cmd> were parsed and then ignored; the stored policy decided every run whatever was typed."
+        },
+        {
+          "type": "fix",
+          "text": "A refusal no longer wipes a healthy pairing. The browser used to read any auth failure as “you have been forgotten” and send you back to pairing from scratch."
+        },
+        {
+          "type": "fix",
+          "text": "A spent code is replaced with a live QR rather than an offer to press a key nobody had been told about."
+        }
+      ]
+    },
+    {
+      "id": "v0-10-0",
+      "version": "0.10.0",
+      "date": "2026-09-22",
+      "entries": [
+        {
+          "type": "new",
+          "text": "The live panel carries the code that is claimable right now, so it survives the banner scrolling away."
+        },
+        {
+          "type": "new",
+          "text": "<cmd>mtmux devices remove</cmd>, which is what the panel’s <cmd>r</cmd> already called it. <cmd>revoke</cmd> stays as an alias."
+        },
+        {
+          "type": "fix",
+          "text": "Nothing the panel draws can be wider than the terminal. The approval screen’s answer line used to wrap off the bottom of a short one — the line telling you how to say no."
+        },
+        {
+          "type": "fix",
+          "text": "Two tabs of one browser are two rows again; both used to share a key, so every lookup matched the first."
+        },
+        {
+          "type": "fix",
+          "text": "A live local code is taken down when a tunnel opens, instead of staying claimable for 24 hours with nothing on screen showing it."
+        }
+      ]
+    },
+    {
+      "id": "v0-9-0",
+      "version": "0.9.0",
+      "date": "2026-09-22",
+      "entries": [
+        {
+          "type": "new",
+          "text": "One key gets rid of a device and means it: the credential dies, the socket closes, and it must pair again."
+        },
+        {
+          "type": "fix",
+          "text": "A removed device loses its tunnel keys, not just its token."
+        },
+        {
+          "type": "fix",
+          "text": "A new code no longer reprints the whole banner, and the log stopped repeating what the panel already shows."
+        }
+      ]
+    },
+    {
+      "id": "v0-8-0",
+      "version": "0.8.0",
+      "date": "2026-09-22",
+      "entries": [
+        {
+          "type": "new",
+          "text": "Six digits to type in local mode, so “I cannot scan that” has an answer short of copying a 64-character token."
+        },
+        {
+          "type": "new",
+          "text": "Every path asks before it lets a device in — scanning the QR on your own wifi included. A network is not a person."
+        },
+        {
+          "type": "new",
+          "text": "The device list is every device this machine trusts, not only the connected ones, with <cmd>e</cmd> to rename and <cmd>a</cmd> to flip whether a known device is asked about."
+        },
+        {
+          "type": "new",
+          "text": "Press <cmd>t</cmd> in a running <cmd>mtmux start</cmd> to open the tunnel without restarting."
+        },
+        {
+          "type": "fix",
+          "text": "The local pairing code has a guess budget, and the endpoint has the same per-address backoff as token auth."
+        },
+        {
+          "type": "fix",
+          "text": "The offer is burned before the human is asked, not after — a correct code left live while a question sits on screen is a code an attacker can retry."
+        }
+      ]
+    },
+    {
+      "id": "v0-7-0",
+      "version": "0.7.0",
+      "date": "2026-09-20",
+      "entries": [
+        {
+          "type": "new",
+          "text": "A live device panel in <cmd>mtmux start</cmd>: who is connected, what they may do, and the keys to act on them."
+        },
+        {
+          "type": "new",
+          "text": "Recording with <cmd>mtmux record</cmd> — asciinema v2 casts on your own disk, shareable as their own scope."
+        },
+        {
+          "type": "fix",
+          "text": "Peer-supplied names are stripped at every terminal render site, not only at ingress."
+        }
+      ]
+    },
+    {
       "id": "v0-4-0",
       "version": "0.4.0",
-      "date": "next",
-      "unreleased": true,
+      "date": "2026-09",
       "entries": [
         {
           "type": "new",
@@ -57,7 +187,7 @@
     {
       "id": "v0-3-0",
       "version": "0.3.0",
-      "date": "current release on npm",
+      "date": "pre-0.4.0",
       "current": true,
       "entries": [
         {

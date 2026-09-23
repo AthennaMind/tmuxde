@@ -55,7 +55,7 @@
       },
       "approve": {
         "title": "Say yes",
-        "description": "Typing the code is not the approval. The machine asks — in its own terminal, in <cmd>mtmux approve</cmd>, or in the app on a phone you already have connected — and nobody answering means no."
+        "description": "Typing the code is not the approval, and neither is holding one from last week. The machine asks — in its own terminal, in <cmd>mtmux approve</cmd>, or in the app on a phone you already have connected — every time a device connects, and nobody answering means no."
       },
       "attach": {
         "title": "You're attached",
