@@ -11,6 +11,8 @@ release that shipped them.
 
 ## [Unreleased]
 
+## [0.12.1] — 2026-09-23
+
 ### Fixed
 
 - A completed pairing says `paired`, not `connected`. Both that line and the
