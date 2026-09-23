@@ -23,9 +23,20 @@
   "firstRelease": "first published release",
   "releases": [
     {
+      "id": "v0-12-1",
+      "version": "0.12.1",
+      "date": "current release on npm",
+      "entries": [
+        {
+          "type": "fix",
+          "text": "A completed pairing says <cmd>paired</cmd>; only a socket that has actually arrived says <cmd>connected</cmd>. Both printed the same sentence, which made a normal reconnect prompt read as the machine approving things behind your back."
+        }
+      ]
+    },
+    {
       "id": "v0-12-0",
       "version": "0.12.0",
-      "date": "current release on npm",
+      "date": "2026-09-23",
       "entries": [
         {
           "type": "fix",
