@@ -9,8 +9,6 @@
 !**/.env.example
 .docker/host-tmux
 .docker/certs
-**/test-results
-**/playwright-report
 **/coverage
 .worktrees
 data

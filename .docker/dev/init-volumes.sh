@@ -24,13 +24,9 @@ install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/tooling-prettier-turbo
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/tooling-typescript-turbo
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/web-dev
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/web-build
-install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/web-e2e
-install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/web-lab
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/web-dist
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/relay-dist
-install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/test-results
-install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/playwright-report
-for metadata in web-tooling-metadata web-dev-metadata web-lab-metadata; do
+for metadata in web-tooling-metadata web-dev-metadata; do
   directory="/volumes/cache/$metadata"
   install -d -o "$DEV_UID" -g "$DEV_GID" "$directory"
   if [[ ! -f "$directory/next-env.d.ts" ]]; then

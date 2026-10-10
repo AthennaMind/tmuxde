@@ -98,9 +98,9 @@ export interface TerminalSnapshot {
    * reader cannot tell a line the terminal wrapped from two separate lines —
    * which at a phone's 47 columns is most of them, and which made a helper
    * searching for typed text fail against a terminal that had rendered it
-   * perfectly. Kept as a parallel array rather than folded into `lines`
-   * because `fidelity.ts` diffs row-for-row against `capture-pane` *without*
-   * `-J`: joining here would destroy the one thing that check exists to see.
+   * perfectly. Kept as a parallel array rather than folded into `lines` so
+   * rows still diff one-for-one against `capture-pane` *without* `-J`.
+   * Joining here would hide dropped bytes and mismeasured wide characters.
    */
   wrapped: boolean[];
 }
@@ -110,14 +110,15 @@ let mounted: TerminalHandle | null = null;
 /**
  * The test seam, and why it is compiled out of anything shipped.
  *
- * `e2e/lab` has to read the rendered buffer to diff it against tmux's own
- * `capture-pane`, which is the only check that can see a dropped byte or a
- * wide character measured as one cell. There is no route to the xterm instance
- * from a spec otherwise -- it is a local inside a component.
+ * Browser checks through `playwright-cli` read the rendered buffer here to
+ * diff it against tmux's own `capture-pane`. That is the only check that can
+ * see a dropped byte or a wide character measured as one cell. The WebGL
+ * renderer leaves no text in the DOM, and the xterm instance is a local inside
+ * a component, so there is no other route to it.
  *
  * `process.env.NODE_ENV` is inlined by the bundler at build time and the dead
  * branch is then removed, so a production bundle carries neither the property
- * nor the assignment. The lab runs `next dev`, where it is present.
+ * nor the assignment. The dev stack runs `next dev`, where it is present.
  */
 declare global {
   interface Window {

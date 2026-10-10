@@ -11,7 +11,6 @@ This fork runs local web client, relay and Caddy through `docker-compose.yml`. C
 - `packages/cast`: recording codecs and playback helpers.
 - `packages/ui`, `logger`: shared UI, local logging and configuration.
 - `.docker`: supported deployment, host tmux integration and Caddy local CA.
-- `.docker/lab`: isolated test container.
 - `docs/reference/upstream`: archived technical docs. Hosted and CLI instructions are historical.
 
 ## Runtime
@@ -28,12 +27,12 @@ Use semantic color classes. Follow local import conventions. Validate environmen
 
 ## Verification
 
-Run checks appropriate to changes. Use isolated tmux sessions for browser tests. Never type test commands into active user sessions. Deploy from `.docker` without removing volumes. Secrets and generated host binaries stay outside Git and Docker build context.
+Run checks appropriate to changes. Browser checks use playwright-cli against running stack, in isolated tmux sessions. Never type test commands into active user sessions. Deploy from `.docker` without removing volumes. Secrets and generated host binaries stay outside Git and Docker build context.
 
 ## Docker development
 
 Run Node tooling only in Docker. Setup: scripts/setup.sh. Start hot reload: docker compose up -d --build --wait. Checks: docker compose run --rm tools pnpm test, lint, typecheck or build. Never install host node_modules.
 
-Docker assets live under .docker. Root docker-compose.yml includes standalone development config. Production and lab configs live under .docker/compose. Dependency manager downloads with scripts disabled. Approved native builds run offline. Three development volumes hold dependencies, caches and pnpm store. Keep five-day dependency release delay without exclusions.
+Docker assets live under .docker. Root docker-compose.yml includes standalone development config. Production config lives under .docker/compose. Dependency manager downloads with scripts disabled. Approved native builds run offline. Three development volumes hold dependencies, caches and pnpm store. Keep five-day dependency release delay without exclusions.
 
-Dependency mutations use python3 .docker/dev/dependencies.py mutate followed by pnpm arguments. Host helper exports only manifests and lockfile, with security policy unchanged. New workspaces need subpath mounts in workspace.yaml and directories in init-volumes.sh. Runtime source and dependencies stay read-only. Terminal tests use .docker/dev/lab.sh with isolated sessions. Preserve Caddy volumes, uploads and host tmux sessions.
+Dependency mutations use python3 .docker/dev/dependencies.py mutate followed by pnpm arguments. Host helper exports only manifests and lockfile, with security policy unchanged. New workspaces need subpath mounts in workspace.yaml and directories in init-volumes.sh. Runtime source and dependencies stay read-only. Preserve Caddy volumes, uploads and host tmux sessions.
