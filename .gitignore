@@ -67,3 +67,8 @@ apps/web/next-env.d.ts
 # Host binaries copied for local Docker access to existing tmux sessions.
 .docker/host-tmux/
 .docker/certs/
+
+# Local agent settings.
+.claude/local/
+.claude/settings.local.json
+CLAUDE.local.md

@@ -1,6 +1,6 @@
 # mtmux local
 
-This fork runs local web client, relay and Caddy through `docker-compose.yml`. CLI, marketing site, hosted broker, billing, database and email apps have been removed.
+This fork runs local web client, relay and Caddy through `docker-compose.yml`. CLI, marketing site, hosted broker, billing, database and email apps have been removed. Current setup guide is [.docker/README.md](.docker/README.md).
 
 ## Repository map
 
@@ -11,7 +11,7 @@ This fork runs local web client, relay and Caddy through `docker-compose.yml`. C
 - `packages/cast`: recording codecs and playback helpers.
 - `packages/ui`, `logger`: shared UI, local logging and configuration.
 - `.docker`: supported deployment, host tmux integration and Caddy local CA.
-- `docs/reference/upstream`: archived technical docs. Hosted and CLI instructions are historical.
+- `docs/reference/upstream`: archived technical docs. Reference material only, not deployment instructions. Hosted and CLI instructions are historical.
 
 ## Runtime
 
@@ -24,6 +24,35 @@ Browser assets must be local. No analytics exporters, hosted accounts, cloud dic
 Protocol changes require schemas, both handlers, tests and updates to `docs/reference/upstream/relay/protocol.mdx`. Relay file access must use path guards. Session operations go through `tmux-manager.ts`. Preserve authentication, origin checks and local lock behavior.
 
 Use semantic color classes. Follow local import conventions. Validate environment variables with Zod. Use conventional commits.
+
+## Plans, Backlogs and Reviews
+
+All plans and backlogs MUST be saved to `.agents/plans/`. Use kebab-case filenames.
+
+**Plans** are pre-implementation blueprints. Created once, read during execution.
+
+**Backlogs** are living progress trackers for multi-session work. They track what is done, what is in progress, and what remains so any agent or human can resume where the last session left off.
+
+### When to create a backlog
+
+Create a backlog in `.agents/plans/backlogs/{name}-backlog.md` when the work spans multiple phases, multiple sessions, or touches more than 5-10 files. A backlog MUST contain:
+
+1. **Progress summary**: table of phases with status (`[ ]`, `[~]`, `[x]`).
+2. **How to resume**: instructions for the next agent or human picking up the work.
+3. **Phase checklist**: detailed tasks with checkboxes per phase.
+4. **Session notes**: dated entries at the bottom summarizing what each session changed.
+
+### Backlog rules
+
+- Update the backlog after every meaningful change. Commit it alongside the work.
+- Mark tasks `[x]` as you complete them, `[~]` when in progress, `[!]` when blocked (with reason).
+- When the user says to resume work on a feature, check `.agents/plans/backlogs/` for an existing backlog first.
+- When executing a multi-phase plan, create a companion backlog in `.agents/plans/backlogs/` if one does not exist.
+- Convert relative dates to absolute dates in session notes. Write `2026-04-12`, not "today".
+
+### Reviews
+
+Reviews (security, performance, implementation and others) are saved to `.agents/reviews/{kebab-case}.md` and the same content is the reply to the user. Findings are a few sentences each with file, function and line specifics, plus a fix proposal that was actually verified during the review. No guesses.
 
 ## Verification
 
