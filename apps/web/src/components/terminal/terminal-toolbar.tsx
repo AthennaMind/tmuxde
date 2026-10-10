@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   Search,
+  FolderOpen,
   Maximize2,
   Minimize2,
   Settings,
@@ -27,6 +28,7 @@ interface TerminalToolbarProps {
   onSearchPrevious?: () => void;
   onToggleFullscreen?: () => void;
   onOpenSettings?: () => void;
+  onOpenFiles?: () => void;
   isFullscreen?: boolean;
   className?: string;
 }
@@ -37,6 +39,7 @@ export function TerminalToolbar({
   onSearchPrevious,
   onToggleFullscreen,
   onOpenSettings,
+  onOpenFiles,
   isFullscreen = false,
   className,
 }: TerminalToolbarProps) {
@@ -99,6 +102,17 @@ export function TerminalToolbar({
         />
       )}
 
+      {onOpenFiles && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onOpenFiles}
+          aria-label="Open files"
+        >
+          <FolderOpen className="mr-1 h-4 w-4" />
+          Files
+        </Button>
+      )}
       <RecordButton session={activeSessionId} />
 
       <Button

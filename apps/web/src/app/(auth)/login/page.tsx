@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
@@ -10,25 +9,10 @@ import { toast } from "sonner";
 import { RelayClient } from "@/lib/ws-client";
 import { resolveRelayWsUrl } from "@/lib/relay-url";
 import { redeemLocalPairingNonce } from "@/lib/local-pairing";
-import { hydrateDescriptor } from "@/lib/session-store";
-import {
-  TOKEN_KEY,
-  readSelfHostedToken,
-  clearStored,
-  writeStored,
-} from "@/lib/storage-keys";
+import { clearDescriptorMirror } from "@/lib/session-store";
+import { TOKEN_KEY, clearStored, writeStored } from "@/lib/storage-keys";
 
-/**
- * The self-hosted path: paste the relay token `mtmux start` printed.
- *
- * This is **not** the front door, and it used to be — `/` sent every visitor
- * with no session here, including the majority who have a pairing code and no
- * token at all. Typing a pairing code into this form opened a socket to
- * `/_relay` on whatever origin served the page, which on app.mtmux.com is
- * nothing, and hung until it timed out. `/start` is the front door now; this
- * page is reached from a link there, or directly by the CLI's own `#token=`
- * and `#n=` handoffs.
- */
+/** Connect to the local relay with its configured token or a scoped nonce. */
 export default function LoginPage() {
   const router = useRouter();
   const [token, setToken] = useState("");
@@ -41,6 +25,9 @@ export default function LoginPage() {
     (trimmedToken: string) => {
       setIsLoading(true);
 
+      // A local token must never use a previous machine's descriptor.
+      clearDescriptorMirror();
+
       // Store token first
       writeStored(TOKEN_KEY, trimmedToken);
 
@@ -51,7 +38,7 @@ export default function LoginPage() {
         clearStored(TOKEN_KEY);
         setIsLoading(false);
         toast.error(
-          "No relay answered on this origin. If you have a pairing code, use Connect with a code instead.",
+          "No relay answered on this origin. Check that your local Docker stack is running.",
         );
       }, 5000);
 
@@ -123,7 +110,7 @@ export default function LoginPage() {
   // Auto-login from the URL fragment (never sent to the server, never logged).
   // Two shapes, both stripped from the URL before anything else happens:
   //
-  //   #token=<64 hex>  the CLI's own auto-open on this machine
+  //   #token=<64 hex>  a direct local token link
   //   #n=<nonce>       a QR scan from a phone — redeemed for a scoped session
   //                    token so the long-lived AUTH_TOKEN is never typed or
   //                    transmitted to the device
@@ -137,17 +124,7 @@ export default function LoginPage() {
     const pairingNonce = params.get("n")?.trim();
 
     if (!hashToken && !pairingNonce) {
-      // No credential in the URL, but a previous hosted pairing may still be
-      // on this device: the keys and the connection descriptor both live in
-      // IndexedDB and outlive the tab. The terminal reads the descriptor
-      // synchronously and sent us here because its sessionStorage mirror was
-      // empty, so refilling it is the whole of "restore my session".
-      if (readSelfHostedToken()) return;
-      setIsLoading(true);
-      void hydrateDescriptor().then((session) => {
-        setIsLoading(false);
-        if (session) router.replace("/");
-      });
+      clearDescriptorMirror();
       return;
     }
 
@@ -180,8 +157,8 @@ export default function LoginPage() {
           Connect with a token
         </h1>
         <p className="text-sm text-muted-foreground">
-          The self-hosted path. Use the long token <code>mtmux start</code>{" "}
-          printed on the machine itself.
+          Use AUTH_TOKEN from <code>docker/local/.env.token</code> on your
+          machine.
         </p>
       </div>
 
@@ -207,25 +184,6 @@ export default function LoginPage() {
           {isLoading ? "Connecting…" : "Connect"}
         </Button>
       </form>
-
-      {/* The way out. This page used to have none, which is how someone who
-          arrived here with a pairing code and no token got stuck. */}
-      <div className="space-y-2 border-t border-border pt-5 text-sm">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground">Have a pairing code?</span>
-          <Button asChild variant="outline" size="sm" className="h-9 shrink-0">
-            <Link href="/start">Connect with a code</Link>
-          </Button>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground">
-            Already have an account?
-          </span>
-          <Button asChild variant="ghost" size="sm" className="h-9 shrink-0">
-            <Link href="/signin">Sign in</Link>
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

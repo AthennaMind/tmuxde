@@ -8,3 +8,4 @@ export * from "./semver";
 export * from "./pairing-messages";
 export * from "./grants";
 export * from "./recordings";
+export * from "./repository";

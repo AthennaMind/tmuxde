@@ -124,6 +124,13 @@ describe("queue policy", () => {
     client.disconnect();
     client.send({ type: "terminal:input", data: "rm -rf /\r" });
     client.send({ type: "terminal:resize", size: { cols: 10, rows: 5 } });
+    client.send({
+      type: "file:upload",
+      path: "/uploads/photo.png",
+      content: "YQ==",
+      final: false,
+      ack: true,
+    });
 
     client.connect();
     const socket = latest();

@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AppShell } from "@repo/ui/components/app-shell";
-import { Button } from "@repo/ui/components/ui/button";
 import { cn } from "@repo/ui/lib/utils";
 import { ThemeToggle } from "@repo/ui/components/theme-toggle";
 import { ConnectionStatus } from "@repo/ui/components/connection-status";
@@ -21,7 +19,8 @@ import { MOBILE_MEDIA_QUERY } from "@/lib/mobile-query";
 import { MobileNav } from "@/components/mobile/mobile-nav";
 import { CommandComposer } from "@/components/mobile/command-composer";
 import { KeyboardToolbar } from "@/components/mobile/keyboard-toolbar";
-import { MobileCommandBar } from "@/components/mobile/mobile-command-bar";
+import { RecentPhotos } from "@/components/terminal/recent-photos";
+import { PhotoUpload } from "@/components/terminal/photo-upload";
 import { useUiStore } from "@/stores/ui-store";
 import { useAlertStore } from "@/stores/alert-store";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
@@ -46,6 +45,7 @@ import { SessionCreateDialog } from "@/components/session/session-create-dialog"
 import { useMobileHistory } from "@/hooks/use-mobile-history";
 import { resolveRelayWsUrl } from "@/lib/relay-url";
 import {
+  clearDescriptorMirror,
   loadDescriptor,
   hydrateDescriptor,
   loadSessionKeys,
@@ -53,10 +53,9 @@ import {
 } from "@/lib/session-store";
 import { type TransportFactory } from "@/lib/transport";
 import { resolveRoute } from "@/lib/resolve-route";
-import { LayoutGrid, Loader2, Terminal } from "lucide-react";
+import { Loader2, Terminal } from "lucide-react";
 import { markBounced } from "@/lib/bounce-guard";
 import { copyFailureReason, copyText } from "@/lib/clipboard";
-import { isHostedBuild } from "@/lib/auth-client";
 import {
   LAST_SESSION_KEY,
   OPEN_NEW_SESSION_KEY,
@@ -103,8 +102,7 @@ type Auth =
 function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [auth, setAuth] = useState<Auth>({ phase: "checking" });
-  // Set only for a session paired through the broker that fell back to the
-  // tunnel; the direct path uses a plain socket like everything else.
+  // Transport state stays compatible with saved machine connections.
   const [transport, setTransport] = useState<TransportFactory | undefined>();
   // Selected, and for the sharpest reason of all: `composerDraft` lives in this
   // same store and is written on every keystroke in the command composer.
@@ -112,14 +110,7 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
   const setMobileTab = useUiStore((s) => s.setMobileTab);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-  /**
-   * "New session" on the dashboard lands here.
-   *
-   * Creating one needs a live relay connection, which the dashboard has for no
-   * machine in particular — so it activates the descriptor, leaves a one-shot
-   * flag, and this opens the dialog once the socket is up. Read and cleared
-   * immediately, so a back-navigation does not re-open it.
-   */
+  /** Open session creation when requested by a saved machine control. */
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.sessionStorage.getItem(OPEN_NEW_SESSION_KEY) !== "1") return;
@@ -146,35 +137,22 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
 
   useMobileHistory();
 
-  // Auth guard. Two accepted credentials:
-  //
-  //   1. The self-hosted token — from localStorage, or from memory once a
-  //      device lock has taken it out of localStorage.
-  //   2. A session paired through the broker, whose keys live in IndexedDB
-  //      rather than localStorage so an XSS cannot read them. The relay is
-  //      authenticated with the direct-path token both sides derived, so no
-  //      long-lived secret was ever sent to this device.
+  // Accept a local token or saved keys with a working permitted route.
   useEffect(() => {
     const storedToken = readSelfHostedToken();
     if (storedToken) {
+      clearDescriptorMirror();
       setAuth({ phase: "ready", token: storedToken });
       return;
     }
 
     let cancelled = false;
 
-    /**
-     * Give up, and send them somewhere they can actually do something.
-     *
-     * `/start` rather than `/login`: `/login` asks for the self-hosted 64-hex
-     * relay token, which a hosted visitor has no way to obtain. `replace`
-     * rather than `push`, so the back button does not walk straight back into
-     * the page that just bounced them.
-     */
+    // Failed saved routes return to token login without deleting stored keys.
     const giveUp = () => {
       setAuth({ phase: "none" });
       markBounced();
-      router.replace("/start");
+      router.replace("/login");
     };
 
     void (async () => {
@@ -196,26 +174,16 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setAuth({ phase: "ready", token: keys.directToken });
-
-      /**
-       * Re-decide the route on every load, rather than trusting the one that
-       * won at pairing time.
-       *
-       * This used to be `if (!session.preferredCandidate)`, which meant a
-       * session that once found a direct LAN address kept that address for
-       * good. Take the phone out of the house and it retried
-       * `ws://192.168.1.5:14100` forever, never falling through to the tunnel
-       * that was sitting there working — "Reconnecting…", indefinitely, with
-       * nothing on screen to do about it.
-       *
-       * The race is bounded at 800 ms and only runs on a cold start, so this
-       * costs a fraction of a second and buys a session that survives changing
-       * networks.
-       */
+      // Authenticate only after a permitted candidate accepts these keys.
       const route = await resolveRoute(session, keys);
       if (cancelled) return;
+      if (!route.preferredCandidate) {
+        clearDescriptorMirror();
+        giveUp();
+        return;
+      }
       setTransport(() => route.transport);
+      setAuth({ phase: "ready", token: keys.directToken });
     })();
 
     return () => {
@@ -353,7 +321,7 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
           ? "reconnecting"
           : "disconnected";
 
-  const header = (
+  const header = isMobile ? undefined : (
     <>
       <div
         className={cn(
@@ -364,9 +332,6 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
         <Terminal className="h-4 w-4 text-primary" />
         {/* #5: Hide the wordmark on mobile — icon only */}
         {!isMobile && <span className="text-sm font-semibold">mtmux</span>}
-        {/* On mobile this is the *only* route to the machines: the Machines
-            link below is hidden under 768px, and the settings panel's Account
-            section was four taps and a page load away from switching. */}
         <MachineSwitcher />
         <ConnectionStatus
           status={connectionStatusType}
@@ -392,23 +357,8 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
         {/* #5: ThemeToggle hidden on mobile — moved to settings panel (#12) */}
         {!isMobile && (
           <div className="ml-auto flex items-center gap-1">
-            {/* The terminal and the dashboard were two islands with no bridge
-                in either direction. This is the desktop half; the mobile half
-                is the Account section in the settings panel, and there is a
-                "Go to" group in the command palette for both. */}
-            {isHostedBuild && (
-              <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className="h-8 text-muted-foreground hover:text-foreground"
-              >
-                <Link href="/dashboard">
-                  <LayoutGrid className="mr-1.5 h-4 w-4" aria-hidden />
-                  Machines
-                </Link>
-              </Button>
-            )}
+            <PhotoUpload className="h-8" />
+            <RecentPhotos className="h-8" />
             <ThemeToggle />
           </div>
         )}
@@ -426,11 +376,12 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
 
   const toolbar = isMobile ? (
     <div>
-      {mobileTab === "terminal" && activeSessionId && canType && (
-        <MobileCommandBar />
-      )}
+      <ConnectionBanner />
+      <CapabilityBanner />
       {mobileTab === "terminal" && canType && (
         <KeyboardToolbar
+          onFocusTerminal={() => getTerminalHandle()?.focus()}
+          onBlurTerminal={() => getTerminalHandle()?.blur()}
           onSearchOpen={() => useUiStore.getState().setTerminalSearchOpen(true)}
           onCopy={handleCopySelection}
         />
@@ -444,7 +395,19 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
   ) : undefined;
 
   return (
-    <AppShell header={header} toolbar={toolbar}>
+    <AppShell
+      className="mtmux-terminal-shell"
+      header={header}
+      toolbar={toolbar}
+    >
+      {/* WebKit skips edge colors from boxes at most 10px tall. Clipping
+          background to empty text preserves its color without covering content. */}
+      {isMobile && (
+        <div
+          aria-hidden="true"
+          className="mtmux-status-bar pointer-events-none fixed inset-x-0 top-0 z-[var(--z-banner)] h-[max(11px,env(safe-area-inset-top))] bg-background bg-clip-text"
+        />
+      )}
       <VisualViewportSync />
       <ErrorBoundary fallbackMessage="Terminal crashed">
         {children}

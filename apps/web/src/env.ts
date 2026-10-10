@@ -9,12 +9,9 @@ export const env = createEnv({
   },
   client: {
     NEXT_PUBLIC_RELAY_URL: z.string().optional(),
-    // Hosted pairing broker. Unset for self-hosters, who never contact it.
-    NEXT_PUBLIC_API_URL: z.string().optional(),
   },
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_RELAY_URL: process.env.NEXT_PUBLIC_RELAY_URL,
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
 });

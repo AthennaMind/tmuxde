@@ -16,12 +16,15 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
  * Run with `pnpm --filter @app/web test:idb`, and both from `pnpm test`.
  */
 export default defineConfig({
+  cacheDir: ".turbo/vite",
+  oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     alias: {
       "@": path.resolve(dirname, "./src"),
     },
   },
   test: {
+    maxWorkers: 2,
     environment: "node",
     name: "idb",
     include: ["src/**/*.idb.test.ts"],

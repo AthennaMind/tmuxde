@@ -102,6 +102,7 @@ export const POLICY: Record<ClientMessage["type"], Policy> = {
   "command:clear": { write: true },
   "command:suspend": { write: true },
 
+  "repo:request": { files: "read", paneId: true },
   "file:list": { files: "read" },
   "file:read": { files: "read" },
   "file:stat": { files: "read" },

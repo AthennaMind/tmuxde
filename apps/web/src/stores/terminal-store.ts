@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { DEFAULT_TERMINAL_FONT } from "@/lib/terminal-font.js";
 
 export function getDefaultFontSize(): number {
   if (typeof window === "undefined") return 14;
@@ -48,7 +49,7 @@ export const useTerminalStore = create<TerminalStore>()(
   persist(
     (set) => ({
       fontSize: getDefaultFontSize(),
-      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+      fontFamily: DEFAULT_TERMINAL_FONT,
       themeName: "dracula",
       cursorStyle: "block",
       cursorBlink: true,

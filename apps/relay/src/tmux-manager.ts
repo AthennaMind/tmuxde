@@ -623,79 +623,140 @@ export interface ScrollState {
   inMode: boolean;
 }
 
-/**
- * Read the pane's scroll position, history size and copy-mode flag at once.
- *
- * One `display-message` rather than one per field, because every one of these
- * costs a process spawn and this is read on a drag. `scroll_position` is empty
- * outside copy mode — tmux only tracks it there — which is not missing data:
- * a pane that is not in copy mode is showing live output, i.e. position 0.
- */
-export async function readScrollState(session: string): Promise<ScrollState> {
+/** Read scroll state and input modes from the same pane snapshot. */
+async function readScrollTarget(session: string) {
   const { stdout } = await execFileAsync("tmux", [
     ...tmuxArgs(),
     "display-message",
     "-p",
     "-t",
     session,
-    "#{pane_in_mode}\t#{scroll_position}\t#{history_size}\t#{pane_height}",
+    [
+      "#{pane_id}",
+      "#{pane_in_mode}",
+      "#{scroll_position}",
+      "#{history_size}",
+      "#{pane_height}",
+      "#{pane_width}",
+      "#{alternate_on}",
+      "#{mouse_any_flag}",
+      "#{mouse_sgr_flag}",
+      "#{mouse_utf8_flag}",
+    ].join("\t"),
   ]);
-  const [inMode, position, historySize, paneHeight] = stdout.trim().split("\t");
+  const [
+    pane,
+    inMode,
+    position,
+    historySize,
+    paneHeight,
+    paneWidth,
+    alternate,
+    mouse,
+    sgr,
+    utf8,
+  ] = stdout.trim().split("\t");
   const num = (value: string | undefined): number => {
     const parsed = Number.parseInt(value ?? "", 10);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   };
-  return {
+  const application = inMode !== "1" && (alternate === "1" || mouse === "1");
+  const state: ScrollState = {
     inMode: inMode === "1",
     position: num(position),
-    historySize: num(historySize),
+    // The shell history rail has no meaningful position inside an application.
+    historySize: application ? 0 : num(historySize),
     paneHeight: num(paneHeight),
+  };
+  return {
+    pane: pane || session,
+    state,
+    application,
+    mouse: mouse === "1",
+    sgr: sgr === "1",
+    utf8: utf8 === "1",
+    width: num(paneWidth),
   };
 }
 
+export async function readScrollState(session: string): Promise<ScrollState> {
+  return (await readScrollTarget(session)).state;
+}
+
 /**
- * Scroll the session's active pane through its history.
- *
- * Positive `lines` goes back into the past. This has to happen here rather
- * than in the browser: `attachSession` runs a real `tmux attach-session`, so
- * tmux owns the alternate screen and the client's own scrollback is always
- * empty — the history only exists inside tmux, reachable only from copy mode.
- *
- * Entering copy mode is conditional so a drag that emits several of these does
- * not restart the view at the bottom on every one; `-e` means tmux leaves copy
- * mode by itself once the user scrolls back to the live output, which is the
- * behaviour a scroll gesture should have.
- *
- * Returns where the pane ended up, so the caller can tell the client without
- * paying for a second round of `tmux` spawns.
+ * Scroll the active application, or shell history when no application owns it.
+ * Explicit copy mode keeps its history behavior until the user leaves it.
  */
 export async function scrollHistory(
   session: string,
   lines: number,
+  allowApplicationInput = true,
 ): Promise<ScrollState> {
   const count = Math.trunc(lines);
   if (count === 0) return readScrollState(session);
-  const before = await readScrollState(session);
+  const target = await readScrollTarget(session);
+  const { pane, state: before } = target;
+  if (target.application) {
+    if (!allowApplicationInput) return before;
+    const repeat = Math.min(Math.abs(count), 500);
+    if (target.mouse) {
+      const button = count > 0 ? 64 : 65;
+      // Aim inside the active pane, away from status lines and input footers.
+      const x = Math.max(1, Math.ceil(target.width / 2));
+      const y = Math.max(1, Math.ceil(before.paneHeight / 2));
+      let wheel: Buffer;
+      if (target.sgr) {
+        wheel = Buffer.from(`\x1b[<${button};${x};${y}M`);
+      } else {
+        const limit = target.utf8 ? 2015 : 223;
+        wheel = Buffer.from(
+          "\x1b[M" +
+            String.fromCharCode(
+              button + 32,
+              Math.min(x, limit) + 32,
+              Math.min(y, limit) + 32,
+            ),
+          target.utf8 ? "utf8" : "latin1",
+        );
+      }
+      const bytes = Buffer.concat(Array.from({ length: repeat }, () => wheel));
+      // Hex input preserves legacy mouse bytes above ASCII through tmux.
+      await execFileAsync("tmux", [
+        ...tmuxArgs(),
+        "send-keys",
+        "-t",
+        pane,
+        "-H",
+        ...Array.from(bytes, (byte) => byte.toString(16)),
+      ]);
+    } else {
+      // Match terminal alternate-screen scrolling for apps without a mouse.
+      await execFileAsync("tmux", [
+        ...tmuxArgs(),
+        "send-keys",
+        "-t",
+        pane,
+        "-N",
+        String(repeat),
+        count > 0 ? "Up" : "Down",
+      ]);
+    }
+    return readScrollState(pane);
+  }
   if (!before.inMode) {
-    await execFileAsync("tmux", [
-      ...tmuxArgs(),
-      "copy-mode",
-      "-e",
-      "-t",
-      session,
-    ]);
+    await execFileAsync("tmux", [...tmuxArgs(), "copy-mode", "-e", "-t", pane]);
   }
   await execFileAsync("tmux", [
     ...tmuxArgs(),
     "send-keys",
     "-t",
-    session,
+    pane,
     "-X",
     "-N",
     String(Math.abs(count)),
     count > 0 ? "scroll-up" : "scroll-down",
   ]);
-  return readScrollState(session);
+  return readScrollState(pane);
 }
 
 /**
@@ -709,13 +770,14 @@ export async function scrollHistory(
 export async function scrollToPosition(
   session: string,
   position: number,
+  allowApplicationInput = true,
 ): Promise<ScrollState> {
   const target = Math.max(0, Math.trunc(position));
   const state = await readScrollState(session);
   const clamped = Math.min(target, state.historySize);
   const delta = clamped - (state.inMode ? state.position : 0);
   if (delta === 0) return state;
-  return scrollHistory(session, delta);
+  return scrollHistory(session, delta, allowApplicationInput);
 }
 
 /**

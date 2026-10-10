@@ -5,7 +5,7 @@ import type { NextRequest } from "next/server";
 // `proxy`. Behaviour here is unchanged: this only sets security headers. The
 // auth guard stays client-side because the credential lives in localStorage /
 // IndexedDB, which a server-side proxy can't read.
-export function proxy(_request: NextRequest) {
+export function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   // Derive relay HTTP origin for CSP (allows <img>, <video>, <audio>, <iframe> to load files).
@@ -13,39 +13,21 @@ export function proxy(_request: NextRequest) {
   // and 'self' already covers it.
   const relayWsUrl = process.env.NEXT_PUBLIC_RELAY_URL;
   const relayOrigin = relayWsUrl
-    ? ` ${relayWsUrl.replace(/^ws:/, "http:").replace(/^wss:/, "https:")}`
+    ? ` ${new URL(relayWsUrl.replace(/^ws:/, "http:").replace(/^wss:/, "https:")).origin}`
     : "";
-
-  // The pairing broker is a genuine cross-origin fetch target: /pair calls
-  // /v1/pair/new and /v1/discover on it. Without this the page cannot reach the
-  // broker at all and hosted pairing dies with a CSP violation — so it is added
-  // explicitly rather than by loosening connect-src to all of https:.
-  // Unset for self-hosters, who never contact a broker.
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  const apiOrigin = apiUrl ? ` ${apiUrl.replace(/\/+$/, "")}` : "";
+  const socketOrigin = new URL(request.url).origin.replace(/^http/, "ws");
+  const relaySocketOrigin = relayWsUrl ? ` ${new URL(relayWsUrl).origin}` : "";
 
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  /*
-   * A tripwire rather than a fix.
-   *
-   * Nothing is broken today — this app sends no Permissions-Policy at all, so
-   * the microphone is allowed by default. But `apps/site` sets
-   * `microphone=()`, and the day somebody consolidates the two header blocks
-   * dictation dies with no console message and no obvious cause. Stating the
-   * grant explicitly means that consolidation is a diff someone has to read.
-   *
-   * `camera` and `geolocation` are denied because this app has no use for
-   * either and never should.
-   */
   response.headers.set(
     "Permissions-Policy",
-    "microphone=(self), camera=(), geolocation=()",
+    "microphone=(), camera=(), geolocation=()",
   );
   response.headers.set(
     "Content-Security-Policy",
-    `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:${apiOrigin}; font-src 'self' data:; img-src 'self' data: blob:${relayOrigin}; media-src 'self'${relayOrigin}; frame-src 'self'${relayOrigin};`,
+    `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ${socketOrigin}${relaySocketOrigin}${relayOrigin}; worker-src 'self' blob:; font-src 'self' data:; img-src 'self' data: blob:${relayOrigin}; media-src 'self'${relayOrigin}; frame-src 'self'${relayOrigin};`,
   );
 
   return response;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RepoResponse } from "./repository";
 import { RecordingId, RecordingInfo, RecordingStopReason } from "./recordings";
 import {
   SessionInfoSchema,
@@ -171,6 +172,7 @@ export const FileOpResultMessage = z.object({
   path: z.string(),
   success: z.boolean(),
   error: z.string().optional(),
+  final: z.boolean().optional(),
 });
 
 // Pane/Window response messages
@@ -371,6 +373,7 @@ export const RecordingChunkMessage = z.object({
 });
 
 export const ServerMessage = z.discriminatedUnion("type", [
+  RepoResponse,
   AuthSuccessMessage,
   AuthFailureMessage,
   PongMessage,

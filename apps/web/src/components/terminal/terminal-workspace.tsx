@@ -14,7 +14,7 @@ import { TerminalSearch } from "@/components/terminal/terminal-search";
 import { TerminalScrollRail } from "@/components/terminal/terminal-scroll-rail";
 import { SessionList } from "@/components/session/session-list";
 import { SessionCreateDialog } from "@/components/session/session-create-dialog";
-import { FileTree } from "@/components/files/file-tree";
+import { RepositoryBrowser } from "@/components/files/repository-browser";
 import { SettingsPanel } from "@/components/settings/settings-panel";
 import { WindowTabs } from "@/components/mobile/window-tabs";
 import { TmuxFab } from "@/components/mobile/tmux-fab";
@@ -30,7 +30,6 @@ import { Button } from "@repo/ui/components/ui/button";
 import { useSessionStore } from "@/stores/session-store";
 import { useFileStore } from "@/stores/file-store";
 import { useUiStore } from "@/stores/ui-store";
-import { getRelayClient } from "@/hooks/use-websocket";
 import { useWheelScroll } from "@/hooks/use-wheel-scroll";
 
 const FileEditor = dynamic(
@@ -72,10 +71,9 @@ export function TerminalWorkspace() {
   const isMobile = useStableMediaQuery(MOBILE_MEDIA_QUERY);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const setSelectedFile = useFileStore((s) => s.setSelectedFile);
+  const [filesOpen, setFilesOpen] = useState(false);
   const editorFile = useFileStore((s) => s.editorFile);
   const editorForceText = useFileStore((s) => s.editorForceText);
-  const openEditor = useFileStore((s) => s.openEditor);
   const mobileTab = useUiStore((s) => s.mobileTab);
   const setMobileTab = useUiStore((s) => s.setMobileTab);
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
@@ -94,9 +92,6 @@ export function TerminalWorkspace() {
    */
   const paneRef = useWheelScroll();
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const currentPath = useFileStore((s) => s.currentPath);
-  const setCurrentPath = useFileStore((s) => s.setCurrentPath);
-  const setIsLoading = useFileStore((s) => s.setIsLoading);
 
   // #3: Auto-switch to terminal tab on session attach
   useEffect(() => {
@@ -129,24 +124,6 @@ export function TerminalWorkspace() {
       clearTimeout(settle);
     };
   }, [isMobile, mobileTab]);
-
-  // #2: Navigate handler for inline breadcrumb
-  const handleBreadcrumbNavigate = useCallback(
-    (path: string) => {
-      setCurrentPath(path);
-      setIsLoading(true);
-      getRelayClient()?.send({ type: "file:list", path });
-    },
-    [setCurrentPath, setIsLoading],
-  );
-
-  const handleFileSelect = useCallback(
-    (path: string) => {
-      setSelectedFile(path);
-      openEditor(path);
-    },
-    [setSelectedFile, openEditor],
-  );
 
   const handleSearch = useCallback((term: string) => {
     terminalRef.current?.search(term);
@@ -195,7 +172,7 @@ export function TerminalWorkspace() {
           )}
         >
           <div className="flex h-full flex-col">
-            <WindowTabs />
+            <WindowTabs className="mtmux-hide-when-keyboard" />
             <div ref={paneRef} className="relative flex-1 overflow-hidden">
               {/* One recogniser for scroll, swipe and pinch — the three used
                   to be split across two stacked components that fought each
@@ -218,10 +195,7 @@ export function TerminalWorkspace() {
                   onClose={() => setTerminalSearchOpen(false)}
                 />
               )}
-              {/* Siblings of the gesture surface, not children, so their own
-                  touches never reach the recogniser. Lives inside the terminal
-                  pane rather than the viewport: as a `fixed` element the FAB
-                  overlapped the command bar's send button. */}
+              {/* Actions open from More, outside terminal gesture handling. */}
               <TmuxFab />
               {/* A sibling of the gesture surface, like everything else that
                   needs its own touches: `touch-action: none` cannot be given
@@ -247,12 +221,9 @@ export function TerminalWorkspace() {
             mobileTab === "files" ? "flex" : "hidden",
           )}
         >
-          <FileTree
-            onFileSelect={handleFileSelect}
-            className="flex-1"
-            breadcrumbPath={currentPath}
-            onNavigate={handleBreadcrumbNavigate}
-          />
+          {mobileTab === "files" && (
+            <RepositoryBrowser className="min-h-0 flex-1" />
+          )}
         </div>
         <div
           className={cn(
@@ -323,6 +294,7 @@ export function TerminalWorkspace() {
           onSearchPrevious={handleSearchPrevious}
           onToggleFullscreen={handleToggleFullscreen}
           onOpenSettings={handleOpenSettings}
+          onOpenFiles={() => setFilesOpen((open) => !open)}
           isFullscreen={isFullscreen}
         />
         {/* Windows are not a mobile concept. The desktop client used to have
@@ -340,6 +312,18 @@ export function TerminalWorkspace() {
           <TerminalScrollRail sessionName={activeSessionId} />
         </div>
       </div>
+
+      {filesOpen && (
+        <aside
+          aria-label="Repository files"
+          className="flex w-[min(48rem,60vw)] shrink-0 flex-col border-l border-border"
+        >
+          <RepositoryBrowser
+            className="min-h-0 flex-1"
+            onClose={() => setFilesOpen(false)}
+          />
+        </aside>
+      )}
 
       {/* File editor overlay */}
       {editorFile &&

@@ -4,6 +4,9 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal as XTerm } from "@xterm/xterm";
 
+import { refreshWhenFontLoads, terminalFontFamily } from "./terminal-font.js";
+import { brightenDimText } from "./terminal-dim.js";
+
 import {
   getTerminalTheme,
   terminalThemeToXterm,
@@ -35,6 +38,7 @@ export type XtermOptions = {
   themeName: string;
   fontSize: number;
   fontFamily: string;
+  readableText?: boolean;
   cursorStyle?: "block" | "underline" | "bar";
   cursorBlink?: boolean;
   scrollback?: number;
@@ -108,7 +112,10 @@ export function createXterm(options: XtermOptions): XtermBundle {
    */
   const terminal = new XTerm({
     fontSize: options.fontSize,
-    fontFamily: options.fontFamily,
+    fontFamily: terminalFontFamily(options.fontFamily),
+    fontWeight: options.readableText ? 500 : 400,
+    lineHeight: options.readableText ? 1.15 : 1,
+    minimumContrastRatio: options.readableText ? 4.5 : 1,
     theme: terminalThemeToXterm(theme),
     allowProposedApi: true,
     macOptionIsMeta: true,
@@ -139,8 +146,21 @@ export function createXterm(options: XtermOptions): XtermBundle {
 
   terminal.unicode.activeVersion = "11";
   terminal.open(options.container);
+  if (options.readableText) brightenDimText(terminal);
+  if (terminal.textarea) {
+    terminal.textarea.enterKeyHint = "enter";
+    terminal.textarea.setAttribute("aria-label", "Terminal input");
+    // Prevent Safari focus zoom without changing terminal character metrics.
+    terminal.textarea.style.fontSize = "16px";
+  }
 
   patchRenderServiceDimensions(terminal);
+  void refreshWhenFontLoads(terminal, document.fonts, () => {
+    // xterm 5 does not remeasure characters after web fonts finish loading.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (terminal as any)._core?._charSizeService?.measure();
+    fitAddon.fit();
+  });
 
   return { terminal, fitAddon, searchAddon };
 }

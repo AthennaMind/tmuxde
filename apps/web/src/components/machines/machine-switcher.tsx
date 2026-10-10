@@ -6,7 +6,6 @@ import {
   ChevronsUpDown,
   ChevronDown,
   ChevronUp,
-  LayoutGrid,
   Loader2,
   Pencil,
   PlugZap,
@@ -26,9 +25,6 @@ import { Input } from "@repo/ui/components/ui/input";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
 import { cn } from "@repo/ui/lib/utils";
 import { toast } from "sonner";
-import { apiFetch, isHostedBuild } from "@/lib/auth-client";
-import { deviceIdForPublicKey } from "@/components/account/connect-to-server";
-import { FORGET_MACHINE_BODY } from "@/components/account/forget-machine-dialog";
 import {
   listMachines,
   moveMachine,
@@ -70,7 +66,7 @@ export function MachineSwitcher({ className }: { className?: string }) {
     try {
       const session = loadDescriptor();
       setActiveId(session ? serverIdFor(session.descriptor) : null);
-      setMachines(await listMachines(await accountNames()));
+      setMachines(await listMachines());
     } finally {
       setLoading(false);
     }
@@ -122,33 +118,6 @@ export function MachineSwitcher({ className }: { className?: string }) {
       />
     </>
   );
-}
-
-/**
- * The account's names, when there are any.
- *
- * Best-effort on purpose: signed out, offline, or self-hosted all mean "no
- * account names", which is not an error — it is the normal case for half the
- * product. The hostname from the pairing is always there as the fallback.
- */
-async function accountNames(): Promise<Map<string, string>> {
-  const names = new Map<string, string>();
-  if (!isHostedBuild) return names;
-  try {
-    const body = await apiFetch<{
-      servers?: { name?: unknown; publicKey?: unknown }[];
-    }>("/v1/servers");
-    for (const raw of body.servers ?? []) {
-      if (typeof raw.publicKey !== "string" || typeof raw.name !== "string") {
-        continue;
-      }
-      const id = deviceIdForPublicKey(raw.publicKey);
-      if (id && raw.name) names.set(id, raw.name);
-    }
-  } catch {
-    // Signed out or unreachable.
-  }
-  return names;
 }
 
 function MachineSheet({
@@ -293,16 +262,6 @@ function MachineSheet({
             <PlugZap className="h-4 w-4" aria-hidden />
             Pair another
           </Button>
-          {isHostedBuild && (
-            <Button
-              variant="outline"
-              className="h-11 flex-1"
-              onClick={() => window.location.assign("/dashboard")}
-            >
-              <LayoutGrid className="h-4 w-4" aria-hidden />
-              Manage
-            </Button>
-          )}
         </div>
       </SheetContent>
     </Sheet>
@@ -480,11 +439,10 @@ function MachineRow({
           dismissed before the first makes sense again. */}
       {confirmingForget && (
         <div className="space-y-2 border-t border-border px-3 py-3">
-          {/* The same sentence the dashboard's dialog uses, imported rather
-              than retyped. Copying this copy is how the dashboard's session
-              card ended up with no confirmation at all while two other
-              surfaces had one. */}
-          <p className="text-xs text-muted-foreground">{FORGET_MACHINE_BODY}</p>
+          <p className="text-xs text-muted-foreground">
+            This browser deletes its keys for that machine. Running sessions and
+            other devices stay connected. Pair again to restore access.
+          </p>
           <div className="flex gap-2">
             <Button
               variant="outline"

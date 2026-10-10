@@ -58,6 +58,7 @@ const MAX_PENDING_MESSAGES = 50;
  */
 const DROP_WHEN_DISCONNECTED: ReadonlySet<ClientMessage["type"]> = new Set([
   "terminal:input",
+  "file:upload",
   "terminal:resize",
   "command:send",
   "tmux:prefix",

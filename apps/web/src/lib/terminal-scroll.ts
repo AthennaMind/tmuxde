@@ -16,7 +16,7 @@
  */
 
 import { getRelayClient } from "@/hooks/use-websocket";
-import { noteEnteredCopyMode } from "@/lib/copy-mode-belief";
+import { noteEnteredCopyMode, noteLeftCopyMode } from "@/lib/copy-mode-belief";
 import { useSessionStore } from "@/stores/session-store";
 
 /** Longest a burst waits before the accumulated lines go on the wire. */
@@ -59,7 +59,7 @@ export function flushScroll(): void {
     type: "tmux:scroll",
     lines: Math.max(-MAX_LINES, Math.min(MAX_LINES, lines)),
   });
-  noteEnteredCopyMode(target.session);
+  if (support !== "yes") noteEnteredCopyMode(target.session);
 }
 
 /** Scroll by `lines`, positive back into the past. Coalesced. */
@@ -99,7 +99,7 @@ export function scrollToPosition(position: number): void {
     type: "tmux:scroll-to",
     position: Math.max(0, Math.round(position)),
   });
-  noteEnteredCopyMode(target.session);
+  if (support !== "yes") noteEnteredCopyMode(target.session);
 }
 
 /*
@@ -138,8 +138,11 @@ export function requestScrollState(): void {
 }
 
 /** The relay answered, so it speaks these messages. Called by the socket hook. */
-export function noteScrollStateReply(): void {
+export function noteScrollStateReply(inMode?: boolean): void {
   support = "yes";
+  const session = useSessionStore.getState().activeSessionId;
+  if (inMode === true) noteEnteredCopyMode(session);
+  if (inMode === false) noteLeftCopyMode(session);
   if (probeTimer !== null) {
     clearTimeout(probeTimer);
     probeTimer = null;

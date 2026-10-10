@@ -1,0 +1,406 @@
+---
+title: Protocol Reference
+description: Every message type in @repo/protocol — the relay protocol and the pairing/tunnel protocol.
+---
+
+`packages/protocol` defines **two** separate pairs of Zod discriminated unions,
+deliberately not merged:
+
+- **Relay protocol** — `client-messages.ts` / `server-messages.ts`. Travels over
+  the tmux relay socket. **44** client types, **24** server types.
+- **Pairing and tunnel protocol** — `pairing-messages.ts`. Travels between the
+  browser or CLI and the pairing broker, never over the relay socket.
+
+Folding them together would imply the relay understands pairing (it does not)
+and that the broker understands terminals (it must not).
+
+Everything is JSON-serialised and validated on both ends by `codec.ts`.
+
+---
+
+## Relay protocol
+
+## Client → relay
+
+### Authentication and keep-alive
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `auth` | `token: string` | Must be the first message, within 5 seconds |
+| `ping` | `timestamp: number` | Latency measurement |
+
+### Sessions
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `session:list` | — | List all tmux sessions |
+| `session:create` | `name?`, `cwd?`, `command?` | Create a session |
+| `session:attach` | `name`, `size?`, `capture?`, `attachId?` | Attach to a session |
+| `session:detach` | — | Detach from the current session |
+| `session:kill` | `name` | Kill a session |
+| `session:rename` | `oldName`, `newName` | Rename a session |
+| `session:windows` | `name` | Windows and panes for a session |
+
+`attachId` is an attach epoch, echoed back on `session:attached` so a client can
+reject the acknowledgement of a superseded attach instead of letting a stale one
+corrupt its state machine. Optional, so older clients and relays stay compatible.
+
+### Terminal I/O
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `terminal:input` | `data: string` | Keystrokes to the PTY |
+| `terminal:resize` | `size: { cols, rows }` | Resize the terminal |
+
+`cols` is 1–1000, `rows` 1–500.
+
+### Panes
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `pane:list` | — | Panes in the active window |
+| `pane:split` | `direction: "h" \| "v"` | Split the active pane |
+| `pane:select` | `id` | Focus a pane |
+| `pane:zoom` | — | Toggle zoom on the active pane |
+| `pane:resize` | `id`, `direction: "U"\|"D"\|"L"\|"R"`, `amount` | Resize a pane |
+| `pane:swap` | `id`, `direction` | Swap a pane with its neighbour |
+| `pane:kill` | `id` | Kill a pane |
+| `pane:capture` | `id` | Capture a pane's contents as text |
+
+### Windows
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `window:list` | — | Windows in the active session |
+| `window:create` | `name?` | Create a window |
+| `window:select` | `id` | Focus a window |
+| `window:rename` | `id`, `name` | Rename a window |
+| `window:kill` | `id` | Kill a window |
+| `window:layout` | `preset` | Apply a tmux layout |
+| `layout:rotate` | — | Rotate the current layout |
+
+`preset` is one of `even-horizontal`, `even-vertical`, `main-horizontal`,
+`main-vertical`, `tiled`.
+
+### tmux control
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `tmux:prefix` | — | Send the tmux prefix key |
+| `tmux:copy-mode` | — | Enter copy mode |
+| `tmux:scroll` | `lines: number` | Scroll active pane up for positive values, down for negative values. Range: -500 to 500 |
+| `tmux:scroll-to` | `position: number` | Jump to position in tmux history, measured in lines above live output |
+| `tmux:scroll-state` | No fields | Request current history position and copy-mode state |
+| `tmux:exit-copy-mode` | No fields | Leave copy mode |
+
+Relative scrolling sends mouse wheel events to apps with mouse reporting enabled.
+Alternate-screen apps without mouse support receive arrow keys. Normal shell
+output uses tmux history. Explicit copy mode keeps history scrolling until exited.
+Mouse events target center of active pane. Scrollbar history size is zero while
+app handles scrolling, so shell history rail stays hidden during TUI use.
+
+### Commands
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `command:send` | `command: string` | Send a command, appending Enter |
+| `command:interrupt` | — | Ctrl+C |
+| `command:eof` | — | Ctrl+D |
+| `command:clear` | — | Clear the screen |
+| `command:suspend` | — | Ctrl+Z |
+
+### Files
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `file:list` | `path` | List a directory |
+| `file:read` | `path` | Read a file (truncated above 100 KB) |
+| `file:stat` | `path` | File metadata |
+| `file:write` | `path`, `content` | Overwrite a file (max 1 MB) |
+| `file:create` | `path`, `content?` | Create a file |
+| `file:mkdir` | `path` | Create a directory |
+| `file:delete` | `path` | Delete a file or directory |
+| `file:rename` | `oldPath`, `newPath` | Rename or move |
+| `file:upload` | `path`, `content` (base64), `final`, `ack?` | Chunked upload (max 10 MB). With `ack: true`, each chunk returns `file:op:result` with `final` echoed after write completes. Wait for acknowledgement before sending next chunk. Requires `file:upload:ack` in `auth:success.features`. |
+| `file:watch` | `path` | Watch a directory (`depth: 0`) |
+| `file:unwatch` | `path` | Stop watching |
+
+Every one of these passes the `ALLOWED_PATHS` guard before touching the disk.
+
+### Repository viewer
+
+Requires `repo:request` in `auth:success.features`, file read access, and a pane
+inside attached session. Each request receives `repo:result` with matching
+`requestId`, including permission denials and errors.
+
+```ts
+{
+  type: "repo:request";
+  requestId: string;
+  id: string; // Target pane ID. Required for every action.
+  action: "context" | "list" | "read" | "status" | "diff";
+  path?: string;
+  file?: string;
+  scope?: "unstaged" | "staged" | "untracked";
+}
+```
+
+`context` resolves current pane directory from tmux. `list` defaults to that
+directory. `read` requires `path`. `status` and `diff` accept captured context
+in `path` so changing pane directory does not silently switch repositories.
+`diff` requires `file`, relative to repository root, and `scope`.
+
+All paths pass relay file policy. Git roots, worktree metadata, and common Git
+directories must remain inside allowed paths. Git configuration includes,
+configured filters, object alternates, and metadata symlinks are refused. Git
+reads disable hooks, external diffs, text conversion, filesystem monitors,
+optional index writes, and network protocols. Each Git command has a 5 second
+timeout and a 512 KiB output limit. Text reads stop at 100 KiB. Directory and
+status results stop at 2,000 entries and report truncation. Binary content is
+flagged. Repository actions never stage, commit, restore, or write files.
+
+## Relay → client
+
+### Authentication, keep-alive, errors
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `auth:success` | `serverVersion` | Authenticated |
+| `auth:failure` | `reason` | Rejected; the socket then closes |
+| `pong` | `timestamp` | Reply to `ping` |
+| `error` | `code`, `message` | Error response, e.g. `RATE_LIMITED` |
+| `server:info` | `hostname`, `platform`, `uptime` | Sent right after `auth:success` |
+
+### Sessions
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `session:list` | `sessions: SessionInfo[]` | Full session list |
+| `session:created` | `session: SessionInfo` | A session was created |
+| `session:killed` | `name` | A session was killed |
+| `session:activity` | `name`, `activity` | Activity timestamp updated |
+| `session:exited` | `name`, `exitCode?` | The session's process exited |
+| `session:attached` | `name`, `attachId?` | Attach acknowledged |
+| `session:windows` | `name`, `windows[]`, `panes[]` | Response to `session:windows` |
+
+### Terminal
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `terminal:output` | `data: string` | PTY output |
+| `tmux:scroll-state` | `position`, `historySize`, `paneHeight`, `inMode` | History position and copy-mode state after scrolling or polling |
+
+### Panes and windows
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `pane:list` | `panes: PaneInfo[]`, `windowId` | Response to `pane:list` |
+| `pane:changed` | `panes: PaneInfo[]`, `windowId` | Pane layout changed |
+| `pane:captured` | `id`, `content` | Response to `pane:capture` |
+| `window:list` | `windows: WindowInfo[]`, `sessionName` | Response to `window:list` |
+| `window:changed` | `windows: WindowInfo[]`, `sessionName` | Window set changed |
+
+### Files
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `file:list` | `path`, `entries: FileEntry[]` | Directory listing |
+| `file:content` | `path`, `content`, `truncated` | File contents |
+| `file:stat` | `stat: FileStat` | File metadata |
+| `file:changed` | `path`, `event` | Filesystem change event |
+| `file:write:result` | `path`, `success`, `error?`, `size?` | Result of `file:write` |
+| `file:op:result` | `op`, `path`, `success`, `error?` | Result of create/mkdir/delete/rename/upload |
+
+### Repository results
+
+`repo:result` contains `requestId` and `result`. `result.kind` selects one shape:
+
+| Kind | Fields |
+| --- | --- |
+| `context` | `path`, `root: string \| null`, `branch: string \| null` |
+| `list` | `path`, `entries: FileEntry[]`, `truncated` |
+| `read` | `path`, `content`, `truncated`, `binary` |
+| `status` | `root`, `branch`, `entries: { path, originalPath?, index, worktree }[]`, `truncated` |
+| `diff` | `path`, `scope`, `content`, `truncated`, `binary` |
+| `error` | `message` |
+
+Status paths are relative to repository root. `index` and `worktree` preserve
+Git porcelain status characters, including spaces and `?` for untracked files.
+Renames include `originalPath`. Outside Git repositories, context and status
+return null root and branch. Detached HEAD returns null branch. Staged diffs
+also work before first commit.
+
+
+## Shared schemas
+
+```typescript
+type TerminalSize = { cols: number; rows: number };  // 1–1000 × 1–500
+
+type SessionInfo = {
+  name: string;
+  id: string;
+  windows: number;
+  attached: boolean;
+  created: string;    // ISO timestamp
+  activity: string;   // ISO timestamp
+  dimensions?: TerminalSize;
+};
+
+type PaneInfo = {
+  id: string;
+  index: number;
+  windowId: string;
+  active: boolean;
+  zoomed: boolean;
+  dimensions: TerminalSize;
+  position: { x: number; y: number };
+  command?: string;
+  path?: string;
+};
+
+type WindowInfo = {
+  id: string;
+  index: number;
+  name: string;
+  active: boolean;
+  paneCount: number;
+  layout: string;
+  dimensions?: TerminalSize;
+};
+
+type FileEntry = {
+  name: string;
+  path: string;
+  type: "file" | "directory" | "symlink" | "other";
+  size: number;
+  modified: string;   // ISO timestamp
+};
+
+type FileStat = FileEntry & {
+  created: string;
+  permissions: string;
+  isReadable: boolean;
+  isWritable: boolean;
+};
+```
+
+---
+
+## Pairing and tunnel protocol
+
+Defined in `packages/protocol/src/pairing-messages.ts`. Everything the broker
+sees here is either routing metadata or an opaque blob. Nothing in it lets the
+broker read a keystroke.
+
+## HTTP
+
+| Endpoint | Request | Response |
+| --- | --- | --- |
+| `POST /v1/pair/new` | — | `{ mailboxId, slot, expiresAt }` |
+| `POST /v1/pair/claim` | `{ slot, share, ad, sid }` | `{ offered, claimId }` |
+| `GET /v1/discover` | — | `{ ip }` |
+
+`share` is 32 hex-encoded bytes (a ristretto255 element), `sid` 16, `slot` two
+digits. `offered` is how many live mailboxes the claim reached — never *which*.
+
+## Pairing messages
+
+These are deliberately **direction-neutral**. Pairing has two roles — the
+mailbox holder who parks a slot and waits, and the claimant who quotes it — and
+either can be the browser or the CLI. Nothing in the schema names which end runs
+a terminal.
+
+### Either end → broker
+
+Over `WS /v1/pair/:mailboxId` or `WS /v1/claim/:claimId`.
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `pair:share` | `peer`, `share` (32B hex), `ad` | This side's CPace share |
+| `pair:confirm` | `peer`, `tag` (32B hex) | Key confirmation |
+| `pair:establish` | `peer`, `sealedDescriptor` | The sealed connection descriptor. Always sent by the CLI. |
+| `pair:close` | `peer?`, `reason?` | Give up on one peer |
+
+`peer` is an opaque handle minted per attempt. A slot is shared by many
+simultaneous pairings, so a claim is fanned out and may hear back from several;
+the handle keeps those conversations apart, and means nothing outside the
+attempt.
+
+A close after a claim always destroys the mailbox. That is what makes a wrong
+guess cost the attacker the whole code.
+
+### Broker → either end
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `pair:ready` | `mailboxId`, `slot`, `expiresAt` | The mailbox socket is live. Mailbox holder only. |
+| `pair:peer-share` | `peer`, `share`, `ad`, `sid` | The other side's share. `sid` is always the claimant's. |
+| `pair:peer-confirm` | `peer`, `tag` | The peer's confirmation tag |
+| `pair:established` | `peer`, `sealedDescriptor` | Pairing succeeded |
+| `pair:failed` | `peer?`, `reason`, `message?` | Terminal failure — destroys the mailbox |
+
+`reason` is one of `expired`, `already-claimed`, `confirmation-failed`,
+`peer-gone`, `rate-limited`, `server-error`.
+
+Receiving `pair:peer-share` is **not** evidence that the peer knows the secret,
+because the claim was fanned out to every mailbox on the slot. Only a valid
+`pair:peer-confirm` is.
+
+## Tunnel messages
+
+Over `WS /v1/agent` for the CLI and `WS /v1/tunnel/:id` for the browser.
+
+### CLI → broker
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `tunnel:register` | `deviceId` (8B hex), `publicKey` (32B), `challenge` (32B), `signature` (64B) | Register this device's tunnel |
+| `stream:close` | `streamId`, `reason?` | Close one stream |
+| `stream:frame` | `streamId`, `data` (base64url) | One sealed application frame |
+
+### Broker → either side
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `tunnel:challenge` | `challenge` (32B hex) | First message on `/v1/agent`. Server-issued, so a captured registration cannot be replayed. |
+| `tunnel:ready` | `tunnelId` | Registration accepted |
+| `stream:open` | `streamId` | A browser wants a stream |
+| `stream:close` | `streamId`, `reason?` | One stream is closing |
+| `stream:frame` | `streamId`, `data` | Forwarded verbatim — the broker holds no key that could open it |
+| `tunnel:closed` | `reason` | The whole tunnel is going away |
+
+`tunnel:closed.reason` is one of `agent-gone`, `quota-exceeded`, `expired`,
+`revoked`, `server-error`.
+
+A sealed frame carries at most **1 MiB** of plaintext.
+
+## The sealed descriptor
+
+The payload the CLI seals under the pairing key. The broker only ever sees its
+ciphertext, so publishing the shape is safe and keeps both ends honest about it.
+
+```typescript
+type SealedDescriptor = {
+  candidates: string[];   // direct URLs to race, best first, max 8
+  tunnelId: string;       // fall back to this when every candidate fails
+  deviceId: string;       // 8 bytes hex — pin it for reconnects
+  publicKey: string;      // 32 bytes hex
+  label: string;          // e.g. "gagan@thinkpad"
+};
+```
+
+It is sealed fresh at counter 0 with a `FrameSealer` on the CLI → browser
+direction. See [The sealed tunnel](/docs/sealed-tunnel).
+
+## Adding a message
+
+1. Add the Zod schema to the right file in `packages/protocol/src/`.
+2. Add it to the discriminated union.
+3. Handle client messages in `apps/relay/src/message-router.ts`.
+4. Handle server messages in `apps/web/src/hooks/use-websocket.ts`.
+
+## Next steps
+
+- [Relay server](/docs/relay) — the server that speaks the relay half
+- [The sealed tunnel](/docs/sealed-tunnel) — what wraps the pairing half
+- [Architecture](/docs/architecture) — how the two protocols stay separate

@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState } from "react";
 import {
   Columns2,
   Rows2,
   Plus,
   Maximize2,
   Move,
-  TerminalSquare,
   ArrowUpDown,
   PenLine,
   LayoutTemplate,
@@ -63,9 +62,7 @@ interface PendingConfirm {
 }
 
 export function TmuxFab() {
-  // Per field. The FAB is mounted for the whole life of an attached session,
-  // so an unselected subscription re-renders it — and the sheet's whole action
-  // grid — on every unrelated store write.
+  // Subscribe per field to avoid rerendering actions on unrelated writes.
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const zoomedPaneId = usePaneStore((s) => s.zoomedPaneId);
   const fabOpen = useUiStore((s) => s.fabOpen);
@@ -73,34 +70,11 @@ export function TmuxFab() {
   const setResizeModeActive = useUiStore((s) => s.setResizeModeActive);
   const connected = useConnectionStore((s) => s.status === "connected");
   const [activeTab, setActiveTab] = useState<FabTab>("panes");
-  const [longPressOpen, setLongPressOpen] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(
     null,
   );
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleFabTouchStart = useCallback(() => {
-    longPressTimer.current = setTimeout(() => {
-      setLongPressOpen(true);
-    }, 500);
-  }, []);
-
-  const handleFabTouchEnd = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  }, []);
-
-  const handleFabClick = useCallback(() => {
-    if (!longPressOpen) {
-      setFabOpen(!fabOpen);
-    }
-    setLongPressOpen(false);
-  }, [longPressOpen, fabOpen, setFabOpen]);
-
   // Show whenever a session is attached (any mobile tab)
   if (!activeSessionId) return null;
 
@@ -294,61 +268,6 @@ export function TmuxFab() {
 
   return (
     <>
-      {/* FAB with long-press quick split. Positioned inside the terminal pane
-          rather than the viewport so it can never reach — or swallow taps meant
-          for — the footer chrome below it. */}
-      {/* `right-5`, not `right-3`: the scroll rail owns the right 16px of the
-          pane, and a FAB sitting on top of it takes the bottom of the track —
-          the end of the history — out of reach. */}
-      <div className="absolute bottom-3 right-5 z-[var(--z-fab)]">
-        {longPressOpen && (
-          <div className="absolute bottom-14 right-0 flex gap-1 rounded-lg border bg-background p-1 shadow-lg">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1 text-xs"
-              disabled={!connected}
-              onClick={() => {
-                handleSplit("h");
-                setLongPressOpen(false);
-              }}
-            >
-              <Columns2 className="h-3.5 w-3.5" />
-              Split H
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1 text-xs"
-              disabled={!connected}
-              onClick={() => {
-                handleSplit("v");
-                setLongPressOpen(false);
-              }}
-            >
-              <Rows2 className="h-3.5 w-3.5" />
-              Split V
-            </Button>
-          </div>
-        )}
-        <button
-          className={cn(
-            "flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-95",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-            "disabled:opacity-50",
-            fabOpen && "rotate-45",
-          )}
-          onClick={handleFabClick}
-          aria-label="Tmux actions"
-          disabled={!connected}
-          onTouchStart={handleFabTouchStart}
-          onTouchEnd={handleFabTouchEnd}
-          onTouchCancel={handleFabTouchEnd}
-        >
-          <TerminalSquare className="h-5 w-5" />
-        </button>
-      </div>
-
       {/* Action sheet with tabs */}
       <Sheet open={fabOpen} onOpenChange={setFabOpen}>
         <SheetContent side="bottom">

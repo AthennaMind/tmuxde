@@ -18,6 +18,8 @@ import {
   terminalThemeToXterm,
 } from "@repo/ui/terminal-themes";
 import { createXterm } from "@/lib/xterm-factory";
+import { terminalFontFamily } from "@/lib/terminal-font.js";
+import { consumeTerminalInput } from "@/lib/terminal-input.js";
 import { useTerminalStore } from "@/stores/terminal-store";
 import { usePaneStore } from "@/stores/pane-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -170,6 +172,9 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
      */
     const makeHandle = useCallback(
       (): TerminalViewHandle => ({
+        focus: () => terminalRef.current?.focus(),
+        blur: () => terminalRef.current?.blur(),
+        paste: (text) => terminalRef.current?.paste(text),
         search: (term: string) => {
           searchAddonRef.current?.findNext(term);
         },
@@ -289,6 +294,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
         themeName,
         fontSize,
         fontFamily,
+        readableText: isMobileViewport(),
         cursorStyle,
         cursorBlink,
         scrollback,
@@ -365,7 +371,8 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
       // which is why this only shows up on mobile / HiDPI. Disabling the addon
       // renders correctly at every DPR, so `gpuRendering` exists as an escape
       // hatch (Settings → Terminal) for anyone hitting it.
-      if (gpuRendering) {
+      // Mobile keeps DOM rendering for readable text and dim-color styling.
+      if (gpuRendering && !isMobileViewport()) {
         try {
           webglAddon = new WebglAddon();
           webglAddon.onContextLoss(() => {
@@ -484,7 +491,10 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
       // cannot be stale.
       const dataDisposable = terminal.onData((data) => {
         if (isReadOnly(useConnectionStore.getState().capabilities)) return;
-        getRelayClient()?.send({ type: "terminal:input", data });
+        getRelayClient()?.send({
+          type: "terminal:input",
+          data: consumeTerminalInput(data),
+        });
       });
 
       // xterm fires onResize only when fit() actually changes the dimensions,
@@ -625,7 +635,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
         if (!terminal) return;
 
         terminal.options.fontSize = fontSize;
-        terminal.options.fontFamily = fontFamily;
+        terminal.options.fontFamily = terminalFontFamily(fontFamily);
         terminal.options.cursorStyle = cursorStyle;
         terminal.options.cursorBlink = cursorBlink;
         terminal.options.scrollback = scrollback;

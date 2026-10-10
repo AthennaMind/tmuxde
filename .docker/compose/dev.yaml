@@ -1,0 +1,192 @@
+name: mtmux-local-preview
+networks:
+  edge:
+    name: mtmux-local-preview_edge
+  offline:
+    internal: true
+    name: mtmux-local-preview_offline
+services:
+  caddy:
+    cap_add:
+      - NET_BIND_SERVICE
+    cap_drop:
+      - ALL
+    depends_on:
+      relay:
+        condition: service_healthy
+        required: true
+      web:
+        condition: service_healthy
+        required: true
+    environment:
+      LOCAL_DOMAIN: ${LOCAL_DOMAIN:-localhost}
+    image: caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    networks:
+      edge: null
+      offline: null
+    pids_limit: 512
+    ports:
+      - ${LOCAL_BIND_IP:-127.0.0.1}:443:443
+    read_only: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,mode=1777,size=256m
+    volumes:
+      - bind:
+          create_host_path: true
+        read_only: true
+        source: ../Caddyfile
+        target: /etc/caddy/Caddyfile
+        type: bind
+      - source: caddy-data
+        target: /data
+        type: volume
+        volume: {}
+      - source: caddy-config
+        target: /config
+        type: volume
+        volume: {}
+  relay:
+    extends:
+      file: workspace.yaml
+      service: relay-workspace
+    command:
+      - pnpm
+      - --filter
+      - "@app/relay"
+      - dev
+    healthcheck:
+      interval: 10s
+      start_period: 15s
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:24300/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      timeout: 5s
+    labels:
+      dev.mtmux.mode: development
+    networks:
+      offline: null
+    restart: unless-stopped
+    user: ${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}
+    depends_on:
+      deps-build:
+        condition: service_completed_successfully
+    environment:
+      RELAY_HOST: 0.0.0.0
+      RELAY_PORT: "24300"
+      TMUX_SOCKET: /host-tmux/${LOCAL_TMUX_SOCKET:?Run scripts/setup.sh}
+      AUTH_TOKEN: ${AUTH_TOKEN:?Run scripts/setup.sh}
+      CORS_ORIGINS: https://${LOCAL_DOMAIN:-localhost}
+      ALLOWED_PATHS: ${LOCAL_UPLOAD_DIR:?Run
+        scripts/setup.sh},${LOCAL_HOST_HOME:?Run scripts/setup.sh}
+      HOME: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
+      MTMUX_CONFIG_DIR: /tmp/mtmux-state
+    volumes:
+      - bind:
+          create_host_path: false
+        source: ${LOCAL_TMUX_DIR:?Run scripts/setup.sh}
+        target: /host-tmux
+        type: bind
+      - bind:
+          create_host_path: false
+        read_only: true
+        source: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
+        target: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
+        type: bind
+      - bind:
+          create_host_path: true
+        read_only: true
+        source: ../host-tmux
+        target: /opt/host-tmux
+        type: bind
+      - bind:
+          create_host_path: true
+        read_only: true
+        source: ../tmux-client
+        target: /usr/local/bin/tmux
+        type: bind
+      - bind:
+          create_host_path: false
+        source: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh}
+        target: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh}
+        type: bind
+  web:
+    extends:
+      file: workspace.yaml
+      service: web-workspace
+    command:
+      - pnpm
+      - --filter
+      - "@app/web"
+      - exec
+      - next
+      - dev
+      - --hostname
+      - 0.0.0.0
+      - --port
+      - "24100"
+    healthcheck:
+      interval: 10s
+      start_period: 90s
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:24100/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      timeout: 10s
+    labels:
+      dev.mtmux.mode: development
+    networks:
+      offline: null
+    restart: unless-stopped
+    user: ${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}
+    depends_on:
+      deps-build:
+        condition: service_completed_successfully
+    environment:
+      HOSTNAME: 0.0.0.0
+      NEXT_DIST_DIR: .next-dev
+      NEXT_PUBLIC_RELAY_URL: ""
+      LOCAL_DOMAIN: ${LOCAL_DOMAIN:-localhost}
+  volume-init:
+    extends:
+      file: tooling.yaml
+      service: volume-init
+  deps-manager:
+    extends:
+      file: tooling.yaml
+      service: deps-manager
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+  deps-build:
+    extends:
+      file: tooling.yaml
+      service: deps-build
+    depends_on:
+      deps-manager:
+        condition: service_completed_successfully
+  tools:
+    extends:
+      file: tooling.yaml
+      service: tools
+    profiles:
+      - tools
+    depends_on:
+      deps-build:
+        condition: service_completed_successfully
+volumes:
+  cache:
+    name: mtmux-dev-cache-v2
+  caddy-config:
+    name: mtmux-local-preview_caddy-config
+  caddy-data:
+    name: mtmux-local-preview_caddy-data
+  dependencies:
+    name: mtmux-dev-dependencies-v2
+  pnpm-store:
+    name: mtmux-dev-pnpm-store

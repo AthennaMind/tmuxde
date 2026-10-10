@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RepoRequest } from "./repository";
 import { RecordingId, RecordingTarget } from "./recordings";
 import { TerminalSizeSchema } from "./types";
 
@@ -139,6 +140,7 @@ export const FileUploadMessage = z.object({
   path: z.string(),
   content: z.string(), // base64
   final: z.boolean(),
+  ack: z.boolean().optional(),
 });
 
 // Pane messages
@@ -267,12 +269,9 @@ export const TmuxCopyModeMessage = z.object({
 });
 
 /**
- * Scroll the pane's history, in lines. Positive is back into the past.
- *
- * A server-side operation because there is nothing to scroll on the client:
- * the relay runs a real `tmux attach-session`, so tmux holds the alternate
- * screen and xterm's own scrollback buffer is permanently empty. The history
- * the user wants is tmux's, and copy-mode is the only way to reach it.
+ * Scroll the active application or shell history. Positive scrolls upward.
+ * Mouse-aware apps receive wheel events. Alternate-screen apps without mouse
+ * support receive arrow keys. Shell history and explicit copy mode use tmux.
  *
  * Bounded so one message cannot ask tmux to walk an unbounded history, and so
  * a client bug cannot turn a flick into a hang.
@@ -388,6 +387,7 @@ export const DeviceApproveMessage = z.object({
 });
 
 export const ClientMessage = z.discriminatedUnion("type", [
+  RepoRequest,
   AuthMessage,
   PingMessage,
   TerminalInputMessage,

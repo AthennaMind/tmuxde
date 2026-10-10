@@ -82,7 +82,7 @@ export function SegmentedControl<T extends string>({
   function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
     const index = enabled.findIndex((option) => option.value === value);
     const from = index === -1 ? 0 : index;
-    let target: number | null = null;
+    let target: number;
 
     switch (event.key) {
       case "ArrowRight":

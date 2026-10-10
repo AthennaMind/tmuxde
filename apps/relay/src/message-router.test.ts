@@ -44,9 +44,21 @@ const AT_BOTTOM: ScrollState = {
   inMode: false,
 };
 const scrollHistory =
-  vi.fn<(session: string, lines: number) => Promise<ScrollState>>();
+  vi.fn<
+    (
+      session: string,
+      lines: number,
+      allowInput?: boolean,
+    ) => Promise<ScrollState>
+  >();
 const scrollToPosition =
-  vi.fn<(session: string, position: number) => Promise<ScrollState>>();
+  vi.fn<
+    (
+      session: string,
+      position: number,
+      allowInput?: boolean,
+    ) => Promise<ScrollState>
+  >();
 const readScrollState = vi.fn<(session: string) => Promise<ScrollState>>();
 const exitCopyMode = vi.fn<(session: string) => Promise<void>>();
 const createPtyBridge =
@@ -69,10 +81,10 @@ vi.mock("./tmux-manager.js", () => ({
     zoomPane(session, opts),
   listWindows: (session: string) => listWindows(session),
   capturePaneById: (id: string) => capturePaneById(id),
-  scrollHistory: (session: string, lines: number) =>
-    scrollHistory(session, lines),
-  scrollToPosition: (session: string, position: number) =>
-    scrollToPosition(session, position),
+  scrollHistory: (session: string, lines: number, allowInput?: boolean) =>
+    scrollHistory(session, lines, allowInput),
+  scrollToPosition: (session: string, position: number, allowInput?: boolean) =>
+    scrollToPosition(session, position, allowInput),
   readScrollState: (session: string) => readScrollState(session),
   exitCopyMode: (session: string) => exitCopyMode(session),
 }));
@@ -85,11 +97,13 @@ vi.mock("./pty-bridge.js", () => ({
   ) => createPtyBridge(name, size, opts),
 }));
 
+const handleUpload = vi.fn().mockResolvedValue(undefined);
 const listDirectory = vi.fn<(path: string) => Promise<unknown[]>>();
 vi.mock("./file-service.js", () => ({
   isPathAllowed: () => true,
   listDirectory: (path: string) => listDirectory(path),
   defaultBrowsePath: () => "/home/someone",
+  handleUpload: (...args: unknown[]) => handleUpload(...args),
 }));
 
 const createReadOnlyClone =
@@ -130,6 +144,11 @@ vi.mock("./recordings-index.js", () => ({
   get: (id: string) => recordingsGet(id),
   remove: (id: string) => recordingsRemove(id),
   recordingPath: (filename: string) => `/tmp/mtmux-router-test/${filename}`,
+}));
+
+const repositoryRequest = vi.fn();
+vi.mock("./repository-service.js", () => ({
+  repositoryRequest: (...args: unknown[]) => repositoryRequest(...args),
 }));
 
 const { routeMessage } = await import("./message-router.js");
@@ -537,16 +556,25 @@ describe("scoped grants", () => {
 });
 
 describe("tmux:scroll", () => {
+  it("never allows application input for a read-only grant", async () => {
+    conn.grant = { ...conn.grant, readOnly: true };
+    conn.attachedSession = "work";
+    await route({ type: "tmux:scroll", lines: 4 });
+    await route({ type: "tmux:scroll-to", position: 5 });
+    expect(scrollHistory).toHaveBeenCalledWith("work", 4, false);
+    expect(scrollToPosition).toHaveBeenCalledWith("work", 5, false);
+  });
+
   it("scrolls the session the connection is attached to", async () => {
     conn.attachedSession = "work";
     await route({ type: "tmux:scroll", lines: 7 });
-    expect(scrollHistory).toHaveBeenCalledWith("work", 7);
+    expect(scrollHistory).toHaveBeenCalledWith("work", 7, true);
   });
 
   it("passes a negative count through, so scrolling back down works", async () => {
     conn.attachedSession = "work";
     await route({ type: "tmux:scroll", lines: -3 });
-    expect(scrollHistory).toHaveBeenCalledWith("work", -3);
+    expect(scrollHistory).toHaveBeenCalledWith("work", -3, true);
   });
 
   it("refuses when nothing is attached rather than guessing a session", async () => {
@@ -570,7 +598,7 @@ describe("tmux:scroll", () => {
   it("jumps to an absolute position for a scrollbar drag", async () => {
     conn.attachedSession = "work";
     await route({ type: "tmux:scroll-to", position: 200 });
-    expect(scrollToPosition).toHaveBeenCalledWith("work", 200);
+    expect(scrollToPosition).toHaveBeenCalledWith("work", 200, true);
     expect(sent.at(-1)).toMatchObject({
       type: "tmux:scroll-state",
       position: 200,
@@ -879,6 +907,145 @@ describe("recordings", () => {
     expect(recordingsRemove).toHaveBeenCalledWith(REC_A);
     expect(sent.find((m) => m.type === "recording:deleted")).toMatchObject({
       id: REC_A,
+    });
+  });
+});
+
+describe("upload acknowledgements", () => {
+  it("acknowledges nonfinal chunks only when requested", async () => {
+    await route({
+      type: "file:upload",
+      path: "/home/someone/photo.png",
+      content: "YQ==",
+      final: false,
+      ack: true,
+    });
+    expect(sent).toContainEqual({
+      type: "file:op:result",
+      op: "upload",
+      path: "/home/someone/photo.png",
+      success: true,
+      final: false,
+    });
+  });
+  it("keeps legacy intermediate chunks silent", async () => {
+    await route({
+      type: "file:upload",
+      path: "/home/someone/photo.png",
+      content: "YQ==",
+      final: false,
+    });
+    expect(sent).toEqual([]);
+  });
+});
+
+describe("photo upload completion and permission", () => {
+  it("acknowledges final chunk after write succeeds", async () => {
+    await route({
+      type: "file:upload",
+      path: "/home/someone/photo.png",
+      content: "YQ==",
+      final: true,
+      ack: true,
+    });
+    expect(sent).toContainEqual({
+      type: "file:op:result",
+      op: "upload",
+      path: "/home/someone/photo.png",
+      success: true,
+      final: true,
+    });
+  });
+  it("does not upload with read-only file permission", async () => {
+    conn.grant = { ...FULL_GRANT, files: "read" };
+    await route({
+      type: "file:upload",
+      path: "/home/someone/photo.png",
+      content: "YQ==",
+      final: true,
+      ack: true,
+    });
+    expect(handleUpload).not.toHaveBeenCalled();
+    expect(sent).toEqual([
+      expect.objectContaining({ type: "error", code: "ACCESS_DENIED" }),
+    ]);
+  });
+});
+
+describe("repository request routing", () => {
+  it("uses fresh pane directory instead of browser context", async () => {
+    conn.attachedSession = "work";
+    listPanes.mockResolvedValue([{ ...pane("%1", "@1"), path: "/fresh/path" }]);
+    repositoryRequest.mockResolvedValue({
+      kind: "context",
+      path: "/fresh/path",
+      root: null,
+      branch: null,
+    });
+    const request = {
+      type: "repo:request",
+      requestId: "context-1",
+      id: "%1",
+      action: "context",
+      path: "/stale/path",
+    } as const;
+    await route(request);
+    expect(repositoryRequest).toHaveBeenCalledWith("/fresh/path", request);
+    expect(sent[0]).toMatchObject({
+      type: "repo:result",
+      requestId: "context-1",
+      result: { kind: "context", path: "/fresh/path" },
+    });
+  });
+
+  it("correlates permission denials without calling repository service", async () => {
+    conn.attachedSession = "work";
+    conn.grant = { ...FULL_GRANT, files: "none" };
+    await route({
+      type: "repo:request",
+      requestId: "denied-1",
+      id: "%1",
+      action: "status",
+    });
+    expect(repositoryRequest).not.toHaveBeenCalled();
+    expect(sent[0]).toMatchObject({
+      type: "repo:result",
+      requestId: "denied-1",
+      result: { kind: "error" },
+    });
+  });
+
+  it("refuses panes outside attached session", async () => {
+    conn.attachedSession = "work";
+    await route({
+      type: "repo:request",
+      requestId: "pane-1",
+      id: "%9",
+      action: "context",
+    });
+    expect(repositoryRequest).not.toHaveBeenCalled();
+    expect(sent[0]).toMatchObject({
+      type: "repo:result",
+      requestId: "pane-1",
+      result: { kind: "error", message: 'Pane "%9" not found' },
+    });
+  });
+
+  it("correlates service errors", async () => {
+    conn.attachedSession = "work";
+    listPanes.mockResolvedValue([{ ...pane("%1", "@1"), path: "/fresh/path" }]);
+    repositoryRequest.mockRejectedValue(new Error("Access denied"));
+    await route({
+      type: "repo:request",
+      requestId: "failure-1",
+      id: "%1",
+      action: "read",
+      path: "/secret",
+    });
+    expect(sent[0]).toMatchObject({
+      type: "repo:result",
+      requestId: "failure-1",
+      result: { kind: "error", message: "Access denied" },
     });
   });
 });
