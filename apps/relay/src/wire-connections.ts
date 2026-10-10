@@ -19,8 +19,6 @@ import {
 import { noteApproversChanged, pendingApprovalFor } from "./device-approval.js";
 import { admitConnection } from "./connection-gate.js";
 import { allowsSession, allowsSessionName } from "./grant.js";
-import * as recorder from "./recorder.js";
-import { sweepRecordings } from "./recordings-index.js";
 import { isCloneSession, sweepOrphanClones } from "./tmux-clone.js";
 import { createRateLimiter } from "./rate-limiter.js";
 import { createSessionMonitor } from "./session-monitor.js";
@@ -54,10 +52,6 @@ const FEATURES = [
   "file:upload:ack",
   "window:step",
   "pane:step",
-  // One flag for all five `recording:*` messages. They ship as a unit — a
-  // client that can list recordings but not fetch one has nothing to offer —
-  // so five flags would only create four states nothing ever produces.
-  "recording",
 ];
 
 // Global concurrent-connection cap and per-IP cap. Rejected upgrades are closed
@@ -426,11 +420,6 @@ export function wireConnections(
     // tmux may not be running yet. Nothing to sweep is the normal case.
   });
 
-  // The same argument for recordings, plus one more: a `kill -9` leaves a row
-  // claiming to still be recording, and a row that says it is live after a
-  // reboot is worse than one that admits it was cut off.
-  void sweepRecordings().catch(() => {});
-
   // Revocation reaper. Dropping the token from the map only stops the next
   // authentication, so without this `mtmux devices revoke` reported success
   // while the revoked socket kept working until it happened to disconnect.
@@ -471,10 +460,6 @@ export function wireConnections(
       clearInterval(idleSweep);
       stopRevokeSweep();
       monitor.stop();
-      // Close the casts before the process goes. Not awaited — shutdown is
-      // deliberately not graceful here — but a `stream.end()` in flight is
-      // still better than none, and the startup sweep catches what it misses.
-      void recorder.stopAll("ended").catch(() => {});
       for (const conn of getAllConnections()) {
         try {
           conn.ws.close(1001, "Server shutting down");

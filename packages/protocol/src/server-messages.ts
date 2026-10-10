@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { RepoResponse } from "./repository";
-import { RecordingId, RecordingInfo, RecordingStopReason } from "./recordings";
 import {
   SessionInfoSchema,
   FileEntrySchema,
@@ -333,45 +332,6 @@ export const DeviceApprovalResolvedMessage = z.object({
   reason: z.enum(["decided", "expired", "withdrawn"]),
 });
 
-export const RecordingStartedMessage = z.object({
-  type: z.literal("recording:started"),
-  recording: RecordingInfo,
-});
-
-export const RecordingStoppedMessage = z.object({
-  type: z.literal("recording:stopped"),
-  recording: RecordingInfo,
-  reason: RecordingStopReason,
-});
-
-export const RecordingListResponse = z.object({
-  type: z.literal("recording:list"),
-  recordings: z.array(RecordingInfo),
-});
-
-export const RecordingDeletedMessage = z.object({
-  type: z.literal("recording:deleted"),
-  id: RecordingId,
-});
-
-/**
- * One slice of a recording's bytes, in reply to `recording:fetch`.
- *
- * `offset` is the byte position this chunk starts at, so a client can reassemble
- * out of order and detect a hole rather than silently concatenating a corrupt
- * file. `final` marks the last chunk; there is exactly one per transfer.
- */
-export const RecordingChunkMessage = z.object({
-  type: z.literal("recording:chunk"),
-  id: RecordingId,
-  offset: z.number().int().nonnegative(),
-  /** Base64. The frame codec is happier with text and this mirrors `file:upload`. */
-  data: z.string(),
-  /** Total bytes in the recording, so a client can size its progress bar. */
-  totalBytes: z.number().int().nonnegative(),
-  final: z.boolean(),
-});
-
 export const ServerMessage = z.discriminatedUnion("type", [
   RepoResponse,
   AuthSuccessMessage,
@@ -402,11 +362,6 @@ export const ServerMessage = z.discriminatedUnion("type", [
   DevicePairedMessage,
   DeviceApprovalRequestMessage,
   DeviceApprovalResolvedMessage,
-  RecordingStartedMessage,
-  RecordingStoppedMessage,
-  RecordingListResponse,
-  RecordingDeletedMessage,
-  RecordingChunkMessage,
 ]);
 
 export type ServerMessage = z.infer<typeof ServerMessage>;
@@ -442,8 +397,3 @@ export type SessionAttachedMessage = z.infer<typeof SessionAttachedMessage>;
 export type PaneCapturedMessage = z.infer<typeof PaneCapturedMessage>;
 export type TmuxScrollStateMessage = z.infer<typeof TmuxScrollStateMessage>;
 export type SessionWindowsResponse = z.infer<typeof SessionWindowsResponse>;
-export type RecordingStartedMessage = z.infer<typeof RecordingStartedMessage>;
-export type RecordingStoppedMessage = z.infer<typeof RecordingStoppedMessage>;
-export type RecordingListResponse = z.infer<typeof RecordingListResponse>;
-export type RecordingDeletedMessage = z.infer<typeof RecordingDeletedMessage>;
-export type RecordingChunkMessage = z.infer<typeof RecordingChunkMessage>;

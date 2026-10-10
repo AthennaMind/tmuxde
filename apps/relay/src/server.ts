@@ -23,8 +23,7 @@ import {
 } from "./pairing-local.js";
 import { admitConnection } from "./connection-gate.js";
 import * as accessLog from "./access-log.js";
-import { allowsRecording, FULL_GRANT } from "./grant.js";
-import * as recordings from "./recordings-index.js";
+import { FULL_GRANT } from "./grant.js";
 import { broadcastToAll } from "./connection-manager.js";
 import { isCloneSession } from "./tmux-clone.js";
 import { listSessions } from "./tmux-manager.js";
@@ -433,10 +432,10 @@ async function handleSessionListing(
  * Resolve a bearer token to a grant, then ask whether this device is allowed
  * in at all.
  *
- * The websocket has had this since the connection gate landed; these two HTTP
- * routes did not, and that was a hole in the product's central claim rather
- * than a rough edge. `/file` and `/recording` accepted any live session token
- * from any address and served bytes off the machine's disk — so a copied token
+ * The websocket has had this since the connection gate landed; the file route
+ * did not, and that was a hole in the product's central claim rather than a
+ * rough edge. `/file` accepted any live session token from any address and
+ * served bytes off the machine's disk — so a copied token
  * read files without a soul being asked, while the same token on a websocket
  * put a question on the owner's screen. "Every connection is approved" has to
  * mean every connection, or it means nothing.
@@ -540,10 +539,6 @@ export async function handleRelayRequest(
 
   if (req.url === SESSIONS_PATH) {
     return handleSessionListing(req, res);
-  }
-
-  if (req.url?.startsWith("/recording?") && req.method === "GET") {
-    return handleRecordingDownload(req, res, origin);
   }
 
   if (req.url?.startsWith("/file?") && req.method === "GET") {
@@ -666,73 +661,6 @@ export async function handleRelayRequest(
   }
 
   return false;
-}
-
-/**
- * `GET /recording?id=rec_…` — a LAN-only fast path, and nothing more.
- *
- * The mechanism for handing somebody a recording is `recording:fetch` over the
- * websocket, because the case this feature exists for is a phone on cellular,
- * which is the *tunnelled* case: there the relay is reachable only as sealed
- * frames through the broker and the web app's `resolveRelayHttpBase()` returns
- * `""`. This route exists because on a LAN a plain HTTP GET is faster and lets
- * the browser stream, and for no other reason.
- *
- * **It takes an `id` and has no `path` parameter at all.** That is precisely
- * what stops it becoming `/file` with extra steps: the only files it can serve
- * are ones this relay itself wrote and indexed, and the caller cannot name one
- * that is not in the index. Note also what it does *not* consult: `grant.files`
- * is irrelevant here, because a recording is not a file in the allow-listed
- * tree — a recordings-scoped share deliberately carries `files: "none"`.
- */
-async function handleRecordingDownload(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  origin: string | undefined,
-): Promise<boolean> {
-  if (origin && config.corsOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length)
-    : null;
-
-  const grant = await admitHttpRequest(req, res, token);
-  if (!grant) return true;
-
-  const id = url.searchParams.get("id");
-  // "Not found" for out of scope as well as absent — the same rule the
-  // websocket path follows, and for the same reason: two different answers is
-  // an oracle for enumerating recording ids.
-  const recording =
-    id && allowsRecording(grant, id) ? await recordings.get(id) : null;
-  if (!recording) {
-    res.writeHead(404);
-    res.end("Recording not found");
-    return true;
-  }
-
-  const resolved = recordings.recordingPath(recording.filename);
-  try {
-    const stat = await fsp.stat(resolved);
-    res.writeHead(200, {
-      "Content-Type": "application/x-asciicast",
-      "Content-Length": String(stat.size),
-      "Cache-Control": "private, no-store",
-      "Content-Disposition": `attachment; filename="${recording.id}.cast"`,
-    });
-    fs.createReadStream(resolved).pipe(res);
-  } catch (err) {
-    logger.error({ err, id: recording.id }, "Recording serve error");
-    res.writeHead(404);
-    res.end("Recording not found");
-  }
-  return true;
 }
 
 export function createHttpServer() {

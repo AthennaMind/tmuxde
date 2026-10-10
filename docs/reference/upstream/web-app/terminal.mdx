@@ -93,23 +93,8 @@ Persisted to `localStorage` and applied per browser:
 
 There is no font-family picker in the UI; the stack above is what you get.
 
-## Recordings
-
-The toolbar's record button starts and stops a recording of the attached
-session; `/r` lists the ones on the machine and plays them back in a real xterm,
-so a `.cast` renders exactly as the session did. Space plays and pauses, the
-arrow keys jump five seconds, and the speed control cycles 0.5× to 4×.
-
-The button is absent — not disabled — against a machine whose mtmux predates
-recording, and for a read-only share. What a recording contains, and what
-sharing one gives away, is on [its own page](/docs/recording).
-
-Seeking backwards is the one slow operation: a terminal's state is a fold over
-every byte before it, so jumping back replays from the start to that point.
-
 ## Next steps
 
-- [Recording a session](/docs/recording) — capturing what happened, and handing it over
 - [Web app overview](/docs/web-app) — the rest of the client
 - [Sessions, windows and panes](/docs/web-app/sessions) — what the terminal is attached to
 - [File browser](/docs/web-app/files) — the other half of the split view

@@ -5,10 +5,9 @@ This fork runs local web client, relay and Caddy through `docker-compose.yml`. C
 ## Repository map
 
 - `apps/web`: Next.js terminal client, mobile controls, local device lock and repository viewer.
-- `apps/relay`: authenticated WebSocket bridge to tmux, local file access and recordings.
+- `apps/relay`: authenticated WebSocket bridge to tmux and local file access.
 - `packages/protocol`: validated client/server messages and shared types.
 - `packages/crypto`: local cryptography and stored device credentials.
-- `packages/cast`: recording codecs and playback helpers.
 - `packages/ui`, `logger`: shared UI, local logging and configuration.
 - `.docker`: supported deployment, host tmux integration and Caddy local CA.
 - `docs/reference/upstream`: archived technical docs. Reference material only, not deployment instructions. Hosted and CLI instructions are historical.

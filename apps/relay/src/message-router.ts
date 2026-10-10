@@ -1,9 +1,6 @@
-import { open, stat } from "node:fs/promises";
-
 import type { WebSocket } from "ws";
 import type {
   ClientMessage,
-  RecordingInfo,
   ServerMessage,
   SessionInfo,
   PaneInfo,
@@ -13,7 +10,6 @@ import { sendJson } from "./ws-server.js";
 import type { ConnectionState } from "./connection-manager.js";
 import { broadcastWhere } from "./connection-manager.js";
 import {
-  allowsRecording,
   allowsSession,
   allowsSessionName,
   isFullGrant,
@@ -28,8 +24,6 @@ import {
 import * as tmux from "./tmux-manager.js";
 import * as files from "./file-service.js";
 import { repositoryRequest } from "./repository-service.js";
-import * as recorder from "./recorder.js";
-import * as recordings from "./recordings-index.js";
 import { resolveDeviceApproval } from "./device-approval.js";
 const logger = createLogger("relay:router");
 
@@ -58,90 +52,6 @@ function sendScrollState(ws: WebSocket, state: tmux.ScrollState): void {
     paneHeight: state.paneHeight,
     inMode: state.inMode,
   });
-}
-
-/** How much of a recording one `recording:chunk` carries. */
-const RECORDING_CHUNK_BYTES = 64 * 1024;
-
-/**
- * Recordings this connection may see.
- *
- * A full grant sees every recording on the machine. A recordings-scoped grant
- * sees exactly the ones it names. A sessions-scoped grant sees none: sharing a
- * live session was never sharing its history.
- */
-async function visibleRecordings(
-  conn: ConnectionState,
-): Promise<RecordingInfo[]> {
-  const all = await recordings.list();
-  const live = new Map(recorder.listActive().map((r) => [r.id, r]));
-  return all
-    .map((r) => live.get(r.id) ?? r)
-    .filter((r) => allowsRecording(conn.grant, r.id));
-}
-
-async function visibleRecording(
-  conn: ConnectionState,
-  id: string,
-): Promise<RecordingInfo | null> {
-  if (!allowsRecording(conn.grant, id)) return null;
-  return recordings.get(id);
-}
-
-/**
- * Send a recording's bytes as a run of `recording:chunk` messages.
- *
- * Read in 64 KiB slices and base64'd, mirroring `file:upload` in reverse. The
- * websocket is the transport rather than HTTP because the case this feature
- * exists for — a phone on cellular — is the *tunnelled* case, where the relay
- * has no HTTP route at all and `resolveRelayHttpBase()` in the web app returns
- * `""`. `GET /recording` is a LAN fast path, not the mechanism.
- *
- * Exactly one chunk carries `final: true`, including for an empty file, so a
- * client always has a termination signal to wait for.
- */
-async function streamRecording(
-  ws: WebSocket,
-  recording: RecordingInfo,
-  offset: number,
-): Promise<void> {
-  const path = recordings.recordingPath(recording.filename);
-
-  let total: number;
-  try {
-    total = (await stat(path)).size;
-  } catch {
-    sendError(ws, "NOT_FOUND", "Recording not found");
-    return;
-  }
-
-  const handle = await open(path, "r");
-  try {
-    let position = Math.min(offset, total);
-    const buffer = Buffer.allocUnsafe(RECORDING_CHUNK_BYTES);
-
-    do {
-      const { bytesRead } = await handle.read(
-        buffer,
-        0,
-        RECORDING_CHUNK_BYTES,
-        position,
-      );
-      const final = position + bytesRead >= total;
-      send(ws, {
-        type: "recording:chunk",
-        id: recording.id,
-        offset: position,
-        data: buffer.subarray(0, bytesRead).toString("base64"),
-        totalBytes: total,
-        final,
-      });
-      position += bytesRead;
-      if (final) break;
-    } while (position < total);
-  } finally {
-    await handle.close();
-  }
 }
 
 /**
@@ -1090,76 +1000,6 @@ export async function routeMessage(
           id: msg.id,
           content: capturedContent,
         });
-        break;
-      }
-
-      case "recording:start": {
-        try {
-          const started = await recorder.start({
-            target: msg.target,
-            title: msg.title,
-          });
-          send(ws, { type: "recording:started", recording: started });
-        } catch (err) {
-          if (err instanceof recorder.RecordingError) {
-            sendError(ws, err.code, err.message);
-            break;
-          }
-          throw err;
-        }
-        break;
-      }
-
-      case "recording:stop": {
-        if (!(await visibleRecording(conn, msg.id))) {
-          sendError(ws, "NOT_FOUND", "Recording not found");
-          break;
-        }
-        const stopped = await recorder.stop(msg.id, "requested");
-        if (!stopped) {
-          sendError(ws, "NOT_FOUND", "Recording not found");
-          break;
-        }
-        send(ws, {
-          type: "recording:stopped",
-          recording: stopped,
-          reason: stopped.stopReason ?? "requested",
-        });
-        break;
-      }
-
-      case "recording:list": {
-        send(ws, {
-          type: "recording:list",
-          recordings: await visibleRecordings(conn),
-        });
-        break;
-      }
-
-      case "recording:delete": {
-        if (!(await visibleRecording(conn, msg.id))) {
-          sendError(ws, "NOT_FOUND", "Recording not found");
-          break;
-        }
-        if (recorder.isRecording(msg.id)) {
-          await recorder.stop(msg.id, "requested");
-        }
-        await recordings.remove(msg.id);
-        send(ws, { type: "recording:deleted", id: msg.id });
-        break;
-      }
-
-      case "recording:fetch": {
-        // NOT_FOUND, never ACCESS_DENIED. A holder who can tell "exists but
-        // denied" from "does not exist" can enumerate every recording id on
-        // the machine by probing — the same oracle `policy.ts` refuses to hand
-        // out for session names.
-        const recording = await visibleRecording(conn, msg.id);
-        if (!recording) {
-          sendError(ws, "NOT_FOUND", "Recording not found");
-          break;
-        }
-        await streamRecording(ws, recording, msg.offset);
         break;
       }
 
