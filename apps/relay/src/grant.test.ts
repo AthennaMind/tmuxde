@@ -9,8 +9,6 @@ import {
   isFullGrant,
   narrower,
   visibleSessions,
-  allowsRecording,
-  isRecordingsGrant,
 } from "./grant.js";
 
 function grant(over: Partial<GrantRecord> = {}): GrantRecord {
@@ -125,12 +123,6 @@ describe("narrower", () => {
         { id: "$2", name: "b" },
       ],
     },
-    { kind: "recordings", recordings: [] },
-    { kind: "recordings", recordings: ["rec_aaaaaaaaaaaaaaaa"] },
-    {
-      kind: "recordings",
-      recordings: ["rec_aaaaaaaaaaaaaaaa", "rec_bbbbbbbbbbbbbbbb"],
-    },
   ];
   const FILES: GrantRecord["files"][] = ["none", "read", "write"];
   const RANK = { none: 0, read: 1, write: 2 };
@@ -176,20 +168,6 @@ describe("narrower", () => {
                     expect(allowsSession(b, probe)).toBe(true);
                   }
                 }
-
-                // The same property on the recordings axis. A sessions grant
-                // and a recordings grant intersect to nothing, and this is what
-                // says so rather than a comment saying so.
-                for (const probe of [
-                  "rec_aaaaaaaaaaaaaaaa",
-                  "rec_bbbbbbbbbbbbbbbb",
-                  "rec_cccccccccccccccc",
-                ]) {
-                  if (allowsRecording(out, probe)) {
-                    expect(allowsRecording(a, probe)).toBe(true);
-                    expect(allowsRecording(b, probe)).toBe(true);
-                  }
-                }
               }
             }
           }
@@ -209,38 +187,5 @@ describe("narrower", () => {
       narrower(grant({ expiresAt: null }), grant({ expiresAt: null }))
         .expiresAt,
     ).toBeNull();
-  });
-});
-
-describe("allowsRecording", () => {
-  it("lets the machine's own grant read everything", () => {
-    expect(allowsRecording(FULL_GRANT, "rec_aaaaaaaaaaaaaaaa")).toBe(true);
-  });
-
-  it("lets a recordings grant read exactly what it names", () => {
-    const g = grant({
-      scope: { kind: "recordings", recordings: ["rec_aaaaaaaaaaaaaaaa"] },
-    });
-    expect(allowsRecording(g, "rec_aaaaaaaaaaaaaaaa")).toBe(true);
-    expect(allowsRecording(g, "rec_bbbbbbbbbbbbbbbb")).toBe(false);
-  });
-
-  it("lets a sessions grant read none", () => {
-    // Sharing a live session was never sharing its history.
-    const g = grant({
-      scope: { kind: "sessions", sessions: [{ id: "$1", name: "a" }] },
-    });
-    expect(allowsRecording(g, "rec_aaaaaaaaaaaaaaaa")).toBe(false);
-  });
-
-  it("gives a recordings grant no session access at all", () => {
-    // The reason this is an arm of the scope union rather than a field: the
-    // answer falls out of the shape instead of needing a check.
-    const g = grant({
-      scope: { kind: "recordings", recordings: ["rec_aaaaaaaaaaaaaaaa"] },
-    });
-    expect(allowsSession(g, { id: "$1", name: "a" })).toBe(false);
-    expect(visibleSessions(g, [{ id: "$1", name: "a" }] as never)).toEqual([]);
-    expect(isRecordingsGrant(g)).toBe(true);
   });
 });

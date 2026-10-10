@@ -3,7 +3,6 @@ import type { GrantRecord } from "@repo/protocol";
 
 import {
   POLICY,
-  RECORDINGS_GRANT_ALLOWED,
   clientMessageTypes,
   enforce,
 } from "./policy.js";
@@ -196,95 +195,5 @@ describe("enforce", () => {
         type: "pane:capture",
       } as never),
     ).toMatchObject({ ok: false });
-  });
-});
-
-describe("recordings", () => {
-  const readOnly = (): GrantRecord => grant({ readOnly: true });
-  const recordingsGrant = (ids: string[] = ["rec_aaaaaaaaaaaaaaaa"]) =>
-    grant({ scope: { kind: "recordings", recordings: ids } });
-
-  it("refuses recording:start on a read-only grant but allows fetch", async () => {
-    // Recording spawns a process and writes to the owner's disk. A read-only
-    // share is "watch, touch nothing" — but fetching a recording somebody was
-    // given is the entire point of sharing one.
-    const start = await enforce({ grant: readOnly(), attachedSession: null }, {
-      type: "recording:start",
-      target: { kind: "session", session: "work" },
-    } as never);
-    expect(start).toEqual({
-      ok: false,
-      code: "READ_ONLY",
-      message: "This is a read-only session.",
-    });
-
-    const fetch = await enforce({ grant: readOnly(), attachedSession: null }, {
-      type: "recording:fetch",
-      id: "rec_aaaaaaaaaaaaaaaa",
-      offset: 0,
-    } as never);
-    expect(fetch).toEqual({ ok: true });
-  });
-
-  it("scopes recording:start's nested target the way sessionArg scopes a flat one", async () => {
-    const out = await enforce({ grant: grant(), attachedSession: null }, {
-      type: "recording:start",
-      target: { kind: "session", session: "not-mine" },
-    } as never);
-    expect(out).toEqual({
-      ok: false,
-      code: "SESSION_NOT_FOUND",
-      message: 'Session "not-mine" not found',
-    });
-  });
-
-  it("refuses a recordings-scoped grant everything outside the allow-list", async () => {
-    // Asserted by iterating the protocol rather than by listing types here, so
-    // a message added later is denied by default rather than forgotten.
-    const denied: string[] = [];
-    for (const type of clientMessageTypes()) {
-      if (type === "auth") continue;
-      if (RECORDINGS_GRANT_ALLOWED.has(type as never)) continue;
-      const result = await enforce(
-        { grant: recordingsGrant(), attachedSession: "work" },
-        { type, name: "work", oldName: "work", id: "%1" } as never,
-      );
-      if (result.ok) denied.push(type);
-    }
-    expect(denied).toEqual([]);
-  });
-
-  it("lets a recordings-scoped grant list and fetch", async () => {
-    for (const type of ["recording:list", "recording:fetch", "ping"]) {
-      const result = await enforce(
-        { grant: recordingsGrant(), attachedSession: null },
-        { type, id: "rec_aaaaaaaaaaaaaaaa", offset: 0 } as never,
-      );
-      expect(result, `recordings grant refused ${type}`).toEqual({ ok: true });
-    }
-  });
-
-  it("never lets a recordings-scoped grant record or delete", async () => {
-    for (const type of [
-      "recording:start",
-      "recording:stop",
-      "recording:delete",
-    ]) {
-      const result = await enforce(
-        { grant: recordingsGrant(), attachedSession: null },
-        {
-          type,
-          id: "rec_aaaaaaaaaaaaaaaa",
-          target: { kind: "session", session: "work" },
-        } as never,
-      );
-      expect(result.ok, `recordings grant allowed ${type}`).toBe(false);
-    }
-  });
-
-  it("keeps the allow-list a subset of the real message types", () => {
-    const types = new Set(clientMessageTypes());
-    for (const type of RECORDINGS_GRANT_ALLOWED)
-      expect(types.has(type)).toBe(true);
   });
 });

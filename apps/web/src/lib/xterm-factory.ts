@@ -15,12 +15,6 @@ import {
 /**
  * Construct an xterm instance the way this app needs one.
  *
- * Extracted from `terminal-view.tsx` unchanged, because a second thing now
- * needs it: the recording player. Copying seventy lines that include the
- * `_renderService.dimensions` patch below would have meant two copies of the
- * most fragile code in the app, free to drift apart in exactly the way that
- * makes a rendering bug reproduce on one screen and not the other.
- *
  * The WebGL addon is deliberately **not** here. It is loaded asynchronously
  * with its own context-loss handling and per-view lifetime, and folding that
  * into a constructor would have made this function the thing it exists to

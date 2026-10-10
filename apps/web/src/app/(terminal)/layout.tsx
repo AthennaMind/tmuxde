@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@repo/ui/components/app-shell";
 import { cn } from "@repo/ui/lib/utils";
 import { ThemeToggle } from "@repo/ui/components/theme-toggle";
@@ -10,7 +10,6 @@ import { useWebSocket, getRelayClient } from "@/hooks/use-websocket";
 import {
   filesDisabled,
   isReadOnly,
-  isRecordingsScope,
   useConnectionStore,
 } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
@@ -194,20 +193,6 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
   // What this credential may do, per `auth:success`. Null on the self-hosted
   // and full-grant paths, which is what unrestricted looks like.
   const capabilities = useConnectionStore((s) => s.capabilities);
-  const pathname = usePathname();
-
-  /*
-   * A recordings-scoped share can attach to no session at all.
-   *
-   * Left on `/`, such a connection renders a terminal that will never fill in
-   * and a session list that will always be empty — which reads as a broken
-   * share rather than as a share of one recording. It is sent to `/r`, where
-   * the thing it was actually given is.
-   */
-  const recordingsOnly = isRecordingsScope(capabilities);
-  useEffect(() => {
-    if (recordingsOnly && !pathname.startsWith("/r")) router.replace("/r");
-  }, [recordingsOnly, pathname, router]);
 
   // A share with files off must not leave the browser sitting on a Files tab
   // that no longer has a nav entry — including the case where the tab was

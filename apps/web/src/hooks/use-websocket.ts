@@ -12,7 +12,6 @@ import { useSessionStore } from "@/stores/session-store";
 import { usePaneStore } from "@/stores/pane-store";
 import { useFileStore } from "@/stores/file-store";
 import { useAlertStore } from "@/stores/alert-store";
-import { useRecordingStore } from "@/stores/recording-store";
 import { useDeviceApprovalStore } from "@/stores/device-approval-store";
 import { useUiStore } from "@/stores/ui-store";
 import { useScrollStore } from "@/stores/scroll-store";
@@ -313,35 +312,6 @@ export function useWebSocket(
           break;
         case "session:windows":
           // Handled by SessionCard via direct onMessage subscription
-          break;
-
-        case "recording:list":
-          useRecordingStore.getState().setRecordings(msg.recordings);
-          break;
-        case "recording:started":
-          useRecordingStore.getState().upsert(msg.recording);
-          break;
-        case "recording:stopped":
-          useRecordingStore.getState().upsert(msg.recording);
-          if (msg.reason === "limit") {
-            // A recording that silently stopped growing reads as a bug. One
-            // that says why reads as a limit, which is what it is.
-            useAlertStore
-              .getState()
-              .push(
-                "warning",
-                `Recording "${msg.recording.title}" reached its size or time limit and closed.`,
-              );
-          }
-          break;
-        case "recording:deleted":
-          useRecordingStore.getState().remove(msg.id);
-          break;
-        case "recording:chunk":
-          // Delivered to whoever is fetching, through a direct `onMessage`
-          // subscription. Reassembly is `lib/cast-fetch.ts`, and routing 64 KiB
-          // of base64 through a Zustand store would re-render every subscriber
-          // once per chunk.
           break;
         case "device:approval-request":
           /*

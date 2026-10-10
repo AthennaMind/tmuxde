@@ -15,7 +15,7 @@ https://{$LOCAL_DOMAIN} {
 	tls internal
 
 	@outside not remote_ip private_ranges
-	@relay path /_relay /health /_pair/* /_sessions /file /recording
+	@relay path /_relay /health /_pair/* /_sessions /file
 	@code_entry path /start /pair /j
 
 	header {

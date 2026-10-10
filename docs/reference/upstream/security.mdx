@@ -129,7 +129,7 @@ Authenticating gets a socket as far as the door. Whether it comes in is a
 separate question, put to a human at the machine — the app on a device already
 connected, the terminal or live panel, or `mtmux approve` — and asked of
 **every** connection: loopback, LAN and tunnelled alike, over the websocket and
-over the file and recording endpoints. Silence denies.
+over the file endpoint. Silence denies.
 
 This is the one check that is not about a credential. A credential is a file on
 somebody else's computer; that it paired once is a fact about the past. The
@@ -147,8 +147,8 @@ asked now.
 - A refusal carries `code: "unapproved"`, which tells the browser its
   credential is healthy. Without it, a slow answer would wipe a working pairing
   and send the user back to pairing from scratch.
-- The HTTP routes that serve bytes — `/file` and `/recording` — go through the
-  same gate. They did not until 0.12.0, which meant the shortest way past the
+- The HTTP route that serves bytes, `/file`, goes through the same gate. It
+  did not until 0.12.0, which meant the shortest way past the
   whole approval model was to stop using the terminal and ask for a file
   instead. A refusal there is `403`, not `401`: the credential was fine, and
   re-presenting it is not the way back in.
@@ -253,22 +253,6 @@ refuses to boot with a `localhost` origin in the list.
 is a real boundary; read-write is not. The difference, and why, is on its own
 page: [Sharing a session](/docs/sharing).
 
-A recordings-scoped share is narrower still: it names `.cast` files and no
-sessions at all, so the connection can attach to nothing, send no input and read
-no files. The relay refuses every message type outside listing and fetching,
-checked against an allow-list so a message type added later is denied by
-default. What such a share cannot do is be taken back — see
-[Recording a session](/docs/recording).
-
-## Recordings on disk
-
-A `.cast` contains every byte that was on the screen, which routinely includes a
-secret something printed. `~/.mtmux/recordings/` is `0700` and each file is
-`0600`, and that is the whole of the protection: there is no redaction pass,
-because a terminal stream is unstructured and a filter that catches most secret
-formats invites trust it has not earned. Recordings are output only — mtmux
-never writes asciinema's input event type, so a recording is not a keylogger.
-
 ## The device lock
 
 A browser that has paired holds keys in IndexedDB. By default they are stored in
@@ -322,9 +306,7 @@ or put the single port behind a reverse proxy that terminates TLS. See
    device still holds. A restart alone no longer un-pairs anything.
 5. Never put the raw port on the public internet without TLS in front.
 6. In split deployments set `CORS_ORIGINS` to your exact production origin.
-7. Read a recording before you share it. `mtmux record share` hands over a copy,
-   and a copy cannot be revoked.
-8. Keep mtmux current — `npm install -g mtmux@latest`.
+7. Keep mtmux current — `npm install -g mtmux@latest`.
 
 ## Reporting a vulnerability
 
@@ -336,5 +318,4 @@ Please do not open a public issue. See
 - [How pairing works](/docs/pairing) — why nine digits are enough
 - [The sealed tunnel](/docs/sealed-tunnel) — what the broker cannot read, and why
 - [Sharing a session](/docs/sharing) — the one boundary that is a boundary
-- [Recording a session](/docs/recording) — what a `.cast` holds, and what sharing one gives away
 - [Approvals](/docs/agents/approvals) — consent for a machine with nobody at it

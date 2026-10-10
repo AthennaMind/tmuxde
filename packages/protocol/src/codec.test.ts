@@ -213,7 +213,7 @@ describe("auth:success capabilities", () => {
     // regardless of what the client makes of it.
     const parsed = ServerMessageSchema.safeParse({
       ...base,
-      capabilities: { readOnly: true, files: "none", scope: "recordings" },
+      capabilities: { readOnly: true, files: "none", scope: "future-kind" },
     });
     expect(parsed.success).toBe(true);
   });

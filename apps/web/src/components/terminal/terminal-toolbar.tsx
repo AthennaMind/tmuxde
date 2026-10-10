@@ -18,7 +18,6 @@ import {
   getDefaultFontSize,
   clampFontSize,
 } from "@/stores/terminal-store";
-import { RecordButton } from "@/components/recording/record-button";
 import { TerminalSearch } from "./terminal-search";
 import { cn } from "@repo/ui/lib/utils";
 
@@ -113,7 +112,6 @@ export function TerminalToolbar({
           Files
         </Button>
       )}
-      <RecordButton session={activeSessionId} />
 
       <Button
         variant="ghost"

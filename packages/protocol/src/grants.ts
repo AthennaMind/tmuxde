@@ -53,20 +53,6 @@ export const GrantScope = z.discriminatedUnion("kind", [
     kind: z.literal("sessions"),
     sessions: z.array(GrantSession).max(64),
   }),
-  /**
-   * A share of recordings and nothing else.
-   *
-   * A third arm rather than a `recordings` field on `GrantRecord`, because the
-   * two are not composable: sharing a recording grants no session access at
-   * all — no attach, no input, no file tree — and a field would have made
-   * `sessions: [] + recordings: [x]` and `sessions: [$3] + recordings: [x]`
-   * both expressible, with only prose to say the second is not a thing. As an
-   * arm, `allowsSession` returns false for it without anyone writing a check.
-   */
-  z.object({
-    kind: z.literal("recordings"),
-    recordings: z.array(z.string().min(1).max(64)).max(64),
-  }),
 ]);
 export type GrantScope = z.infer<typeof GrantScope>;
 

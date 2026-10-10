@@ -22,7 +22,6 @@ flags.
 | `mtmux local`                       | Serve this network only, whatever `reach` is set to                                                             |
 | `mtmux pair [code]`                 | The other direction: join a pairing a browser started                                                           |
 | `mtmux share <session>`             | Share one tmux session without sharing the machine                                                              |
-| `mtmux record <session>`            | Capture a session or pane to a `.cast` on this machine                                                          |
 | `mtmux status`                      | Show the server running on this machine                                                                         |
 | `mtmux stop`                        | Stop the server running on this machine                                                                         |
 | `mtmux doctor`                      | Check everything mtmux needs                                                                                    |
@@ -270,38 +269,6 @@ session ids, and only the running relay knows them.
 to the code `start` itself prints, so the first device to join is scoped rather
 than full-privilege.
 
-## `mtmux record`
-
-Capture a tmux session or one pane to a file under `~/.mtmux/recordings/`. What
-a recording contains, and what sharing one does and does not mean, are in
-[Recording a Session](/docs/recording) — read that page before you share one.
-
-```bash
-mtmux record <session>
-mtmux record list
-mtmux record stop <id>
-mtmux record rm <id>
-mtmux record share <id>
-```
-
-| Flag                   | Applies to     | Default              | Effect                                                 |
-| ---------------------- | -------------- | -------------------- | ------------------------------------------------------ |
-| `--pane <id>`          | `record`       | —                    | Record one pane (a tmux `%id`) instead of the session  |
-| `--title <text>`       | `record`       | the session name     | What the recording is called, in the file's own header |
-| `--json`               | `record list`  | —                    | Print one JSON document and nothing else               |
-| `--all`                | `record stop`  | —                    | Stop every recording                                   |
-| `--expires <duration>` | `record share` | `7d`                 | `30m`, `24h`, `7d`, `2w`, `never`                      |
-| `--label <text>`       | `record share` | `Recording: <title>` | Name in `mtmux share list`                             |
-| `--no-qr`              | `record share` | —                    | Print the code without the QR block                    |
-| `-p, --port <number>`  | all            | `14100`              | Port mtmux is serving on                               |
-
-Requires a server already running on that port: only the running process holds
-the tmux connection the recorder attaches through.
-
-There is deliberately no `mtmux start --record`. Recording is something you
-start when the thing worth recording is about to happen, not a mode you boot
-into.
-
 ## `mtmux status`
 
 ```
@@ -523,7 +490,6 @@ Aliased as `mtmux v`.
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `~/.mtmux/config.json`      | Auth token, device key, paired peers, account, server name. Mode `0600`.                                                               |
 | `~/.mtmux/grants.json`      | Shares created with `mtmux share`. Mode `0600`. Separate from `config.json` so a truncated write cannot cost you your device identity. |
-| `~/.mtmux/recordings/`      | `.cast` files from `mtmux record`, plus an `index.json`. Directory `0700`, files `0600`.                                               |
 | `~/.mtmux/server.json`      | The running server's pid, port, URLs and mode.                                                                                         |
 | `~/.tmuxremote/config.json` | Legacy location. Its token is adopted on first run if the new file is missing.                                                         |
 
@@ -540,5 +506,4 @@ part of mtmux and never were: `mtmux up`, `mtmux down`, `mtmux watch`,
 - [Getting started](/docs/getting-started) — the walkthrough these flags belong to
 - [Configuration](/docs/configuration) — the environment variables behind the flags
 - [Coding agents](/docs/agents) — the workflow most of these commands exist for
-- [Recording a session](/docs/recording) — what `mtmux record` captures, and what sharing one means
 - [mtmux doctor](/docs/doctor) — when a command does not do what this page says

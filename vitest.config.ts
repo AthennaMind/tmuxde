@@ -10,7 +10,6 @@ export default defineConfig({
       "apps/relay",
       "apps/web/vitest.config.ts",
       "apps/web/vitest.config.idb.ts",
-      "packages/cast",
       "packages/crypto",
       "packages/protocol",
     ],
