@@ -1,15 +1,11 @@
 {
-  "extends": "@repo/tsconfig/nextjs.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "declaration": false,
-    "declarationMap": false,
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ]
-    },
     "allowJs": true,
-    "tsBuildInfoFile": ".turbo/tsconfig.tsbuildinfo"
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": [
     "next-env.d.ts",
@@ -19,7 +15,5 @@
     ".next-dev/types/**/*.ts",
     ".next-build/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

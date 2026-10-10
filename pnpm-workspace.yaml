@@ -1,7 +1,6 @@
 packages:
   - "apps/*"
   - "packages/*"
-  - "tooling/*"
 
 overrides:
   ws: ^8

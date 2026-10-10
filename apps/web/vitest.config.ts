@@ -8,7 +8,6 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 // machine) and the WebSocket client with a stubbed global, neither of which
 // needs a DOM. Keeping jsdom out keeps the suite fast and dependency-light.
 export default defineConfig({
-  cacheDir: ".turbo/vite",
   oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     alias: {
@@ -16,7 +15,6 @@ export default defineConfig({
     },
   },
   test: {
-    maxWorkers: 2,
     environment: "node",
     include: ["src/**/*.test.ts"],
     // `*.idb.test.ts` belongs to the sibling project in vitest.config.idb.ts,
