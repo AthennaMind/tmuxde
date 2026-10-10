@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { RepoRequest } from "./repository";
-import { RecordingId, RecordingTarget } from "./recordings";
 import { TerminalSizeSchema } from "./types";
 
 export const AuthMessage = z.object({
@@ -324,51 +323,6 @@ export const SessionWindowsMessage = z.object({
 });
 
 /**
- * Recording control.
- *
- * Five messages that ship as a unit — `wire-connections.ts` advertises them
- * under the single `recording` feature flag, because a client that can list
- * recordings but not fetch one has nothing useful to offer.
- */
-export const RecordingStartMessage = z.object({
-  type: z.literal("recording:start"),
-  target: RecordingTarget,
-  /** Overrides the session name in the cast header. */
-  title: z.string().max(256).optional(),
-});
-
-export const RecordingStopMessage = z.object({
-  type: z.literal("recording:stop"),
-  id: RecordingId,
-});
-
-export const RecordingListMessage = z.object({
-  type: z.literal("recording:list"),
-});
-
-export const RecordingDeleteMessage = z.object({
-  type: z.literal("recording:delete"),
-  id: RecordingId,
-});
-
-/**
- * Ask for a recording's bytes, streamed back as `recording:chunk`.
- *
- * Over the websocket rather than over HTTP, and that is not a preference. The
- * phone-on-cellular case is a *tunnelled* session: the relay is reachable only
- * as sealed frames through the broker, and `resolveRelayHttpBase()` in the web
- * app returns `""` for exactly that reason. An HTTP transport would work on a
- * LAN and fail for the case the feature exists to serve.
- *
- * `offset` resumes an interrupted transfer without re-sending what arrived.
- */
-export const RecordingFetchMessage = z.object({
-  type: z.literal("recording:fetch"),
-  id: RecordingId,
-  offset: z.number().int().nonnegative().default(0),
-});
-
-/**
  * The human's answer to `device:approval-request`.
  *
  * `approved` is a boolean and not an enum of one value, because a denial has
@@ -438,11 +392,6 @@ export const ClientMessage = z.discriminatedUnion("type", [
   TmuxExitCopyModeMessage,
   PaneCaptureMessage,
   SessionWindowsMessage,
-  RecordingStartMessage,
-  RecordingStopMessage,
-  RecordingListMessage,
-  RecordingDeleteMessage,
-  RecordingFetchMessage,
   DeviceApproveMessage,
 ]);
 
@@ -497,9 +446,4 @@ export type TmuxScrollStateRequest = z.infer<typeof TmuxScrollStateRequest>;
 export type TmuxExitCopyModeMessage = z.infer<typeof TmuxExitCopyModeMessage>;
 export type PaneCaptureMessage = z.infer<typeof PaneCaptureMessage>;
 export type SessionWindowsMessage = z.infer<typeof SessionWindowsMessage>;
-export type RecordingStartMessage = z.infer<typeof RecordingStartMessage>;
-export type RecordingStopMessage = z.infer<typeof RecordingStopMessage>;
-export type RecordingListMessage = z.infer<typeof RecordingListMessage>;
-export type RecordingDeleteMessage = z.infer<typeof RecordingDeleteMessage>;
-export type RecordingFetchMessage = z.infer<typeof RecordingFetchMessage>;
 export type DeviceApproveMessage = z.infer<typeof DeviceApproveMessage>;

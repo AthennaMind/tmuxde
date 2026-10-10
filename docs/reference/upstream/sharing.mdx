@@ -176,21 +176,8 @@ mode there is no agent at all). A button that appeared to create a share would
 have to reach a machine that might be offline, and would fail in a way that
 looks like a bug rather than like the truth.
 
-## Sharing a recording instead
-
-`mtmux share` hands over a live session. If what you want to hand over is what
-*already happened*, [`mtmux record share`](/docs/recording) sends a copy of a
-`.cast` file instead: the same pairing code and the same sealed tunnel, but the
-grant names recordings rather than sessions, so the connection can attach to no
-session, send no input and read no files.
-
-It is a firmer boundary than a read-write session share and a weaker one in a
-different direction: once the bytes are in someone's browser, revoking does not
-take them back.
-
 ## Next steps
 
-- [Recording a session](/docs/recording) — hand over what happened rather than what is happening
 - [Multi-agent layouts](/docs/agents/multi-agent-layouts) — why one session per agent makes this work
 - [Security](/docs/security) — what a share can and cannot reach
 - [CLI reference](/docs/cli) — `share`, `share list`, `share revoke`

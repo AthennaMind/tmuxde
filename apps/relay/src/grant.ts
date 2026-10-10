@@ -87,25 +87,6 @@ export function allowsSessionName(grant: GrantRecord, name: string): boolean {
   return scope.sessions.some((s) => s.name === name);
 }
 
-/**
- * May this grant read this recording?
- *
- * A full grant may read every recording on the machine — it is the machine's
- * own token. A sessions-scoped grant may read none: recordings are a separate
- * artefact, and a share of a live session was never a share of its history.
- */
-export function allowsRecording(grant: GrantRecord, id: string): boolean {
-  const scope = grant.scope;
-  if (scope.kind === "all") return true;
-  if (scope.kind !== "recordings") return false;
-  return scope.recordings.includes(id);
-}
-
-/** True for a grant whose entire content is a set of recordings. */
-export function isRecordingsGrant(grant: GrantRecord): boolean {
-  return grant.scope.kind === "recordings";
-}
-
 /** Filter a session list down to what this grant may see. Never throws. */
 export function visibleSessions(
   grant: GrantRecord,
@@ -137,27 +118,12 @@ export function narrower(a: GrantRecord, b: GrantRecord): GrantRecord {
     scope = b.scope;
   } else if (b.scope.kind === "all") {
     scope = a.scope;
-  } else if (a.scope.kind === "sessions" && b.scope.kind === "sessions") {
+  } else {
     const bIds = new Set(b.scope.sessions.map((s) => s.id));
     scope = {
       kind: "sessions",
       sessions: a.scope.sessions.filter((s) => bIds.has(s.id)),
     };
-  } else if (a.scope.kind === "recordings" && b.scope.kind === "recordings") {
-    const bIds = new Set(b.scope.recordings);
-    scope = {
-      kind: "recordings",
-      recordings: a.scope.recordings.filter((id) => bIds.has(id)),
-    };
-  } else {
-    // Two different narrow kinds. Their intersection is genuinely empty — a
-    // sessions grant permits no recording and a recordings grant permits no
-    // session — and "empty" has to be expressed in *a*'s own kind, because the
-    // property test says the result is never broader than `a` on any axis.
-    scope =
-      a.scope.kind === "sessions"
-        ? { kind: "sessions", sessions: [] }
-        : { kind: "recordings", recordings: [] };
   }
 
   return {

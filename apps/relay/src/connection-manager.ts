@@ -327,8 +327,7 @@ export type ConnectionDetail = ConnectedDevice & {
 /** The shape of a connection's reach, flattened for display. */
 export type ConnectionScope =
   | { kind: "all" }
-  | { kind: "sessions"; sessions: string[] }
-  | { kind: "recordings"; count: number };
+  | { kind: "sessions"; sessions: string[] };
 
 /**
  * Who is connected right now.
@@ -388,9 +387,6 @@ export function connectionDetails(): ConnectionDetail[] {
 function describeScope(scope: GrantScope): ConnectionScope {
   if (scope.kind === "sessions") {
     return { kind: "sessions", sessions: scope.sessions.map((s) => s.name) };
-  }
-  if (scope.kind === "recordings") {
-    return { kind: "recordings", count: scope.recordings.length };
   }
   return { kind: "all" };
 }

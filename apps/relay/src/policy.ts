@@ -5,7 +5,7 @@ import {
 } from "@repo/protocol";
 import { createLogger } from "@repo/logger";
 import * as tmux from "./tmux-manager.js";
-import { allowsSession, isFullGrant, isRecordingsGrant } from "./grant.js";
+import { allowsSession, isFullGrant } from "./grant.js";
 
 const logger = createLogger("relay:policy");
 
@@ -45,33 +45,7 @@ export type Policy = {
    * writing an updated name back into `grants.json` on every rename.
    */
   fullScopeOnly?: true;
-  /**
-   * `msg.target` names a session that must be in scope.
-   *
-   * Separate from `sessionArg` because `enforce` reads that one off the top
-   * level of the message, and a recording target is nested — `{ target: {
-   * kind, session } }`. It must no-op when `msg.target` is absent, or the
-   * full-grant sweep in `policy.test.ts` fails on every message that has none.
-   */
-  recordingTarget?: true;
 };
-
-/**
- * The only message types a recordings-scoped grant may send.
- *
- * A `Set` rather than a flag on each entry, because the failure mode being
- * defended against is a *new* message type shipping and being permitted by
- * default. Everything not named here is refused for such a grant, so the
- * default for anything added later is "no".
- */
-export const RECORDINGS_GRANT_ALLOWED: ReadonlySet<ClientMessage["type"]> =
-  new Set<ClientMessage["type"]>([
-    "ping",
-    "recording:list",
-    "recording:fetch",
-    // Not `recording:start`, `stop` or `delete`: those write to the owner's
-    // disk and spawn a process. Somebody handed a recording gets to watch it.
-  ]);
 
 export const POLICY: Record<ClientMessage["type"], Policy> = {
   // Handled before routing; reaching the router at all is the tunnel case.
@@ -153,17 +127,6 @@ export const POLICY: Record<ClientMessage["type"], Policy> = {
   "tmux:scroll-state": {},
   "tmux:exit-copy-mode": {},
 
-  // Recording spawns a process and writes to the owner's disk, so it is a
-  // write in the sense that matters: a read-only share is "watch, touch
-  // nothing". Listing and fetching are not — `fetch` is the entire
-  // share-a-recording story, and a share of a recording is read-only by
-  // construction.
-  "recording:start": { write: true, recordingTarget: true },
-  "recording:stop": { write: true },
-  "recording:delete": { write: true },
-  "recording:list": {},
-  "recording:fetch": {},
-
   /**
    * Answering "let this device in?".
    *
@@ -236,12 +199,6 @@ export async function enforce(
 
   const full = isFullGrant(grant);
 
-  // Checked first and against an allow-list, so a message type added later is
-  // denied for a recordings-scoped grant until somebody decides otherwise.
-  if (isRecordingsGrant(grant) && !RECORDINGS_GRANT_ALLOWED.has(msg.type)) {
-    return deny("ACCESS_DENIED", "This share is a recording, not a session.");
-  }
-
   if (policy.write && grant.readOnly) {
     return deny("READ_ONLY", "This is a read-only session.");
   }
@@ -258,31 +215,6 @@ export async function enforce(
         : held === "write";
     if (!enough) {
       return deny("ACCESS_DENIED", "File access is not part of this share.");
-    }
-  }
-
-  if (policy.recordingTarget) {
-    const target = (
-      msg as unknown as {
-        target?: { session?: unknown; paneId?: unknown };
-      }
-    ).target;
-    const name = target?.session;
-    if (typeof name === "string") {
-      const inScope = await sessionInScope(ctx, name);
-      if (!inScope) return notFound(name);
-    }
-    // A pane id is a second, independent way to name what gets recorded, and
-    // it was unchecked — so a sessions-scoped grant could record a pane of a
-    // session it has no rights to. Full grants are exempt for the same reason
-    // they are everywhere else: there is nothing narrower to compare against.
-    const paneId = target?.paneId;
-    if (typeof paneId === "string" && !full) {
-      const session = typeof name === "string" ? name : ctx.attachedSession;
-      if (!session) return deny("NOT_ATTACHED", "No session attached");
-      if (!(await paneBelongs(session, paneId))) {
-        return deny("PANE_NOT_FOUND", `Pane "${paneId}" not found`);
-      }
     }
   }
 

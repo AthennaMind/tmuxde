@@ -81,19 +81,3 @@ export function filesDisabled(capabilities: Capabilities | null): boolean {
 export function supportsStep(features: Features): boolean {
   return features.has("window:step") && features.has("pane:step");
 }
-
-/**
- * True when the relay can record and serve `.cast` files.
- *
- * One flag, because the five `recording:*` messages ship together. The web app
- * updates itself and the CLI does not, so a browser must ask before it offers
- * a record button that would only ever answer `INVALID_MESSAGE`.
- */
-export function supportsRecording(features: Features): boolean {
-  return features.has("recording");
-}
-
-/** True when this connection's whole content is a set of recordings. */
-export function isRecordingsScope(capabilities: Capabilities | null): boolean {
-  return capabilities?.scope === "recordings";
-}

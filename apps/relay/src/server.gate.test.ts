@@ -11,13 +11,12 @@ import { FULL_GRANT } from "./grant.js";
 import { config } from "./config.js";
 
 /**
- * The relay's two byte-serving HTTP routes, and the question they never asked.
+ * The relay's byte-serving HTTP route, and the question it never asked.
  *
- * `/file` and `/recording` authenticated a bearer token and then served from
- * the machine's disk. The websocket carrying the very same token put a yes/no
- * on the owner's screen; these did not — so the shortest way past the whole
- * approval model was to stop using the terminal and start using the file
- * endpoint. "Every connection is approved" is either true of every route or it
+ * `/file` authenticated a bearer token and then served from the machine's
+ * disk. The websocket carrying the very same token put a yes/no on the owner's
+ * screen; the route did not — so the shortest way past the whole approval
+ * model was to stop using the terminal and start using the file endpoint. "Every connection is approved" is either true of every route or it
  * is marketing.
  */
 
@@ -76,7 +75,6 @@ async function get(
 }
 
 const FILE_URL = `/file?path=${encodeURIComponent("/etc/hostname")}`;
-const RECORDING_URL = "/recording?id=abc";
 
 describe("the connection gate covers the HTTP routes too", () => {
   beforeEach(() => {
@@ -92,12 +90,6 @@ describe("the connection gate covers the HTTP routes too", () => {
     // way back in.
     expect(captured.status).toBe(403);
     expect(captured.body).toBe("Not approved on the machine");
-  });
-
-  it("refuses a recording download the gate says no to", async () => {
-    setConnectionGate(async () => false);
-    const captured = await get(RECORDING_URL);
-    expect(captured.status).toBe(403);
   });
 
   it("treats a gate that throws as a refusal, here as everywhere", async () => {

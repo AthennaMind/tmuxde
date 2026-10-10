@@ -4,7 +4,7 @@ import { z } from "zod";
  * The pairing protocol's version, on the wire.
  *
  * Until 0.7.0 there was none. Nothing in `packages/protocol` carried a version
- * except the at-rest formats — `recordings.ts` and `grants.ts` — so the broker
+ * except the at-rest format in `grants.ts`, so the broker
  * could not identify, warn, or refuse a client by version. That is the same
  * gap as having no kill switch: a release that turned out to be dangerous
  * would have stayed in the field, because there was no channel through which
