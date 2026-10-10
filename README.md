@@ -11,7 +11,7 @@ scripts/setup.sh
 docker compose up -d --build --wait
 ```
 
-Setup creates private `.env`, preserves relay token, prepares host tmux client and enables Docker Git hooks. No host Node or pnpm installation needed.
+Setup creates private `.env`, preserves relay token and prepares host tmux client. No host Node or pnpm installation needed.
 
 Open `https://localhost`. Trust [Caddy local CA](.docker/README.md), then sign in with token from `.docker/.env.token`. Default HTTPS bind address is `127.0.0.1`. Set `LOCAL_BIND_IP` and `LOCAL_DOMAIN` in root `.env` if your machine needs different settings.
 
@@ -40,16 +40,11 @@ Dependency changes need restricted export back to host manifests. Helper stops r
 python3 .docker/dev/dependencies.py mutate --filter @app/web add package-name
 ```
 
-Setup enables Docker Git hooks. No host Node, pnpm or node_modules installs. Downloads disable lifecycle scripts. Approved native builds have no network. Runtime uses nonroot users, read-only source and dependencies, dropped capabilities and no privilege escalation. Hook helper masks credentials and protects host scripts and Docker configuration.
+No host Node, pnpm or node_modules installs. Downloads disable lifecycle scripts. Approved native builds have no network. Runtime uses nonroot users, read-only source and dependencies, dropped capabilities and no privilege escalation.
 
 [Docker setup and certificate guide](.docker/README.md) covers local configuration and device trust.
 
-Terminal browser tests use isolated lab:
-
-```sh
-.docker/dev/lab.sh test
-.docker/dev/lab.sh down
-```
+Browser checks use `playwright-cli` against running stack when needed.
 
 Production is explicit:
 

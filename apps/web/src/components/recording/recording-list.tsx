@@ -117,7 +117,7 @@ export function RecordingList() {
                   variant="ghost"
                   // `size-11`, not the default icon size: this is the only
                   // control on the row and a thumb has to hit it. 44px is the
-                  // floor `e2e/tap-target.ts` enforces, and the default was 36.
+                  // tap target floor, and the default was 36.
                   className="size-11 shrink-0"
                   aria-label={`Delete recording ${recording.title}`}
                   onClick={() =>

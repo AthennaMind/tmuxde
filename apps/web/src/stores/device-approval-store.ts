@@ -41,17 +41,17 @@ interface DeviceApprovalStore {
 /**
  * The test seam, and why it is compiled out of anything shipped.
  *
- * A device approval request cannot be manufactured from a spec: it originates
- * in a real CPace exchange between a browser and the broker, and the lab
- * container has no broker and no second browser. Without a seam the one dialog
- * in the product that a stray keypress must never dismiss would be the one
- * surface never tested at a phone viewport — which is precisely the mistake
- * `playwright.config.ts` already records paying for once.
+ * A device approval request cannot be manufactured from a browser check. It
+ * originates in a real CPace exchange between a browser and the broker, and
+ * the local stack has no broker. Without a seam the one dialog in the product
+ * that a stray keypress must never dismiss could not be opened at a phone
+ * viewport through `playwright-cli`.
  *
  * `process.env.NODE_ENV` is inlined by the bundler and the dead branch removed,
  * so a production bundle carries neither the property nor the assignment. The
- * lab runs `next dev`, where it is present. It exposes only the store: the
- * answer still travels over the real socket and is still decided by the relay.
+ * dev stack runs `next dev`, where it is present. It exposes only the store:
+ * the answer still travels over the real socket and is still decided by the
+ * relay.
  */
 declare global {
   interface Window {

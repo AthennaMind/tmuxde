@@ -142,7 +142,7 @@ Run `scripts/setup.sh` from repository root, then `docker compose up -d --build 
 
 Run checks with `docker compose run --rm tools pnpm test`, replacing test with lint, typecheck or build. Dependency mutations use `python3 .docker/dev/dependencies.py mutate` followed by pnpm arguments. This helper exports only validated manifests and lockfile, and stops running development services during writes. Production services are excluded.
 
-Standalone CI tooling uses `.docker/compose/tooling.yaml`, without host tmux setup or credentials. Terminal browser tests use `.docker/dev/lab.sh test`. Lab has no Docker socket or host networking. Run `.docker/dev/lab.sh down` after tests.
+Standalone tooling uses `.docker/compose/tooling.yaml`, without host tmux setup or credentials.
 
 Use `python3 .docker/tests/runtime.py` to verify resolved relay HOME points to mounted host home.
 
@@ -162,7 +162,6 @@ manifests pin versions below. Application library migrations remain separate.
 | ESLint | 10.12.0 |
 | Vitest | 5.0.3 |
 | Turbo | 2.11.7 |
-| Playwright | 1.63.0 |
 | Tailwind CSS | 4.3.3 |
 | Prettier | 3.9.9 |
 

@@ -21,11 +21,9 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       TURBO_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
-      HUSKY: "0"
       LANG: "C.UTF-8"
       LC_ALL: "C.UTF-8"
       PNPM_HOME: "/tmp/pnpm"
-      PLAYWRIGHT_BROWSERS_PATH: "/opt/playwright"
       npm_config_nodedir: "/usr/local"
       CI: "${CI:-}"
     volumes:
@@ -179,18 +177,6 @@ services:
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps/web/demo"
-        target: "/workspace/apps/web/demo"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../apps/web/e2e"
-        target: "/workspace/apps/web/e2e"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
         source: "../../apps/web/eslint.config.js"
         target: "/workspace/apps/web/eslint.config.js"
         read_only: true
@@ -209,12 +195,6 @@ services:
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps/web/playwright.config.ts"
-        target: "/workspace/apps/web/playwright.config.ts"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
         source: "../../apps/web/postcss.config.mjs"
         target: "/workspace/apps/web/postcss.config.mjs"
         read_only: true
@@ -223,12 +203,6 @@ services:
       - type: "bind"
         source: "../../apps/web/public"
         target: "/workspace/apps/web/public"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../apps/web/scripts"
-        target: "/workspace/apps/web/scripts"
         read_only: true
         bind:
           create_host_path: false
@@ -361,20 +335,6 @@ services:
           subpath: "web-build"
       - type: "volume"
         source: "cache"
-        target: "/workspace/apps/web/.next-e2e"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "web-e2e"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/apps/web/.next-lab"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "web-lab"
-      - type: "volume"
-        source: "cache"
         target: "/workspace/apps/web/.next"
         read_only: false
         volume:
@@ -387,20 +347,6 @@ services:
         volume:
           nocopy: true
           subpath: "relay-dist"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/apps/web/test-results"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "test-results"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/apps/web/playwright-report"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "playwright-report"
   web-workspace:
     extends:
       service: runtime
@@ -478,12 +424,10 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       TURBO_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
-      HUSKY: "0"
       HOME: "/tmp/mtmux-dev"
       LANG: "C.UTF-8"
       LC_ALL: "C.UTF-8"
       PNPM_HOME: "/tmp/pnpm"
-      PLAYWRIGHT_BROWSERS_PATH: "/opt/playwright"
       npm_config_nodedir: "/usr/local"
       CI: "true"
     entrypoint:

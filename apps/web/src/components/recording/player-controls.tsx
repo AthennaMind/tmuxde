@@ -37,9 +37,9 @@ export function PlayerControls({
 
   return (
     <div className="flex flex-col gap-2">
-      {/* A named group so the transport is addressable as a unit — by assistive
-          tech, and by the e2e spec, which would otherwise have to guess which
-          "Play" on the page is this one. */}
+      {/* A named group so the transport is addressable as a unit. Assistive
+          tech would otherwise have to guess which "Play" on the page is this
+          one. */}
       <div
         role="group"
         aria-label="Playback controls"
