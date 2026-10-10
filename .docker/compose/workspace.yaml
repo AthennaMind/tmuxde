@@ -19,7 +19,6 @@ services:
     working_dir: "/workspace"
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
-      TURBO_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
       LANG: "C.UTF-8"
       LC_ALL: "C.UTF-8"
@@ -46,20 +45,20 @@ services:
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../turbo.json"
-        target: "/workspace/turbo.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../.prettierignore"
-        target: "/workspace/.prettierignore"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
         source: "../../.gitignore"
         target: "/workspace/.gitignore"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../tsconfig.base.json"
+        target: "/workspace/tsconfig.base.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../vitest.config.ts"
+        target: "/workspace/vitest.config.ts"
         read_only: true
         bind:
           create_host_path: false
@@ -72,12 +71,6 @@ services:
       - type: "bind"
         source: "../../packages"
         target: "/workspace/packages"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../tooling"
-        target: "/workspace/tooling"
         read_only: true
         bind:
           create_host_path: false
@@ -144,27 +137,6 @@ services:
           nocopy: true
           subpath: "packages-ui"
       - type: "volume"
-        source: "dependencies"
-        target: "/workspace/tooling/eslint/node_modules"
-        read_only: true
-        volume:
-          nocopy: true
-          subpath: "tooling-eslint"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/tooling/prettier/node_modules"
-        read_only: true
-        volume:
-          nocopy: true
-          subpath: "tooling-prettier"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/tooling/typescript/node_modules"
-        read_only: true
-        volume:
-          nocopy: true
-          subpath: "tooling-typescript"
-      - type: "volume"
         source: "pnpm-store"
         target: "/pnpm/store"
         read_only: true
@@ -173,12 +145,6 @@ services:
       - type: "bind"
         source: "../../apps/web/components.json"
         target: "/workspace/apps/web/components.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../apps/web/eslint.config.js"
-        target: "/workspace/apps/web/eslint.config.js"
         read_only: true
         bind:
           create_host_path: false
@@ -238,87 +204,17 @@ services:
     volumes:
       - type: "volume"
         source: "cache"
+        target: "/workspace/.cache"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "workspace-cache"
+      - type: "volume"
+        source: "cache"
         target: "/workspace/apps/web"
         volume:
           nocopy: true
           subpath: "web-tooling-metadata"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "turbo"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/apps/relay/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "apps-relay-turbo"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/apps/web/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "apps-web-turbo"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/packages/cast/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "packages-cast-turbo"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/packages/crypto/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "packages-crypto-turbo"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/packages/logger/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "packages-logger-turbo"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/packages/protocol/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "packages-protocol-turbo"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/packages/ui/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "packages-ui-turbo"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/tooling/eslint/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "tooling-eslint-turbo"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/tooling/prettier/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "tooling-prettier-turbo"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/tooling/typescript/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "tooling-typescript-turbo"
       - type: "volume"
         source: "cache"
         target: "/workspace/apps/web/.next-dev"
@@ -361,13 +257,6 @@ services:
           subpath: "web-dev-metadata"
       - type: "volume"
         source: "cache"
-        target: "/workspace/apps/web/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "apps-web-turbo"
-      - type: "volume"
-        source: "cache"
         target: "/workspace/apps/web/.next-dev"
         read_only: false
         volume:
@@ -377,13 +266,6 @@ services:
     extends:
       service: runtime
     volumes:
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/apps/relay/.turbo"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "apps-relay-turbo"
       - type: "volume"
         source: "cache"
         target: "/workspace/apps/relay/dist"
@@ -416,13 +298,9 @@ services:
       - '/workspace/packages/logger:rw,noexec,nosuid,nodev,mode=1777,size=8m'
       - '/workspace/packages/protocol:rw,noexec,nosuid,nodev,mode=1777,size=8m'
       - '/workspace/packages/ui:rw,noexec,nosuid,nodev,mode=1777,size=8m'
-      - '/workspace/tooling/eslint:rw,noexec,nosuid,nodev,mode=1777,size=8m'
-      - '/workspace/tooling/prettier:rw,noexec,nosuid,nodev,mode=1777,size=8m'
-      - '/workspace/tooling/typescript:rw,noexec,nosuid,nodev,mode=1777,size=8m'
     working_dir: "/workspace"
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
-      TURBO_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
       HOME: "/tmp/mtmux-dev"
       LANG: "C.UTF-8"
@@ -495,24 +373,6 @@ services:
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../tooling/eslint/package.json"
-        target: "/manifests/tooling/eslint/package.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../tooling/prettier/package.json"
-        target: "/manifests/tooling/prettier/package.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../tooling/typescript/package.json"
-        target: "/manifests/tooling/typescript/package.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
         source: "../dev/deps-manager.sh"
         target: "/usr/local/bin/deps-manager"
         read_only: true
@@ -574,27 +434,6 @@ services:
         volume:
           nocopy: true
           subpath: "packages-ui"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/tooling/eslint/node_modules"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "tooling-eslint"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/tooling/prettier/node_modules"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "tooling-prettier"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/tooling/typescript/node_modules"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "tooling-typescript"
       - type: "volume"
         source: "pnpm-store"
         target: "/pnpm/store"

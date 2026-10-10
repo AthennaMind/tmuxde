@@ -17,7 +17,7 @@ os.environ['DEV_GID'] = str(os.getgid())
 COMPOSE = ['docker', 'compose', '-f', '.docker/compose/tooling.yaml']
 STACK = ['docker', 'compose']
 MANIFESTS = [Path('package.json'), Path('pnpm-lock.yaml'), Path('pnpm-workspace.yaml')]
-MANIFESTS += sorted(p for parent in ('apps', 'packages', 'tooling') for p in Path(parent).glob('*/package.json'))
+MANIFESTS += sorted(p for parent in ('apps', 'packages') for p in Path(parent).glob('*/package.json'))
 VOLUME = 'mtmux-dev-dependencies-v2'
 
 

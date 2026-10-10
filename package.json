@@ -2,20 +2,18 @@
   "name": "mtmux-monorepo",
   "license": "MIT",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@12.11.2",
   "scripts": {
-    "dev": "NEXT_TELEMETRY_DISABLED=1 TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo dev --filter=@app/web --filter=@app/relay",
-    "build": "NEXT_TELEMETRY_DISABLED=1 TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo build",
-    "lint": "TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo lint",
-    "typecheck": "TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo typecheck",
-    "test": "TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo test --concurrency=2",
-    "clean": "TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo clean"
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run --configLoader native"
   },
   "devDependencies": {
-    "@repo/prettier-config": "workspace:*",
     "@types/node": "26.6.4",
-    "prettier": "3.9.9",
-    "turbo": "2.11.7"
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
   },
   "engines": {
     "node": "26.11.1",

@@ -19,12 +19,13 @@ Root `docker-compose.yml` includes `.docker/compose/dev.yaml`. Browser connects 
 
 Startup initializes three volumes for dependencies, caches and pnpm store. Dependency container downloads packages with scripts disabled, then separate container builds approved native dependencies offline. Apps start afterward. Unchanged dependency hashes skip installation. Caddy certificates, uploads and host tmux sessions survive rebuilds.
 
+Workspaces use plain pnpm with no task runner. Root `tsconfig.base.json` and `vitest.config.ts` hold shared TypeScript 7 and test settings. Root `pnpm test` runs every workspace suite in one Vitest run. No linter or formatter is configured yet.
+
 Run checks and Node commands inside tooling container:
 
 ```sh
 docker compose run --rm tools pnpm test
 docker compose run --rm tools pnpm typecheck
-docker compose run --rm tools pnpm lint
 docker compose run --rm tools pnpm build
 docker compose logs -f
 docker compose down

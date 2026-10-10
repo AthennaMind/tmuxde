@@ -121,7 +121,7 @@ Run setup again after changing host tmux version or socket. Restart stack with
 
 Web and relay use internal Docker network with no internet route. Caddy publishes
 HTTPS on internal network address. Browser connection policy permits this origin
-only, and microphone access is disabled. Next.js and Turbo telemetry are disabled in development, builds and runtime.
+only, and microphone access is disabled. Next.js telemetry is disabled in development, builds and runtime.
 Hosted authentication and its telemetry dependency have been removed. No broker, account service, or CLI heartbeat runs in this stack.
 Builds still download images and package dependencies. Fonts are bundled locally. Commands running inside host
 tmux retain host network access.
@@ -140,7 +140,7 @@ Stopping stack leaves host tmux sessions running. Source changes reload automati
 
 Run `scripts/setup.sh` from repository root, then `docker compose up -d --build --wait`. Root Compose includes development config under `.docker/compose`. Dependency downloads and offline approved builds complete before web and relay start. Manifest and toolchain hashes skip unchanged installs. Runtime and tooling retain containment described in root README.
 
-Run checks with `docker compose run --rm tools pnpm test`, replacing test with lint, typecheck or build. Dependency mutations use `python3 .docker/dev/dependencies.py mutate` followed by pnpm arguments. This helper exports only validated manifests and lockfile, and stops running development services during writes. Production services are excluded.
+Run checks with `docker compose run --rm tools pnpm test`, replacing test with typecheck or build. Dependency mutations use `python3 .docker/dev/dependencies.py mutate` followed by pnpm arguments. This helper exports only validated manifests and lockfile, and stops running development services during writes. Production services are excluded.
 
 Standalone tooling uses `.docker/compose/tooling.yaml`, without host tmux setup or credentials.
 
@@ -159,14 +159,10 @@ manifests pin versions below. Application library migrations remain separate.
 | Next.js | 16.3.8 |
 | React | 19.3.0 |
 | TypeScript compiler | 7.0.2 |
-| ESLint | 10.12.0 |
 | Vitest | 5.0.3 |
-| Turbo | 2.11.7 |
 | Tailwind CSS | 4.3.3 |
-| Prettier | 3.9.9 |
 
-React hook checks retain existing rules. New compiler lint rules require separate
-adoption. Unused React lint plugin was removed because it only declares ESLint 9
-support. Strict peer checks pass. Vitest uses explicit JSX transform and source
-patterns. Tooling uses UTF-8 locale for tmux metadata.
+Linter and formatter were removed. Planned replacement is oxlint and oxfmt.
+Strict peer checks pass. Root Vitest config runs every workspace project. Web
+projects use explicit JSX transform and source patterns. Tooling uses UTF-8 locale for tmux metadata.
 

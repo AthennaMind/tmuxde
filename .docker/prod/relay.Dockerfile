@@ -12,31 +12,26 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g npm@12.2.0 && npm install -g --allow-scripts=pnpm pnpm@12.11.2
-
-FROM base AS pruner
-ENV NEXT_TELEMETRY_DISABLED=1 TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1
+ENV NEXT_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1
 WORKDIR /app
+
+# Copy manifests only, so dependency layers survive source edits.
+FROM base AS manifests
 COPY . .
-RUN pnpm dlx turbo@2.11.7 prune @app/relay --docker
+RUN mkdir /manifests && cp package.json pnpm-lock.yaml pnpm-workspace.yaml /manifests/ \
+  && for manifest in apps/*/package.json packages/*/package.json; do install -D -m 644 "$manifest" "/manifests/$manifest"; done
 
 FROM base AS installer
-ENV NEXT_TELEMETRY_DISABLED=1 TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1
-WORKDIR /app
-COPY --from=pruner /app/out/json/ .
-COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
-RUN pnpm install --frozen-lockfile --ignore-scripts
-RUN --network=none npm_config_nodedir=/usr/local pnpm --config.trustLockfile=true rebuild --pending
+COPY --from=manifests /manifests/ .
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter "@app/relay..."
+RUN --network=none npm_config_nodedir=/usr/local pnpm --config.trustLockfile=true --filter "@app/relay..." rebuild --pending
 
 FROM installer AS builder
-COPY --from=pruner /app/out/full/ .
-RUN pnpm turbo build --env-mode=loose --filter=@app/relay
+COPY . .
 # Bundle shared TypeScript packages for Node runtime.
-RUN pnpm --filter @app/relay run build:bundle
+RUN pnpm --filter @app/relay build
 
 FROM base AS runner
-ENV NEXT_TELEMETRY_DISABLED=1 TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1
-WORKDIR /app
-
 RUN groupadd -r relay && useradd -r -g relay relay
 
 COPY --from=builder /app/apps/relay/dist ./apps/relay/dist
