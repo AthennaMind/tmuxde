@@ -13,10 +13,9 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
  * existing one so the fast suite stays exactly as fast — the lock tests do real
  * PBKDF2 and are the slowest thing in the repo.
  *
- * Run with `pnpm --filter @app/web test:idb`, and both from `pnpm test`.
+ * Run alone with `pnpm test --project idb`. Root `pnpm test` runs both.
  */
 export default defineConfig({
-  cacheDir: ".turbo/vite",
   oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     alias: {
@@ -24,7 +23,6 @@ export default defineConfig({
     },
   },
   test: {
-    maxWorkers: 2,
     environment: "node",
     name: "idb",
     include: ["src/**/*.idb.test.ts"],

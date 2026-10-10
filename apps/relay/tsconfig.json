@@ -1,15 +1,7 @@
 {
-  "extends": "@repo/tsconfig/node.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src",
-    "tsBuildInfoFile": ".turbo/tsconfig.tsbuildinfo"
+    "lib": ["ES2022"]
   },
-  "include": [
-    "src/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["src"]
 }

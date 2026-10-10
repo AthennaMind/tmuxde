@@ -23,7 +23,7 @@ Browser assets must be local. No analytics exporters, hosted accounts, cloud dic
 
 Protocol changes require schemas, both handlers, tests and updates to `docs/reference/upstream/relay/protocol.mdx`. Relay file access must use path guards. Session operations go through `tmux-manager.ts`. Preserve authentication, origin checks and local lock behavior.
 
-Use semantic color classes. Follow local import conventions. Validate environment variables with Zod. Use conventional commits.
+Use semantic color classes. Follow local import conventions. Shared dev tools (TypeScript, Vitest, @types/node) live in root package.json. Package tsconfigs extend root tsconfig.base.json. No task runner, linter or formatter. Validate environment variables with Zod. Use conventional commits.
 
 ## Plans, Backlogs and Reviews
 
@@ -60,8 +60,8 @@ Run checks appropriate to changes. Browser checks use playwright-cli against run
 
 ## Docker development
 
-Run Node tooling only in Docker. Setup: scripts/setup.sh. Start hot reload: docker compose up -d --build --wait. Checks: docker compose run --rm tools pnpm test, lint, typecheck or build. Never install host node_modules.
+Run Node tooling only in Docker. Setup: scripts/setup.sh. Start hot reload: docker compose up -d --build --wait. Checks: docker compose run --rm tools pnpm test, typecheck or build. Never install host node_modules.
 
 Docker assets live under .docker. Root docker-compose.yml includes standalone development config. Production config lives under .docker/compose. Dependency manager downloads with scripts disabled. Approved native builds run offline. Three development volumes hold dependencies, caches and pnpm store. Keep five-day dependency release delay without exclusions.
 
-Dependency mutations use python3 .docker/dev/dependencies.py mutate followed by pnpm arguments. Host helper exports only manifests and lockfile, with security policy unchanged. New workspaces need subpath mounts in workspace.yaml and directories in init-volumes.sh. Runtime source and dependencies stay read-only. Preserve Caddy volumes, uploads and host tmux sessions.
+Dependency mutations use python3 .docker/dev/dependencies.py mutate followed by pnpm arguments. Host helper exports only manifests and lockfile, with security policy unchanged. New workspaces need subpath mounts in workspace.yaml and directories in init-volumes.sh. Workspaces with tests also need an entry in root vitest.config.ts projects. Runtime source and dependencies stay read-only. Preserve Caddy volumes, uploads and host tmux sessions.

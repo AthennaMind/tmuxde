@@ -1,9 +1,7 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  cacheDir: ".turbo/vite",
   test: {
-    maxWorkers: 2,
     environment: "node",
     include: ["src/**/*.test.ts"],
     // config.ts throws unless a non-default AUTH_TOKEN is present; provide one

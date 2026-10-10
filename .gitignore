@@ -8,8 +8,8 @@ dist/
 .next-*/
 out/
 
-# Turbo
-.turbo/
+# Tool caches
+.cache/
 
 # Environment variables
 .env
@@ -61,7 +61,7 @@ data/
 # Next's generated ambient types. They import from whichever dist directory
 # ran last (`.next-dev` or `.next-build`), so committing them breaks other
 # machines. Next regenerates the file on every `dev`/`build`, and
-# `tsc --noEmit` passes without it.
+# `pnpm typecheck` passes without it.
 apps/web/next-env.d.ts
 
 # Host binaries copied for local Docker access to existing tmux sessions.

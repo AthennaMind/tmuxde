@@ -14,8 +14,7 @@
     "./terminal-themes": "./src/terminal-themes.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "typecheck": "tsc"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1",
@@ -53,16 +52,11 @@
     "tailwind-merge": "^3"
   },
   "devDependencies": {
-    "@repo/eslint-config": "workspace:*",
-    "@repo/tsconfig": "workspace:*",
     "@tailwindcss/postcss": "4.3.3",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "eslint": "10.12.0",
     "tailwindcss": "4.3.3",
-    "tw-animate-css": "^1",
-    "typescript": "7.0.2",
-    "@types/node": "26.6.4"
+    "tw-animate-css": "^1"
   },
   "peerDependencies": {
     "react": "^19",
