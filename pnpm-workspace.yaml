@@ -2,3 +2,24 @@ packages:
   - "apps/*"
   - "packages/*"
   - "tooling/*"
+
+overrides:
+  ws: ^8
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true
+  node-pty: true
+  sharp: true
+
+shamefullyHoist: false
+strictPeerDependencies: true
+autoInstallPeers: true
+updateNotifier: false
+storeDir: /pnpm/store
+minimumReleaseAge: 7200
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
+blockExoticSubdeps: true
+strictDepBuilds: true
+
+verifyDepsBeforeRun: error

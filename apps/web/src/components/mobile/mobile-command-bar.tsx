@@ -8,7 +8,6 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useUiStore } from "@/stores/ui-store";
 import { sendCommand } from "@/lib/send-command";
-import { DictateButton } from "./dictate-button";
 
 interface MobileCommandBarProps {
   className?: string;
@@ -119,14 +118,6 @@ export function MobileCommandBar({ className }: MobileCommandBarProps) {
         spellCheck={false}
         enterKeyHint="send"
         aria-label="Command"
-      />
-      {/* Below 360px there is no room for four controls, and dictation is
-          still reachable inside the composer. */}
-      <DictateButton
-        className="hidden min-[360px]:flex"
-        onFinal={(text) =>
-          setCommand((current) => (current ? `${current} ${text}` : text))
-        }
       />
       <button
         onClick={handleSend}

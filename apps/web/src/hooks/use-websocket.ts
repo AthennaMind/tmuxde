@@ -204,7 +204,7 @@ export function useWebSocket(
           window.location.href = "/start";
           break;
         case "server:info":
-          connectionStore.setServerInfo("", msg.hostname);
+          connectionStore.setServerInfo("", msg.hostname, msg.defaultPath);
           // Open the file browser to the relay's primary allowed directory so
           // it lists successfully out of the box (the hardcoded "/home" default
           // is outside the allow-list when the CLI scopes it to $HOME).
@@ -270,10 +270,14 @@ export function useWebSocket(
           paneStore.setWindows(msg.windows);
           break;
         }
+        case "repo:result":
+          // Repository browser correlates replies to its active request.
+          break;
         case "file:write:result":
           // Handled in file-editor component via onMessage subscription
           break;
         case "file:op:result": {
+          if (msg.op === "upload" && msg.final === false) break;
           useFileStore.getState().setIsOperating(false);
           if (msg.success) {
             useAlertStore
@@ -296,7 +300,7 @@ export function useWebSocket(
           // Handled in terminal-view
           break;
         case "tmux:scroll-state":
-          noteScrollStateReply();
+          noteScrollStateReply(msg.inMode);
           useScrollStore.getState().setScrollState({
             position: msg.position,
             historySize: msg.historySize,

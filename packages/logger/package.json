@@ -18,7 +18,8 @@
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/tsconfig": "workspace:*",
-    "eslint": "^9.17.0",
-    "typescript": "^5.8"
+    "eslint": "10.12.0",
+    "typescript": "7.0.2",
+    "@types/node": "26.6.4"
   }
 }

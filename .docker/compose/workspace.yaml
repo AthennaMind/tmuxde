@@ -1,0 +1,659 @@
+services:
+  runtime:
+    image: "mtmux-dev:local"
+    build:
+      context: "../.."
+      dockerfile: ".docker/dev/Dockerfile"
+    init: true
+    user: "${DEV_UID:-1000}:${DEV_GID:-1000}"
+    read_only: true
+    cap_drop:
+      - "ALL"
+    security_opt:
+      - "no-new-privileges:true"
+    pids_limit: 512
+    mem_limit: "4g"
+    cpus: 4
+    tmpfs:
+      - "/tmp:rw,noexec,nosuid,nodev,mode=1777,size=1g"
+    working_dir: "/workspace"
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+      TURBO_TELEMETRY_DISABLED: "1"
+      DO_NOT_TRACK: "1"
+      HUSKY: "0"
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
+      PNPM_HOME: "/tmp/pnpm"
+      PLAYWRIGHT_BROWSERS_PATH: "/opt/playwright"
+      npm_config_nodedir: "/usr/local"
+      CI: "${CI:-}"
+    volumes:
+      - type: "bind"
+        source: "../../package.json"
+        target: "/workspace/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../pnpm-lock.yaml"
+        target: "/workspace/pnpm-lock.yaml"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../pnpm-workspace.yaml"
+        target: "/workspace/pnpm-workspace.yaml"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../turbo.json"
+        target: "/workspace/turbo.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../.prettierignore"
+        target: "/workspace/.prettierignore"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../.gitignore"
+        target: "/workspace/.gitignore"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps"
+        target: "/workspace/apps"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../packages"
+        target: "/workspace/packages"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../tooling"
+        target: "/workspace/tooling"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../scripts"
+        target: "/workspace/scripts"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/node_modules"
+        read_only: true
+        volume:
+          nocopy: true
+          subpath: "root"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/apps/relay/node_modules"
+        read_only: true
+        volume:
+          nocopy: true
+          subpath: "apps-relay"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/apps/web/node_modules"
+        read_only: true
+        volume:
+          nocopy: true
+          subpath: "apps-web"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/packages/cast/node_modules"
+        read_only: true
+        volume:
+          nocopy: true
+          subpath: "packages-cast"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/packages/crypto/node_modules"
+        read_only: true
+        volume:
+          nocopy: true
+          subpath: "packages-crypto"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/packages/logger/node_modules"
+        read_only: true
+        volume:
+          nocopy: true
+          subpath: "packages-logger"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/packages/protocol/node_modules"
+        read_only: true
+        volume:
+          nocopy: true
+          subpath: "packages-protocol"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/packages/ui/node_modules"
+        read_only: true
+        volume:
+          nocopy: true
+          subpath: "packages-ui"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/tooling/eslint/node_modules"
+        read_only: true
+        volume:
+          nocopy: true
+          subpath: "tooling-eslint"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/tooling/prettier/node_modules"
+        read_only: true
+        volume:
+          nocopy: true
+          subpath: "tooling-prettier"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/tooling/typescript/node_modules"
+        read_only: true
+        volume:
+          nocopy: true
+          subpath: "tooling-typescript"
+      - type: "volume"
+        source: "pnpm-store"
+        target: "/pnpm/store"
+        read_only: true
+        volume:
+          nocopy: true
+      - type: "bind"
+        source: "../../apps/web/components.json"
+        target: "/workspace/apps/web/components.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/demo"
+        target: "/workspace/apps/web/demo"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/e2e"
+        target: "/workspace/apps/web/e2e"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/eslint.config.js"
+        target: "/workspace/apps/web/eslint.config.js"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/next.config.ts"
+        target: "/workspace/apps/web/next.config.ts"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/package.json"
+        target: "/workspace/apps/web/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/playwright.config.ts"
+        target: "/workspace/apps/web/playwright.config.ts"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/postcss.config.mjs"
+        target: "/workspace/apps/web/postcss.config.mjs"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/public"
+        target: "/workspace/apps/web/public"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/scripts"
+        target: "/workspace/apps/web/scripts"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/src"
+        target: "/workspace/apps/web/src"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/tsconfig.json"
+        target: "/workspace/apps/web/tsconfig.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/vitest.config.idb.ts"
+        target: "/workspace/apps/web/vitest.config.idb.ts"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/vitest.config.ts"
+        target: "/workspace/apps/web/vitest.config.ts"
+        read_only: true
+        bind:
+          create_host_path: false
+  workspace:
+    extends:
+      service: runtime
+    environment:
+      HOME: "/tmp/mtmux-dev"
+    volumes:
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/web"
+        volume:
+          nocopy: true
+          subpath: "web-tooling-metadata"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/relay/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "apps-relay-turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/web/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "apps-web-turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/packages/cast/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "packages-cast-turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/packages/crypto/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "packages-crypto-turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/packages/logger/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "packages-logger-turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/packages/protocol/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "packages-protocol-turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/packages/ui/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "packages-ui-turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/tooling/eslint/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "tooling-eslint-turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/tooling/prettier/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "tooling-prettier-turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/tooling/typescript/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "tooling-typescript-turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/web/.next-dev"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "web-dev"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/web/.next-build"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "web-build"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/web/.next-e2e"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "web-e2e"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/web/.next-lab"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "web-lab"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/web/.next"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "web-dist"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/relay/dist"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "relay-dist"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/web/test-results"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "test-results"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/web/playwright-report"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "playwright-report"
+  web-workspace:
+    extends:
+      service: runtime
+    environment:
+      HOME: "/tmp/mtmux-dev"
+    volumes:
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/web"
+        volume:
+          nocopy: true
+          subpath: "web-dev-metadata"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/web/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "apps-web-turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/web/.next-dev"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "web-dev"
+  relay-workspace:
+    extends:
+      service: runtime
+    volumes:
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/relay/.turbo"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "apps-relay-turbo"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/apps/relay/dist"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "relay-dist"
+  installer:
+    image: "mtmux-dev:local"
+    build:
+      context: "../.."
+      dockerfile: ".docker/dev/Dockerfile"
+    init: true
+    user: "${DEV_UID:-1000}:${DEV_GID:-1000}"
+    read_only: true
+    cap_drop:
+      - "ALL"
+    security_opt:
+      - "no-new-privileges:true"
+    pids_limit: 512
+    mem_limit: "4g"
+    cpus: 4
+    tmpfs:
+      - "/tmp:rw,noexec,nosuid,nodev,mode=1777,size=1g"
+      - "/workspace:rw,noexec,nosuid,nodev,mode=1777,size=256m"
+      - '/workspace/apps/relay:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/apps/web:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/packages/cast:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/packages/crypto:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/packages/logger:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/packages/protocol:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/packages/ui:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/tooling/eslint:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/tooling/prettier:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/tooling/typescript:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+    working_dir: "/workspace"
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+      TURBO_TELEMETRY_DISABLED: "1"
+      DO_NOT_TRACK: "1"
+      HUSKY: "0"
+      HOME: "/tmp/mtmux-dev"
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
+      PNPM_HOME: "/tmp/pnpm"
+      PLAYWRIGHT_BROWSERS_PATH: "/opt/playwright"
+      npm_config_nodedir: "/usr/local"
+      CI: "true"
+    entrypoint:
+      - "/bin/bash"
+      - "/usr/local/bin/deps-manager"
+    volumes:
+      - type: "bind"
+        source: "../../package.json"
+        target: "/manifests/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../pnpm-lock.yaml"
+        target: "/manifests/pnpm-lock.yaml"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../pnpm-workspace.yaml"
+        target: "/manifests/pnpm-workspace.yaml"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/relay/package.json"
+        target: "/manifests/apps/relay/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/web/package.json"
+        target: "/manifests/apps/web/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../packages/cast/package.json"
+        target: "/manifests/packages/cast/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../packages/crypto/package.json"
+        target: "/manifests/packages/crypto/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../packages/logger/package.json"
+        target: "/manifests/packages/logger/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../packages/protocol/package.json"
+        target: "/manifests/packages/protocol/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../packages/ui/package.json"
+        target: "/manifests/packages/ui/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../tooling/eslint/package.json"
+        target: "/manifests/tooling/eslint/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../tooling/prettier/package.json"
+        target: "/manifests/tooling/prettier/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../tooling/typescript/package.json"
+        target: "/manifests/tooling/typescript/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../dev/deps-manager.sh"
+        target: "/usr/local/bin/deps-manager"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/node_modules"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "root"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/apps/relay/node_modules"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "apps-relay"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/apps/web/node_modules"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "apps-web"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/packages/cast/node_modules"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "packages-cast"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/packages/crypto/node_modules"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "packages-crypto"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/packages/logger/node_modules"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "packages-logger"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/packages/protocol/node_modules"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "packages-protocol"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/packages/ui/node_modules"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "packages-ui"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/tooling/eslint/node_modules"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "tooling-eslint"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/tooling/prettier/node_modules"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "tooling-prettier"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/tooling/typescript/node_modules"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "tooling-typescript"
+      - type: "volume"
+        source: "pnpm-store"
+        target: "/pnpm/store"
+        read_only: false
+        volume:
+          nocopy: true

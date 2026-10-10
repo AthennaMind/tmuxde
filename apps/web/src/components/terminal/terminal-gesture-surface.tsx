@@ -295,9 +295,18 @@ export function TerminalGestureSurface({
      * `event.target`, which would split a pinch whose two fingers landed on the
      * xterm canvas and on the padding around it.
      */
+    // DOM-rendered terminal rows can disappear during output. Touch identity
+    // survives that redraw; checking target containment on every move does not.
+    const ownedTouches = new Set<number>();
+    const ownedTargets = new Map<EventTarget, () => void>();
+    const handledEvents = new WeakSet<Event>();
+    const releaseTargets = () => {
+      for (const remove of ownedTargets.values()) remove();
+      ownedTargets.clear();
+    };
     const touches = (list: TouchList): GestureTouch[] =>
       Array.from(list)
-        .filter((t) => t.target instanceof Node && el.contains(t.target))
+        .filter((t) => ownedTouches.has(t.identifier))
         .map((t) => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
 
     const config = (): GestureConfig => {
@@ -366,6 +375,12 @@ export function TerminalGestureSurface({
     };
 
     const onStart = (e: TouchEvent) => {
+      for (const touch of Array.from(e.touches)) {
+        if (touch.target instanceof Node && el.contains(touch.target)) {
+          ownedTouches.add(touch.identifier);
+          watchTarget(touch.target);
+        }
+      }
       // Touching the terminal stops a fling, the way it does on every native
       // list. Without it a tap meant to catch the moving view instead landed
       // in tmux while the pane kept sliding.
@@ -393,6 +408,9 @@ export function TerminalGestureSurface({
     };
 
     const onMove = (e: TouchEvent) => {
+      if (ownedTouches.size === 0 || handledEvents.has(e)) return;
+      if (e.changedTouches.length && !touches(e.changedTouches).length) return;
+      handledEvents.add(e);
       apply(
         reduceGesture(stateRef.current, {
           kind: "move",
@@ -408,6 +426,8 @@ export function TerminalGestureSurface({
     };
 
     const onEnd = (e: TouchEvent) => {
+      if (!touches(e.changedTouches).length || handledEvents.has(e)) return;
+      handledEvents.add(e);
       clearHold();
       const wasTap = stateRef.current.phase === "pending";
       apply(
@@ -433,14 +453,23 @@ export function TerminalGestureSurface({
         noteLeftCopyMode(session);
         getRelayClient()?.send({ type: "tmux:exit-copy-mode" });
       }
+      for (const touch of Array.from(e.changedTouches)) {
+        ownedTouches.delete(touch.identifier);
+      }
+      if (ownedTouches.size === 0) releaseTargets();
     };
 
     const onCancel = (e: TouchEvent) => {
+      if (ownedTouches.size === 0 || handledEvents.has(e)) return;
+      if (e.changedTouches.length && !touches(e.changedTouches).length) return;
+      handledEvents.add(e);
       clearHold();
       apply(
         reduceGesture(stateRef.current, { kind: "cancel", at: e.timeStamp }),
         e,
       );
+      ownedTouches.clear();
+      releaseTargets();
     };
 
     /*
@@ -471,17 +500,37 @@ export function TerminalGestureSurface({
     // Capture so these run before xterm's own listeners, non-passive so
     // `preventDefault` is allowed at all.
     const opts = { capture: true, passive: false } as const;
+    const watchTarget = (target: EventTarget) => {
+      if (ownedTargets.has(target)) return;
+      // Some browsers keep delivering to the detached node itself. Retain
+      // listeners there until release as well as handling document retargeting.
+      const move = (event: Event) => onMove(event as TouchEvent);
+      const end = (event: Event) => onEnd(event as TouchEvent);
+      const cancel = (event: Event) => onCancel(event as TouchEvent);
+      target.addEventListener("touchmove", move, opts);
+      target.addEventListener("touchend", end, opts);
+      target.addEventListener("touchcancel", cancel, opts);
+      ownedTargets.set(target, () => {
+        target.removeEventListener("touchmove", move, opts);
+        target.removeEventListener("touchend", end, opts);
+        target.removeEventListener("touchcancel", cancel, opts);
+      });
+    };
     el.addEventListener("touchstart", onStart, opts);
-    el.addEventListener("touchmove", onMove, opts);
-    el.addEventListener("touchend", onEnd, opts);
-    el.addEventListener("touchcancel", onCancel, opts);
+    // Capture at document level after start. A replaced text target no longer
+    // bubbles through the terminal surface, but still owns its active finger.
+    document.addEventListener("touchmove", onMove, opts);
+    document.addEventListener("touchend", onEnd, opts);
+    document.addEventListener("touchcancel", onCancel, opts);
     el.addEventListener("contextmenu", onContextMenu, opts);
 
     return () => {
       el.removeEventListener("touchstart", onStart, opts);
-      el.removeEventListener("touchmove", onMove, opts);
-      el.removeEventListener("touchend", onEnd, opts);
-      el.removeEventListener("touchcancel", onCancel, opts);
+      document.removeEventListener("touchmove", onMove, opts);
+      document.removeEventListener("touchend", onEnd, opts);
+      document.removeEventListener("touchcancel", onCancel, opts);
+      ownedTouches.clear();
+      releaseTargets();
       el.removeEventListener("contextmenu", onContextMenu, opts);
       clearHold();
       if (fontRaf.current !== null) cancelAnimationFrame(fontRaf.current);

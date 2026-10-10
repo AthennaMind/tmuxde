@@ -73,6 +73,7 @@ function deniedRoots(): string[] {
   const configDir = process.env.MTMUX_CONFIG_DIR ?? path.join(home, ".mtmux");
   return [
     configDir,
+    path.join(home, ".mtmux"),
     path.join(home, ".tmuxremote"),
     path.join(home, ".ssh"),
     path.join(home, ".aws"),

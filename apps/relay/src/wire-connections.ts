@@ -50,6 +50,8 @@ const SERVER_VERSION = "1.0.0";
  * has always understood.
  */
 const FEATURES = [
+  "repo:request",
+  "file:upload:ack",
   "window:step",
   "pane:step",
   // One flag for all five `recording:*` messages. They ship as a unit — a

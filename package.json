@@ -2,53 +2,23 @@
   "name": "mtmux-monorepo",
   "license": "MIT",
   "private": true,
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@12.11.2",
   "scripts": {
-    "prepare": "husky",
-    "dev": "pnpm --filter mtmux run dev",
-    "dev:split": "NEXT_PUBLIC_RELAY_URL=ws://localhost:14300 turbo dev --filter=@app/web --filter=@app/relay",
-    "dev:pairing": "node scripts/dev-pairing.mjs",
-    "dev:docs": "pnpm --filter @app/docs run dev",
-    "build": "turbo build",
-    "build:hosted": "NEXT_PUBLIC_RELAY_URL= NEXT_PUBLIC_API_URL=${API_ORIGIN:-https://api.mtmux.com} turbo build --filter=@app/web --filter=@app/api",
-    "prepare:standalone": "node scripts/prepare-standalone.mjs apps/web",
-    "deploy:hosted": "node scripts/deploy-hosted.mjs",
-    "lint": "turbo lint",
-    "typecheck": "turbo typecheck",
-    "test": "turbo test",
-    "clean": "turbo clean && rm -rf node_modules .turbo",
-    "kill-ports": "./scripts/kill-ports.sh",
-    "dev:restart": "./scripts/kill-ports.sh && pnpm dev",
-    "docker:dev": "docker compose up -d",
-    "docker:prod": "docker compose -f docker-compose.prod.yml up -d",
-    "lab": "node scripts/lab.mjs",
-    "lab:loop": "node scripts/lab-loop.mjs",
-    "setup": "./scripts/setup.sh",
-    "start": "turbo start",
-    "start:prod": "pnpm build && pm2 start ecosystem.config.cjs",
-    "stop:prod": "pm2 stop ecosystem.config.cjs",
-    "restart:prod": "pm2 reload ecosystem.config.cjs",
-    "logs:prod": "pm2 logs",
-    "release": "node scripts/release.mjs",
-    "cli:build": "pnpm --filter mtmux run build",
-    "cli:start": "pnpm --filter mtmux run start",
-    "cli:test": "pnpm --filter mtmux run test",
-    "cli:smoke": "pnpm --filter mtmux run smoke",
-    "cli:help": "pnpm --filter mtmux run help"
+    "dev": "NEXT_TELEMETRY_DISABLED=1 TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo dev --filter=@app/web --filter=@app/relay",
+    "build": "NEXT_TELEMETRY_DISABLED=1 TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo build",
+    "lint": "TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo lint",
+    "typecheck": "TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo typecheck",
+    "test": "TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo test --concurrency=2",
+    "clean": "TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo clean"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.3",
-    "@commitlint/config-conventional": "^20.5.3",
     "@repo/prettier-config": "workspace:*",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.4.0",
-    "pm2": "^7.0.1",
-    "prettier": "^3.8.3",
-    "turbo": "^2.9.9"
+    "@types/node": "26.6.4",
+    "prettier": "3.9.9",
+    "turbo": "2.11.7"
   },
-  "pnpm": {
-    "overrides": {
-      "ws": "^8"
-    }
+  "engines": {
+    "node": "26.11.1",
+    "pnpm": "12.11.2"
   }
 }

@@ -61,7 +61,10 @@ async function pairedWith(winner: string | null) {
 
 beforeEach(async () => {
   const session = memoryStorage();
-  vi.stubGlobal("window", { sessionStorage: session });
+  vi.stubGlobal("window", {
+    sessionStorage: session,
+    location: { origin: "http://192.168.1.5:14100", protocol: "http:" },
+  });
   vi.stubGlobal("sessionStorage", session);
   vi.stubGlobal("localStorage", memoryStorage());
   vi.restoreAllMocks();
@@ -70,6 +73,20 @@ beforeEach(async () => {
 });
 
 describe("resolveRoute", () => {
+  it("never probes a saved foreign machine", async () => {
+    await pairedWith("http://192.168.1.5:14100");
+    vi.stubGlobal("window", {
+      location: { origin: "https://terminal.local", protocol: "https:" },
+    });
+    const probe = vi
+      .spyOn(candidateRace, "raceCandidates")
+      .mockResolvedValue({ winner: null, elapsedMs: 0 });
+    const route = await resolveRoute(loadDescriptor()!, keys());
+    expect(probe).toHaveBeenCalledWith([], "tok-1");
+    expect(route.preferredCandidate).toBeNull();
+    expect(await loadSessionKeys(serverIdFor(DESCRIPTOR))).not.toBeNull();
+  });
+
   it("clears a preference that no longer answers", async () => {
     // The phone paired at home…
     await pairedWith("http://192.168.1.5:14100");
@@ -89,15 +106,10 @@ describe("resolveRoute", () => {
     expect(loadDescriptor()?.preferredCandidate).toBeUndefined();
   });
 
-  it("falls through to the sealed tunnel once nothing direct answers", async () => {
+  it("does not open a hosted tunnel when an old broker setting is present", async () => {
     await pairedWith("http://192.168.1.5:14100");
 
-    /**
-     * `env` is built from `process.env` at import time, and the broker origin
-     * is unset in this suite — which is the *self-hosted* build, where a
-     * paired session cannot exist. Re-importing with it set is what puts the
-     * hosted build under test, and the tunnel fallback only exists there.
-     */
+    // Obsolete broker configuration must not enable network fallback.
     process.env.NEXT_PUBLIC_API_URL = "https://api.mtmux.com";
     vi.resetModules();
     try {
@@ -112,7 +124,7 @@ describe("resolveRoute", () => {
       const route = await hosted.resolveRoute(store.loadDescriptor()!, keys());
 
       expect(route.preferredCandidate).toBeNull();
-      expect(route.transport).toBeTypeOf("function");
+      expect(route.transport).toBeUndefined();
     } finally {
       delete process.env.NEXT_PUBLIC_API_URL;
       vi.resetModules();

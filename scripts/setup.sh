@@ -1,16 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-echo "Setting up mtmux..."
-
-# Copy env file if not exists
-if [ ! -f .env ]; then
-  cp .env.example .env
-  echo "Created .env from .env.example"
-fi
-
-# Install dependencies
-echo "Installing dependencies..."
-pnpm install
-
-echo "Setup complete! Run 'pnpm dev' to start development."
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+python3 .docker/dev/setup.py
+echo "Setup complete. Run docker compose up -d --build."

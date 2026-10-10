@@ -90,6 +90,17 @@ describe("scrollByLines", () => {
     vi.advanceTimersByTime(SCROLL_FLUSH_MS);
     expect(believedInCopyMode("work")).toBe(true);
   });
+
+  it("uses relay reports instead of assuming TUI scrolling enters copy mode", () => {
+    noteScrollStateReply(false);
+    scrollByLines(5);
+    flushScroll();
+    expect(believedInCopyMode("work")).toBe(false);
+    noteScrollStateReply(true);
+    expect(believedInCopyMode("work")).toBe(true);
+    noteScrollStateReply(false);
+    expect(believedInCopyMode("work")).toBe(false);
+  });
 });
 
 describe("scrollToPosition", () => {

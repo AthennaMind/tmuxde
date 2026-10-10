@@ -15,15 +15,14 @@ import { defineConfig, devices } from "@playwright/test";
  * checklist in `e2e/MANUAL.md` alongside iOS Safari as a PWA, Android Chrome,
  * and macOS Safari.
  *
- * Run with `pnpm --filter @app/web e2e`. Browsers are not installed by
- * `pnpm install` — run `pnpm --filter @app/web exec playwright install chromium`
- * once.
+ * Run with `scripts/docker-dev.sh pnpm --filter @app/web e2e`.
+ * Install browsers through same Docker wrapper before first run.
  */
 
 /**
  * Lab mode, and why it is a branch rather than a second config file.
  *
- * `node scripts/lab.mjs test` sets `E2E_LAB` along with the port, the token and
+ * `scripts/docker-lab.sh test` sets `E2E_LAB` along with the port, the token and
  * the relay URL, and that script is the single source of truth for all three —
  * duplicating the numbers here is how they drift. Everything the two modes
  * share (the timeouts, the trace policy, the one-worker rule) genuinely is
@@ -122,6 +121,7 @@ export default defineConfig({
     : { testIgnore: /e2e\/lab\// }),
   // One worker: every spec drives the same IndexedDB origin, and a device lock
   // is per-origin state. Parallel workers would fight over it.
+  outputDir: LAB ? "test-results/lab" : "test-results/browser",
   workers: 1,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
@@ -225,49 +225,24 @@ export default defineConfig({
             NEXT_DIST_DIR: ".next-lab",
             /*
              * The whole point: the client talks to the container, not to this
-             * origin. Set by `scripts/lab.mjs`; the default here only keeps a
+             * origin. Set by `scripts/docker-lab.sh`; the default here only keeps a
              * hand-run `E2E_LAB=1 playwright test` honest.
              */
             NEXT_PUBLIC_RELAY_URL:
               process.env.NEXT_PUBLIC_RELAY_URL ?? "ws://127.0.0.1:24390",
-            // Absent, deliberately. `isHostedBuild` is `NEXT_PUBLIC_API_URL !==
-            // undefined`, and a lab run must exercise the self-hosted path —
-            // which is the one the relay token and `mtmux-token` belong to.
-            NEXT_PUBLIC_API_URL: "",
           },
         }
       : {
-          command: `pnpm dev`,
-          cwd: "../..",
+          command: `pnpm exec next dev --port ${PORT}`,
+          cwd: ".",
           url: `${baseURL}/login`,
-          reuseExistingServer: true,
+          reuseExistingServer: false,
           timeout: 120_000,
           env: {
             ...(process.env as Record<string, string>),
-            /*
-             * `pnpm dev` reads PORT, not E2E_PORT.
-             *
-             * Without this, `E2E_PORT=14180 playwright test` pointed the browser
-             * at 14180 and started the dev server on 14100 — where, on a machine
-             * that has `mtmux` installed globally, an unrelated *production*
-             * build is usually already listening. `reuseExistingServer` then
-             * happily adopted it and the whole suite ran against a months-old
-             * bundle. Setting an E2E port has to move both halves.
-             */
+            // Test server has its own port and build directory.
             PORT: String(PORT),
-            /*
-             * The dashboard specs need a hosted build.
-             *
-             * `isHostedBuild` is `NEXT_PUBLIC_API_URL !== undefined`, and the
-             * repo's `.env` does not set it — correctly, since the default dev
-             * loop is the self-hosted one. With it absent every account route
-             * renders "Hosted accounts aren't configured" and the dashboard
-             * specs fail on a missing element rather than on anything they
-             * assert. Nothing has to be listening on the other end: every call
-             * to it is stubbed with `page.route`.
-             */
-            NEXT_PUBLIC_API_URL:
-              process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:14400",
+            NEXT_DIST_DIR: ".next-e2e",
           },
         },
 });

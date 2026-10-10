@@ -1,18 +1,6 @@
 import { execFileSync } from "node:child_process";
 
-/**
- * The lab container, as seen from a spec.
- *
- * Everything here shells out to `docker exec`. That is not a shortcut around a
- * nicer API — it is the only way to see the *other* side of the rendering.
- * tmux composites server-side: the browser receives one linear ANSI stream of
- * tmux's own output, so the only ground truth for "what should be on screen"
- * is tmux's own `capture-pane`, and the only place to ask is inside the
- * container. A detector that compares xterm's buffer to another DOM reading of
- * xterm's buffer proves nothing.
- */
-
-const CONTAINER = process.env.LAB_CONTAINER ?? "mtmux-lab-lab-1";
+/** Commands run inside isolated lab container. No Docker socket needed. */
 const SOCKET = process.env.LAB_SOCKET ?? "/run/lab/tmux.sock";
 
 /** Every session `docker/tmux-lab/seed.sh` creates, and what each one is for. */
@@ -38,35 +26,15 @@ export type LabSession = (typeof LAB_SESSIONS)[number];
 export const LAB_TOKEN =
   process.env.E2E_RELAY_TOKEN ?? "mtmux-lab-token-not-for-production";
 
-function docker(args: string[]): string {
-  return execFileSync("docker", args, {
+/** Run fixture commands in same isolated container as browser tests. */
+export function inLab(args: string[]): string {
+  if (process.env.LAB_LOCAL !== "1") {
+    throw new Error("Run lab tests through scripts/docker-lab.sh test");
+  }
+  return execFileSync(args[0]!, args.slice(1), {
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
   });
-}
-
-/**
- * Run a command inside the lab.
- *
- * Throws with an actionable message when the container is not there, because
- * the alternative — a spec timing out on a terminal that never attaches — sends
- * whoever is reading the failure looking in the browser for a problem that is
- * in Docker.
- */
-export function inLab(args: string[]): string {
-  try {
-    return docker(["exec", CONTAINER, ...args]);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (/No such container|is not running/i.test(message)) {
-      throw new Error(
-        `the lab container (${CONTAINER}) is not running.\n` +
-          "Start it with:  node scripts/lab.mjs up\n" +
-          "Or run the suite through:  pnpm --filter @app/web e2e:lab",
-      );
-    }
-    throw err;
-  }
 }
 
 export function tmux(args: string[]): string {

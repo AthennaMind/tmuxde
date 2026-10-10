@@ -1,0 +1,193 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Images } from "lucide-react";
+import { cn } from "@repo/ui/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@repo/ui/components/ui/dialog";
+import { getRelayClient } from "@/hooks/use-websocket";
+import { usePhotoHistory } from "@/hooks/use-photo-history";
+import { useBelievedInCopyMode } from "@/hooks/use-copy-mode";
+import { useConnectionStore } from "@/stores/connection-store";
+import { useSessionStore } from "@/stores/session-store";
+import { usePaneStore } from "@/stores/pane-store";
+import { useAlertStore } from "@/stores/alert-store";
+import { fetchFileObjectUrl, filesAvailable } from "@/lib/file-url";
+import { reusePhotoPath } from "@/lib/photo-history.js";
+import { believedInCopyMode } from "@/lib/copy-mode-belief";
+import { useTerminalInput } from "@/lib/terminal-input.js";
+import { getTerminalHandle } from "@/components/terminal/terminal-handle";
+import { PhotoThumbnail } from "@/components/terminal/photo-thumbnail";
+
+export function RecentPhotos({ className }: { className?: string }) {
+  const { client, paths, scope } = usePhotoHistory();
+  const status = useConnectionStore((s) => s.status);
+  const capabilities = useConnectionStore((s) => s.capabilities);
+  const session = useSessionStore((s) => s.activeSessionId);
+  const inCopyMode = useBelievedInCopyMode(session);
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const controller = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    setOpen(false);
+    setPending(null);
+    setError(null);
+    return () => controller.current?.abort();
+  }, [client]);
+
+  const canRead = capabilities?.files !== "none";
+  const canReuse =
+    status === "connected" &&
+    !!session &&
+    !capabilities?.readOnly &&
+    canRead &&
+    !inCopyMode;
+
+  const reuse = async (path: string) => {
+    if (!client || !canReuse || controller.current) return;
+    const terminal = getTerminalHandle();
+    if (!terminal) return;
+    const pane = usePaneStore.getState().activePaneId;
+    const abort = new AbortController();
+    controller.current = abort;
+    let changed = false;
+    const offSession = useSessionStore.subscribe((s) => {
+      if (s.activeSessionId !== session) changed = true;
+    });
+    const offPane = usePaneStore.subscribe((s) => {
+      if (s.activePaneId !== pane) changed = true;
+    });
+    const offStatus = client.onStatusChange((s) => {
+      if (s !== "connected") changed = true;
+    });
+    setPending(path);
+    setError(null);
+    try {
+      await reusePhotoPath(path, {
+        load: (savedPath) => fetchFileObjectUrl(savedPath, abort.signal),
+        release: (url) => URL.revokeObjectURL(url),
+        isCurrent: () => {
+          const current = useConnectionStore.getState();
+          return (
+            !changed &&
+            !abort.signal.aborted &&
+            getRelayClient() === client &&
+            client.status === "connected" &&
+            getTerminalHandle() === terminal &&
+            useSessionStore.getState().activeSessionId === session &&
+            usePaneStore.getState().activePaneId === pane &&
+            !current.capabilities?.readOnly &&
+            current.capabilities?.files !== "none" &&
+            !believedInCopyMode(session)
+          );
+        },
+        resetInput: () => useTerminalInput.getState().reset(),
+        paste: (text) => terminal.paste(text),
+      });
+      setOpen(false);
+      useAlertStore
+        .getState()
+        .push(
+          "success",
+          "Photo path inserted. Add your question, then press Enter.",
+        );
+    } catch (reason) {
+      if (!abort.signal.aborted) {
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Photo unavailable. Choose Photo to upload it again.",
+        );
+      }
+    } finally {
+      offSession();
+      offPane();
+      offStatus();
+      controller.current = null;
+      if (!abort.signal.aborted) setPending(null);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!value) controller.current?.abort();
+        setPending(null);
+        setError(null);
+        setOpen(value);
+      }}
+    >
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          disabled={!paths.length || status !== "connected" || !canRead}
+          className={cn(
+            "flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            className,
+          )}
+        >
+          <Images className="h-4 w-4 shrink-0" aria-hidden />
+          Recent photos{paths.length > 0 ? ` (${paths.length})` : ""}
+        </button>
+      </DialogTrigger>
+      <DialogContent
+        className="max-h-[80dvh] w-[calc(100%-2rem)] overflow-y-auto rounded-lg"
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle>Recent photos</DialogTitle>
+          <DialogDescription>
+            Reuse a photo saved on this machine. Its path is inserted without
+            pressing Enter.
+          </DialogDescription>
+        </DialogHeader>
+        {!filesAvailable() && (
+          <p className="text-sm text-muted-foreground">
+            Connect directly to this machine to preview or reuse photos.
+          </p>
+        )}
+        {inCopyMode && (
+          <p className="text-sm text-muted-foreground">
+            Leave copy mode to reuse a photo.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <ul className="space-y-3">
+          {paths.map((path) => (
+            <li
+              key={`${scope}:${path}`}
+              className="flex items-center gap-3 rounded-md border border-border p-2"
+            >
+              <PhotoThumbnail path={path} className="h-16 w-16" />
+              <span className="min-w-0 flex-1 break-all text-xs text-muted-foreground">
+                {path}
+              </span>
+              <button
+                type="button"
+                disabled={!canReuse || !!pending || !filesAvailable()}
+                aria-label={`Reuse photo ${path.split("/").pop()}`}
+                className="min-h-11 shrink-0 rounded-md border border-border px-3 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onClick={() => void reuse(path)}
+              >
+                {pending === path ? "Checking…" : "Reuse"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
+  );
+}

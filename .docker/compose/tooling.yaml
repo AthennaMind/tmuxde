@@ -1,0 +1,93 @@
+name: "mtmux-tooling"
+services:
+  volume-init:
+    image: "mtmux-dev:local"
+    build:
+      context: "../.."
+      dockerfile: ".docker/dev/Dockerfile"
+    init: true
+    user: "0:0"
+    read_only: true
+    cap_drop:
+      - "ALL"
+    security_opt:
+      - "no-new-privileges:true"
+    pids_limit: 512
+    mem_limit: "4g"
+    cpus: 4
+    tmpfs:
+      - "/tmp:rw,noexec,nosuid,nodev,mode=1777,size=1g"
+    working_dir: "/workspace"
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+      TURBO_TELEMETRY_DISABLED: "1"
+      DO_NOT_TRACK: "1"
+      HUSKY: "0"
+      HOME: "/tmp/mtmux-dev"
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
+      PNPM_HOME: "/tmp/pnpm"
+      PLAYWRIGHT_BROWSERS_PATH: "/opt/playwright"
+      npm_config_nodedir: "/usr/local"
+      CI: "true"
+      DEV_UID: "${DEV_UID:-1000}"
+      DEV_GID: "${DEV_GID:-1000}"
+    cap_add:
+      - "CHOWN"
+      - "DAC_OVERRIDE"
+      - "FOWNER"
+    network_mode: "none"
+    entrypoint:
+      - "/bin/bash"
+      - "/usr/local/bin/init-volumes"
+    volumes:
+      - type: "bind"
+        source: "../dev/init-volumes.sh"
+        target: "/usr/local/bin/init-volumes"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "volume"
+        source: "dependencies"
+        target: "/volumes/dependencies"
+        read_only: false
+        volume:
+          nocopy: true
+      - type: "volume"
+        source: "cache"
+        target: "/volumes/cache"
+        read_only: false
+        volume:
+          nocopy: true
+      - type: "volume"
+        source: "pnpm-store"
+        target: "/volumes/pnpm-store"
+        read_only: false
+        volume:
+          nocopy: true
+  deps-manager:
+    extends:
+      file: "workspace.yaml"
+      service: "installer"
+    command:
+      - "download"
+  deps-build:
+    extends:
+      file: "workspace.yaml"
+      service: "installer"
+    network_mode: "none"
+    command:
+      - "build"
+  tools:
+    extends:
+      file: "workspace.yaml"
+      service: "workspace"
+    network_mode: "none"
+volumes:
+  dependencies:
+    external: true
+    name: "mtmux-dev-dependencies-v2"
+  cache:
+    name: "mtmux-dev-cache-v2"
+  pnpm-store:
+    name: "mtmux-dev-pnpm-store"

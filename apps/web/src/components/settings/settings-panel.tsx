@@ -17,8 +17,6 @@ import {
 } from "@/stores/settings-store";
 import { LockSettings } from "@/components/lock/lock-settings";
 import { InstallAppSection } from "@/components/pwa/install-app-section";
-import { isHostedBuild } from "@/lib/auth-client";
-import { AccountNudge } from "@/components/account/account-nudge";
 
 /** Raw buttons here need the same focus ring the shared Button component has. */
 const focusRing =
@@ -373,22 +371,6 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
         {/* Renders nothing when the browser has no install path, so the
             separator has to come with it rather than sit above it. */}
         <InstallAppSection />
-
-        {/* On a phone this panel *is* the settings page — the desktop header
-            with its dashboard link is hidden below 768px — so without this
-            section the terminal and the account are two islands with no bridge
-            on the device most people use.
-
-            `AccountNudge` owns the signed-in/signed-out split; this used to
-            show "Your machines" to everyone and bounce anonymous pairers to
-            /signin with no explanation. It renders null on a self-hosted build
-            and when it has nothing to say, hence the separator moving inside. */}
-        {isHostedBuild && (
-          <>
-            <Separator />
-            <AccountNudge />
-          </>
-        )}
       </div>
     </ScrollArea>
   );

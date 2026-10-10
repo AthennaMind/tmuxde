@@ -20,6 +20,8 @@ let sshDir: string; // base/user/.ssh
 let denySiblingDir: string; // base/user/.mtmuxfoo — prefix-only, still allowed
 let denyLink: string; // base/user/shortcut -> base/user/.ssh
 let realHome: string | undefined;
+let realConfigDir: string | undefined;
+let serviceConfigDir: string;
 
 beforeAll(async () => {
   base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "relay-fs-")));
@@ -42,7 +44,10 @@ beforeAll(async () => {
   // production rather than hand-feeding it paths.
   realHome = process.env.HOME;
   process.env.HOME = allowedDir;
-  delete process.env.MTMUX_CONFIG_DIR;
+  realConfigDir = process.env.MTMUX_CONFIG_DIR;
+  serviceConfigDir = path.join(allowedDir, "service-state");
+  fs.mkdirSync(serviceConfigDir);
+  process.env.MTMUX_CONFIG_DIR = serviceConfigDir;
 
   deniedDir = path.join(allowedDir, ".mtmux");
   sshDir = path.join(allowedDir, ".ssh");
@@ -64,11 +69,14 @@ beforeAll(async () => {
 afterAll(() => {
   if (realHome === undefined) delete process.env.HOME;
   else process.env.HOME = realHome;
+  if (realConfigDir === undefined) delete process.env.MTMUX_CONFIG_DIR;
+  else process.env.MTMUX_CONFIG_DIR = realConfigDir;
   fs.rmSync(base, { recursive: true, force: true });
 });
 
 describe("the credential deny-list", () => {
-  it("refuses the config directory that holds AUTH_TOKEN", () => {
+  it("refuses host config even when relay state uses another directory", () => {
+    expect(files.isPathAllowed(serviceConfigDir)).toBe(false);
     expect(files.isPathAllowed(deniedDir)).toBe(false);
     expect(files.isPathAllowed(path.join(deniedDir, "config.json"))).toBe(
       false,

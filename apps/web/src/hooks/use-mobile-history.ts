@@ -39,9 +39,16 @@ export function useMobileHistory() {
     // Nothing to come back *to* on the very first render, and pushing there is
     // what made Back a no-op the first time it was pressed.
     if (pushedTab.current !== null) {
-      window.history.pushState({ mobileTab }, "");
+      const state = { ...window.history.state, mobileTab };
+      // Explicit tab visits start fresh. Browser Back restores saved entries.
+      delete state.repository;
+      window.history.pushState(state, "");
+    } else {
+      window.history.replaceState({ ...window.history.state, mobileTab }, "");
     }
     pushedTab.current = mobileTab;
+    // Child effects run first. Let Files attach its snapshot after this push.
+    window.dispatchEvent(new Event("mobilehistorychange"));
   }, [mobileTab]);
 
   useEffect(() => {

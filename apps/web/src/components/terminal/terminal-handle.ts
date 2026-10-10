@@ -11,6 +11,9 @@ import type { GridGeometry } from "@/lib/pane-hit-test";
  * server render.
  */
 export interface TerminalHandle {
+  focus: () => void;
+  blur: () => void;
+  paste: (text: string) => void;
   search: (term: string) => void;
   findNext: () => void;
   findPrevious: () => void;

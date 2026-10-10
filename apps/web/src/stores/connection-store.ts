@@ -30,13 +30,18 @@ interface ConnectionStore {
   reconnectCount: number;
   serverVersion: string | null;
   hostname: string | null;
+  defaultPath: string | null;
   capabilities: Capabilities | null;
   features: Features;
   setStatus: (status: ConnectionState) => void;
   setLatency: (latency: number) => void;
   incrementReconnect: () => void;
   resetReconnect: () => void;
-  setServerInfo: (version: string, hostname: string) => void;
+  setServerInfo: (
+    version: string,
+    hostname: string,
+    defaultPath?: string,
+  ) => void;
   setCapabilities: (capabilities: Capabilities | null) => void;
   setFeatures: (features: string[] | undefined) => void;
 }
@@ -47,6 +52,7 @@ export const useConnectionStore = create<ConnectionStore>((set) => ({
   reconnectCount: 0,
   serverVersion: null,
   hostname: null,
+  defaultPath: null,
   capabilities: null,
   features: NO_FEATURES,
   setStatus: (status) => set({ status }),
@@ -54,7 +60,8 @@ export const useConnectionStore = create<ConnectionStore>((set) => ({
   incrementReconnect: () =>
     set((s) => ({ reconnectCount: s.reconnectCount + 1 })),
   resetReconnect: () => set({ reconnectCount: 0 }),
-  setServerInfo: (serverVersion, hostname) => set({ serverVersion, hostname }),
+  setServerInfo: (serverVersion, hostname, defaultPath) =>
+    set({ serverVersion, hostname, defaultPath: defaultPath ?? null }),
   setCapabilities: (capabilities) => set({ capabilities }),
   setFeatures: (features) =>
     set({ features: features ? new Set(features) : NO_FEATURES }),

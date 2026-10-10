@@ -1,0 +1,98 @@
+name: mtmux-local-preview
+
+x-contained: &contained
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,mode=1777,size=256m
+  pids_limit: 512
+
+services:
+  web:
+    <<: *contained
+    build:
+      context: ../..
+      dockerfile: .docker/prod/web.Dockerfile
+      args:
+        NEXT_PUBLIC_RELAY_URL: ""
+    environment:
+      HOSTNAME: 0.0.0.0
+      NEXT_TELEMETRY_DISABLED: "1"
+      TURBO_TELEMETRY_DISABLED: "1"
+      DO_NOT_TRACK: "1"
+    networks: [offline]
+    restart: unless-stopped
+
+  relay:
+    <<: *contained
+    build:
+      context: ../..
+      dockerfile: .docker/prod/relay.Dockerfile
+    user: "${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}"
+    environment:
+      RELAY_HOST: 0.0.0.0
+      RELAY_PORT: "24300"
+      TMUX_SOCKET: /host-tmux/${LOCAL_TMUX_SOCKET:?Run scripts/setup.sh}
+      AUTH_TOKEN: ${AUTH_TOKEN:?Run scripts/setup.sh}
+      CORS_ORIGINS: https://${LOCAL_DOMAIN:-localhost}
+      ALLOWED_PATHS: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh},${LOCAL_HOST_HOME:?Run scripts/setup.sh}
+      HOME: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
+      MTMUX_CONFIG_DIR: /tmp/mtmux-state
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      NEXT_TELEMETRY_DISABLED: "1"
+      TURBO_TELEMETRY_DISABLED: "1"
+      DO_NOT_TRACK: "1"
+    volumes:
+      - type: bind
+        source: ${LOCAL_TMUX_DIR:?Run scripts/setup.sh}
+        target: /host-tmux
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
+        target: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
+        read_only: true
+        bind:
+          create_host_path: false
+      - ../host-tmux:/opt/host-tmux:ro
+      - ../tmux-client:/usr/local/bin/tmux:ro
+      - type: bind
+        source: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh}
+        target: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh}
+        bind:
+          create_host_path: false
+    networks: [offline]
+    restart: unless-stopped
+
+  caddy:
+    <<: *contained
+    cap_add: [NET_BIND_SERVICE]
+    image: caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    environment:
+      LOCAL_DOMAIN: ${LOCAL_DOMAIN:-localhost}
+    volumes:
+      - ../Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - "${LOCAL_BIND_IP:-127.0.0.1}:443:443"
+    networks: [edge, offline]
+    depends_on:
+      web:
+        condition: service_healthy
+      relay:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
+    name: mtmux-local-preview_caddy-data
+  caddy-config:
+    name: mtmux-local-preview_caddy-config
+
+networks:
+  edge:
+  offline:
+    internal: true

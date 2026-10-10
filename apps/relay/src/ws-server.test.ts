@@ -21,9 +21,9 @@ function makeSocket() {
 
 function makeWss() {
   const wss = new EventEmitter() as unknown as WebSocketServer & {
-    handleUpgrade: ReturnType<typeof vi.fn>;
+    handleUpgrade: ReturnType<typeof vi.fn<WebSocketServer["handleUpgrade"]>>;
   };
-  wss.handleUpgrade = vi.fn();
+  wss.handleUpgrade = vi.fn<WebSocketServer["handleUpgrade"]>();
   return wss;
 }
 

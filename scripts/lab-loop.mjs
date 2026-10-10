@@ -69,10 +69,10 @@ function readReports() {
 }
 
 async function runSweep() {
-  const passthrough = ["--", "e2e/lab/sweep.spec.ts"];
+  const passthrough = ["e2e/lab/sweep.spec.ts"];
   const child = spawn(
-    process.execPath,
-    [path.join(ROOT, "scripts/lab.mjs"), "test", ...passthrough],
+    path.join(ROOT, ".docker/dev/lab.sh"),
+    ["test", ...passthrough],
     { cwd: ROOT, stdio: "inherit" },
   );
   const code = await new Promise((resolve) => child.on("exit", resolve));
@@ -86,8 +86,8 @@ async function runSweep() {
 
 async function reset() {
   const child = spawn(
-    process.execPath,
-    [path.join(ROOT, "scripts/lab.mjs"), "reset"],
+    path.join(ROOT, ".docker/dev/lab.sh"),
+    ["reset"],
     { cwd: ROOT, stdio: "inherit" },
   );
   await new Promise((resolve) => child.on("exit", resolve));

@@ -1,0 +1,37 @@
+{
+	auto_https disable_redirects
+	skip_install_trust
+	servers {
+		protocols h1 h2
+	}
+	pki {
+		ca local {
+			name "mtmux local CA"
+		}
+	}
+}
+
+https://{$LOCAL_DOMAIN} {
+	tls internal
+
+	@outside not remote_ip private_ranges
+	@relay path /_relay /health /_pair/* /_sessions /file /recording
+	@code_entry path /start /pair /j
+
+	header {
+		>Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://{$LOCAL_DOMAIN}; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		>Permissions-Policy "microphone=(), camera=(), geolocation=()"
+	}
+
+	route {
+		respond @outside "Internal network only" 403
+		redir @code_entry /login 302
+		handle @relay {
+			reverse_proxy relay:24300
+		}
+
+		handle {
+			reverse_proxy web:24100
+		}
+	}
+}

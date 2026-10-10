@@ -1,5 +1,4 @@
 import baseConfig from "./base.js";
-import reactPlugin from "eslint-plugin-react";
 import reactHooksPlugin from "eslint-plugin-react-hooks";
 import globals from "globals";
 
@@ -15,18 +14,12 @@ export default [
       },
     },
     plugins: {
-      react: reactPlugin,
       "react-hooks": reactHooksPlugin,
     },
     rules: {
-      ...reactHooksPlugin.configs.recommended.rules,
-      "react/react-in-jsx-scope": "off",
-      "react/prop-types": "off",
-    },
-    settings: {
-      react: {
-        version: "detect",
-      },
+      // Preserve existing hook checks. Compiler rules need separate adoption.
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
     },
   },
 ];

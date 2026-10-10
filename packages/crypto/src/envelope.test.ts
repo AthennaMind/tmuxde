@@ -65,7 +65,7 @@ async function withoutSubtle<T>(fn: () => T | Promise<T>): Promise<T> {
   Object.defineProperty(globalThis, "crypto", {
     configurable: true,
     value: {
-      getRandomValues: (a: Uint8Array) => source.getRandomValues(a),
+      getRandomValues: (a: Uint8Array<ArrayBuffer>) => source.getRandomValues(a),
     },
   });
   try {

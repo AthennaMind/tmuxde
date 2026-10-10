@@ -535,3 +535,122 @@ describeTmux("windows and panes", { timeout: TMUX_TEST_TIMEOUT_MS }, () => {
     }
   });
 });
+
+describeTmux("application scrolling", { timeout: TMUX_TEST_TIMEOUT_MS }, () => {
+  let pane: string | undefined;
+  let received: string;
+
+  async function openTui(mode: "sgr" | "legacy" | "keys" | "inline") {
+    const script = path.join(base, "scroll-app.py");
+    received = path.join(base, "scroll-input.bin");
+    const ready = path.join(base, "scroll-ready");
+    fs.rmSync(received, { force: true });
+    fs.rmSync(ready, { force: true });
+    fs.writeFileSync(
+      script,
+      [
+        "import os, sys, tty",
+        "tty.setraw(0)",
+        "os.write(1, b'old shell history\\r\\n' * 100)",
+        `os.write(1, ${mode === "inline" ? "b''" : "b'\\x1b[?1049h'"})`,
+        `os.write(1, ${mode === "keys" ? "b''" : "b'\\x1b[?1000h'"})`,
+        `os.write(1, ${mode === "sgr" || mode === "inline" ? "b'\\x1b[?1006h'" : "b''"})`,
+        "open(sys.argv[2], 'w').close()",
+        "while True:",
+        "    data = os.read(0, 8192)",
+        "    with open(sys.argv[1], 'ab') as output: output.write(data)",
+      ].join("\n"),
+    );
+    pane = tmuxExec([
+      "new-window",
+      "-d",
+      "-t",
+      SESSION,
+      "-P",
+      "-F",
+      "#{pane_id}",
+      `python3 ${script} ${received} ${ready}`,
+    ]).trim();
+    await expect.poll(() => fs.existsSync(ready)).toBe(true);
+    await expect
+      .poll(() =>
+        tmuxExec([
+          "display-message",
+          "-p",
+          "-t",
+          pane!,
+          mode === "keys" ? "#{alternate_on}" : "#{mouse_any_flag}",
+        ]).trim(),
+      )
+      .toBe("1");
+    return pane;
+  }
+
+  afterEach(() => {
+    if (pane) tmuxExec(["kill-pane", "-t", pane]);
+    pane = undefined;
+  });
+
+  it.each(["sgr", "inline"] as const)(
+    "routes %s mouse scrolling into app without copy mode",
+    async (mode) => {
+      const target = await openTui(mode);
+      const state = await tmux.scrollHistory(target, 3);
+      await tmux.scrollHistory(target, -2);
+      await expect
+        .poll(() =>
+          fs.existsSync(received) ? fs.readFileSync(received, "utf8") : "",
+        )
+        // eslint-disable-next-line no-control-regex
+        .toMatch(/(?:\x1b\[<64;\d+;\d+M){3}(?:\x1b\[<65;\d+;\d+M){2}/);
+      expect(state).toMatchObject({
+        inMode: false,
+        position: 0,
+        historySize: 0,
+      });
+      expect(await tmux.isInCopyMode(target)).toBe(false);
+    },
+  );
+
+  it("encodes legacy mouse wheel bytes", async () => {
+    const target = await openTui("legacy");
+    await tmux.scrollHistory(target, 1);
+    await expect
+      .poll(() =>
+        fs.existsSync(received) ? fs.readFileSync(received).length : 0,
+      )
+      .toBe(6);
+    expect(fs.readFileSync(received).subarray(0, 4)).toEqual(
+      Buffer.from([27, 91, 77, 96]),
+    );
+    expect(await tmux.isInCopyMode(target)).toBe(false);
+  });
+
+  it("uses arrow keys for alternate-screen apps without mouse support", async () => {
+    const target = await openTui("keys");
+    await tmux.scrollHistory(target, 2);
+    await tmux.scrollHistory(target, -1);
+    await expect
+      .poll(() =>
+        fs.existsSync(received) ? fs.readFileSync(received, "utf8") : "",
+      )
+      .toBe("\x1b[A\x1b[A\x1b[B");
+    expect(await tmux.isInCopyMode(target)).toBe(false);
+  });
+
+  it("does not send application input for a read-only viewer", async () => {
+    const target = await openTui("sgr");
+    await tmux.scrollHistory(target, 3, false);
+    await tmux.scrollToPosition(target, 3, false);
+    expect(await tmux.isInCopyMode(target)).toBe(false);
+    expect(fs.existsSync(received)).toBe(false);
+  });
+
+  it("keeps explicit copy mode available over a TUI", async () => {
+    const target = await openTui("sgr");
+    await tmux.enterCopyMode(target);
+    await tmux.scrollHistory(target, 3);
+    expect(await tmux.isInCopyMode(target)).toBe(true);
+    expect(fs.existsSync(received)).toBe(false);
+  });
+});

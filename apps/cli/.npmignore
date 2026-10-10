@@ -1,7 +1,0 @@
-src
-scripts
-tsconfig.json
-tsconfig.tsbuildinfo
-node_modules
-*.log
-.turbo

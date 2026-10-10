@@ -257,7 +257,7 @@ export function LockEnrollDialog({
               <>
                 <p className="text-sm text-muted-foreground">
                   {support === "insecure-context"
-                    ? "Passkeys need a secure origin, and this page is on a plain-HTTP LAN address. Open mtmux over the sealed tunnel (app.mtmux.com) to add one."
+                    ? "Passkeys need HTTPS. Open your local HTTPS address to add one."
                     : "This browser does not support passkeys."}{" "}
                   Your PIN is set and working.
                 </p>

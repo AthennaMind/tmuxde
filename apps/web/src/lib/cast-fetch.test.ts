@@ -115,12 +115,12 @@ describe("CastAssembler", () => {
 describe("fetchCast", () => {
   function transport(): FetchTransport & {
     emit(chunk: CastChunk): void;
-    request: ReturnType<typeof vi.fn>;
+    request: ReturnType<typeof vi.fn<FetchTransport["request"]>>;
     listeners: number;
   } {
     const listeners: Array<(c: CastChunk) => void> = [];
     return {
-      request: vi.fn(),
+      request: vi.fn<FetchTransport["request"]>(),
       onChunk(listener) {
         listeners.push(listener);
         return () => {

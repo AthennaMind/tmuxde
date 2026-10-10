@@ -1,18 +1,27 @@
 {
   "extends": "@repo/tsconfig/nextjs.json",
   "compilerOptions": {
-    // This app never emits declarations (noEmit is on), but the inherited
-    // `declaration: true` still makes tsc check that every exported type could
-    // be *written down*. better-auth's inferred client type reaches into a
-    // transitive zod copy that has no nameable path from here, which trips
-    // TS2742 on `authClient` for a file that is never emitted anyway.
     "declaration": false,
     "declarationMap": false,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     },
-    "allowJs": true
+    "allowJs": true,
+    "tsBuildInfoFile": ".turbo/tsconfig.tsbuildinfo"
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next-dev/types/**/*.ts",
+    ".next-build/types/**/*.ts",
+    ".next-e2e/types/**/*.ts",
+    ".next-lab/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

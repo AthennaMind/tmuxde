@@ -27,6 +27,7 @@ import {
 } from "./tmux-clone.js";
 import * as tmux from "./tmux-manager.js";
 import * as files from "./file-service.js";
+import { repositoryRequest } from "./repository-service.js";
 import * as recorder from "./recorder.js";
 import * as recordings from "./recordings-index.js";
 import { resolveDeviceApproval } from "./device-approval.js";
@@ -238,6 +239,14 @@ export async function routeMessage(
     msg,
   );
   if (!verdict.ok) {
+    if (msg.type === "repo:request") {
+      send(ws, {
+        type: "repo:result",
+        requestId: msg.requestId,
+        result: { kind: "error", message: verdict.message },
+      });
+      return;
+    }
     sendError(ws, verdict.code, verdict.message);
     return;
   }
@@ -584,6 +593,17 @@ export async function routeMessage(
         break;
       }
 
+      case "repo:request": {
+        if (!conn.attachedSession) throw new Error("No session attached");
+        const panes = await tmux.listPanes(conn.attachedSession);
+        const pane = panes.find((item) => item.id === msg.id);
+        if (!pane) throw new Error("Pane not found");
+        if (!pane.path) throw new Error("Pane directory is unavailable");
+        const result = await repositoryRequest(pane.path, msg);
+        send(ws, { type: "repo:result", requestId: msg.requestId, result });
+        break;
+      }
+
       case "file:list": {
         if (!files.isPathAllowed(msg.path)) {
           sendError(ws, "ACCESS_DENIED", "Path outside allowed directories");
@@ -784,12 +804,13 @@ export async function routeMessage(
             msg.content,
             msg.final,
           );
-          if (msg.final) {
+          if (msg.final || msg.ack) {
             send(ws, {
               type: "file:op:result",
               op: "upload",
               path: msg.path,
               success: true,
+              ...(msg.ack ? { final: msg.final } : {}),
             });
           }
         } catch (e) {
@@ -1012,7 +1033,11 @@ export async function routeMessage(
         }
         sendScrollState(
           ws,
-          await tmux.scrollHistory(conn.attachedSession, msg.lines),
+          await tmux.scrollHistory(
+            conn.attachedSession,
+            msg.lines,
+            !conn.grant.readOnly,
+          ),
         );
         break;
       }
@@ -1024,7 +1049,11 @@ export async function routeMessage(
         }
         sendScrollState(
           ws,
-          await tmux.scrollToPosition(conn.attachedSession, msg.position),
+          await tmux.scrollToPosition(
+            conn.attachedSession,
+            msg.position,
+            !conn.grant.readOnly,
+          ),
         );
         break;
       }
@@ -1192,6 +1221,14 @@ export async function routeMessage(
   } catch (e) {
     const errMsg = e instanceof Error ? e.message : "Internal error";
     logger.error({ err: e, type: msg.type }, "Message handler error");
+    if (msg.type === "repo:request") {
+      send(ws, {
+        type: "repo:result",
+        requestId: msg.requestId,
+        result: { kind: "error", message: errMsg },
+      });
+      return;
+    }
     sendError(ws, "HANDLER_ERROR", errMsg);
   }
 }

@@ -4,9 +4,7 @@ node_modules/
 # Build outputs
 dist/
 .next/
-.next-cli/
-# Every sibling Next build directory: .next-dev, .next-build, .next-serve,
-# .next-prev and any .next-broken-* left by a rollback (see apps/site/next.config.ts).
+# Next development and build directories.
 .next-*/
 out/
 
@@ -41,7 +39,7 @@ pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# PM2 logs
+# Local logs
 logs/
 
 # Misc
@@ -54,8 +52,7 @@ logs/
 # npm pack output
 *.tgz
 
-# The broker's SQLite database and its WAL sidecars. Runtime state, not source:
-# the schema lives in packages/db/drizzle and is applied at boot.
+# Local runtime state.
 data/
 
 # Playwright run output (traces, screenshots, .last-run.json)
@@ -85,3 +82,7 @@ apps/web/lab-report/
 # Next regenerates the file on every `dev`/`build`, and `tsc --noEmit` passes
 # without it, so there is nothing to keep.
 apps/web/next-env.d.ts
+
+# Host binaries copied for local Docker access to existing tmux sessions.
+.docker/host-tmux/
+.docker/certs/

@@ -19,7 +19,6 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useUiStore } from "@/stores/ui-store";
 import { sendCommand } from "@/lib/send-command";
 import { isEnrolled } from "@/lib/unlocked";
-import { DictateButton } from "./dictate-button";
 
 /**
  * A full-height editor for commands that do not fit on one line.
@@ -275,7 +274,6 @@ function ComposerBody({
         </div>
 
         <div className="flex items-center gap-2 border-t px-2 py-2">
-          <DictateButton onFinal={insertAtCaret} />
           <button
             onClick={send}
             disabled={!connected || lines === 0}

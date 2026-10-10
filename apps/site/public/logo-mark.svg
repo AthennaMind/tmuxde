@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="mtmux">
-  <title>mtmux</title>
-  <!-- Rounded square in brand green. Value matches --brand (dark scheme) in src/app/globals.css. -->
-  <rect width="512" height="512" rx="106.67" fill="#A6E96B" />
-  <!-- Two-pane tmux split: one tall pane left, two stacked panes right. -->
-  <rect x="85.33" y="128" width="149.33" height="256" rx="32" fill="#0A0B0A" />
-  <rect x="277.33" y="128" width="149.33" height="106.67" rx="32" fill="#0A0B0A" />
-  <rect x="277.33" y="277.33" width="149.33" height="106.67" rx="32" fill="#0A0B0A" opacity="0.45" />
-</svg>
