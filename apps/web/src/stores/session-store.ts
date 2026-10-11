@@ -12,7 +12,6 @@ interface SessionStore {
   updateSessionActivity: (name: string, activity: string) => void;
   setActiveSession: (name: string | null) => void;
   openSession: (name: string) => void;
-  closeSession: (name: string) => void;
 }
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
@@ -58,13 +57,4 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         ? s
         : { openedSessions: [...s.openedSessions, name] },
     ),
-  closeSession: (name) =>
-    set((s) => {
-      const openedSessions = s.openedSessions.filter((n) => n !== name);
-      const activeSessionId =
-        s.activeSessionId === name
-          ? (openedSessions[openedSessions.length - 1] ?? null)
-          : s.activeSessionId;
-      return { openedSessions, activeSessionId };
-    }),
 }));

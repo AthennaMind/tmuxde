@@ -5,6 +5,10 @@ import { loader } from "@monaco-editor/react";
 import type { OnMount, OnChange } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import { useCallback, useRef } from "react";
+import { useTerminalStore } from "@/stores/terminal-store";
+
+/** Same face as terminal and repository views. */
+const CODE_FONT = '"Cascadia Code", "IBM Plex Mono", monospace';
 
 // Configure @monaco-editor/react to use the locally installed monaco-editor
 // instead of fetching from CDN
@@ -50,6 +54,7 @@ export function MonacoEditor({
   fontSize = 14,
 }: MonacoEditorProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const codeWeight = useTerminalStore((s) => s.codeWeight);
 
   const handleMount: OnMount = useCallback(
     (editor, monaco) => {
@@ -61,6 +66,13 @@ export function MonacoEditor({
           onSave();
         });
       }
+
+      // Monaco measures glyphs once. If the web font lands after mount, those
+      // widths are the fallback's and the cursor drifts off the text.
+      void document.fonts
+        .load('400 16px "Cascadia Code"', "W")
+        .then(() => monaco.editor.remeasureFonts())
+        .catch(() => {});
 
       editor.focus();
     },
@@ -88,6 +100,9 @@ export function MonacoEditor({
         lineNumbers: "on",
         wordWrap,
         fontSize,
+        fontFamily: CODE_FONT,
+        fontWeight: String(codeWeight),
+        fontLigatures: true,
         scrollBeyondLastLine: false,
         automaticLayout: true,
         tabSize: 2,

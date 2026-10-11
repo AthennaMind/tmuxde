@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, LayoutGrid, Maximize2 } from "lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import { getRelayClient } from "@/hooks/use-websocket";
@@ -14,6 +14,19 @@ import { useConnectionStore } from "@/stores/connection-store";
 
 interface WindowTabsProps {
   className?: string;
+}
+
+type Overflow = { start: boolean; end: boolean };
+
+const FADE = "1.5rem";
+
+/** Fade only the edges that hide tabs. A clean cut at a tab boundary hides them silently. */
+function fadeMask({ start, end }: Overflow): string | undefined {
+  if (start && end)
+    return `linear-gradient(to right, transparent, black ${FADE}, black calc(100% - ${FADE}), transparent)`;
+  if (end) return `linear-gradient(to right, black calc(100% - ${FADE}), transparent)`;
+  if (start) return `linear-gradient(to right, transparent, black ${FADE})`;
+  return undefined;
 }
 
 /**
@@ -42,6 +55,11 @@ export function WindowTabs({ className }: WindowTabsProps) {
   const setFabOpen = useUiStore((s) => s.setFabOpen);
   const connected = useConnectionStore((s) => s.status === "connected");
   const activeRef = useRef<HTMLButtonElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const [overflow, setOverflow] = useState<Overflow>({
+    start: false,
+    end: false,
+  });
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Built from the subscribed fields rather than read out of the stores
@@ -59,6 +77,34 @@ export function WindowTabs({ className }: WindowTabsProps) {
 
   const activeKey =
     pendingKey ?? strip.entries[strip.activeIndex]?.key ?? undefined;
+  const showStrip = strip.entries.length > 1;
+  // Labels change width without changing the list box, so they rerun this too.
+  const entriesKey = strip.entries.map((e) => `${e.key}:${e.label}`).join("|");
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) {
+      setOverflow((prev) =>
+        prev.start || prev.end ? { start: false, end: false } : prev,
+      );
+      return;
+    }
+    const update = () => {
+      const start = list.scrollLeft > 1;
+      const end = list.scrollLeft + list.clientWidth < list.scrollWidth - 1;
+      setOverflow((prev) =>
+        prev.start === start && prev.end === end ? prev : { start, end },
+      );
+    };
+    update();
+    list.addEventListener("scroll", update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(list);
+    return () => {
+      list.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, [showStrip, entriesKey]);
 
   // Wrapping a strip of eight windows off the right edge and leaving the
   // highlight off-screen is the same failure as no highlight at all.
@@ -109,7 +155,6 @@ export function WindowTabs({ className }: WindowTabsProps) {
     onPointerCancel: cancelPress,
   });
 
-  const showStrip = strip.entries.length > 1;
   const soleWindow = windows.length === 1 ? windows[0] : undefined;
 
   /*
@@ -145,8 +190,13 @@ export function WindowTabs({ className }: WindowTabsProps) {
     >
       {showStrip ? (
         <div
+          ref={listRef}
           role="tablist"
           aria-label={stripLabel}
+          style={{
+            maskImage: fadeMask(overflow),
+            WebkitMaskImage: fadeMask(overflow),
+          }}
           // `touch-pan-x` states this row's own intent: it is a real
           // horizontal scroller. `min-w-0` is what lets it actually shrink
           // inside the flex row rather than pushing the buttons off-screen.

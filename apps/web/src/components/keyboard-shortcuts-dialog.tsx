@@ -23,7 +23,7 @@ const agentKeys = [
 const shortcuts = [
   { keys: ["Ctrl/Cmd", "K"], description: "Open command palette" },
   { keys: ["Ctrl", "B"], description: "Toggle sidebar" },
-  { keys: ["Ctrl", "E"], description: "Open files tab" },
+  { keys: ["Ctrl", "E"], description: "Toggle files" },
   { keys: ["Ctrl", "C"], description: "Interrupt" },
   { keys: ["Ctrl", "D"], description: "Send EOF" },
   { keys: ["Ctrl", "L"], description: "Clear terminal" },

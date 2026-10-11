@@ -32,7 +32,7 @@ export type XtermOptions = {
   themeName: string;
   fontSize: number;
   fontFamily: string;
-  readableText?: boolean;
+  fontWeight: number;
   cursorStyle?: "block" | "underline" | "bar";
   cursorBlink?: boolean;
   scrollback?: number;
@@ -107,9 +107,13 @@ export function createXterm(options: XtermOptions): XtermBundle {
   const terminal = new XTerm({
     fontSize: options.fontSize,
     fontFamily: terminalFontFamily(options.fontFamily),
-    fontWeight: options.readableText ? 500 : 400,
-    lineHeight: options.readableText ? 1.15 : 1,
-    minimumContrastRatio: options.readableText ? 4.5 : 1,
+    // Same metrics on every device. Weight comes from the Code weight setting.
+    // Bold is the variable face's heaviest instance. 1.15 keeps descenders
+    // off the next row.
+    fontWeight: options.fontWeight,
+    fontWeightBold: 700,
+    lineHeight: 1.15,
+    minimumContrastRatio: 4.5,
     theme: terminalThemeToXterm(theme),
     allowProposedApi: true,
     macOptionIsMeta: true,
@@ -140,7 +144,7 @@ export function createXterm(options: XtermOptions): XtermBundle {
 
   terminal.unicode.activeVersion = "11";
   terminal.open(options.container);
-  if (options.readableText) brightenDimText(terminal);
+  brightenDimText(terminal);
   if (terminal.textarea) {
     terminal.textarea.enterKeyHint = "enter";
     terminal.textarea.setAttribute("aria-label", "Terminal input");

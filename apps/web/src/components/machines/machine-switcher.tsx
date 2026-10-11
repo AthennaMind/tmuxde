@@ -85,28 +85,33 @@ export function MachineSwitcher({ className }: { className?: string }) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Switch machine"
-        title={active?.name ? `Machine: ${active.name}` : "Switch machine"}
-        className={cn(
-          // `pointer-coarse:min-h-11` rather than a plain `min-h-11`: this is
-          // a 24px control, which is fine for a mouse and eight pixels short
-          // of usable for a thumb. Keying on the pointer rather than on the
-          // width is the same rule `MOBILE_MEDIA_QUERY` already uses, and it
-          // covers the tablet and the landscape phone that a width breakpoint
-          // would call desktop.
-          "flex min-w-0 max-w-40 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors pointer-coarse:min-h-11",
-          "hover:bg-accent hover:text-foreground",
-          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-          className,
-        )}
-      >
-        <Server className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        <span className="truncate">{active?.name ?? "Machine"}</span>
-        <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-60" aria-hidden />
-      </button>
+      {/* A local token connection has no paired machine. A trigger that names
+          nothing and opens an empty list is noise. The sheet below stays
+          mounted for the command palette. */}
+      {machines.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Switch machine"
+          title={active?.name ? `Machine: ${active.name}` : "Switch machine"}
+          className={cn(
+            // `pointer-coarse:min-h-11` rather than a plain `min-h-11`: this is
+            // a 24px control, which is fine for a mouse and eight pixels short
+            // of usable for a thumb. Keying on the pointer rather than on the
+            // width is the same rule `MOBILE_MEDIA_QUERY` already uses, and it
+            // covers the tablet and the landscape phone that a width breakpoint
+            // would call desktop.
+            "flex min-w-0 max-w-40 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors pointer-coarse:min-h-11",
+            "hover:bg-accent hover:text-foreground",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            className,
+          )}
+        >
+          <Server className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span className="truncate">{active?.name ?? "Machine"}</span>
+          <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-60" aria-hidden />
+        </button>
+      )}
 
       <MachineSheet
         open={open}

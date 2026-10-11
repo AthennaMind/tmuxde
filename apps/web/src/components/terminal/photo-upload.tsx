@@ -23,9 +23,12 @@ import { PhotoThumbnail } from "@/components/terminal/photo-thumbnail";
 
 export function PhotoUpload({
   className,
+  labelClassName,
   compact = false,
 }: {
   className?: string;
+  /** Lets a narrow toolbar hide the visible label. */
+  labelClassName?: string;
   compact?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
@@ -141,7 +144,9 @@ export function PhotoUpload({
         aria-label="Upload photo"
         aria-busy={uploading}
         disabled={uploading || status !== "connected" || !session || inCopyMode}
-        title={inCopyMode ? "Leave copy mode to upload a photo" : undefined}
+        title={
+          inCopyMode ? "Leave copy mode to upload a photo" : "Upload photo"
+        }
         className={cn(
           "flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
           compact && "w-full min-w-0 px-1",
@@ -159,7 +164,9 @@ export function PhotoUpload({
         ) : !compact ? (
           <ImagePlus className="h-4 w-4" aria-hidden />
         ) : null}
-        {uploading ? (compact ? "…" : "Uploading…") : "Photo"}
+        <span className={labelClassName}>
+          {uploading ? (compact ? "…" : "Uploading…") : "Photo"}
+        </span>
       </button>
       {savedPath && (
         <input
