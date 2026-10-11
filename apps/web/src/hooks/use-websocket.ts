@@ -18,6 +18,7 @@ import { useScrollStore } from "@/stores/scroll-store";
 import {
   awaitingScrollStateProbe,
   noteScrollStateReply,
+  requestScrollState,
 } from "@/lib/terminal-scroll";
 import { TOKEN_KEY, clearStored } from "@/lib/storage-keys";
 import * as registry from "@/lib/relay-registry";
@@ -248,7 +249,15 @@ export function useWebSocket(
         case "pane:list":
         case "pane:changed": {
           const paneStore = usePaneStore.getState();
+          const previousPane = paneStore.activePaneId;
           paneStore.setPanes(msg.panes, msg.windowId);
+          // Copy mode is a fact about a pane, and the client's belief about it
+          // is kept per session. A pane left scrolled back stays in copy mode,
+          // so a switch to another pane has to ask again, or the old pane's
+          // state follows the user to the new one and blocks paste there.
+          if (usePaneStore.getState().activePaneId !== previousPane) {
+            requestScrollState();
+          }
           // Auto-zoom: if pending and no pane is currently zoomed, zoom the active pane
           if (paneStore.pendingAutoZoom) {
             const zoomedPane = msg.panes.find((p) => p.zoomed);
@@ -303,6 +312,11 @@ export function useWebSocket(
           // Terminal view handles the stream. The session tree sends any
           // window or pane selection that waited on this attach.
           noteSessionAttached(msg.name);
+          // The scroll rail asks shortly after the session changes, but on a
+          // page load that is before the socket is connected and the ask is
+          // dropped. This is the moment the relay can answer, and the answer
+          // is also what stops scrolling from guessing about copy mode.
+          requestScrollState();
           break;
         case "tmux:scroll-state":
           noteScrollStateReply(msg.inMode);
