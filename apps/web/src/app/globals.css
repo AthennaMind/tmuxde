@@ -100,11 +100,11 @@
 /*
  * Code in the repository viewer. Defaults are the phone sizes: 12px holds up on
  * a dense screen held close. Desktop file tabs raise the variables, because
- * the same size reads thin at desk distance. `--code-weight` follows the Code
- * weight setting and `--code-zoom` follows Ctrl with -, = and 0, both synced
- * onto the root by the terminal layout. Leading is unitless so it scales with
- * the zoom. Monospace keeps zero tracking so body tracking does not leak into
- * code.
+ * the same size reads thin at desk distance. `--code-weight` and
+ * `--code-zoom` follow the File and diff text weight and size settings, both
+ * synced onto the root by the terminal layout. Leading is unitless so it
+ * scales with the zoom. Monospace keeps zero tracking so body tracking does
+ * not leak into code.
  */
 @utility text-code {
   font-size: calc(var(--code-size, 0.75rem) * var(--code-zoom, 1));

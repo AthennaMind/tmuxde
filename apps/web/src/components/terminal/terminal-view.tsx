@@ -17,6 +17,7 @@ import {
   getTerminalTheme,
   terminalThemeToXterm,
 } from "@repo/ui/terminal-themes";
+import { useTheme } from "@repo/ui/hooks/use-theme";
 import { createXterm } from "@/lib/xterm-factory";
 import { terminalFontFamily } from "@/lib/terminal-font.js";
 import { consumeTerminalInput } from "@/lib/terminal-input.js";
@@ -109,8 +110,9 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
     // component for the others (pinch-zoom writes fontSize many times a second).
     const fontSize = useTerminalStore((s) => s.fontSize);
     const fontFamily = useTerminalStore((s) => s.fontFamily);
-    const codeWeight = useTerminalStore((s) => s.codeWeight);
+    const terminalWeight = useTerminalStore((s) => s.terminalWeight);
     const themeName = useTerminalStore((s) => s.themeName);
+    const scheme = useTheme().resolvedTheme === "light" ? "light" : "dark";
     const cursorStyle = useTerminalStore((s) => s.cursorStyle);
     const cursorBlink = useTerminalStore((s) => s.cursorBlink);
     const scrollback = useTerminalStore((s) => s.scrollback);
@@ -320,9 +322,10 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
       const { terminal, fitAddon, searchAddon } = createXterm({
         container: containerRef.current,
         themeName,
+        scheme,
         fontSize,
         fontFamily,
-        fontWeight: codeWeight,
+        fontWeight: terminalWeight,
         cursorStyle,
         cursorBlink,
         scrollback,
@@ -667,12 +670,12 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
 
         terminal.options.fontSize = fontSize;
         terminal.options.fontFamily = terminalFontFamily(fontFamily);
-        terminal.options.fontWeight = codeWeight;
+        terminal.options.fontWeight = terminalWeight;
         terminal.options.cursorStyle = cursorStyle;
         terminal.options.cursorBlink = cursorBlink;
         terminal.options.scrollback = scrollback;
         terminal.options.theme = terminalThemeToXterm(
-          getTerminalTheme(themeName),
+          getTerminalTheme(themeName, scheme),
         );
 
         scheduleFitRef.current?.();
@@ -691,8 +694,9 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
     }, [
       fontSize,
       fontFamily,
-      codeWeight,
+      terminalWeight,
       themeName,
+      scheme,
       cursorStyle,
       cursorBlink,
       scrollback,
@@ -820,6 +824,8 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
       <div
         className={cn("relative", className)}
         style={{ width: "100%", height: "100%" }}
+        // Ctrl with -, = and 0 size the terminal font here. See font-zoom.ts.
+        data-zoom-surface="terminal"
       >
         {/*
           Terminal container — always mounted.

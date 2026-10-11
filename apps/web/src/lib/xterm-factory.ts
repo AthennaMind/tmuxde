@@ -11,6 +11,7 @@ import { isFontZoomKey } from "./font-zoom-key.js";
 import {
   getTerminalTheme,
   terminalThemeToXterm,
+  type ColorScheme,
 } from "@repo/ui/terminal-themes";
 
 /**
@@ -31,6 +32,8 @@ export type XtermBundle = {
 export type XtermOptions = {
   container: HTMLElement;
   themeName: string;
+  /** The app's resolved scheme, for the theme that matches it. */
+  scheme: ColorScheme;
   fontSize: number;
   fontFamily: string;
   fontWeight: number;
@@ -93,7 +96,7 @@ function patchRenderServiceDimensions(terminal: XTerm): void {
 }
 
 export function createXterm(options: XtermOptions): XtermBundle {
-  const theme = getTerminalTheme(options.themeName);
+  const theme = getTerminalTheme(options.themeName, options.scheme);
 
   /*
    * An absent option is omitted, never passed as `undefined`.
@@ -108,7 +111,8 @@ export function createXterm(options: XtermOptions): XtermBundle {
   const terminal = new XTerm({
     fontSize: options.fontSize,
     fontFamily: terminalFontFamily(options.fontFamily),
-    // Same metrics on every device. Weight comes from the Code weight setting.
+    // Same metrics on every device. Weight comes from the Terminal font weight
+    // setting.
     // Bold is the variable face's heaviest instance. 1.15 keeps descenders
     // off the next row.
     fontWeight: options.fontWeight,

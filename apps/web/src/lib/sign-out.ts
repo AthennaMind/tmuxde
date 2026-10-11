@@ -2,6 +2,7 @@ import { getRelayClient } from "@/hooks/use-websocket";
 import { useCommandStore } from "@/stores/command-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useFileStore } from "@/stores/file-store";
+import { TERMINAL_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
 import { useSessionStore } from "@/stores/session-store";
 import { clearCensusCache } from "./session-census";
 import {
@@ -65,6 +66,7 @@ export async function disconnectDevice(): Promise<void> {
   useFileStore.getState().setEntries([]);
   useFileStore.getState().setSelectedFile(null);
   useFileStore.getState().setFileContent(null);
+  useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB });
 
   // Both homes of the self-hosted token. `clearStored` alone leaves an enrolled
   // device still holding it in memory, which is exactly the case that made the
