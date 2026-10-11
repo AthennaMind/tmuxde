@@ -1,6 +1,6 @@
 FROM node:26.11.1-bookworm-slim AS base
-LABEL org.opencontainers.image.source="https://github.com/mtmux/mtmux"
-LABEL org.opencontainers.image.description="mtmux relay server - WebSocket bridge to tmux sessions"
+LABEL org.opencontainers.image.source="https://github.com/AthennaMind/tmuxde"
+LABEL org.opencontainers.image.description="tmuxde relay server - WebSocket bridge to tmux sessions"
 LABEL org.opencontainers.image.licenses="MIT"
 
 RUN apt-get update && apt-get install -y \

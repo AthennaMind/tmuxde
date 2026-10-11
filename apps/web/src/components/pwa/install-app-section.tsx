@@ -101,7 +101,7 @@ export function InstallAppSection() {
         {availability === "prompt" && (
           <>
             <p className="mb-3 text-xs text-muted-foreground">
-              Add mtmux to your home screen for a full-height terminal with no
+              Add tmuxde to your home screen for a full-height terminal with no
               browser chrome.
             </p>
             <Button
@@ -120,7 +120,7 @@ export function InstallAppSection() {
               }}
             >
               <Download className="mr-2 h-4 w-4" aria-hidden />
-              Install mtmux
+              Install tmuxde
             </Button>
           </>
         )}
@@ -141,8 +141,7 @@ export function InstallAppSection() {
 
         {availability === "insecure" && (
           <p className="text-xs text-muted-foreground">
-            Installing needs a secure origin. Open the invite link from{" "}
-            <code className="font-mono text-[11px]">mtmux start</code> instead
+            Installing needs a secure origin. Open tmuxde over HTTPS instead
             of the plain LAN address, and this page can be installed.
           </p>
         )}

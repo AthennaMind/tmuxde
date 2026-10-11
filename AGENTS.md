@@ -1,6 +1,6 @@
-# mtmux local
+# tmuxde
 
-This fork runs local web client, relay and Caddy through `docker-compose.yml`. CLI, marketing site, hosted broker, billing, database and email apps have been removed. Current setup guide is [.docker/README.md](.docker/README.md).
+tmuxde (Tmux Development Environment) is a fork of [mtmux/mtmux](https://github.com/mtmux/mtmux), git remote `upstream`. Repository: [AthennaMind/tmuxde](https://github.com/AthennaMind/tmuxde). This fork runs local web client, relay and Caddy through `docker-compose.yml`. CLI, marketing site, hosted broker, billing, database and email apps have been removed. Current setup guide is [.docker/README.md](.docker/README.md).
 
 ## Repository map
 

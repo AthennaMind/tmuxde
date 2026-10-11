@@ -33,8 +33,8 @@ Desktop sidebar is a list of session cards with a read-only tree. It shows littl
 | [G]3 | v dev        6 win     now   |                                           |
 | [P]  |     1  bash                  |                                           |
 |      |   v 2  claude        2 panes |               terminal                    |
-|      |     | 0  claude  ~/src/mtmux |                                           |
-|      |       1  bash    ~/src/mtmux |                                           |
+|      |     | 0  claude  ~/src/tmuxde |                                           |
+|      |       1  bash    ~/src/tmuxde |                                           |
 |      |   > 3  logs            *     |                                           |
 |      |     + New window             |                                           |
 |      | > work       2 win      3h   |                                           |
@@ -68,7 +68,7 @@ Row anatomy, 28px tall, 12px indent per depth, rounded-md inside 6px panel paddi
 
 - Session row: name, window count, last activity. State icons: activity dot (primary), "open in another client" icon, lock icon when session requires unlock.
 - Window row: index, name, pane count when more than one, activity dot, zoom icon.
-- Pane row: index, command, path shortened from start (`~/src/mtmux`), zoom icon.
+- Pane row: index, command, path shortened from start (`~/src/tmuxde`), zoom icon.
 
 Selection rule: one highlight only. Deepest active item gets `bg-accent`. Its ancestors get `font-medium`. Pending switch (on wire, not confirmed) dims to 70%, same as window strip.
 
@@ -94,7 +94,7 @@ Keyboard: `role="tree"` with roving focus. Up/Down move, Right/Left expand and c
 
 ```
 +------+------------------------------+------------------------------+------------+
-| [S]  | mtmux        main   ~5 +2    | terminal                     | README.md x|
+| [S]  | tmuxde        main   ~5 +2    | terminal                     | README.md x|
 | [F]  | [Filter files            ]   |                              |            |
 | [G]5 | v apps                       |                              |  preview   |
 | [P]  |   v web                      |                              |  or diff   |

@@ -17,7 +17,7 @@ const logger = createLogger("relay:approval");
  *
  * Every approval path this product had ran through the machine: a TTY prompt
  * in `mtmux start`, or a window opened by `mtmux approve`. Both assume you can
- * get to a keyboard on the host. The entire premise of mtmux is that you are
+ * get to a keyboard on the host. The entire premise of tmuxde is that you are
  * *not* at that keyboard — you are on a phone, somewhere else, which is the
  * exact situation in which a second device asking to pair is both most likely
  * and most worth looking at.

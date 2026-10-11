@@ -14,7 +14,7 @@ const logger = createLogger("relay:clone");
  * showing it in the owner's own session list would be a bug rather than a
  * disclosure.
  */
-export const CLONE_PREFIX = "__mtmux_";
+export const CLONE_PREFIX = "__tmuxde_";
 
 function tmuxArgs(): string[] {
   return config.tmuxSocket ? ["-S", config.tmuxSocket] : [];
@@ -50,7 +50,7 @@ export function cloneNameFor(grantId: string, connId: string): string {
  * are *session* options, which means emptying them disarms every key sequence
  * for this client without touching the owner's own client at all.
  *
- * `key-table mtmux-locked` names a table that is never populated. An unbound
+ * `key-table tmuxde-locked` names a table that is never populated. An unbound
  * key in a non-root table is simply discarded, so there is nothing to escape
  * to; `prefix None` removes the way back to the root table.
  */
@@ -77,7 +77,7 @@ export async function createReadOnlyClone(
     for (const [option, value] of [
       ["prefix", "None"],
       ["prefix2", "None"],
-      ["key-table", "mtmux-locked"],
+      ["key-table", "tmuxde-locked"],
       // Without this, destroying the group's last window would leave the
       // viewer's client attached to the server rather than disconnected.
       ["detach-on-destroy", "on"],

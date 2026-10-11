@@ -43,7 +43,7 @@ export function PwaProvider() {
         registration = reg;
       })
       .catch((error: unknown) => {
-        console.warn("[mtmux] service worker registration failed:", error);
+        console.warn("[tmuxde] service worker registration failed:", error);
       });
 
     // Browsers only check for a new worker on navigation, and this is a

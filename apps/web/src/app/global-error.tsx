@@ -46,7 +46,7 @@ export default function GlobalError({
         }}
       >
         <h1 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }}>
-          mtmux failed to start
+          tmuxde failed to start
         </h1>
         <p
           style={{

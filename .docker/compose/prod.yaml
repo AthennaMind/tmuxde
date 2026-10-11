@@ -1,4 +1,4 @@
-name: mtmux-local-preview
+name: tmuxde
 
 x-contained: &contained
   read_only: true
@@ -37,7 +37,7 @@ services:
       CORS_ORIGINS: https://${LOCAL_DOMAIN:-localhost}
       ALLOWED_PATHS: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh},${LOCAL_HOST_HOME:?Run scripts/setup.sh}
       HOME: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
-      MTMUX_CONFIG_DIR: /tmp/mtmux-state
+      TMUXDE_CONFIG_DIR: /tmp/tmuxde-state
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
       NEXT_TELEMETRY_DISABLED: "1"
@@ -86,9 +86,9 @@ services:
 
 volumes:
   caddy-data:
-    name: mtmux-local-preview_caddy-data
+    name: tmuxde_caddy-data
   caddy-config:
-    name: mtmux-local-preview_caddy-config
+    name: tmuxde_caddy-config
 
 networks:
   edge:

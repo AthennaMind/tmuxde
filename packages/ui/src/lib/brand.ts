@@ -18,14 +18,12 @@
  */
 
 export const brand = {
-  name: "mtmux",
-  tagline: "tmux in your browser. One command, any device.",
+  name: "tmuxde",
+  longName: "Tmux Development Environment",
+  tagline: "Your tmux on any screen. Nothing leaves your network.",
   description:
-    "Run one command on your machine, scan a code, and your tmux sessions are on your phone. No port forwarding, no account, no SSH key on the device.",
-  url: "https://mtmux.com",
-  app: "https://app.mtmux.com",
-  docs: "https://docs.mtmux.com",
-  install: "npm install -g mtmux",
+    "Self-hosted web terminal for tmux. Drive shells and coding agents from your phone over your private network. No accounts, no telemetry, no update checks.",
+  repository: "https://github.com/AthennaMind/tmuxde",
 } as const;
 
 export type Brand = typeof brand;

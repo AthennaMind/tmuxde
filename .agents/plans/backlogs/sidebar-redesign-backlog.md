@@ -25,7 +25,7 @@ Plan: `.agents/plans/sidebar-redesign.md`.
 ### Phase 1: shell
 
 - [x] `ui-store`: `sidebarView`, `sidebarWidth`, `showSidebarView`, `toggleSidebarView`, `setSidebarWidth`. Removed `filesPanelOpen`.
-- [x] Prefs persisted under `mtmux-sidebar` (view, width, collapsed).
+- [x] Prefs persisted under `tmuxde-sidebar` (view, width, collapsed).
 - [x] Rail: Sessions, Files, Changes with badge, Photos. Bottom: connection dot, machine, settings.
 - [x] Resize handle: drag, arrows, Home, End, double click reset. 220 to 480px.
 - [x] `MachineSwitcher` compact trigger.

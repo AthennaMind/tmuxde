@@ -112,8 +112,8 @@ vi.mock("./tmux-clone.js", () => ({
   createReadOnlyClone: (target: string, grantId: string, connId: string) =>
     createReadOnlyClone(target, grantId, connId),
   destroyClone: () => Promise.resolve(),
-  isCloneSession: (name: string) => name.startsWith("__mtmux_"),
-  CLONE_PREFIX: "__mtmux_",
+  isCloneSession: (name: string) => name.startsWith("__tmuxde_"),
+  CLONE_PREFIX: "__tmuxde_",
 }));
 
 const repositoryRequest = vi.fn();
@@ -218,7 +218,7 @@ beforeEach(() => {
   readScrollState.mockResolvedValue(AT_BOTTOM);
   exitCopyMode.mockResolvedValue(undefined);
   listDirectory.mockResolvedValue([]);
-  createReadOnlyClone.mockResolvedValue("__mtmux_clone");
+  createReadOnlyClone.mockResolvedValue("__tmuxde_clone");
 });
 
 function session(name: string, id: string): SessionInfo {
@@ -509,7 +509,7 @@ describe("scoped grants", () => {
       "conn-test",
     );
     const [target, , opts] = createPtyBridge.mock.calls[0]!;
-    expect(target).toBe("__mtmux_clone");
+    expect(target).toBe("__tmuxde_clone");
     expect(opts).toMatchObject({ readOnly: true });
     // The *real* name is what scope checks and broadcasts compare against.
     expect(conn.attachedSession).toBe("work");
