@@ -148,9 +148,8 @@ export function LockEnrollDialog({
               <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <span>
                 <strong>There is no way to reset this PIN.</strong> Forget it
-                and this browser has to pair again — run <code>mtmux</code> on
-                the machine and type the code it prints. Nothing on the machine
-                is lost.
+                and this browser has to sign in again with the relay token.
+                Nothing on the machine is lost.
               </span>
             </p>
 

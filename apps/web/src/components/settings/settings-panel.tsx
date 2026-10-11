@@ -1,19 +1,39 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "@repo/ui/components/ui/button";
-import { Separator } from "@repo/ui/components/ui/separator";
-import { Label } from "@repo/ui/components/ui/label";
 import { Input } from "@repo/ui/components/ui/input";
-import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
-import { Switch } from "@repo/ui/components/ui/switch";
-import { ThemeToggle } from "@repo/ui/components/theme-toggle";
+import { useTheme } from "@repo/ui/hooks/use-theme";
 import { cn } from "@repo/ui/lib/utils";
 import { terminalThemes } from "@repo/ui/terminal-themes";
 import {
   CODE_WEIGHTS,
+  CODE_ZOOM_MAX,
+  CODE_ZOOM_MIN,
+  CODE_ZOOM_STEP,
+  clampFontSize,
   useTerminalStore,
   type CodeWeight,
 } from "@/stores/terminal-store";
+import {
+  GROUP_LABELS,
+  useSettingsStore,
+  type GestureSettings,
+  type ToolbarKeyGroup,
+} from "@/stores/settings-store";
+import { LockSettings } from "@/components/lock/lock-settings";
+import { InstallAppSection } from "@/components/pwa/install-app-section";
+import {
+  Segmented,
+  SettingsRow,
+  SettingsSection,
+  Stepper,
+  SwitchRow,
+  settingsFocus,
+  settingsLabelFocus,
+  type RowIds,
+} from "./settings-rows";
 
 const WEIGHT_LABELS: Record<CodeWeight, string> = {
   400: "Regular",
@@ -21,57 +41,402 @@ const WEIGHT_LABELS: Record<CodeWeight, string> = {
   600: "Semibold",
   700: "Bold",
 };
-import {
-  GROUP_LABELS,
-  useSettingsStore,
-  type ToolbarKeyGroup,
-} from "@/stores/settings-store";
-import { LockSettings } from "@/components/lock/lock-settings";
-import { InstallAppSection } from "@/components/pwa/install-app-section";
 
-/** Raw buttons here need the same focus ring the shared Button component has. */
-const focusRing =
-  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+/** Each option draws the cursor it picks, in the label's color. */
+const CURSOR_OPTIONS = [
+  { value: "block", label: "Block", mark: "h-3.5 w-2" },
+  { value: "underline", label: "Underline", mark: "h-0.5 w-2 self-end" },
+  { value: "bar", label: "Bar", mark: "h-3.5 w-0.5" },
+] as const;
 
-interface SettingsPanelProps {
-  /**
-   * Touch layout. Shows keyboard toolbar, gestures, haptics and auto-zoom.
-   * Pointer layout shows GPU rendering instead, the one renderer choice that
-   * only exists there.
-   */
+/** Agent keys first. They are the ones people come here for. */
+const KEY_GROUPS: ToolbarKeyGroup[] = ["agent", "core", "edit", "nav", "symbol"];
+
+/** Only gestures the touch reducer reads. */
+const GESTURES: [keyof GestureSettings, string][] = [
+  ["swipeToSwitchSessions", "Swipe to switch sessions"],
+  ["swipeToSwitchPanes", "Swipe to switch panes"],
+  ["dragToScroll", "Drag to scroll history"],
+  ["pinchToZoom", "Pinch to zoom"],
+  ["longPressPaneMenu", "Long press a pane for options"],
+];
+
+/**
+ * Every setting, as one page.
+ *
+ * Desktop shows it as a main-area tab, the phone as its Settings tab. Touch
+ * adds the keyboard toolbar, gestures, haptics and auto zoom. Pointer adds
+ * GPU rendering, the one renderer choice that only exists there.
+ *
+ * Sections read their stores field by field. The phone keeps this page
+ * mounted while hidden, and a pinch writes `fontSize` many times a second.
+ * Only the section showing font size should render for it.
+ */
+export function SettingsPanel({
+  touch = true,
+  className,
+}: {
   touch?: boolean;
   className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "@container overflow-y-auto overscroll-contain bg-background",
+        className,
+      )}
+    >
+      <div className="mx-auto w-full max-w-2xl space-y-10 px-4 pt-6 pb-16 @lg:px-8 @lg:pt-10">
+        <header className="space-y-1">
+          <h1 className="text-xl font-semibold text-foreground text-balance">
+            Settings
+          </h1>
+          <p className="text-[13px] leading-5 text-muted-foreground">
+            Saved in this browser only.
+          </p>
+        </header>
+        <AppearanceSection />
+        <TextSection touch={touch} />
+        <TerminalSection touch={touch} />
+        {touch && <KeyboardToolbarSection />}
+        {touch && <TouchSection />}
+        <LockSettings />
+        <InstallAppSection />
+      </div>
+    </div>
+  );
 }
 
-export function SettingsPanel({ touch = true, className }: SettingsPanelProps) {
-  /*
-   * Field by field, not `useTerminalStore()`.
-   *
-   * On a phone this panel is never unmounted — the workspace hides it with
-   * `hidden` so the terminal keeps its xterm instance — and an unselected
-   * subscription re-renders on *any* store write. The gesture surface writes
-   * `fontSize` up to twenty times a second during a pinch, so the whole
-   * settings tree, terminal theme swatches and all, was re-rendering every
-   * frame of a gesture happening on a different screen.
-   */
+function AppearanceSection() {
+  const { theme, setTheme } = useTheme();
+  // The stored theme is unknown on the server. Nothing is checked until mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const themeName = useTerminalStore((s) => s.themeName);
+  const setThemeName = useTerminalStore((s) => s.setThemeName);
+
+  return (
+    <SettingsSection title="Appearance">
+      <SettingsRow label="App theme" hint="System follows your device." textLabel>
+        {(ids) => (
+          <Segmented
+            ids={ids}
+            value={mounted ? theme : undefined}
+            onChange={setTheme}
+            options={[
+              { value: "light", label: "Light", icon: <Sun className="h-3.5 w-3.5" aria-hidden /> },
+              { value: "dark", label: "Dark", icon: <Moon className="h-3.5 w-3.5" aria-hidden /> },
+              { value: "system", label: "System", icon: <Monitor className="h-3.5 w-3.5" aria-hidden /> },
+            ]}
+          />
+        )}
+      </SettingsRow>
+      <SettingsRow label="Terminal theme" stacked textLabel>
+        {(ids) => (
+          <ThemeGrid ids={ids} value={themeName} onChange={setThemeName} />
+        )}
+      </SettingsRow>
+    </SettingsSection>
+  );
+}
+
+/** Terminal color schemes as native radios, each card a small preview. */
+function ThemeGrid({
+  ids,
+  value,
+  onChange,
+}: {
+  ids: RowIds;
+  value: string;
+  onChange: (name: string) => void;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-labelledby={ids.labelId}
+      className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-2"
+    >
+      {Object.entries(terminalThemes).map(([key, theme]) => (
+        <label
+          key={key}
+          className={cn(
+            "group cursor-pointer rounded-lg border bg-card p-1 transition-colors hover:border-line-strong",
+            "has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary",
+            settingsLabelFocus,
+          )}
+        >
+          <input
+            type="radio"
+            name={ids.controlId}
+            value={key}
+            checked={value === key}
+            onChange={() => onChange(key)}
+            className="sr-only"
+          />
+          {/* 4px inside a 10px card, so the preview takes 6px. */}
+          <div
+            aria-hidden
+            className="space-y-1.5 rounded-[6px] px-2.5 py-2 font-mono text-xs leading-4"
+            style={{ backgroundColor: theme.background, color: theme.foreground }}
+          >
+            <div className="truncate">
+              <span style={{ color: theme.green }}>~</span>{" "}
+              <span style={{ color: theme.blue }}>git</span> status
+            </div>
+            <div className="flex gap-1">
+              {[
+                theme.red,
+                theme.yellow,
+                theme.green,
+                theme.cyan,
+                theme.blue,
+                theme.magenta,
+              ].map((color, index) => (
+                <span
+                  key={index}
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2 px-1.5 pt-1.5 pb-0.5">
+            <span className="text-[13px] leading-5 text-foreground">
+              {theme.name}
+            </span>
+            <Check
+              aria-hidden
+              className="h-3.5 w-3.5 shrink-0 text-primary opacity-0 group-has-[:checked]:opacity-100"
+            />
+          </div>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function TextSection({ touch }: { touch: boolean }) {
   const fontSize = useTerminalStore((s) => s.fontSize);
   const setFontSize = useTerminalStore((s) => s.setFontSize);
   const codeWeight = useTerminalStore((s) => s.codeWeight);
   const setCodeWeight = useTerminalStore((s) => s.setCodeWeight);
+  const codeZoom = useTerminalStore((s) => s.codeZoom);
+  const setCodeZoom = useTerminalStore((s) => s.setCodeZoom);
+
+  return (
+    <SettingsSection title="Text">
+      <SettingsRow
+        label="Terminal font size"
+        hint={touch ? undefined : "Ctrl with + or - also works in the terminal."}
+        textLabel
+      >
+        {(ids) => (
+          <Stepper
+            ids={ids}
+            noun="terminal font size"
+            value={fontSize}
+            display={`${fontSize}px`}
+            min={8}
+            // The cap depends on the window. See `clampFontSize`.
+            max={clampFontSize(Number.MAX_SAFE_INTEGER)}
+            onChange={setFontSize}
+          />
+        )}
+      </SettingsRow>
+      <SettingsRow
+        label="File and diff text size"
+        hint={
+          touch
+            ? "Files, diffs and the editor."
+            : "Ctrl with + or - also works while a file is open."
+        }
+        textLabel
+      >
+        {(ids) => (
+          <Stepper
+            ids={ids}
+            noun="file and diff text size"
+            value={codeZoom}
+            display={`${Math.round(codeZoom * 100)}%`}
+            min={CODE_ZOOM_MIN}
+            max={CODE_ZOOM_MAX}
+            step={CODE_ZOOM_STEP}
+            onChange={setCodeZoom}
+          />
+        )}
+      </SettingsRow>
+      <SettingsRow
+        label="Code weight"
+        hint="Terminal, files, diffs and the editor. At Bold, bold output looks like the rest."
+        textLabel
+      >
+        {(ids) => (
+          <Segmented
+            ids={ids}
+            value={codeWeight}
+            onChange={setCodeWeight}
+            options={CODE_WEIGHTS.map((weight) => ({
+              value: weight,
+              label: WEIGHT_LABELS[weight],
+              // Each label previews its own weight in the code face.
+              className: "font-mono",
+              style: { fontWeight: weight },
+            }))}
+          />
+        )}
+      </SettingsRow>
+    </SettingsSection>
+  );
+}
+
+function TerminalSection({ touch }: { touch: boolean }) {
   const cursorStyle = useTerminalStore((s) => s.cursorStyle);
   const setCursorStyle = useTerminalStore((s) => s.setCursorStyle);
   const cursorBlink = useTerminalStore((s) => s.cursorBlink);
   const setCursorBlink = useTerminalStore((s) => s.setCursorBlink);
   const gpuRendering = useTerminalStore((s) => s.gpuRendering);
   const setGpuRendering = useTerminalStore((s) => s.setGpuRendering);
+
+  return (
+    <SettingsSection title="Terminal">
+      <SettingsRow label="Cursor" textLabel>
+        {(ids) => (
+          <Segmented
+            ids={ids}
+            value={cursorStyle}
+            onChange={setCursorStyle}
+            options={CURSOR_OPTIONS.map((option) => ({
+              value: option.value,
+              label: option.label,
+              icon: (
+                <span aria-hidden className="flex h-3.5 w-2 justify-center">
+                  <span className={cn("rounded-[1px] bg-current", option.mark)} />
+                </span>
+              ),
+            }))}
+          />
+        )}
+      </SettingsRow>
+      <SwitchRow
+        label="Blink the cursor"
+        checked={cursorBlink}
+        onChange={setCursorBlink}
+      />
+      <SettingsRow
+        label="Scrollback lines"
+        hint="How far back you can scroll. 100 to 50,000."
+      >
+        {(ids) => <ScrollbackInput ids={ids} />}
+      </SettingsRow>
+      {!touch && (
+        <SwitchRow
+          label="GPU rendering"
+          hint="Faster with heavy output. Text looks softer. Applies after reload."
+          checked={gpuRendering}
+          onChange={setGpuRendering}
+        />
+      )}
+    </SettingsSection>
+  );
+}
+
+/** Commits on blur or Enter, so typing 10000 never passes through 1. */
+function ScrollbackInput({ ids }: { ids: RowIds }) {
   const scrollback = useTerminalStore((s) => s.scrollback);
   const setScrollback = useTerminalStore((s) => s.setScrollback);
-  const themeName = useTerminalStore((s) => s.themeName);
-  const setThemeName = useTerminalStore((s) => s.setThemeName);
+  const [draft, setDraft] = useState(String(scrollback));
+  useEffect(() => setDraft(String(scrollback)), [scrollback]);
 
+  const commit = () => {
+    const lines = Math.max(
+      100,
+      Math.min(50000, Math.round(Number(draft)) || 1000),
+    );
+    setScrollback(lines);
+    setDraft(String(lines));
+  };
+
+  return (
+    <Input
+      id={ids.controlId}
+      aria-describedby={ids.hintId}
+      type="number"
+      inputMode="numeric"
+      min={100}
+      max={50000}
+      step={500}
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") commit();
+      }}
+      className="h-8 w-28 text-end tabular-nums pointer-coarse:h-11"
+    />
+  );
+}
+
+function KeyboardToolbarSection() {
   const toolbarKeys = useSettingsStore((s) => s.toolbarKeys);
   const toggleToolbarKey = useSettingsStore((s) => s.toggleToolbarKey);
   const resetToolbarKeys = useSettingsStore((s) => s.resetToolbarKeys);
+
+  return (
+    <SettingsSection
+      title="Keyboard toolbar"
+      description="Keys in the row above the keyboard. The rest stay one tap away under ⋯ in that row."
+      action={
+        <Button
+          variant="ghost"
+          size="sm"
+          className="shrink-0 pointer-coarse:h-11"
+          onClick={() => resetToolbarKeys()}
+        >
+          Reset keys
+        </Button>
+      }
+    >
+      {KEY_GROUPS.map((group) => {
+        const keys = toolbarKeys.filter((k) => k.group === group);
+        if (keys.length === 0) return null;
+        return (
+          <SettingsRow key={group} label={GROUP_LABELS[group]} stacked textLabel>
+            {(ids) => (
+              <div
+                role="group"
+                aria-labelledby={ids.labelId}
+                className="flex flex-wrap gap-1.5"
+              >
+                {keys.map((key) => (
+                  <button
+                    key={key.id}
+                    type="button"
+                    aria-pressed={key.visible}
+                    aria-label={key.hint ? `${key.label}, ${key.hint}` : undefined}
+                    title={key.hint}
+                    onClick={() => toggleToolbarKey(key.id)}
+                    className={cn(
+                      "min-h-9 rounded-md border px-2.5 text-[13px] transition-colors pointer-coarse:min-h-11",
+                      settingsFocus,
+                      // Solid when shown, dashed when hidden. Not color alone.
+                      key.visible
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-dashed border-line-strong text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {key.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </SettingsRow>
+        );
+      })}
+    </SettingsSection>
+  );
+}
+
+function TouchSection() {
   const gestures = useSettingsStore((s) => s.gestures);
   const setGesture = useSettingsStore((s) => s.setGesture);
   const autoZoom = useSettingsStore((s) => s.autoZoom);
@@ -80,362 +445,26 @@ export function SettingsPanel({ touch = true, className }: SettingsPanelProps) {
   const setHapticEnabled = useSettingsStore((s) => s.setHapticEnabled);
 
   return (
-    <ScrollArea className={cn("h-full", className)}>
-      <div className="space-y-6 p-4">
-        {/* #12: Appearance / Theme toggle */}
-        <section>
-          <h3 className="text-sm font-semibold mb-3">Appearance</h3>
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">Theme</Label>
-            <ThemeToggle />
-          </div>
-        </section>
-
-        <Separator />
-
-        {/* Terminal Settings */}
-        <section>
-          <h3 className="text-sm font-semibold mb-3">Terminal</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs" id="setting-font-size">
-                Font Size
-              </Label>
-              {/* The two buttons are one control, and the number between them
-                  is its value — without the group a screen reader reads three
-                  unrelated things, none of them called "font size". */}
-              <div
-                className="flex items-center gap-2"
-                role="group"
-                aria-labelledby="setting-font-size"
-              >
-                <button
-                  className={cn("h-11 w-11 rounded border text-sm", focusRing)}
-                  aria-label="Decrease font size"
-                  onClick={() => setFontSize(Math.max(8, fontSize - 1))}
-                >
-                  -
-                </button>
-                <span className="w-8 text-center text-sm">{fontSize}</span>
-                <button
-                  className={cn("h-11 w-11 rounded border text-sm", focusRing)}
-                  aria-label="Increase font size"
-                  onClick={() => setFontSize(Math.min(24, fontSize + 1))}
-                >
-                  +
-                </button>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs" id="setting-code-weight">
-                Code Weight
-              </Label>
-              <p
-                className="text-xs text-muted-foreground"
-                id="setting-code-weight-hint"
-              >
-                Terminal, files, diffs and editor. At Bold, bold output looks
-                like the rest.
-              </p>
-              <div
-                className="flex flex-wrap gap-1"
-                role="group"
-                aria-labelledby="setting-code-weight"
-                aria-describedby="setting-code-weight-hint"
-              >
-                {CODE_WEIGHTS.map((weight) => (
-                  <button
-                    key={weight}
-                    className={cn(
-                      "min-h-11 rounded-md border px-3 py-1 font-mono text-xs transition-colors",
-                      focusRing,
-                      codeWeight === weight
-                        ? "border-primary bg-primary/10"
-                        : "hover:bg-accent",
-                    )}
-                    // Each label previews its own weight.
-                    style={{ fontWeight: weight }}
-                    aria-pressed={codeWeight === weight}
-                    onClick={() => setCodeWeight(weight)}
-                  >
-                    {WEIGHT_LABELS[weight]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs" id="setting-cursor-style">
-                Cursor Style
-              </Label>
-              <div
-                className="flex gap-1"
-                role="group"
-                aria-labelledby="setting-cursor-style"
-              >
-                {(["block", "underline", "bar"] as const).map((style) => (
-                  <button
-                    key={style}
-                    className={cn(
-                      "min-h-11 rounded-md border px-3 py-1 text-xs capitalize transition-colors",
-                      focusRing,
-                      cursorStyle === style
-                        ? "border-primary bg-primary/10"
-                        : "hover:bg-accent",
-                    )}
-                    aria-pressed={cursorStyle === style}
-                    onClick={() => setCursorStyle(style)}
-                  >
-                    {style}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {/* Every Switch below takes its name from the Label beside it via
-                `aria-labelledby`, not `htmlFor`: Radix renders a <button>, and
-                a <label for> only binds to labelable elements — so the markup
-                looked correct and announced "switch, on" with no name at all. */}
-            <div className="flex items-center justify-between">
-              <Label className="text-xs" id="setting-cursor-blink">
-                Cursor Blink
-              </Label>
-              <Switch
-                aria-labelledby="setting-cursor-blink"
-                checked={cursorBlink}
-                onCheckedChange={(checked) => setCursorBlink(checked)}
-              />
-            </div>
-            {touch && (
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-xs" id="setting-auto-zoom">
-                    Auto-zoom Panes
-                  </Label>
-                  <p
-                    className="text-[10px] text-muted-foreground"
-                    id="setting-auto-zoom-hint"
-                  >
-                    Auto-zoom into active pane on attach and split (mobile only)
-                  </p>
-                </div>
-                <Switch
-                  aria-labelledby="setting-auto-zoom"
-                  aria-describedby="setting-auto-zoom-hint"
-                  checked={autoZoom}
-                  onCheckedChange={(checked) => setAutoZoom(checked)}
-                />
-              </div>
-            )}
-            {!touch && (
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-xs" id="setting-gpu">
-                    GPU Rendering
-                  </Label>
-                  <p
-                    className="text-[10px] text-muted-foreground"
-                    id="setting-gpu-hint"
-                  >
-                    Faster with heavy output. Text looks softer. Applies after
-                    reload.
-                  </p>
-                </div>
-                <Switch
-                  aria-labelledby="setting-gpu"
-                  aria-describedby="setting-gpu-hint"
-                  checked={gpuRendering}
-                  onCheckedChange={(checked) => setGpuRendering(checked)}
-                />
-              </div>
-            )}
-            <div className="space-y-1">
-              <Label className="text-xs" htmlFor="setting-scrollback">
-                Scrollback Lines
-              </Label>
-              <Input
-                id="setting-scrollback"
-                type="number"
-                value={scrollback}
-                onChange={(e) => setScrollback(Number(e.target.value))}
-                onBlur={(e) => {
-                  const v = Math.max(
-                    100,
-                    Math.min(50000, Number(e.target.value) || 1000),
-                  );
-                  setScrollback(v);
-                }}
-                className="h-8 text-sm"
-                min={100}
-                max={50000}
-                step={500}
-              />
-            </div>
-          </div>
-        </section>
-
-        <Separator />
-
-        {/* Terminal Theme Settings */}
-        <section>
-          <h3 className="text-sm font-semibold mb-3">Terminal Theme</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {Object.entries(terminalThemes).map(([key, theme]) => (
-              <button
-                key={key}
-                className={cn(
-                  "rounded-lg border p-2 transition-colors text-left",
-                  focusRing,
-                  themeName === key
-                    ? "border-primary ring-1 ring-primary"
-                    : "hover:border-foreground/30",
-                )}
-                aria-pressed={themeName === key}
-                onClick={() => setThemeName(key)}
-              >
-                <div
-                  className="mb-1.5 rounded-md px-2 py-1 font-mono text-[10px]"
-                  style={{
-                    backgroundColor: theme.background,
-                    color: theme.foreground,
-                  }}
-                >
-                  <span style={{ color: theme.green }}>$</span>{" "}
-                  <span style={{ color: theme.cyan }}>hello</span>
-                </div>
-                <span className="text-xs">{theme.name}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <Separator />
-
-        {touch && (
-          <>
-            {/* Keyboard Toolbar */}
-            <section>
-              <div className="mb-1 flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Keyboard Toolbar</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={() => resetToolbarKeys()}
-                >
-                  Reset
-                </Button>
-              </div>
-              {/* Grouped, because one flat wrap of forty chips is a wall. The
-                  agent keys are first: they are the ones people come here for. */}
-              <p className="mb-3 text-[10px] text-muted-foreground">
-                Which keys sit in the row above the keyboard. The rest are still one
-                tap away, under ⋯ in that row.
-              </p>
-              <div className="space-y-4">
-                {(
-                  ["agent", "core", "edit", "nav", "symbol"] as ToolbarKeyGroup[]
-                ).map((group) => {
-                  const keys = toolbarKeys.filter((k) => k.group === group);
-                  if (keys.length === 0) return null;
-                  return (
-                    <div key={group}>
-                      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {GROUP_LABELS[group]}
-                      </Label>
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {keys.map((key) => (
-                          <button
-                            key={key.id}
-                            className={cn(
-                              "min-h-11 rounded-md border px-2.5 py-1 text-xs transition-colors",
-                              focusRing,
-                              key.visible
-                                ? "border-primary bg-primary/10"
-                                : "opacity-50",
-                            )}
-                            aria-pressed={key.visible}
-                            aria-label={
-                              key.hint ? `${key.label} — ${key.hint}` : key.label
-                            }
-                            title={key.hint}
-                            onClick={() => toggleToolbarKey(key.id)}
-                          >
-                            {key.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-
-            <Separator />
-
-            {/* Gestures — #11: Switch replaces manual toggles */}
-            <section>
-              <h3 className="text-sm font-semibold mb-3">Gestures</h3>
-              {/* Only gestures the reducer actually reads. "Double-tap to copy"
-                  and "Long-press context menu" used to sit here, defaulted on and
-                  wired to nothing — see GestureSettings in the store. */}
-              <div className="space-y-2">
-                {(
-                  [
-                    ["swipeToSwitchSessions", "Swipe to switch sessions"],
-                    ["swipeToSwitchPanes", "Swipe to switch panes"],
-                    ["dragToScroll", "Drag to scroll history"],
-                    ["pinchToZoom", "Pinch to zoom"],
-                    ["longPressPaneMenu", "Long-press a pane for options"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <div key={key} className="flex items-center justify-between">
-                    <Label className="text-xs" id={`setting-gesture-${key}`}>
-                      {label}
-                    </Label>
-                    <Switch
-                      aria-labelledby={`setting-gesture-${key}`}
-                      checked={gestures[key]}
-                      onCheckedChange={(checked) => setGesture(key, checked)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <Separator />
-
-            {/* Haptics — #11: Switch replaces manual toggle */}
-            <section>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold" id="setting-haptics">
-                    Haptic Feedback
-                  </h3>
-                  <p
-                    className="text-xs text-muted-foreground"
-                    id="setting-haptics-hint"
-                  >
-                    Vibrate on key press
-                  </p>
-                </div>
-                <Switch
-                  aria-labelledby="setting-haptics"
-                  aria-describedby="setting-haptics-hint"
-                  checked={hapticEnabled}
-                  onCheckedChange={(checked) => setHapticEnabled(checked)}
-                />
-              </div>
-            </section>
-
-            <Separator />
-          </>
-        )}
-
-        <LockSettings />
-
-        {/* Renders nothing when the browser has no install path, so the
-            separator has to come with it rather than sit above it. */}
-        <InstallAppSection />
-      </div>
-    </ScrollArea>
+    <SettingsSection title="Touch">
+      {GESTURES.map(([key, label]) => (
+        <SwitchRow
+          key={key}
+          label={label}
+          checked={gestures[key]}
+          onChange={(checked) => setGesture(key, checked)}
+        />
+      ))}
+      <SwitchRow
+        label="Zoom the active pane"
+        hint="When you open a session or split a pane."
+        checked={autoZoom}
+        onChange={setAutoZoom}
+      />
+      <SwitchRow
+        label="Vibrate on key press"
+        checked={hapticEnabled}
+        onChange={setHapticEnabled}
+      />
+    </SettingsSection>
   );
 }

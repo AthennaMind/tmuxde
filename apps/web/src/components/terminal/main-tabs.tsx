@@ -1,6 +1,6 @@
 "use client";
 
-import { SquareTerminal, X } from "lucide-react";
+import { Settings, SquareTerminal, X } from "lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import { RepositoryFileIcon } from "@/components/files/repository-file-icon";
 import { useMainTabsStore, TERMINAL_TAB, type FileTab } from "@/stores/main-tabs-store";
@@ -13,9 +13,9 @@ function tabLabel(tab: FileTab) {
 }
 
 /**
- * Terminal plus every open file, above the desktop main area.
+ * Terminal plus every open file and settings, above the desktop main area.
  *
- * Only drawn once a file is open. With the terminal alone there is nothing
+ * Only drawn once another tab is open. With the terminal alone there is nothing
  * to switch between, and the row would cost the terminal 44px for nothing.
  */
 export function MainTabs() {
@@ -38,20 +38,31 @@ export function MainTabs() {
         active={active === TERMINAL_TAB}
         onSelect={() => activate(TERMINAL_TAB)}
       />
-      {tabs.map((tab) => (
-        <Tab
-          key={tab.id}
-          label={tabLabel(tab)}
-          detail={tab.scope ? SCOPE_SHORT[tab.scope] : undefined}
-          title={tab.scope ? `${tab.path} (${tab.scope} changes)` : tab.path}
-          icon={
-            <RepositoryFileIcon path={tab.path} className="h-3.5 w-3.5" />
-          }
-          active={active === tab.id}
-          onSelect={() => activate(tab.id)}
-          onClose={() => closeTab(tab.id)}
-        />
-      ))}
+      {tabs.map((tab) =>
+        tab.kind === "settings" ? (
+          <Tab
+            key={tab.id}
+            label="Settings"
+            icon={<Settings className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+            active={active === tab.id}
+            onSelect={() => activate(tab.id)}
+            onClose={() => closeTab(tab.id)}
+          />
+        ) : (
+          <Tab
+            key={tab.id}
+            label={tabLabel(tab)}
+            detail={tab.scope ? SCOPE_SHORT[tab.scope] : undefined}
+            title={tab.scope ? `${tab.path} (${tab.scope} changes)` : tab.path}
+            icon={
+              <RepositoryFileIcon path={tab.path} className="h-3.5 w-3.5" />
+            }
+            active={active === tab.id}
+            onSelect={() => activate(tab.id)}
+            onClose={() => closeTab(tab.id)}
+          />
+        ),
+      )}
     </nav>
   );
 }
