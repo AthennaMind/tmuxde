@@ -21,6 +21,30 @@ export function photoPathText(path) {
   return ` ${quoted} `;
 }
 
+/**
+ * The image in a paste, or null when the paste should stay text.
+ *
+ * Text wins when both are present. Spreadsheet and document copies carry an
+ * image rendering beside their text, and a terminal user wants the text.
+ * Screenshots and "Copy image" carry no text.
+ *
+ * @param {Pick<DataTransfer, "getData" | "items" | "files"> | null} data
+ * @returns {File | null}
+ */
+export function clipboardImage(data) {
+  if (!data || data.getData("text/plain").trim()) return null;
+  for (const item of Array.from(data.items ?? [])) {
+    if (item.kind !== "file" || !item.type.startsWith("image/")) continue;
+    const file = item.getAsFile();
+    if (file) return file;
+  }
+  // Some browsers list pasted files only here.
+  for (const file of Array.from(data.files ?? [])) {
+    if (file.type.startsWith("image/")) return file;
+  }
+  return null;
+}
+
 /** @param {File} file */
 export async function preparePhoto(file) {
   if (!file.size) throw new Error("Photo is empty");
