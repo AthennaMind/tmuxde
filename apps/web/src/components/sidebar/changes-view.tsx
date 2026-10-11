@@ -11,10 +11,6 @@ import type { RepositoryState } from "./use-repository-state";
 export function ChangesView({ repo }: { repo: RepositoryState }) {
   const { context, status, paneId } = repo;
   const count = status?.entries.length ?? 0;
-  const branch =
-    status?.branch ??
-    context?.branch ??
-    (context?.root ? "Detached HEAD" : null);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -40,18 +36,7 @@ export function ChangesView({ repo }: { repo: RepositoryState }) {
         />
       </PanelHeader>
 
-      {branch && (
-        <div
-          className="flex shrink-0 items-center gap-2 border-b px-3 py-2 text-sm"
-          title={context?.root ?? undefined}
-        >
-          <GitBranch
-            className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
-          <span className="truncate">{branch}</span>
-        </div>
-      )}
+      <BranchRow repo={repo} />
 
       <div className="min-h-0 flex-1 overflow-auto">
         {repo.unavailable ? (
@@ -97,7 +82,29 @@ export function ChangesView({ repo }: { repo: RepositoryState }) {
   );
 }
 
-function Note({
+/** Branch of the active pane's repository, under a Changes or History header. */
+export function BranchRow({ repo }: { repo: RepositoryState }) {
+  const { context, status } = repo;
+  const branch =
+    status?.branch ??
+    context?.branch ??
+    (context?.root ? "Detached HEAD" : null);
+  if (!branch) return null;
+  return (
+    <div
+      className="flex shrink-0 items-center gap-2 border-b px-3 py-2 text-sm"
+      title={context?.root ?? undefined}
+    >
+      <GitBranch
+        className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+        aria-hidden
+      />
+      <span className="truncate">{branch}</span>
+    </div>
+  );
+}
+
+export function Note({
   children,
   error = false,
 }: {

@@ -49,6 +49,7 @@ const SERVER_VERSION = "1.0.0";
  */
 const FEATURES = [
   "repo:request",
+  "repo:history",
   "file:upload:ack",
   "window:step",
   "pane:step",

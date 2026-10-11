@@ -3,11 +3,19 @@ import { setEnrolled } from "@/lib/unlocked";
 import {
   SETTINGS_TAB,
   TERMINAL_TAB,
+  commitTabId,
   restoreTabs,
   useMainTabsStore,
 } from "./main-tabs-store";
 
 const file = (path: string) => ({ paneId: "%1", path });
+const HASH = "a".repeat(40);
+const commit = (subject = "Fix it", hash = HASH) => ({
+  paneId: "%1",
+  hash,
+  subject,
+  contextPath: "/repo",
+});
 
 beforeEach(() => {
   useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB });
@@ -45,6 +53,90 @@ describe("main tabs", () => {
     expect(useMainTabsStore.getState().active).toBe(TERMINAL_TAB);
   });
 
+  it("closes diffs, files or all, never the terminal", () => {
+    const tabs = useMainTabsStore.getState();
+    tabs.openFile(file("/a.ts"));
+    tabs.openFile({ ...file("b.ts"), scope: "unstaged" });
+    tabs.openSettings();
+    tabs.openFile({ ...file("c.ts"), scope: "staged" });
+    tabs.closeTabs("diffs");
+    let s = useMainTabsStore.getState();
+    expect(s.tabs.map((t) => t.id)).toEqual(["file:/a.ts", SETTINGS_TAB]);
+    tabs.closeTabs("files");
+    s = useMainTabsStore.getState();
+    expect(s.tabs.map((t) => t.id)).toEqual([SETTINGS_TAB]);
+    tabs.closeTabs("all");
+    s = useMainTabsStore.getState();
+    expect(s.tabs).toEqual([]);
+    expect(s.active).toBe(TERMINAL_TAB);
+  });
+
+  it("bulk close keeps the open tab, or lands on a neighbour", () => {
+    const tabs = useMainTabsStore.getState();
+    tabs.openFile(file("/a.ts"));
+    tabs.openFile({ ...file("b.ts"), scope: "unstaged" });
+    tabs.openFile(file("/c.ts"));
+    tabs.openFile({ ...file("d.ts"), scope: "staged" });
+    tabs.activate("file:/c.ts");
+    tabs.closeTabs("diffs");
+    expect(useMainTabsStore.getState().active).toBe("file:/c.ts");
+    tabs.openFile({ ...file("e.ts"), scope: "staged" });
+    tabs.openFile(file("/f.ts"));
+    tabs.activate("staged:e.ts");
+    tabs.closeTabs("diffs");
+    // Next after it first.
+    expect(useMainTabsStore.getState().active).toBe("file:/f.ts");
+    tabs.openFile({ ...file("g.ts"), scope: "untracked" });
+    tabs.closeTabs("diffs");
+    // Nothing after it, so the one before.
+    expect(useMainTabsStore.getState().active).toBe("file:/f.ts");
+    tabs.openSettings();
+    tabs.showTerminal();
+    tabs.closeTabs("files");
+    // The terminal was open and stays open.
+    const s = useMainTabsStore.getState();
+    expect(s.tabs.map((t) => t.id)).toEqual([SETTINGS_TAB]);
+    expect(s.active).toBe(TERMINAL_TAB);
+  });
+
+  it("opens a commit once and keeps a subject a parent link lacks", () => {
+    const tabs = useMainTabsStore.getState();
+    tabs.openCommit(commit());
+    tabs.openFile(file("/a.ts"));
+    tabs.openCommit(commit(""));
+    const s = useMainTabsStore.getState();
+    expect(s.active).toBe(commitTabId(HASH));
+    expect(s.tabs).toHaveLength(2);
+    expect(s.tabs[0]).toMatchObject({ kind: "commit", subject: "Fix it" });
+  });
+
+  it("names a commit tab without bringing it to front", () => {
+    const tabs = useMainTabsStore.getState();
+    tabs.openCommit(commit(""));
+    tabs.openFile(file("/a.ts"));
+    tabs.nameCommit(HASH, "Loaded subject");
+    tabs.nameCommit("b".repeat(40), "Not open");
+    const s = useMainTabsStore.getState();
+    expect(s.active).toBe("file:/a.ts");
+    expect(s.tabs[0]).toMatchObject({ subject: "Loaded subject" });
+    expect(s.tabs).toHaveLength(2);
+  });
+
+  it("closes commits with diffs", () => {
+    const tabs = useMainTabsStore.getState();
+    tabs.openFile(file("/a.ts"));
+    tabs.openCommit(commit());
+    tabs.closeTabs("files");
+    expect(useMainTabsStore.getState().tabs.map((t) => t.id)).toEqual([
+      commitTabId(HASH),
+    ]);
+    tabs.closeTabs("diffs");
+    expect(useMainTabsStore.getState()).toMatchObject({
+      tabs: [],
+      active: TERMINAL_TAB,
+    });
+  });
+
   it("drops the oldest tab past twelve", () => {
     const tabs = useMainTabsStore.getState();
     tabs.openSettings();
@@ -79,6 +171,21 @@ describe("restoreTabs", () => {
       active: "file:/b.ts",
     });
     expect(restored).toEqual({ tabs: [], active: TERMINAL_TAB });
+  });
+
+  it("restores commit tabs with a full hash only", () => {
+    const tab = { kind: "commit", id: commitTabId(HASH), ...commit() };
+    const restored = restoreTabs({
+      tabs: [
+        tab,
+        { ...tab, hash: "abc1234", id: commitTabId("abc1234") },
+        { ...tab, id: "commit:other" },
+        { ...tab, hash: "b".repeat(40), id: commitTabId("b".repeat(40)), subject: undefined },
+      ],
+      active: tab.id,
+    });
+    expect(restored.tabs.map((t) => t.id)).toEqual([tab.id]);
+    expect(restored.active).toBe(tab.id);
   });
 
   it("survives nothing stored", () => {

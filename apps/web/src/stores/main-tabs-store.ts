@@ -29,13 +29,36 @@ export interface FileTab {
   size?: number;
 }
 
+/**
+ * One commit and its whole patch, opened from History.
+ *
+ * Commits never change, so the tab needs no reload. `contextPath` pins the
+ * repository the way a diff tab does.
+ */
+export interface CommitTab {
+  kind: "commit";
+  id: string;
+  paneId: string;
+  /** Full hash. */
+  hash: string;
+  /** Empty until the commit loads when opened from a parent link. */
+  subject: string;
+  contextPath: string;
+}
+
 /** The settings page. At most one, opened from the rail or the palette. */
 export interface SettingsTab {
   kind: "settings";
   id: typeof SETTINGS_TAB;
 }
 
-export type MainTab = FileTab | SettingsTab;
+export type MainTab = FileTab | CommitTab | SettingsTab;
+
+/**
+ * What a bulk close takes. `all` includes settings, `diffs` includes commits.
+ * The terminal stays.
+ */
+export type CloseGroup = "all" | "diffs" | "files";
 
 export const TERMINAL_TAB = "terminal";
 export const SETTINGS_TAB = "settings";
@@ -45,13 +68,21 @@ export function fileTabId(tab: Pick<FileTab, "path" | "scope">): string {
   return `${tab.scope ?? "file"}:${tab.path}`;
 }
 
+export function commitTabId(hash: string): string {
+  return `commit:${hash}`;
+}
+
 interface MainTabsStore {
   tabs: MainTab[];
   /** `TERMINAL_TAB` or a tab id. */
   active: string;
   openFile: (tab: Omit<FileTab, "id" | "kind">) => void;
+  openCommit: (tab: Omit<CommitTab, "id" | "kind">) => void;
+  /** Fill in a subject the opener did not know. Never activates. */
+  nameCommit: (hash: string, subject: string) => void;
   openSettings: () => void;
   closeTab: (id: string) => void;
+  closeTabs: (group: CloseGroup) => void;
   activate: (id: string) => void;
   showTerminal: () => void;
 }
@@ -65,9 +96,29 @@ function upsert(tabs: MainTab[], tab: MainTab): MainTab[] {
   return next;
 }
 
+export function inGroup(tab: MainTab, group: CloseGroup): boolean {
+  if (group === "all") return true;
+  if (tab.kind === "commit") return group === "diffs";
+  if (tab.kind !== "file") return false;
+  return group === "diffs" ? !!tab.scope : !tab.scope;
+}
+
 function isMainTab(value: unknown): value is MainTab {
-  const tab = value as Partial<FileTab> | Partial<SettingsTab> | null;
+  const tab = value as
+    | Partial<FileTab>
+    | Partial<CommitTab>
+    | Partial<SettingsTab>
+    | null;
   if (tab?.kind === "settings") return tab.id === SETTINGS_TAB;
+  if (tab?.kind === "commit")
+    return (
+      typeof tab.paneId === "string" &&
+      typeof tab.subject === "string" &&
+      typeof tab.contextPath === "string" &&
+      typeof tab.hash === "string" &&
+      /^[0-9a-f]{40,64}$/.test(tab.hash) &&
+      tab.id === commitTabId(tab.hash)
+    );
   return (
     tab?.kind === "file" &&
     typeof tab.paneId === "string" &&
@@ -143,6 +194,29 @@ export const useMainTabsStore = create<MainTabsStore>()(
             active: id,
           };
         }),
+      openCommit: (input) =>
+        set((s) => {
+          const id = commitTabId(input.hash);
+          const known = s.tabs.find((t) => t.id === id);
+          // A parent link knows no subject. Keep the one already shown.
+          const subject =
+            input.subject ||
+            (known?.kind === "commit" ? known.subject : "");
+          return {
+            tabs: upsert(s.tabs, { ...input, subject, kind: "commit", id }),
+            active: id,
+          };
+        }),
+      nameCommit: (hash, subject) =>
+        set((s) => {
+          const id = commitTabId(hash);
+          const index = s.tabs.findIndex((t) => t.id === id);
+          const tab = s.tabs[index];
+          if (tab?.kind !== "commit" || tab.subject === subject) return s;
+          const tabs = [...s.tabs];
+          tabs[index] = { ...tab, subject };
+          return { tabs };
+        }),
       openSettings: () =>
         set((s) => ({
           tabs: upsert(s.tabs, { kind: "settings", id: SETTINGS_TAB }),
@@ -156,6 +230,20 @@ export const useMainTabsStore = create<MainTabsStore>()(
           if (s.active !== id) return { tabs };
           // Closing the open tab lands on its neighbour, then on the terminal.
           const next = tabs[index] ?? tabs[index - 1];
+          return { tabs, active: next?.id ?? TERMINAL_TAB };
+        }),
+      closeTabs: (group) =>
+        set((s) => {
+          const tabs = s.tabs.filter((t) => !inGroup(t, group));
+          if (tabs.length === s.tabs.length) return s;
+          const index = s.tabs.findIndex((t) => t.id === s.active);
+          const current = s.tabs[index];
+          if (!current || !inGroup(current, group)) return { tabs };
+          // The open tab went too. Land on the nearest one left after it, then
+          // before it, then on the terminal.
+          const kept = s.tabs.map((t) => !inGroup(t, group));
+          const after = kept.indexOf(true, index + 1);
+          const next = s.tabs[after >= 0 ? after : kept.lastIndexOf(true, index)];
           return { tabs, active: next?.id ?? TERMINAL_TAB };
         }),
       activate: (active) => set({ active }),

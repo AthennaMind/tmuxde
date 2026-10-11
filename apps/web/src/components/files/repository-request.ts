@@ -1,5 +1,6 @@
 import type { ClientMessage, RepoResult } from "@repo/protocol";
 import type { RelayClient } from "@/lib/ws-client";
+import { usePaneStore } from "@/stores/pane-store";
 
 export type RepositoryClient = Pick<
   RelayClient,
@@ -11,6 +12,25 @@ export type RepositoryQuery = Omit<
 >;
 
 let nextRequestId = 0;
+
+/**
+ * Whether the answer is the same through any pane. An absolute path names
+ * its folder by itself. `context` and a relative path read the pane's folder.
+ */
+export function isPaneFree(query: RepositoryQuery): boolean {
+  return query.action !== "context" && !!query.path?.startsWith("/");
+}
+
+/**
+ * The pane to carry a request. The relay accepts any pane of the attached
+ * session. The active pane is sure to be one. A pane saved with a tab, or
+ * left over from before a switch, may be gone.
+ */
+function carrier(query: RepositoryQuery): string {
+  return isPaneFree(query)
+    ? (usePaneStore.getState().activePaneId ?? query.id)
+    : query.id;
+}
 
 export function repositoryRequest(
   client: RepositoryClient,
@@ -55,7 +75,12 @@ export function repositoryRequest(
     });
     signal?.addEventListener("abort", abort, { once: true });
     try {
-      client.send({ type: "repo:request", requestId, ...query });
+      client.send({
+        type: "repo:request",
+        requestId,
+        ...query,
+        id: carrier(query),
+      });
     } catch (error) {
       fail(
         error instanceof Error ? error : new Error("Could not send request."),

@@ -4,7 +4,7 @@
 
 tmuxde (Tmux Development Environment) is a self-hosted IDE with tmux as its backend. tmux owns sessions, windows, panes and their processes. tmuxde is the IDE around it, in browser on desktop or phone, served on private network only. Main use case is driving long-running coding agents (Claude Code, Codex) and shells. Closing browser, locking device or rebuilding containers never kills sessions.
 
-Selected pane is the focus. IDE surfaces take their context from it: folder, repository, branch, changes. Switching panes or `cd` in the pane moves the IDE with it. New features should follow this model. Current surfaces (session tree, files, changes, diffs, mobile terminal controls) are early and expected to change.
+Selected pane is the focus. IDE surfaces take their context from it: folder, repository, branch, changes. Switching panes or `cd` in the pane moves the IDE with it. New features should follow this model. Current surfaces (session tree, files, changes, diffs, commit history, mobile terminal controls) are early and expected to change.
 
 Repository is [AthennaMind/tmuxde](https://github.com/AthennaMind/tmuxde). It is a fork of [mtmux/mtmux](https://github.com/mtmux/mtmux) (git remote `upstream`). Upstream ships `mtmux` npm CLI, QR and code pairing, hosted broker, sealed tunnel, accounts and billing. This fork removed CLI, marketing site, hosted broker, billing, database and email apps. What remains is web client and relay, run by Docker Compose behind Caddy with local CA. Sign-in uses relay token from `.docker/.env.token`. Current setup guide is [.docker/README.md](.docker/README.md).
 
