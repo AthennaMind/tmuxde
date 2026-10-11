@@ -28,7 +28,7 @@ function bytes(length: number): Uint8Array<ArrayBuffer> {
 }
 
 const PRF_SALT = ((): Uint8Array<ArrayBuffer> => {
-  const encoded = new TextEncoder().encode("mtmux/lock/v1 prf");
+  const encoded = new TextEncoder().encode("tmuxde/lock/v1 prf");
   const salt = bytes(encoded.length);
   salt.set(encoded);
   return salt;
@@ -99,10 +99,10 @@ export async function enrollPasskeyFactor(
     created = (await navigator.credentials.create({
       publicKey: {
         challenge: challenge(),
-        rp: { name: "mtmux" },
+        rp: { name: "tmuxde" },
         user: {
           // Local-only: this id is never sent anywhere and never correlated
-          // with an mtmux account.
+          // with a tmuxde account.
           id: crypto.getRandomValues(new Uint8Array(16)),
           name: userLabel,
           displayName: userLabel,

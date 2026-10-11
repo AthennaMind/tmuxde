@@ -13,7 +13,7 @@ const SCOPE_LABELS = {
   unstaged: "Unstaged",
   untracked: "Untracked",
 };
-const VIEW_KEY = "mtmux-change-view";
+const VIEW_KEY = "tmuxde-change-view";
 
 type ChangeEntry = Extract<RepoResult, { kind: "status" }>["entries"][number];
 export function ChangesList({

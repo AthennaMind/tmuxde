@@ -28,7 +28,7 @@ import { ChangesView } from "./changes-view";
 import { PhotosView } from "./photos-view";
 import { useRepositoryState } from "./use-repository-state";
 
-const PREFS_KEY = "mtmux-sidebar";
+const PREFS_KEY = "tmuxde-sidebar";
 const VIEWS: SidebarView[] = ["sessions", "files", "changes", "photos"];
 
 /** Load view, width and collapsed state once, then save on every change. */

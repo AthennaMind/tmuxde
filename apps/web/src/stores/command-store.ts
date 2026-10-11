@@ -54,7 +54,7 @@ export const useCommandStore = create<CommandStore>()(
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
     }),
     {
-      name: "mtmux-commands",
+      name: "tmuxde-commands",
       /**
        * Stop writing to `localStorage` once a device lock is enrolled.
        *

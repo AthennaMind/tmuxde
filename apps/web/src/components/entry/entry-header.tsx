@@ -14,7 +14,7 @@ export function EntryHeader() {
             <Terminal className="h-4 w-4 text-primary" aria-hidden />
           </span>
           <span className="font-mono text-sm font-semibold tracking-tight">
-            mtmux
+            tmuxde
           </span>
         </Link>
       </div>

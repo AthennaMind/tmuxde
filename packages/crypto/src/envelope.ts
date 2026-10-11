@@ -53,7 +53,7 @@ import { randomBytes, utf8ToBytes, wipe } from "./bytes";
  */
 
 /** Domain prefix for every AAD and HKDF label in the lock. */
-export const LOCK_AAD_PREFIX = "mtmux/lock/v1";
+export const LOCK_AAD_PREFIX = "tmuxde/lock/v1";
 
 const MASTER_KEY_BYTES = 32;
 const NONCE_BYTES = 12;

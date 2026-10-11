@@ -64,7 +64,7 @@ export function LockSettings({ className }: { className?: string }) {
     setBusy(true);
     try {
       const result = await duringCeremony(() =>
-        enrollPasskeyFactor("mtmux device lock"),
+        enrollPasskeyFactor("tmuxde device lock"),
       );
       if (!result.ok) {
         toast.error(
@@ -247,7 +247,7 @@ export function LockSettings({ className }: { className?: string }) {
           ) : (
             <p className="mt-2 text-xs text-muted-foreground">
               {prfSupport() === "insecure-context"
-                ? "Passkeys need a secure origin — open mtmux over the tunnel to add one."
+                ? "Passkeys need a secure origin. Open tmuxde over HTTPS to add one."
                 : "This browser does not support passkeys."}
             </p>
           )}
@@ -283,9 +283,8 @@ export function LockSettings({ className }: { className?: string }) {
             <AlertDialogDescription>
               Every key, descriptor and cached session list in this browser
               goes, along with the lock itself. There is no recovery — that is
-              by design, and it is affordable because re-pairing is running{" "}
-              <code className="font-mono">mtmux</code> and typing the code it
-              prints. Your sessions keep running throughout.
+              by design, and it is affordable because signing in again takes
+              only the relay token. Your sessions keep running throughout.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">

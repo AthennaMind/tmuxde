@@ -1,7 +1,7 @@
-name: "mtmux-tooling"
+name: "tmuxde-tooling"
 services:
   volume-init:
-    image: "mtmux-dev:local"
+    image: "tmuxde-dev:local"
     build:
       context: "../.."
       dockerfile: ".docker/dev/Dockerfile"
@@ -21,7 +21,7 @@ services:
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
-      HOME: "/tmp/mtmux-dev"
+      HOME: "/tmp/tmuxde-dev"
       LANG: "C.UTF-8"
       LC_ALL: "C.UTF-8"
       PNPM_HOME: "/tmp/pnpm"
@@ -83,8 +83,8 @@ services:
 volumes:
   dependencies:
     external: true
-    name: "mtmux-dev-dependencies-v2"
+    name: "tmuxde-dev-dependencies-v2"
   cache:
-    name: "mtmux-dev-cache-v2"
+    name: "tmuxde-dev-cache-v2"
   pnpm-store:
-    name: "mtmux-dev-pnpm-store"
+    name: "tmuxde-dev-pnpm-store"
