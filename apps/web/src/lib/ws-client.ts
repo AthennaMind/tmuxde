@@ -70,6 +70,12 @@ const DROP_WHEN_DISCONNECTED: ReadonlySet<ClientMessage["type"]> = new Set([
   "tmux:exit-copy-mode",
   "session:attach",
   "session:detach",
+  // A dictation lives on one socket. The relay drops it with that socket, so
+  // replaying any of these on the next one could only ever be refused.
+  "dictation:start",
+  "dictation:audio",
+  "dictation:stop",
+  "dictation:cancel",
 ]);
 
 /** Idempotent reads that are safe (and useful) to replay once connected. */

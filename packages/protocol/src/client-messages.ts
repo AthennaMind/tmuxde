@@ -340,6 +340,51 @@ export const DeviceApproveMessage = z.object({
   approved: z.boolean(),
 });
 
+/**
+ * One dictation, named by the client.
+ *
+ * The id lets the client tell a late reply for a dictation it already
+ * cancelled from the one it is running now.
+ */
+const DictationId = z.string().min(1).max(64);
+
+/**
+ * Start a dictation. The relay opens a session on the optional speech
+ * service and answers `dictation:ready`, or `dictation:error` when the
+ * service is missing or full. Offered only when `auth:success.features`
+ * has `dictation`. A second start cancels the first.
+ */
+export const DictationStartMessage = z.object({
+  type: z.literal("dictation:start"),
+  id: DictationId,
+});
+
+/**
+ * Audio for a running dictation: 16 kHz mono PCM, signed 16-bit little
+ * endian, base64. Frames of 100 to 250 ms keep latency low and stay far
+ * under the cap.
+ */
+export const DictationAudioMessage = z.object({
+  type: z.literal("dictation:audio"),
+  id: DictationId,
+  pcm: z
+    .string()
+    .max(64 * 1024)
+    .regex(/^[A-Za-z0-9+/]*={0,2}$/),
+});
+
+/** Done talking. Remaining audio is transcribed, then `dictation:done`. */
+export const DictationStopMessage = z.object({
+  type: z.literal("dictation:stop"),
+  id: DictationId,
+});
+
+/** Drop the dictation. Text not yet sent is discarded. */
+export const DictationCancelMessage = z.object({
+  type: z.literal("dictation:cancel"),
+  id: DictationId,
+});
+
 export const ClientMessage = z.discriminatedUnion("type", [
   RepoRequest,
   AuthMessage,
@@ -393,6 +438,10 @@ export const ClientMessage = z.discriminatedUnion("type", [
   PaneCaptureMessage,
   SessionWindowsMessage,
   DeviceApproveMessage,
+  DictationStartMessage,
+  DictationAudioMessage,
+  DictationStopMessage,
+  DictationCancelMessage,
 ]);
 
 export type ClientMessage = z.infer<typeof ClientMessage>;
@@ -447,3 +496,7 @@ export type TmuxExitCopyModeMessage = z.infer<typeof TmuxExitCopyModeMessage>;
 export type PaneCaptureMessage = z.infer<typeof PaneCaptureMessage>;
 export type SessionWindowsMessage = z.infer<typeof SessionWindowsMessage>;
 export type DeviceApproveMessage = z.infer<typeof DeviceApproveMessage>;
+export type DictationStartMessage = z.infer<typeof DictationStartMessage>;
+export type DictationAudioMessage = z.infer<typeof DictationAudioMessage>;
+export type DictationStopMessage = z.infer<typeof DictationStopMessage>;
+export type DictationCancelMessage = z.infer<typeof DictationCancelMessage>;

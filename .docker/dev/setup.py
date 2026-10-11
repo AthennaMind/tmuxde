@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Prepare host tmux client and private credentials for local Docker stack."""
 
+import argparse
+import hashlib
 import os
 import platform
 from pathlib import Path
@@ -9,6 +11,7 @@ import secrets
 import shutil
 import subprocess
 import tempfile
+import urllib.request
 
 
 def output(*args):
@@ -17,25 +20,119 @@ def output(*args):
 
 NETWORK_KEYS = ("LOCAL_DOMAIN", "LOCAL_BIND_IP")
 
+# Dictation models. Pinned revisions, every file checked by size and SHA-256.
+# Parakeet transcribes. Silero finds the pauses between utterances.
+MODELS = {
+    "parakeet-tdt-0.6b-v3-int8": (
+        "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"
+        "/resolve/2bda32ec70b097a55adaa07d9a7173915b43cc78/{name}",
+        (
+            ("encoder.int8.onnx", 652_184_281, "acfc2b4456377e15d04f0243af540b7fe7c992f8d898d751cf134c3a55fd2247"),
+            ("decoder.int8.onnx", 11_845_275, "179e50c43d1a9de79c8a24149a2f9bac6eb5981823f2a2ed88d655b24248db4e"),
+            ("joiner.int8.onnx", 6_355_277, "3164c13fc2821009440d20fcb5fdc78bff28b4db2f8d0f0b329101719c0948b3"),
+            ("tokens.txt", 93_939, "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d"),
+        ),
+    ),
+    "silero-vad": (
+        "https://huggingface.co/csukuangfj/vad/resolve/fba88cd2e921609e7675c3aaf51e0b9b295da4bc/{name}",
+        (
+            ("silero_vad.onnx", 1_807_522, "a35ebf52fd3ce5f1469b2a36158dba761bc47b973ea3382b3186ca15b1f5af28"),
+        ),
+    ),
+}
 
-def network_settings(env_path):
-    """Keep domain and bind address across reruns. Shell environment wins."""
-    kept = {}
+
+def read_env(env_path):
+    values = {}
     if env_path.exists():
         for line in env_path.read_text().splitlines():
             key, sep, value = line.partition("=")
-            if sep and key in NETWORK_KEYS:
+            if sep:
                 value = value.strip()
                 if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
                     value = value[1:-1]
-                kept[key] = value.replace("\\'", "'")
+                values[key] = value.replace("\\'", "'")
+    return values
+
+
+def network_settings(previous):
+    """Keep domain and bind address across reruns. Shell environment wins."""
+    kept = {key: previous[key] for key in NETWORK_KEYS if key in previous}
     for key in NETWORK_KEYS:
         if os.environ.get(key):
             kept[key] = os.environ[key]
     return {key: value for key, value in kept.items() if value}
 
 
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for block in iter(lambda: file.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def ensure_model(directory, url, files):
+    """Download missing or damaged model files. Nothing is kept unverified."""
+    directory.mkdir(parents=True, exist_ok=True, mode=0o755)
+    for name, size, expected in files:
+        path = directory / name
+        if path.is_file() and path.stat().st_size == size and sha256(path) == expected:
+            continue
+        print(f"Downloading {name} ({size / 1e6:.0f} MB)")
+        digest = hashlib.sha256()
+        received = 0
+        with tempfile.NamedTemporaryFile(dir=directory, prefix=f".{name}.", delete=False) as part:
+            staged = Path(part.name)
+            try:
+                with urllib.request.urlopen(url.format(name=name), timeout=60) as response:
+                    for block in iter(lambda: response.read(1 << 20), b""):
+                        part.write(block)
+                        digest.update(block)
+                        received += len(block)
+                if received != size or digest.hexdigest() != expected:
+                    raise SystemExit(f"{name} failed its checksum. Nothing was installed.")
+                part.flush()
+                os.fchmod(part.fileno(), 0o644)
+            except BaseException:
+                staged.unlink(missing_ok=True)
+                raise
+        staged.replace(path)
+
+
+def dictation_settings(enabled):
+    """Compose profile and relay address for the optional speech service."""
+    if not enabled:
+        return {}
+    root = (Path.home() / ".local" / "share" / "tmuxde" / "models").resolve()
+    for name, (url, files) in MODELS.items():
+        ensure_model(root / name, url, files)
+    print(f"Dictation models ready: {root}")
+    # Eight threads is where the benchmark stopped getting faster.
+    threads = max(1, min(8, (os.cpu_count() or 2) // 2))
+    return {
+        "COMPOSE_PROFILES": "dictation",
+        "STT_URL": "ws://stt:24400",
+        "LOCAL_STT_MODELS": str(root),
+        "STT_THREADS": str(threads),
+    }
+
+
+def workspace_mountpoints(root):
+    """Empty dirs where dependency volumes mount over the read-only source bind."""
+    for manifest in [*root.glob("apps/*/package.json"), *root.glob("packages/*/package.json")]:
+        (manifest.parent / "node_modules").mkdir(exist_ok=True)
+
+
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--dictation", dest="dictation", action="store_true", default=None,
+                       help="Enable speech to text. Downloads a 670 MB model once.")
+    group.add_argument("--no-dictation", dest="dictation", action="store_false",
+                       help="Disable speech to text. Keeps the downloaded model.")
+    args = parser.parse_args()
+
     if platform.system() != "Linux" or platform.machine() != "x86_64":
         raise SystemExit("Local Docker setup requires Linux x86_64 with glibc.")
 
@@ -95,7 +192,13 @@ def main():
         "LOCAL_HOST_HOME": str(Path.home().resolve()),
     }
     env_path = local.parent / ".env"
-    values.update(network_settings(env_path))
+    previous = read_env(env_path)
+    values.update(network_settings(previous))
+    dictation = args.dictation
+    if dictation is None:
+        dictation = "dictation" in previous.get("COMPOSE_PROFILES", "").split(",")
+    values.update(dictation_settings(dictation))
+    workspace_mountpoints(local.parent)
     env_path.touch(mode=0o600)
     env_path.chmod(0o600)
     with env_path.open("w") as env:
@@ -106,6 +209,7 @@ def main():
             env.write(f"{key}='{value}'\n")
     print(f"Prepared {output(tmux, '-V')} for socket {socket}")
     print("Token: .docker/.env.token")
+    print(f"Dictation: {'on' if dictation else 'off'}")
 
 
 if __name__ == "__main__":

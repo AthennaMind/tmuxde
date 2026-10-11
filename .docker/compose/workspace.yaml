@@ -96,6 +96,13 @@ services:
           subpath: "apps-relay"
       - type: "volume"
         source: "dependencies"
+        target: "/workspace/apps/stt/node_modules"
+        read_only: true
+        volume:
+          nocopy: true
+          subpath: "apps-stt"
+      - type: "volume"
+        source: "dependencies"
         target: "/workspace/apps/web/node_modules"
         read_only: true
         volume:
@@ -285,6 +292,7 @@ services:
       - "/tmp:rw,noexec,nosuid,nodev,mode=1777,size=1g"
       - "/workspace:rw,noexec,nosuid,nodev,mode=1777,size=256m"
       - '/workspace/apps/relay:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/apps/stt:rw,noexec,nosuid,nodev,mode=1777,size=8m'
       - '/workspace/apps/web:rw,noexec,nosuid,nodev,mode=1777,size=8m'
       - '/workspace/packages/crypto:rw,noexec,nosuid,nodev,mode=1777,size=8m'
       - '/workspace/packages/logger:rw,noexec,nosuid,nodev,mode=1777,size=8m'
@@ -325,6 +333,12 @@ services:
       - type: "bind"
         source: "../../apps/relay/package.json"
         target: "/manifests/apps/relay/package.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../apps/stt/package.json"
+        target: "/manifests/apps/stt/package.json"
         read_only: true
         bind:
           create_host_path: false
@@ -378,6 +392,13 @@ services:
         volume:
           nocopy: true
           subpath: "apps-relay"
+      - type: "volume"
+        source: "dependencies"
+        target: "/workspace/apps/stt/node_modules"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "apps-stt"
       - type: "volume"
         source: "dependencies"
         target: "/workspace/apps/web/node_modules"

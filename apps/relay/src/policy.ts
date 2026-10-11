@@ -138,6 +138,15 @@ export const POLICY: Record<ClientMessage["type"], Policy> = {
    * only grant permitted to send it is the full one.
    */
   "device:approve": { write: true, fullScopeOnly: true },
+
+  // Dictation exists to type into the terminal, so starting one and feeding
+  // it audio need write access. A read-only share should not be able to keep
+  // the speech service busy either. Stop and cancel only wind down what this
+  // connection itself started.
+  "dictation:start": { write: true },
+  "dictation:audio": { write: true },
+  "dictation:stop": {},
+  "dictation:cancel": {},
 };
 
 export type EnforceResult =

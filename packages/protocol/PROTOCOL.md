@@ -6,7 +6,7 @@ Every message type in @repo/protocol — the relay protocol and the pairing/tunn
 deliberately not merged:
 
 - **Relay protocol** — `client-messages.ts` / `server-messages.ts`. Travels over
-  the tmux relay socket. **44** client types, **24** server types.
+  the tmux relay socket. **56** client types, **33** server types.
 - **Pairing and tunnel protocol** — `pairing-messages.ts`. Travels between the
   browser or CLI and the pairing broker, never over the relay socket.
 
@@ -168,6 +168,27 @@ timeout and a 512 KiB output limit. Text reads stop at 100 KiB. Directory and
 status results stop at 2,000 entries and report truncation. Binary content is
 flagged. Repository actions never stage, commit, restore, or write files.
 
+### Dictation
+
+Requires `dictation` in `auth:success.features`, which the relay sends only
+while the optional speech service answers its health check. Starting and
+feeding audio need write access. Stop and cancel only end what this
+connection started.
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `dictation:start` | `id` | Open a speech session. A second start cancels the first |
+| `dictation:audio` | `id`, `pcm` | Audio frame: 16 kHz mono PCM16 little endian, base64, at most 64 KiB |
+| `dictation:stop` | `id` | Done talking. The rest is transcribed, then `dictation:done` |
+| `dictation:cancel` | `id` | Drop the session. Text not yet sent is discarded |
+
+`id` is 1 to 64 characters, chosen by the client, so a late reply for a
+cancelled dictation can be ignored. Frames of 100 to 250 ms work well. The
+client holds audio until `dictation:ready`. The relay queues at most 1 MiB
+toward the speech service before answering `OVERLOADED`, and ends any
+session after 15 minutes. The service stops taking audio at 10 minutes.
+None of these messages are queued across a reconnect.
+
 ## Relay → client
 
 ### Authentication, keep-alive, errors
@@ -253,6 +274,20 @@ Renames include `originalPath`. Outside Git repositories, context and status
 return null root and branch. Detached HEAD returns null branch. Staged diffs
 also work before first commit.
 
+### Dictation
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `dictation:ready` | `id` | Speech service is listening |
+| `dictation:text` | `id`, `text` | Transcribed text for one utterance, in order |
+| `dictation:done` | `id` | Everything after stop is transcribed. Last message |
+| `dictation:error` | `id`, `code`, `message` | Session ended without finishing. Last message |
+
+Text arrives while the user is still talking: the service decodes each
+utterance once the speaker pauses. Pieces carry no separator, the client
+decides spacing. `code` is `UNAVAILABLE`, `BUSY`, `OVERLOADED`, `NOT_FOUND`
+or `FAILED`. `message` is safe to show.
+
 
 ## Shared schemas
 
@@ -308,6 +343,26 @@ type FileStat = FileEntry & {
 ```
 
 ---
+
+## Speech service (internal)
+
+Relay to optional `apps/stt` service, over Docker network `speech`. Browsers
+never reach it. One WebSocket per dictation on `/v1/stream`, plus
+`GET /health` answering `{ ok, model, sessions }`.
+
+Relay sends binary frames of 16 kHz mono PCM16 little endian, and one text
+frame `{"type":"stop"}`. Service sends JSON text frames:
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `ready` | | Session open |
+| `text` | `text` | One decoded utterance |
+| `done` | | All audio decoded. Socket closes with 1000 |
+| `error` | `code`, `message` | `BAD_AUDIO`, `BAD_MESSAGE`, `DECODE_FAILED` or `IDLE`. Socket closes with 1011 |
+
+A service at its session limit closes with 1013, which the relay reports as
+`BUSY`. The relay validates every service message before anything reaches a
+browser.
 
 ## Pairing and tunnel protocol
 

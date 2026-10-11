@@ -754,15 +754,19 @@ export async function scrollHistory(
           target.utf8 ? "utf8" : "latin1",
         );
       }
-      const bytes = Buffer.concat(Array.from({ length: repeat }, () => wheel));
-      // Hex input preserves legacy mouse bytes above ASCII through tmux.
+      // Hex input preserves legacy mouse bytes above ASCII through tmux. One
+      // event repeated with `-N`, not `repeat` copies spelled out: every hex
+      // byte is its own argument, and tmux rejects the command as too long
+      // somewhere under a hundred events. A trackpad flick is several hundred.
       await execFileAsync("tmux", [
         ...tmuxArgs(),
         "send-keys",
         "-t",
         pane,
+        "-N",
+        String(repeat),
         "-H",
-        ...Array.from(bytes, (byte) => byte.toString(16)),
+        ...Array.from(wheel, (byte) => byte.toString(16)),
       ]);
     } else {
       // Match terminal alternate-screen scrolling for apps without a mouse.
