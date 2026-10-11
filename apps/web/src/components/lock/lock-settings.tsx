@@ -14,7 +14,6 @@ import {
 import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
-import { Switch } from "@repo/ui/components/ui/switch";
 import { toast } from "sonner";
 import { wipe } from "@repo/crypto";
 import {
@@ -28,6 +27,12 @@ import {
 import { duringCeremony, lockNow } from "@/lib/lock-controller";
 import { enrollPasskeyFactor, prfSupport } from "@/lib/passkey-prf";
 import { isEnrolled, isUnlocked } from "@/lib/unlocked";
+import {
+  Segmented,
+  SettingsRow,
+  SettingsSection,
+  SwitchRow,
+} from "@/components/settings/settings-rows";
 import { LockEnrollDialog } from "./lock-enroll-dialog";
 
 const IDLE_OPTIONS = [1, 5, 15, 60, 0] as const;
@@ -39,7 +44,7 @@ function idleLabel(minutes: number): string {
 }
 
 /** The lock's settings, wherever the app decides to show them. */
-export function LockSettings({ className }: { className?: string }) {
+export function LockSettings() {
   const [record, setRecord] = useState<LockRecord | null>(null);
   const [enrolling, setEnrolling] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -69,7 +74,7 @@ export function LockSettings({ className }: { className?: string }) {
       if (!result.ok) {
         toast.error(
           result.reason === "no-prf"
-            ? "That authenticator cannot derive a key. The passkey it created is unused — remove it in your device's settings."
+            ? "That authenticator cannot derive a key. Remove the unused passkey it created in your device settings."
             : "Could not add that passkey.",
         );
         return;
@@ -112,155 +117,159 @@ export function LockSettings({ className }: { className?: string }) {
   /**
    * Defence in depth: render nothing actionable on a locked device.
    *
-   * `/settings` is behind `LockGate` now, so this should be unreachable. It is
-   * here anyway because "should be unreachable" is exactly what was said about
-   * the case that turned out to be this feature's biggest hole — and because
-   * this component is mounted from `SettingsPanel`, which any future page can
-   * pull in without noticing it needs a gate. `removeFactor` and
-   * `updateLockSettings` throw on their own now; this just means a locked device
-   * is never shown controls that would.
+   * The terminal routes sit behind `LockGate`, so this should be unreachable.
+   * It stays because this component is mounted from `SettingsPanel`, which any
+   * future page can pull in without noticing it needs a gate. `removeFactor`
+   * and `updateLockSettings` throw on their own now. This just means a locked
+   * device is never shown controls that would.
    */
   if (isEnrolled() && !isUnlocked()) {
     return (
-      <section className={className}>
-        <h3 className="mb-1 text-sm font-semibold">Device lock</h3>
-        <p className="text-xs text-muted-foreground">
-          This device is locked. Unlock it to change these settings.
-        </p>
-      </section>
+      <SettingsSection
+        title="Device lock"
+        description="This device is locked. Unlock it to change these settings."
+      />
     );
   }
 
   if (!record || !isEnrolled()) {
     return (
-      <section className={className}>
-        <h3 className="mb-1 text-sm font-semibold">Device lock</h3>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Encrypt this browser&apos;s keys behind a PIN, so an unlocked phone in
-          someone else&apos;s hand is not a terminal on your machine.
-        </p>
-        <Button size="sm" onClick={() => setEnrolling(true)}>
-          Set a PIN
-        </Button>
+      <SettingsSection
+        title="Device lock"
+        description="Encrypt the keys saved in this browser behind a PIN. Someone holding your unlocked phone then cannot reach your terminal."
+      >
+        <SettingsRow label="PIN" hint="Not set" textLabel>
+          {() => (
+            <Button
+              size="sm"
+              className="pointer-coarse:h-11"
+              onClick={() => setEnrolling(true)}
+            >
+              Set a PIN
+            </Button>
+          )}
+        </SettingsRow>
         <LockEnrollDialog
           open={enrolling}
           onOpenChange={setEnrolling}
           onEnrolled={() => void refresh()}
         />
-      </section>
+      </SettingsSection>
     );
   }
 
   const passkeys = record.factors.filter((f) => f.kind === "passkey");
+  const support = prfSupport();
 
   return (
-    <section className={className}>
-      <h3 className="mb-3 text-sm font-semibold">Device lock</h3>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <Label className="text-xs">Lock after</Label>
-          <div className="flex flex-wrap gap-1">
-            {IDLE_OPTIONS.map((minutes) => (
-              <button
-                key={minutes}
-                type="button"
-                aria-pressed={record.idleMinutes === minutes}
-                onClick={() => void patch({ idleMinutes: minutes })}
-                className={
-                  record.idleMinutes === minutes
-                    ? "rounded border border-primary bg-primary/10 px-2 py-1 text-xs"
-                    : "rounded border border-border px-2 py-1 text-xs text-muted-foreground"
-                }
-              >
-                {idleLabel(minutes)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <Label className="text-xs">Lock when I switch apps</Label>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Off by default on phones: iOS treats the app switcher, the share
-              sheet and the Face ID prompt itself as leaving the app.
-            </p>
-          </div>
-          <Switch
-            checked={record.lockOnBackground}
-            onCheckedChange={(v) => void patch({ lockOnBackground: v })}
+    <SettingsSection title="Device lock">
+      <SettingsRow label="Lock after" hint="Time without input before the app locks." textLabel>
+        {(ids) => (
+          <Segmented
+            ids={ids}
+            value={record.idleMinutes}
+            onChange={(minutes) => void patch({ idleMinutes: minutes })}
+            options={IDLE_OPTIONS.map((minutes) => ({
+              value: minutes,
+              label: idleLabel(minutes),
+            }))}
           />
-        </div>
+        )}
+      </SettingsRow>
 
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <Label className="text-xs">Erase after 10 wrong PINs</Label>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Off by default. A child mashing the pad is likelier than the
-              attack this stops — and anyone who copied this browser&apos;s
-              storage is not typing into it anyway.
-            </p>
-          </div>
-          <Switch
-            checked={record.wipeAfter10}
-            onCheckedChange={(v) => void patch({ wipeAfter10: v })}
-          />
-        </div>
+      <SwitchRow
+        label="Lock when I switch apps"
+        hint="Off by default on phones. iOS counts the app switcher, the share sheet and the Face ID prompt as leaving the app."
+        checked={record.lockOnBackground}
+        onChange={(v) => void patch({ lockOnBackground: v })}
+      />
 
-        <div>
-          <Label className="text-xs">Passkeys</Label>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            The only factor that also protects a copy of this browser&apos;s
-            storage taken elsewhere.
-          </p>
-          <ul className="mt-2 space-y-1">
-            {passkeys.map((factor) => (
-              <li
-                key={factor.id}
-                className="flex items-center justify-between gap-2 rounded border border-border px-2 py-1.5 text-xs"
+      <SwitchRow
+        label="Erase after 10 wrong PINs"
+        hint="Off by default. A child mashing the pad is more likely than the attack this stops. Anyone who copied this browser's storage is not typing into it anyway."
+        checked={record.wipeAfter10}
+        onChange={(v) => void patch({ wipeAfter10: v })}
+      />
+
+      <SettingsRow
+        label="Passkeys"
+        hint="The only factor that also protects a copy of this browser's storage taken elsewhere."
+        stacked
+        textLabel
+      >
+        {() => (
+          <div className="space-y-2">
+            {passkeys.length > 0 && (
+              <ul className="space-y-1.5">
+                {passkeys.map((factor) => {
+                  const added = new Date(factor.createdAt).toLocaleDateString();
+                  return (
+                    <li
+                      key={factor.id}
+                      className="flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-surface-sunken ps-3 pe-1 py-1"
+                    >
+                      <span className="min-w-0 truncate text-[13px] text-foreground">
+                        {factor.label ?? "Passkey"}
+                        <span className="text-muted-foreground">, added {added}</span>
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Remove ${factor.label ?? "passkey"} added ${added}`}
+                        className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive pointer-coarse:h-11"
+                        onClick={() => void drop(factor.id)}
+                      >
+                        Remove
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {support === "available" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="pointer-coarse:h-11"
+                disabled={busy}
+                onClick={() => void addPasskey()}
               >
-                <span className="truncate text-muted-foreground">
-                  {factor.label ?? "Passkey"} ·{" "}
-                  {new Date(factor.createdAt).toLocaleDateString()}
-                </span>
-                <button
-                  type="button"
-                  className="text-muted-foreground hover:text-destructive"
-                  onClick={() => void drop(factor.id)}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-          {prfSupport() === "available" ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-2"
-              disabled={busy}
-              onClick={() => void addPasskey()}
-            >
-              Add a passkey
-            </Button>
-          ) : (
-            <p className="mt-2 text-xs text-muted-foreground">
-              {prfSupport() === "insecure-context"
-                ? "Passkeys need a secure origin — open mtmux over the tunnel to add one."
-                : "This browser does not support passkeys."}
-            </p>
-          )}
-        </div>
+                Add a passkey
+              </Button>
+            ) : (
+              <p className="text-[13px] leading-5 text-muted-foreground">
+                {support === "insecure-context"
+                  ? "Passkeys need HTTPS. Open mtmux at its https:// address to add one."
+                  : "This browser does not support passkeys."}
+              </p>
+            )}
+          </div>
+        )}
+      </SettingsRow>
 
-        <div className="flex flex-wrap gap-2 pt-2">
-          <Button size="sm" variant="outline" onClick={() => lockNow("manual")}>
-            Lock now
-          </Button>
+      <SettingsRow label="Lock now" hint="Your tmux sessions keep running." textLabel>
+        {() => (
           <Button
             size="sm"
-            variant="ghost"
-            className="text-destructive"
+            variant="outline"
+            className="pointer-coarse:h-11"
+            onClick={() => lockNow("manual")}
+          >
+            Lock now
+          </Button>
+        )}
+      </SettingsRow>
+
+      <SettingsRow
+        label="Erase this device"
+        hint="Removes every key and the lock from this browser. You sign in again with the relay token."
+        textLabel
+      >
+        {() => (
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive pointer-coarse:h-11"
             onClick={() => {
               setConfirmText("");
               setConfirmingErase(true);
@@ -268,8 +277,8 @@ export function LockSettings({ className }: { className?: string }) {
           >
             Erase this device
           </Button>
-        </div>
-      </div>
+        )}
+      </SettingsRow>
 
       <AlertDialog
         open={confirmingErase}
@@ -281,11 +290,9 @@ export function LockSettings({ className }: { className?: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Erase this device?</AlertDialogTitle>
             <AlertDialogDescription>
-              Every key, descriptor and cached session list in this browser
-              goes, along with the lock itself. There is no recovery — that is
-              by design, and it is affordable because re-pairing is running{" "}
-              <code className="font-mono">mtmux</code> and typing the code it
-              prints. Your sessions keep running throughout.
+              Every key and cached session list in this browser goes, along
+              with the lock itself. There is no recovery. You sign in again
+              with the relay token. Your tmux sessions keep running.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
@@ -318,6 +325,6 @@ export function LockSettings({ className }: { className?: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </section>
+    </SettingsSection>
   );
 }

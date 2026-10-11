@@ -1,5 +1,9 @@
 import { useFileStore } from "@/stores/file-store";
-import { TERMINAL_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
+import {
+  SETTINGS_TAB,
+  TERMINAL_TAB,
+  useMainTabsStore,
+} from "@/stores/main-tabs-store";
 import {
   CODE_ZOOM_STEP,
   clampFontSize,
@@ -13,10 +17,12 @@ import { isMobileViewport } from "@/lib/mobile-query";
  * What Ctrl with -, = and 0 resizes: the code on screen, or the terminal.
  *
  * Code when a file or diff tab is in front, the editor overlay is open, or
- * the phone is on its Files tab. The terminal otherwise.
+ * the phone is on its Files tab. The terminal otherwise, settings included,
+ * where the font size row shows the change.
  */
 export function fontZoomTarget(): "code" | "terminal" {
-  if (useMainTabsStore.getState().active !== TERMINAL_TAB) return "code";
+  const active = useMainTabsStore.getState().active;
+  if (active !== TERMINAL_TAB && active !== SETTINGS_TAB) return "code";
   if (useFileStore.getState().editorFile) return "code";
   if (isMobileViewport() && useUiStore.getState().mobileTab === "files")
     return "code";
