@@ -24,6 +24,7 @@ import { FilePreview, Notice, useRepositoryQuery } from "./repository-preview";
 import { formatFileSize } from "@/lib/file-utils";
 import { usePaneStore } from "@/stores/pane-store";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { type RepositoryClient } from "./repository-request";
 
 type Scope = "staged" | "unstaged" | "untracked";
@@ -67,6 +68,8 @@ export function RepositoryBrowser({
   return (
     <section
       aria-label="Repository browser"
+      // Ctrl with -, = and 0 size the code here. See font-zoom.ts.
+      data-zoom-surface="code"
       className={cn(
         "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
         className,
@@ -127,7 +130,8 @@ function BrowserContents({
     useRepositoryHistory(paneId);
   const { tab, directory, filter, preview } = view;
   const [refresh, setRefresh] = useState(0);
-  const [wrap, setWrap] = useState(false);
+  const wrap = useSettingsStore((s) => s.wrapLines);
+  const setWrap = useSettingsStore((s) => s.setWrapLines);
   const id = useId();
   const contextQuery = useRepositoryQuery(
     client,
@@ -321,7 +325,7 @@ function BrowserContents({
                     aria-label="Wrap lines"
                     aria-pressed={wrap}
                     title="Wrap lines"
-                    onClick={() => setWrap((value) => !value)}
+                    onClick={() => setWrap(!wrap)}
                   >
                     <WrapText
                       className={cn("h-4 w-4", wrap && "text-primary")}

@@ -6,7 +6,12 @@ import { Button } from "@repo/ui/components/ui/button";
 import { Input } from "@repo/ui/components/ui/input";
 import { useTheme } from "@repo/ui/hooks/use-theme";
 import { cn } from "@repo/ui/lib/utils";
-import { terminalThemes } from "@repo/ui/terminal-themes";
+import {
+  DEFAULT_TERMINAL_THEME,
+  getTerminalTheme,
+  terminalThemes,
+  type ColorScheme,
+} from "@repo/ui/terminal-themes";
 import {
   CODE_WEIGHTS,
   CODE_ZOOM_MAX,
@@ -108,7 +113,7 @@ export function SettingsPanel({
 }
 
 function AppearanceSection() {
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   // The stored theme is unknown on the server. Nothing is checked until mount.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -133,7 +138,12 @@ function AppearanceSection() {
       </SettingsRow>
       <SettingsRow label="Terminal theme" stacked textLabel>
         {(ids) => (
-          <ThemeGrid ids={ids} value={themeName} onChange={setThemeName} />
+          <ThemeGrid
+            ids={ids}
+            value={themeName}
+            onChange={setThemeName}
+            scheme={resolvedTheme === "light" ? "light" : "dark"}
+          />
         )}
       </SettingsRow>
     </SettingsSection>
@@ -145,18 +155,34 @@ function ThemeGrid({
   ids,
   value,
   onChange,
+  scheme,
 }: {
   ids: RowIds;
   value: string;
   onChange: (name: string) => void;
+  scheme: ColorScheme;
 }) {
+  const options = [
+    // Follows App theme above, the way System follows the device. Previews
+    // whichever tmuxde palette is showing now.
+    {
+      key: DEFAULT_TERMINAL_THEME,
+      name: "Match app",
+      theme: getTerminalTheme(DEFAULT_TERMINAL_THEME, scheme),
+    },
+    ...Object.entries(terminalThemes).map(([key, theme]) => ({
+      key,
+      name: theme.name,
+      theme,
+    })),
+  ];
   return (
     <div
       role="radiogroup"
       aria-labelledby={ids.labelId}
       className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-2"
     >
-      {Object.entries(terminalThemes).map(([key, theme]) => (
+      {options.map(({ key, name, theme }) => (
         <label
           key={key}
           className={cn(
@@ -202,7 +228,7 @@ function ThemeGrid({
           </div>
           <div className="flex items-center justify-between gap-2 px-1.5 pt-1.5 pb-0.5">
             <span className="text-[13px] leading-5 text-foreground">
-              {theme.name}
+              {name}
             </span>
             <Check
               aria-hidden
@@ -218,6 +244,8 @@ function ThemeGrid({
 function TextSection({ touch }: { touch: boolean }) {
   const fontSize = useTerminalStore((s) => s.fontSize);
   const setFontSize = useTerminalStore((s) => s.setFontSize);
+  const terminalWeight = useTerminalStore((s) => s.terminalWeight);
+  const setTerminalWeight = useTerminalStore((s) => s.setTerminalWeight);
   const codeWeight = useTerminalStore((s) => s.codeWeight);
   const setCodeWeight = useTerminalStore((s) => s.setCodeWeight);
   const codeZoom = useTerminalStore((s) => s.codeZoom);
@@ -244,11 +272,24 @@ function TextSection({ touch }: { touch: boolean }) {
         )}
       </SettingsRow>
       <SettingsRow
+        label="Terminal font weight"
+        hint="At Bold, bold output looks like the rest."
+        textLabel
+      >
+        {(ids) => (
+          <WeightPicker
+            ids={ids}
+            value={terminalWeight}
+            onChange={setTerminalWeight}
+          />
+        )}
+      </SettingsRow>
+      <SettingsRow
         label="File and diff text size"
         hint={
           touch
             ? "Files, diffs and the editor."
-            : "Ctrl with + or - also works while a file is open."
+            : "Ctrl with + or - also works in a file or diff."
         }
         textLabel
       >
@@ -266,26 +307,40 @@ function TextSection({ touch }: { touch: boolean }) {
         )}
       </SettingsRow>
       <SettingsRow
-        label="Code weight"
-        hint="Terminal, files, diffs and the editor. At Bold, bold output looks like the rest."
+        label="File and diff text weight"
+        hint="Files, diffs and the editor."
         textLabel
       >
         {(ids) => (
-          <Segmented
-            ids={ids}
-            value={codeWeight}
-            onChange={setCodeWeight}
-            options={CODE_WEIGHTS.map((weight) => ({
-              value: weight,
-              label: WEIGHT_LABELS[weight],
-              // Each label previews its own weight in the code face.
-              className: "font-mono",
-              style: { fontWeight: weight },
-            }))}
-          />
+          <WeightPicker ids={ids} value={codeWeight} onChange={setCodeWeight} />
         )}
       </SettingsRow>
     </SettingsSection>
+  );
+}
+
+function WeightPicker({
+  ids,
+  value,
+  onChange,
+}: {
+  ids: RowIds;
+  value: CodeWeight;
+  onChange: (weight: CodeWeight) => void;
+}) {
+  return (
+    <Segmented
+      ids={ids}
+      value={value}
+      onChange={onChange}
+      options={CODE_WEIGHTS.map((weight) => ({
+        value: weight,
+        label: WEIGHT_LABELS[weight],
+        // Each label previews its own weight in the code face.
+        className: "font-mono",
+        style: { fontWeight: weight },
+      }))}
+    />
   );
 }
 

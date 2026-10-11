@@ -1,7 +1,9 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setEnrolled } from "@/lib/unlocked";
 import {
   SETTINGS_TAB,
   TERMINAL_TAB,
+  restoreTabs,
   useMainTabsStore,
 } from "./main-tabs-store";
 
@@ -52,3 +54,86 @@ describe("main tabs", () => {
     expect(ids).not.toContain(SETTINGS_TAB);
   });
 });
+
+describe("restoreTabs", () => {
+  it("keeps well formed tabs and the active one", () => {
+    const restored = restoreTabs({
+      tabs: [
+        { kind: "file", id: "file:/a.ts", paneId: "%1", path: "/a.ts" },
+        { kind: "settings", id: SETTINGS_TAB },
+      ],
+      active: "file:/a.ts",
+    });
+    expect(restored.tabs.map((t) => t.id)).toEqual(["file:/a.ts", SETTINGS_TAB]);
+    expect(restored.active).toBe("file:/a.ts");
+  });
+
+  it("drops malformed tabs and an active id that names none", () => {
+    const restored = restoreTabs({
+      tabs: [
+        { kind: "file", id: "file:/b.ts", paneId: "%1", path: "/a.ts" },
+        { kind: "file", id: "file:/c.ts", path: "/c.ts" },
+        { kind: "other", id: "x" },
+        null,
+      ],
+      active: "file:/b.ts",
+    });
+    expect(restored).toEqual({ tabs: [], active: TERMINAL_TAB });
+  });
+
+  it("survives nothing stored", () => {
+    expect(restoreTabs(undefined)).toEqual({ tabs: [], active: TERMINAL_TAB });
+  });
+});
+
+describe("tab persistence", () => {
+  const local = memoryStorage();
+  const session = memoryStorage();
+  const KEY = "tmuxde-main-tabs";
+
+  beforeEach(() => {
+    local.clear();
+    session.clear();
+    vi.stubGlobal("window", { localStorage: local, sessionStorage: session });
+  });
+
+  afterEach(() => {
+    setEnrolled(false);
+    vi.unstubAllGlobals();
+  });
+
+  it("comes back after a reload", async () => {
+    useMainTabsStore.getState().openFile(file("/a.ts"));
+    const saved = local.getItem(KEY);
+    // A reload starts from empty memory and finds what was saved.
+    useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB });
+    local.setItem(KEY, saved!);
+    await useMainTabsStore.persist.rehydrate();
+    const s = useMainTabsStore.getState();
+    expect(s.tabs.map((t) => t.id)).toEqual(["file:/a.ts"]);
+    expect(s.active).toBe("file:/a.ts");
+  });
+
+  it("keeps paths out of localStorage once a lock is enrolled", () => {
+    useMainTabsStore.getState().openFile(file("/a.ts"));
+    expect(local.getItem(KEY)).not.toBeNull();
+    setEnrolled(true);
+    useMainTabsStore.getState().openFile(file("/b.ts"));
+    expect(local.getItem(KEY)).toBeNull();
+    expect(session.getItem(KEY)).toContain("/b.ts");
+  });
+});
+
+function memoryStorage(): Storage {
+  const map = new Map<string, string>();
+  return {
+    get length() {
+      return map.size;
+    },
+    clear: () => map.clear(),
+    getItem: (key: string) => map.get(key) ?? null,
+    key: (index: number) => Array.from(map.keys())[index] ?? null,
+    removeItem: (key: string) => void map.delete(key),
+    setItem: (key: string, value: string) => void map.set(key, value),
+  };
+}

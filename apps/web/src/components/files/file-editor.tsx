@@ -213,7 +213,11 @@ export function FileEditor() {
   return (
     <>
       {/* `fixed` escapes AppShell's frame, so this panel carries its own insets. */}
-      <div className="fixed inset-0 z-[var(--z-panel)] flex flex-col bg-background pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
+      <div
+        // Ctrl with -, = and 0 size the code here. See font-zoom.ts.
+        data-zoom-surface="code"
+        className="fixed inset-0 z-[var(--z-panel)] flex flex-col bg-background pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]"
+      >
         {/* Toolbar */}
         <div className="flex items-center gap-2 border-b px-3 py-2">
           <span className="flex-1 truncate text-sm font-medium">
