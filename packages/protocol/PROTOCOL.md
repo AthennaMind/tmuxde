@@ -1,7 +1,6 @@
----
-title: Protocol Reference
-description: Every message type in @repo/protocol — the relay protocol and the pairing/tunnel protocol.
----
+# Protocol Reference
+
+Every message type in @repo/protocol — the relay protocol and the pairing/tunnel protocol.
 
 `packages/protocol` defines **two** separate pairs of Zod discriminated unions,
 deliberately not merged:
