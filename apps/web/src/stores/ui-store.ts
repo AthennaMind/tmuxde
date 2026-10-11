@@ -1,14 +1,28 @@
 import { create } from "zustand";
 import type { MobileTab } from "@/components/mobile/mobile-nav";
 
+/** Views the desktop sidebar rail switches between. */
+export type SidebarView = "sessions" | "files" | "changes" | "photos";
+
+export const SIDEBAR_MIN_WIDTH = 220;
+export const SIDEBAR_MAX_WIDTH = 480;
+export const SIDEBAR_DEFAULT_WIDTH = 288;
+
+export function clampSidebarWidth(width: number): number {
+  return Math.round(
+    Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width)),
+  );
+}
+
 interface UiStore {
   mobileTab: MobileTab;
   paneListOpen: boolean;
   fabOpen: boolean;
   resizeModeActive: boolean;
+  /** Desktop sidebar panel hidden. The rail stays. */
   sidebarCollapsed: boolean;
-  /** Desktop repository panel. In the store so Ctrl+E can toggle it. */
-  filesPanelOpen: boolean;
+  sidebarView: SidebarView;
+  sidebarWidth: number;
   copyModeOpen: boolean;
   terminalSearchOpen: boolean;
   /** The machines sheet. In the store so the palette can open it too. */
@@ -38,8 +52,11 @@ interface UiStore {
   setFabOpen: (open: boolean) => void;
   setResizeModeActive: (active: boolean) => void;
   toggleSidebar: () => void;
-  setFilesPanelOpen: (open: boolean) => void;
-  toggleFilesPanel: () => void;
+  /** Show a view, opening the panel if it is collapsed. */
+  showSidebarView: (view: SidebarView) => void;
+  /** Rail click: a second click on the open view collapses the panel. */
+  toggleSidebarView: (view: SidebarView) => void;
+  setSidebarWidth: (width: number) => void;
   setCopyModeOpen: (open: boolean) => void;
   setTerminalSearchOpen: (open: boolean) => void;
   setMachineSwitcherOpen: (open: boolean) => void;
@@ -58,7 +75,8 @@ export const useUiStore = create<UiStore>((set) => ({
   fabOpen: false,
   resizeModeActive: false,
   sidebarCollapsed: false,
-  filesPanelOpen: false,
+  sidebarView: "sessions",
+  sidebarWidth: SIDEBAR_DEFAULT_WIDTH,
   copyModeOpen: false,
   terminalSearchOpen: false,
   machineSwitcherOpen: false,
@@ -72,8 +90,14 @@ export const useUiStore = create<UiStore>((set) => ({
   setFabOpen: (fabOpen) => set({ fabOpen }),
   setResizeModeActive: (resizeModeActive) => set({ resizeModeActive }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-  setFilesPanelOpen: (filesPanelOpen) => set({ filesPanelOpen }),
-  toggleFilesPanel: () => set((s) => ({ filesPanelOpen: !s.filesPanelOpen })),
+  showSidebarView: (sidebarView) => set({ sidebarView, sidebarCollapsed: false }),
+  toggleSidebarView: (view) =>
+    set((s) =>
+      !s.sidebarCollapsed && s.sidebarView === view
+        ? { sidebarCollapsed: true }
+        : { sidebarView: view, sidebarCollapsed: false },
+    ),
+  setSidebarWidth: (width) => set({ sidebarWidth: clampSidebarWidth(width) }),
   setCopyModeOpen: (copyModeOpen) =>
     set(
       copyModeOpen

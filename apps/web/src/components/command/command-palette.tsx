@@ -22,6 +22,7 @@ import {
   PlugZap,
   Server,
   SlidersHorizontal,
+  TextSearch,
 } from "lucide-react";
 import { useCommandStore } from "@/stores/command-store";
 import { useUiStore } from "@/stores/ui-store";
@@ -82,6 +83,9 @@ export function CommandPalette() {
       if (value === "open:machines") {
         setPaletteOpen(false);
         useUiStore.getState().setMachineSwitcherOpen(true);
+      } else if (value === "open:search") {
+        setPaletteOpen(false);
+        useUiStore.getState().setTerminalSearchOpen(true);
       } else if (value.startsWith("goto:")) {
         // A real navigation, not `router.push`: these leave the terminal group
         // entirely, and the palette's own open state is the only thing worth
@@ -111,6 +115,11 @@ export function CommandPalette() {
         <CommandEmpty>Press Enter to execute as shell command</CommandEmpty>
 
         <CommandGroup heading="Quick Actions">
+          {/* Desktop has no terminal bar, so search opens from here. */}
+          <CommandItem value="open:search" onSelect={handleSelect}>
+            <TextSearch className="h-4 w-4" />
+            Search terminal
+          </CommandItem>
           <CommandItem value="action:interrupt" onSelect={handleSelect}>
             <XCircle className="h-4 w-4 text-destructive" />
             Interrupt (Ctrl+C)

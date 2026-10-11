@@ -25,26 +25,27 @@ import { useTerminalInput } from "@/lib/terminal-input.js";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
 import { PhotoThumbnail } from "@/components/terminal/photo-thumbnail";
 
-export function RecentPhotos({
+/**
+ * Saved photos with a Reuse button each. Lives in the mobile dialog and in the
+ * desktop sidebar Photos view.
+ */
+export function RecentPhotoList({
+  onReused,
   className,
-  labelClassName,
 }: {
+  onReused?: () => void;
   className?: string;
-  /** Lets a narrow toolbar hide the visible label. */
-  labelClassName?: string;
 }) {
   const { client, paths, scope } = usePhotoHistory();
   const status = useConnectionStore((s) => s.status);
   const capabilities = useConnectionStore((s) => s.capabilities);
   const session = useSessionStore((s) => s.activeSessionId);
   const inCopyMode = useBelievedInCopyMode(session);
-  const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const controller = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    setOpen(false);
     setPending(null);
     setError(null);
     return () => controller.current?.abort();
@@ -99,7 +100,7 @@ export function RecentPhotos({
         resetInput: () => useTerminalInput.getState().reset(),
         paste: (text) => terminal.paste(text),
       });
-      setOpen(false);
+      onReused?.();
       useAlertStore
         .getState()
         .push(
@@ -124,15 +125,75 @@ export function RecentPhotos({
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(value) => {
-        if (!value) controller.current?.abort();
-        setPending(null);
-        setError(null);
-        setOpen(value);
-      }}
-    >
+    <div className={cn("space-y-3", className)}>
+      {!filesAvailable() && (
+        <p className="text-sm text-muted-foreground">
+          Connect directly to this machine to preview or reuse photos.
+        </p>
+      )}
+      {inCopyMode && (
+        <p className="text-sm text-muted-foreground">
+          Leave copy mode to reuse a photo.
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      {paths.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No photos yet. Upload or paste one and it shows up here.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {paths.map((path) => (
+            <li
+              key={`${scope}:${path}`}
+              className="flex items-center gap-3 rounded-md border border-border p-2"
+            >
+              <PhotoThumbnail path={path} className="h-14 w-14" />
+              <span className="min-w-0 flex-1 break-all text-xs text-muted-foreground">
+                {path}
+              </span>
+              <button
+                type="button"
+                disabled={!canReuse || !!pending || !filesAvailable()}
+                aria-label={`Reuse photo ${path.split("/").pop()}`}
+                className="min-h-9 shrink-0 rounded-md border border-border px-3 text-sm font-medium hover:bg-accent disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pointer-coarse:min-h-11"
+                onClick={() => void reuse(path)}
+              >
+                {pending === path ? "Checking…" : "Reuse"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export function RecentPhotos({
+  className,
+  labelClassName,
+}: {
+  className?: string;
+  /** Lets a narrow toolbar hide the visible label. */
+  labelClassName?: string;
+}) {
+  const { client, paths } = usePhotoHistory();
+  const status = useConnectionStore((s) => s.status);
+  const capabilities = useConnectionStore((s) => s.capabilities);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [client]);
+
+  const canRead = capabilities?.files !== "none";
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
           type="button"
@@ -160,43 +221,8 @@ export function RecentPhotos({
             pressing Enter.
           </DialogDescription>
         </DialogHeader>
-        {!filesAvailable() && (
-          <p className="text-sm text-muted-foreground">
-            Connect directly to this machine to preview or reuse photos.
-          </p>
-        )}
-        {inCopyMode && (
-          <p className="text-sm text-muted-foreground">
-            Leave copy mode to reuse a photo.
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        <ul className="space-y-3">
-          {paths.map((path) => (
-            <li
-              key={`${scope}:${path}`}
-              className="flex items-center gap-3 rounded-md border border-border p-2"
-            >
-              <PhotoThumbnail path={path} className="h-16 w-16" />
-              <span className="min-w-0 flex-1 break-all text-xs text-muted-foreground">
-                {path}
-              </span>
-              <button
-                type="button"
-                disabled={!canReuse || !!pending || !filesAvailable()}
-                aria-label={`Reuse photo ${path.split("/").pop()}`}
-                className="min-h-11 shrink-0 rounded-md border border-border px-3 text-sm font-medium disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                onClick={() => void reuse(path)}
-              >
-                {pending === path ? "Checking…" : "Reuse"}
-              </button>
-            </li>
-          ))}
-        </ul>
+        {/* Unmounts on close, which aborts a reuse still in flight. */}
+        <RecentPhotoList onReused={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   );

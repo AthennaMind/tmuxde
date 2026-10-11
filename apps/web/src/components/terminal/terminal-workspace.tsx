@@ -8,11 +8,12 @@ import {
   TerminalView,
   type TerminalViewHandle,
 } from "@/components/terminal/terminal-view";
-import { TerminalToolbar } from "@/components/terminal/terminal-toolbar";
+import { FloatingAlerts } from "@/components/alert-banner";
 import { TerminalSearch } from "@/components/terminal/terminal-search";
 import { TerminalScrollRail } from "@/components/terminal/terminal-scroll-rail";
 import { SessionList } from "@/components/session/session-list";
-import { SidebarStatus } from "@/components/session/sidebar-status";
+import { WorkspaceSidebar } from "@/components/sidebar/workspace-sidebar";
+import { MainTabs } from "@/components/terminal/main-tabs";
 import { SessionCreateDialog } from "@/components/session/session-create-dialog";
 import { RepositoryBrowser } from "@/components/files/repository-browser";
 import { SettingsPanel } from "@/components/settings/settings-panel";
@@ -25,8 +26,6 @@ import { TerminalGestureSurface } from "@/components/terminal/terminal-gesture-s
 import { SwitchHint } from "@/components/terminal/switch-hint";
 import { cn } from "@repo/ui/lib/utils";
 import { getFileViewMode } from "@/lib/file-utils";
-import { PanelLeftClose, PanelLeft } from "lucide-react";
-import { Button } from "@repo/ui/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -37,12 +36,21 @@ import {
 import { useSessionStore } from "@/stores/session-store";
 import { useFileStore } from "@/stores/file-store";
 import { useUiStore } from "@/stores/ui-store";
+import { TERMINAL_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
 import { useWheelScroll } from "@/hooks/use-wheel-scroll";
 
 const FileEditor = dynamic(
   () =>
     import("@/components/files/file-editor").then((m) => ({
       default: m.FileEditor,
+    })),
+  { ssr: false },
+);
+
+const FileTabView = dynamic(
+  () =>
+    import("@/components/files/file-tab-view").then((m) => ({
+      default: m.FileTabView,
     })),
   { ssr: false },
 );
@@ -77,21 +85,22 @@ export function TerminalWorkspace() {
   const isMobile = useStableMediaQuery(MOBILE_MEDIA_QUERY);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const filesOpen = useUiStore((s) => s.filesPanelOpen);
-  const setFilesOpen = useUiStore((s) => s.setFilesPanelOpen);
-  const toggleFilesPanel = useUiStore((s) => s.toggleFilesPanel);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const editorFile = useFileStore((s) => s.editorFile);
   const editorForceText = useFileStore((s) => s.editorForceText);
   const mobileTab = useUiStore((s) => s.mobileTab);
   const setMobileTab = useUiStore((s) => s.setMobileTab);
-  const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const copyModeOpen = useUiStore((s) => s.copyModeOpen);
   // Opened from the mobile keyboard toolbar, which lives in the layout's footer
   // and so can only reach the terminal through the store.
   const terminalSearchOpen = useUiStore((s) => s.terminalSearchOpen);
   const setTerminalSearchOpen = useUiStore((s) => s.setTerminalSearchOpen);
-  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const fileTabs = useMainTabsStore((s) => s.tabs);
+  const mainTab = useMainTabsStore((s) => s.active);
+  const activeFileTab =
+    mainTab === TERMINAL_TAB
+      ? undefined
+      : fileTabs.find((tab) => tab.id === mainTab);
   const terminalRef = useRef<TerminalViewHandle>(null);
   /*
    * The terminal pane, for the wheel — see `useWheelScroll`.
@@ -132,6 +141,14 @@ export function TerminalWorkspace() {
       clearTimeout(settle);
     };
   }, [isMobile, mobileTab]);
+
+  // Same repaint on desktop, on the way back from a file tab. The terminal
+  // stays laid out while hidden, for the reason given above.
+  useEffect(() => {
+    if (isMobile || activeFileTab) return;
+    const frame = requestAnimationFrame(() => terminalRef.current?.redraw());
+    return () => cancelAnimationFrame(frame);
+  }, [isMobile, activeFileTab]);
 
   const handleSearch = useCallback((term: string) => {
     terminalRef.current?.search(term);
@@ -248,95 +265,58 @@ export function TerminalWorkspace() {
     );
   }
 
-  const sidebarToggle = (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-8 w-8"
-      onClick={toggleSidebar}
-      aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-      title={
-        sidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"
-      }
-    >
-      {sidebarCollapsed ? (
-        <PanelLeft aria-hidden />
-      ) : (
-        <PanelLeftClose aria-hidden />
-      )}
-    </Button>
-  );
-
-  // Desktop layout: sidebar + terminal + optional file preview. Sidebar header
-  // and terminal bar share one 44px row, so the terminal starts right below.
+  // Desktop layout: rail and sidebar, then the main area. File tabs share the
+  // main area with the terminal. The terminal stays mounted under them.
+  const fileActive = !!activeFileTab;
   return (
     <div className="absolute inset-0 flex">
-      {/* Session sidebar */}
-      <div
-        className={cn(
-          "flex shrink-0 flex-col border-r transition-[width] duration-200",
-          sidebarCollapsed ? "w-12" : "w-64",
-        )}
-      >
-        {sidebarCollapsed ? (
-          <div className="flex-1">
-            <div className="flex min-h-11 items-center justify-center border-b">
-              {sidebarToggle}
+      <WorkspaceSidebar
+        onCreateSession={() => setShowCreateDialog(true)}
+        onOpenSettings={handleOpenSettings}
+      />
+
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <MainTabs />
+        <div className="relative min-h-0 flex-1">
+          <div
+            className={cn(
+              "absolute inset-0 flex flex-col",
+              fileActive && "invisible pointer-events-none",
+            )}
+            inert={fileActive}
+          >
+            <div ref={paneRef} className="relative flex-1 overflow-hidden">
+              <TerminalView
+                ref={terminalRef}
+                sessionName={activeSessionId}
+                className="h-full"
+                onCreateSession={() => setShowCreateDialog(true)}
+              />
+              <SwitchHint />
+              {/* Floats like a browser find bar. Opened from the command
+                  palette. */}
+              {terminalSearchOpen && (
+                <TerminalSearch
+                  className="absolute end-6 top-2 z-[var(--z-banner)] w-80"
+                  onSearch={handleSearch}
+                  onNext={handleSearchNext}
+                  onPrevious={handleSearchPrevious}
+                  onClose={() => setTerminalSearchOpen(false)}
+                />
+              )}
+              <TerminalScrollRail sessionName={activeSessionId} />
             </div>
           </div>
-        ) : (
-          <SessionList
-            leading={sidebarToggle}
-            onCreateClick={() => setShowCreateDialog(true)}
-            className="flex-1"
-          />
-        )}
-        <SidebarStatus collapsed={sidebarCollapsed} />
-      </div>
-
-      {/* Main terminal area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <TerminalToolbar
-          onOpenSettings={handleOpenSettings}
-          onOpenFiles={toggleFilesPanel}
-          filesOpen={filesOpen}
-          showSessionName={sidebarCollapsed}
-        />
-        <div ref={paneRef} className="relative flex-1 overflow-hidden">
-          <TerminalView
-            ref={terminalRef}
-            sessionName={activeSessionId}
-            className="h-full"
-            onCreateSession={() => setShowCreateDialog(true)}
-          />
-          <SwitchHint />
-          {/* Floats like a browser find bar. Inline, it squeezed the window
-              strip out of the only bar there is. */}
-          {terminalSearchOpen && (
-            <TerminalSearch
-              className="absolute end-6 top-2 z-[var(--z-banner)] w-80"
-              onSearch={handleSearch}
-              onNext={handleSearchNext}
-              onPrevious={handleSearchPrevious}
-              onClose={() => setTerminalSearchOpen(false)}
+          {activeFileTab && (
+            <FileTabView
+              key={activeFileTab.id}
+              tab={activeFileTab}
+              className="absolute inset-0"
             />
           )}
-          <TerminalScrollRail sessionName={activeSessionId} />
+          <FloatingAlerts />
         </div>
       </div>
-
-      {filesOpen && (
-        <aside
-          aria-label="Repository files"
-          // Desk distance code sizes for `text-code`. See app/globals.css.
-          className="flex w-[min(48rem,60vw)] shrink-0 flex-col border-l border-border [--code-leading:1.6] [--code-meta-size:0.75rem] [--code-size:0.8125rem]"
-        >
-          <RepositoryBrowser
-            className="min-h-0 flex-1"
-            onClose={() => setFilesOpen(false)}
-          />
-        </aside>
-      )}
 
       {/* File editor overlay */}
       {editorFile &&
@@ -345,9 +325,6 @@ export function TerminalWorkspace() {
         ) : (
           <FileViewer />
         ))}
-
-      {/* Opened by the pane count in the window strip. */}
-      <PaneListPanel />
 
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
         <SheetContent

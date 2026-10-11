@@ -61,3 +61,23 @@ export function AlertBanner() {
     </div>
   );
 }
+
+/**
+ * Desktop alerts, floating top center over the main area.
+ *
+ * They lived in the terminal bar, which is gone. Top center keeps them clear
+ * of the search bar at the trailing edge. The opaque backing keeps the tinted
+ * pill readable over terminal text. Its own component, so an alert does not
+ * re-render the terminal tree around it.
+ */
+export function FloatingAlerts() {
+  const visible = useAlertStore((s) => s.alerts.length > 0);
+  if (!visible) return null;
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-2 z-[var(--z-banner)] flex justify-center px-4">
+      <div className="pointer-events-auto rounded-md bg-background shadow-md">
+        <AlertBanner />
+      </div>
+    </div>
+  );
+}

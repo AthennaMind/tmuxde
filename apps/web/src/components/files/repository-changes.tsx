@@ -19,9 +19,12 @@ type ChangeEntry = Extract<RepoResult, { kind: "status" }>["entries"][number];
 export function ChangesList({
   entries,
   onOpen,
+  dense = false,
 }: {
   entries: ChangeEntry[];
   onOpen: (path: string, scope: Scope) => void;
+  /** Mouse density for the desktop sidebar. Touch rows stay 44px. */
+  dense?: boolean;
 }) {
   const [view, setView] = useState<"list" | "tree">("list");
   useEffect(() => {
@@ -64,11 +67,14 @@ export function ChangesList({
     },
   ];
   return (
-    <div className="py-2">
+    <div className={dense ? "py-1" : "py-2"}>
       <div
         role="group"
         aria-label="Changed file layout"
-        className="flex justify-end gap-1 border-b px-3 pb-2"
+        className={cn(
+          "flex justify-end gap-1 border-b",
+          dense ? "px-2 pb-1" : "px-3 pb-2",
+        )}
       >
         {(["list", "tree"] as const).map((value) => {
           const Icon = value === "tree" ? ListTree : List;
@@ -79,7 +85,8 @@ export function ChangesList({
               aria-pressed={view === value}
               onClick={() => selectView(value)}
               className={cn(
-                "flex min-h-11 items-center gap-2 rounded-md px-3 text-sm",
+                "flex items-center gap-2 rounded-md text-sm",
+                dense ? "min-h-8 px-2" : "min-h-11 px-3",
                 view === value
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:bg-muted/60",
@@ -97,19 +104,35 @@ export function ChangesList({
           <section
             key={scope}
             aria-label={`${SCOPE_LABELS[scope]} files`}
-            className="mb-3"
+            className={dense ? "mb-2" : "mb-3"}
           >
-            <h3 className="flex items-center justify-between px-4 py-2 font-sans text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <h3
+              className={cn(
+                "flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground",
+                // Dense lives in the sidebar, which sets the code face.
+                dense ? "px-3 py-1.5 font-chrome" : "px-4 py-2 font-sans",
+              )}
+            >
               <span>{SCOPE_LABELS[scope]}</span>
               <span className="tabular-nums">{files.length}</span>
             </h3>
             {view === "tree" ? (
-              <ChangeTree files={files} scope={scope} onOpen={onOpen} />
+              <ChangeTree
+                files={files}
+                scope={scope}
+                onOpen={onOpen}
+                dense={dense}
+              />
             ) : (
               <ul>
                 {files.map((entry) => (
                   <li key={entry.path}>
-                    <ChangeButton entry={entry} scope={scope} onOpen={onOpen} />
+                    <ChangeButton
+                      entry={entry}
+                      scope={scope}
+                      onOpen={onOpen}
+                      dense={dense}
+                    />
                   </li>
                 ))}
               </ul>
@@ -124,10 +147,12 @@ function ChangeTree({
   files,
   scope,
   onOpen,
+  dense,
 }: {
   files: ChangeEntry[];
   scope: Scope;
   onOpen: (path: string, scope: Scope) => void;
+  dense: boolean;
 }) {
   const nodes = useMemo(() => buildChangeTree(files), [files]);
   const renderNodes = (
@@ -143,8 +168,13 @@ function ChangeTree({
               className="[&[open]>summary>svg:first-child]:rotate-90"
             >
               <summary
-                className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-2 text-sm hover:bg-muted/60 [&::-webkit-details-marker]:hidden"
-                style={{ paddingLeft: `${16 + Math.min(depth, 8) * 12}px` }}
+                className={cn(
+                  "flex cursor-pointer list-none items-center gap-2 text-sm hover:bg-muted/60 [&::-webkit-details-marker]:hidden",
+                  dense ? "min-h-7 px-3 py-0.5" : "min-h-11 px-4 py-2",
+                )}
+                style={{
+                  paddingInlineStart: `${(dense ? 12 : 16) + Math.min(depth, 8) * 12}px`,
+                }}
               >
                 <ChevronRight className="h-3.5 w-3.5 shrink-0" />
                 <Folder className="h-4 w-4 shrink-0 text-term-path" />
@@ -164,6 +194,7 @@ function ChangeTree({
               onOpen={onOpen}
               depth={depth}
               basename
+              dense={dense}
             />
           )}
         </li>
@@ -179,12 +210,14 @@ function ChangeButton({
   onOpen,
   depth = 0,
   basename = false,
+  dense = false,
 }: {
   entry: ChangeEntry;
   scope: Scope;
   onOpen: (path: string, scope: Scope) => void;
   depth?: number;
   basename?: boolean;
+  dense?: boolean;
 }) {
   const code =
     scope === "untracked"
@@ -201,8 +234,13 @@ function ChangeButton({
           ? `${entry.originalPath} → ${entry.path}`
           : entry.path
       }
-      className="flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left hover:bg-muted/60 focus-visible:bg-muted"
-      style={{ paddingLeft: `${16 + Math.min(depth, 8) * 12}px` }}
+      className={cn(
+        "flex w-full items-center text-left hover:bg-muted/60 focus-visible:bg-muted",
+        dense ? "min-h-7 gap-2 px-3 py-0.5" : "min-h-11 gap-3 px-4 py-2",
+      )}
+      style={{
+        paddingInlineStart: `${(dense ? 12 : 16) + Math.min(depth, 8) * 12}px`,
+      }}
     >
       <span
         aria-label={changeLabel(code)}

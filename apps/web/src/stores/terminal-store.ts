@@ -23,6 +23,16 @@ export function clampFontSize(size: number): number {
   return Math.max(8, Math.min(max, size));
 }
 
+export const CODE_ZOOM_MIN = 0.7;
+export const CODE_ZOOM_MAX = 2;
+export const CODE_ZOOM_STEP = 0.1;
+
+export function clampCodeZoom(zoom: number): number {
+  const clamped = Math.min(CODE_ZOOM_MAX, Math.max(CODE_ZOOM_MIN, zoom));
+  // Tenths, so repeated steps do not drift to 1.0999999.
+  return Math.round(clamped * 10) / 10;
+}
+
 /** Weights the variable code face carries. Bold text uses 700. */
 export const CODE_WEIGHTS = [400, 500, 600, 700] as const;
 export type CodeWeight = (typeof CODE_WEIGHTS)[number];
@@ -32,6 +42,11 @@ interface TerminalStore {
   fontFamily: string;
   /** Text weight in terminal, file and diff views and the editor. */
   codeWeight: CodeWeight;
+  /**
+   * Scale of file, diff and editor text. Separate from `fontSize`: the
+   * terminal font sets the pty size, so zooming a file must not resize tmux.
+   */
+  codeZoom: number;
   themeName: string;
   cursorStyle: "block" | "underline" | "bar";
   cursorBlink: boolean;
@@ -46,6 +61,7 @@ interface TerminalStore {
   setFontSize: (size: number) => void;
   setFontFamily: (family: string) => void;
   setCodeWeight: (weight: CodeWeight) => void;
+  setCodeZoom: (zoom: number) => void;
   setThemeName: (name: string) => void;
   setCursorStyle: (style: "block" | "underline" | "bar") => void;
   setCursorBlink: (blink: boolean) => void;
@@ -61,6 +77,7 @@ export const useTerminalStore = create<TerminalStore>()(
       // Heavy, with room left for bold. At 700, bold output would look like
       // everything else.
       codeWeight: 600,
+      codeZoom: 1,
       themeName: "dracula",
       cursorStyle: "block",
       cursorBlink: true,
@@ -69,6 +86,7 @@ export const useTerminalStore = create<TerminalStore>()(
       setFontSize: (fontSize) => set({ fontSize: clampFontSize(fontSize) }),
       setFontFamily: (fontFamily) => set({ fontFamily }),
       setCodeWeight: (codeWeight) => set({ codeWeight }),
+      setCodeZoom: (codeZoom) => set({ codeZoom: clampCodeZoom(codeZoom) }),
       setThemeName: (themeName) => set({ themeName }),
       setCursorStyle: (cursorStyle) => set({ cursorStyle }),
       setCursorBlink: (cursorBlink) => set({ cursorBlink }),
