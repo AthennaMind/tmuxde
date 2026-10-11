@@ -415,6 +415,11 @@ export async function capturePaneById(
   return stdout;
 }
 
+/**
+ * Split the session's active pane. The new pane starts in the folder of the
+ * pane it splits. tmux expands the format against the target pane, and falls
+ * back to its default folder when that one was deleted.
+ */
 export async function splitPane(
   session: string,
   direction: "h" | "v",
@@ -425,11 +430,41 @@ export async function splitPane(
     "-t",
     session,
     `-${direction}`,
+    "-c",
+    "#{pane_current_path}",
   ]);
   logger.info({ session, direction }, "Split pane");
 }
 
-export async function selectPane(paneId: string): Promise<void> {
+/**
+ * Focus a pane. Given its session, also show the pane's window.
+ *
+ * `select-pane` alone never changes the session's current window. A pane in a
+ * window off screen became that window's active pane while the screen stayed
+ * put, and a split sent next landed in the window on screen. The window is
+ * selected through the session, so a window linked into several sessions
+ * moves in the attached one.
+ */
+export async function selectPane(
+  paneId: string,
+  session?: string,
+): Promise<void> {
+  if (session) {
+    const { stdout } = await execFileAsync("tmux", [
+      ...tmuxArgs(),
+      "display-message",
+      "-p",
+      "-t",
+      paneId,
+      "#{window_id}",
+    ]);
+    await execFileAsync("tmux", [
+      ...tmuxArgs(),
+      "select-window",
+      "-t",
+      `${session}:${stdout.trim()}`,
+    ]);
+  }
   // `-Z` "keeps the window zoomed if it was zoomed" — it never zooms a window
   // that was not. That is exactly the semantics every caller wanted, and it
   // replaces the unzoom/select/rezoom triple the clients used to send.

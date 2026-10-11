@@ -7,6 +7,7 @@ import { useFileObjectUrl } from "@/hooks/use-file-object-url";
 import { RepositorySyntaxLine, useRepositorySyntax } from "./repository-syntax";
 import { filesAvailable } from "@/lib/file-url";
 import { getFileCategory } from "@/lib/file-utils";
+import { useSessionTreeStore } from "@/stores/session-tree-store";
 import {
   repositoryRequest,
   type RepositoryClient,
@@ -20,12 +21,22 @@ import {
 export type RepositoryResult = Exclude<RepoResult, { kind: "error" }>;
 type Result = RepositoryResult;
 
+/**
+ * `keepPrevious` leaves the last answer on screen while the next one loads.
+ * Only for callers whose query names the same thing across changes, such as
+ * one folder of the sidebar tree asked again for another pane.
+ */
 export function useRepositoryQuery(
   client: RepositoryClient,
   query: RepositoryQuery | null,
   refresh: number,
+  { keepPrevious = false }: { keepPrevious?: boolean } = {},
 ) {
   const key = JSON.stringify(query);
+  // The relay refuses repository requests until a new socket has attached.
+  // Waiting for that, and asking again after it, clears an error left by a
+  // reconnect. A switch between sessions keeps this true and asks nothing.
+  const attached = useSessionTreeStore((s) => s.attachedSession !== null);
   const [state, setState] = useState<{
     key: string;
     refresh: number;
@@ -33,7 +44,7 @@ export function useRepositoryQuery(
     error?: string;
   }>();
   useEffect(() => {
-    if (key === "null") return;
+    if (key === "null" || !attached) return;
     const controller = new AbortController();
     repositoryRequest(
       client,
@@ -53,12 +64,13 @@ export function useRepositoryQuery(
           });
       });
     return () => controller.abort();
-  }, [client, key, refresh]);
+  }, [attached, client, key, refresh]);
   const current =
     state?.key === key && state.refresh === refresh ? state : undefined;
+  const shown = current ?? (keepPrevious && query !== null ? state : undefined);
   return {
-    result: current?.result,
-    error: current?.error,
+    result: shown?.result,
+    error: shown?.error,
     loading: query !== null && !current,
   };
 }

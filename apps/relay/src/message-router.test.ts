@@ -21,7 +21,7 @@ const currentWindowId = vi.fn<(session: string) => Promise<string>>();
 const stepWindow = vi.fn<(session: string, delta: number) => Promise<void>>();
 const stepPane = vi.fn<(session: string, delta: number) => Promise<void>>();
 const selectWindow = vi.fn<(id: string) => Promise<void>>();
-const selectPane = vi.fn<(id: string) => Promise<void>>();
+const selectPane = vi.fn<(id: string, session?: string) => Promise<void>>();
 const zoomPane =
   vi.fn<
     (
@@ -76,7 +76,7 @@ vi.mock("./tmux-manager.js", () => ({
   stepWindow: (session: string, delta: number) => stepWindow(session, delta),
   stepPane: (session: string, delta: number) => stepPane(session, delta),
   selectWindow: (id: string) => selectWindow(id),
-  selectPane: (id: string) => selectPane(id),
+  selectPane: (id: string, session?: string) => selectPane(id, session),
   zoomPane: (session: string, opts?: { paneId?: string; desired?: boolean }) =>
     zoomPane(session, opts),
   listWindows: (session: string) => listWindows(session),
@@ -667,6 +667,16 @@ describe("window scoping", () => {
     // The old code sent "@1" here, immediately undoing the window:changed that
     // preceded it.
     expect(paneChanged[0]).toMatchObject({ windowId: "@3" });
+    expect(conn.activeWindowId).toBe("@3");
+  });
+
+  it("selects a pane through the attached session, so its window shows", async () => {
+    currentWindowId.mockResolvedValue("@3");
+    await route({ type: "pane:select", id: "%3" });
+
+    expect(selectPane).toHaveBeenCalledWith("%3", "work");
+    expect(sent.map((m) => m.type)).toEqual(["window:changed", "pane:changed"]);
+    expect(sent.at(-1)).toMatchObject({ windowId: "@3" });
     expect(conn.activeWindowId).toBe("@3");
   });
 

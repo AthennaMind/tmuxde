@@ -59,8 +59,8 @@ corrupt its state machine. Optional, so older clients and relays stay compatible
 | Type | Fields | Description |
 | --- | --- | --- |
 | `pane:list` | — | Panes in the active window |
-| `pane:split` | `direction: "h" \| "v"` | Split the active pane |
-| `pane:select` | `id` | Focus a pane |
+| `pane:split` | `direction: "h" \| "v"` | Split the active pane. New pane starts in its folder |
+| `pane:select` | `id` | Focus a pane and show its window |
 | `pane:zoom` | — | Toggle zoom on the active pane |
 | `pane:resize` | `id`, `direction: "U"\|"D"\|"L"\|"R"`, `amount` | Resize a pane |
 | `pane:swap` | `id`, `direction` | Swap a pane with its neighbour |

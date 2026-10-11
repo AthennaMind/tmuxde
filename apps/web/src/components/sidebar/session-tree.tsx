@@ -298,13 +298,18 @@ export function SessionTree({ onCreateSession }: { onCreateSession: () => void }
 
     const panesOf = (w: WindowInfo): PaneInfo[] => {
       const listed = d?.panes.filter((p) => p.windowId === w.id) ?? [];
-      if (live && w.id === activeWindowId && livePanes.length) {
-        // Live panes for structure and focus. Listed panes are refreshed on
-        // activity, so they carry the newer command and folder.
+      // A window switch lands as `window:changed` before `pane:changed`.
+      // In between, live panes still belong to the previous window. Matching
+      // by window id keeps them from being drawn under the new one.
+      const own = live ? livePanes.filter((p) => p.windowId === w.id) : [];
+      if (own.length) {
+        // Live panes for structure, focus and folder. The relay announces a
+        // folder change within a second. Listed panes are refreshed on
+        // activity, so they carry the newer command.
         const byId = new Map(listed.map((p) => [p.id, p]));
-        return livePanes.map((p) => {
+        return own.map((p) => {
           const fresh = byId.get(p.id);
-          return fresh ? { ...p, command: fresh.command, path: fresh.path } : p;
+          return fresh ? { ...p, command: fresh.command } : p;
         });
       }
       return listed;

@@ -5,6 +5,7 @@ import type { RepoResult } from "@repo/protocol";
 import { useRelayClient } from "@/hooks/use-websocket";
 import { usePaneStore } from "@/stores/pane-store";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
+import { useSessionTreeStore } from "@/stores/session-tree-store";
 import {
   repositoryRequest,
   type RepositoryClient,
@@ -15,6 +16,7 @@ export type RepositoryStatus = Extract<RepoResult, { kind: "status" }>;
 
 export interface RepositoryState {
   client: RepositoryClient | null;
+  /** Pane the context and status belong to. Trails the active pane. */
   paneId: string | null;
   /** Why files cannot be shown, or null when they can. */
   unavailable: string | null;
@@ -41,9 +43,17 @@ const STATUS_INTERVAL_MS = 15_000;
 export function useRepositoryState(watching: boolean): RepositoryState {
   const client = useRelayClient();
   const paneId = usePaneStore((s) => s.activePaneId);
+  // Folder tmux reports for the active pane. The relay announces a `cd` or a
+  // focus change within a second, and either one asks for a new context.
+  const panePath = usePaneStore(
+    (s) => s.panes.find((p) => p.id === s.activePaneId)?.path ?? "",
+  );
   const connection = useConnectionStore((s) => s.status);
   const capabilities = useConnectionStore((s) => s.capabilities);
   const supported = useConnectionStore((s) => s.features.has("repo:request"));
+  // A new socket answers "No session attached" until the relay confirms the
+  // attach. Requests wait for it, and run again after every reconnect.
+  const attached = useSessionTreeStore((s) => s.attachedSession !== null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [statusKey, setStatusKey] = useState(0);
   const [pollKey, setPollKey] = useState(0);
@@ -70,9 +80,10 @@ export function useRepositoryState(watching: boolean): RepositoryState {
         : !paneId
           ? "Open a terminal pane to browse its folder."
           : null;
-  const ready = unavailable === null && client && paneId;
+  const available = unavailable === null;
+  const ready = available && attached && client && paneId;
 
-  const contextKey = ready ? `${paneId}:${refreshKey}` : "";
+  const contextKey = ready ? `${paneId}:${panePath}:${refreshKey}` : "";
   useEffect(() => {
     if (!contextKey || !client || !paneId) return;
     const controller = new AbortController();
@@ -99,29 +110,31 @@ export function useRepositoryState(watching: boolean): RepositoryState {
     return () => controller.abort();
   }, [client, paneId, contextKey]);
 
-  // A refresh keeps the last answer for this pane on screen until the next
-  // one lands. Another pane's answer is never shown: its folder is not this one.
-  const currentContext =
-    ready && context?.paneId === paneId ? context : undefined;
+  // The last answer stays on screen until the next one lands, also across a
+  // pane switch. Blanking the tree on every switch made it flash and reload
+  // each open folder. Everything returned describes the context's own pane,
+  // so status, listings and opened files never mix two folders.
+  const currentContext = available ? context : undefined;
+  const contextPane = currentContext?.paneId;
   const contextPath = currentContext?.value?.path;
   const statusBase =
-    ready && contextPath
-      ? `${paneId}:${contextPath}:${refreshKey}:${statusKey}:`
+    ready && contextPane && contextPath
+      ? `${contextPane}:${contextPath}:${refreshKey}:${statusKey}:`
       : "";
   const statusRequestKey = statusBase ? `${statusBase}${pollKey}` : "";
   useEffect(() => {
-    if (!statusRequestKey || !client || !paneId || !contextPath) return;
+    if (!statusRequestKey || !client || !contextPane || !contextPath) return;
     const controller = new AbortController();
     repositoryRequest(
       client,
-      { id: paneId, action: "status", path: contextPath },
+      { id: contextPane, action: "status", path: contextPath },
       controller.signal,
     )
       .then((result) => {
         if (!controller.signal.aborted && result.kind === "status")
           setStatus({
             key: statusRequestKey,
-            paneId,
+            paneId: contextPane,
             path: contextPath,
             value: result,
           });
@@ -130,17 +143,17 @@ export function useRepositoryState(watching: boolean): RepositoryState {
         if (!controller.signal.aborted)
           setStatus({
             key: statusRequestKey,
-            paneId,
+            paneId: contextPane,
             path: contextPath,
             error:
               error instanceof Error ? error.message : "Could not load changes.",
           });
       });
     return () => controller.abort();
-  }, [client, paneId, contextPath, statusRequestKey]);
+  }, [client, contextPane, contextPath, statusRequestKey]);
 
   const currentStatus =
-    status?.paneId === paneId && status.path === contextPath
+    status && status.paneId === contextPane && status.path === contextPath
       ? status
       : undefined;
 
@@ -161,17 +174,18 @@ export function useRepositoryState(watching: boolean): RepositoryState {
     };
   }, [watching, ready]);
 
+  const attaching = available && !attached;
   const contextPending = !!ready && context?.key !== contextKey;
   const statusPending =
     !!statusBase && !(status?.key.startsWith(statusBase) ?? false);
 
   return {
-    client: ready ? client : null,
-    paneId: ready ? paneId : null,
+    client: available ? client : null,
+    paneId: contextPane ?? null,
     unavailable,
     context: currentContext?.value,
     status: currentStatus?.value,
-    loading: contextPending || statusPending,
+    loading: attaching || contextPending || statusPending,
     error: currentContext?.error ?? currentStatus?.error,
     refreshKey,
     refresh,

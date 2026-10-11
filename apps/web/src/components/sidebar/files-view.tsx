@@ -102,11 +102,15 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
   const [menuKey, setMenuKey] = useState<string | null>(null);
   const tree = useTreeKeyboard();
 
-  // A new pane folder opens the tree down to it.
+  // A new pane folder opens the tree down to it. In the same repository the
+  // folders opened by hand stay open.
   const contextPath = context?.path;
   useEffect(() => {
     if (!root || !contextPath) return;
-    setExpanded(new Set(ancestors(root, contextPath)));
+    const path = ancestors(root, contextPath);
+    setExpanded((prev) =>
+      prev.has(root) ? new Set([...prev, ...path]) : new Set(path),
+    );
     setFocusKey(null);
   }, [root, contextPath]);
 
@@ -278,6 +282,7 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
               className="space-y-px"
             >
               <FolderChildren
+                key={root}
                 path={root}
                 depth={0}
                 parentKey={null}
@@ -323,14 +328,17 @@ function FolderChildren({
   parentKey: string | null;
   state: TreeState;
 }) {
+  // Another pane or a refresh asks again for the same folder. The old rows
+  // stay until the answer lands instead of collapsing to "Loading".
   const listing = useRepositoryQuery(
     state.client,
     { id: state.paneId, action: "list", path },
     state.refreshKey,
+    { keepPrevious: true },
   );
   const indent = 4 + depth * 14 + 22;
 
-  if (listing.loading)
+  if (listing.loading && !listing.result && !listing.error)
     return (
       <div
         className="flex h-7 items-center text-xs text-muted-foreground"

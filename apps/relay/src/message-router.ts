@@ -762,10 +762,9 @@ export async function routeMessage(
           sendError(ws, "NOT_ATTACHED", "No session attached");
           break;
         }
-        await tmux.selectPane(msg.id);
-        // Selecting a pane can move the *window* too (`select-pane -t %id`
-        // follows the pane into its own window), so the window list has to be
-        // republished alongside the pane list.
+        await tmux.selectPane(msg.id, conn.attachedSession);
+        // Selecting a pane also shows its window, so the window list has to
+        // be republished alongside the pane list.
         const selected = await announceLayout(conn, conn.attachedSession);
         conn.activeWindowId = selected.windowId;
         break;

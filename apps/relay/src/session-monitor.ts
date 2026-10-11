@@ -1,6 +1,6 @@
-import type { SessionInfo, WindowInfo } from "@repo/protocol";
+import type { PaneInfo, SessionInfo, WindowInfo } from "@repo/protocol";
 import { createLogger } from "@repo/logger";
-import { listSessions, listWindows } from "./tmux-manager.js";
+import { listPanes, listSessions, listWindows } from "./tmux-manager.js";
 
 const logger = createLogger("relay:monitor");
 
@@ -49,10 +49,30 @@ function windowSignature(windows: WindowInfo[]): string {
     .join("|");
 }
 
+/**
+ * Focus and folder of every pane.
+ *
+ * A window listing cannot see either. Focus moved with tmux keys and `cd` in
+ * a pane leave every window field as it was, so the browser kept browsing
+ * the folder of a pane that was no longer active, or no longer there.
+ */
+function paneSignature(panes: PaneInfo[]): string {
+  return panes
+    .map((p) => `${p.id}:${p.windowId}:${p.active ? 1 : 0}:${p.path ?? ""}`)
+    .join("|");
+}
+
+/** Sessions are listed less often than the windows of attached ones. */
+const SESSION_POLL_MS = 5000;
+/** Pane focus and folder changes should reach the browser at once. */
+const WINDOW_POLL_MS = 1000;
+
 export function createSessionMonitor(
   opts: SessionMonitorOptions = {},
 ): SessionMonitor {
-  let interval: NodeJS.Timeout | null = null;
+  let sessionTimer: NodeJS.Timeout | null = null;
+  let windowTimer: NodeJS.Timeout | null = null;
+  let pollingWindows = false;
   const knownSessions = new Set<string>();
   const exitCallbacks: Array<(name: string) => void> = [];
   const createdCallbacks: Array<(session: SessionInfo) => void> = [];
@@ -69,8 +89,11 @@ export function createSessionMonitor(
     }
     for (const name of watching) {
       try {
-        const windows = await listWindows(name);
-        const sig = windowSignature(windows);
+        const [windows, panes] = await Promise.all([
+          listWindows(name),
+          listPanes(name),
+        ]);
+        const sig = `${windowSignature(windows)}#${paneSignature(panes)}`;
         const previous = windowSignatures.get(name);
         windowSignatures.set(name, sig);
         // First sighting only seeds the baseline: the client already fetched
@@ -81,6 +104,20 @@ export function createSessionMonitor(
         // The session can vanish between the two polls. The exit path covers it.
         windowSignatures.delete(name);
       }
+    }
+  }
+
+  async function pollWindowsOnce() {
+    // A slow tmux must not run two polls at once. The later one could finish
+    // first and leave an older signature behind.
+    if (pollingWindows) return;
+    pollingWindows = true;
+    try {
+      await pollWindows();
+    } catch (e) {
+      logger.error({ err: e }, "Window poll failed");
+    } finally {
+      pollingWindows = false;
     }
   }
 
@@ -111,25 +148,21 @@ export function createSessionMonitor(
     } catch (e) {
       logger.error({ err: e }, "Session monitor poll failed");
     }
-
-    try {
-      await pollWindows();
-    } catch (e) {
-      logger.error({ err: e }, "Window poll failed");
-    }
   }
 
   return {
     start() {
       poll();
-      interval = setInterval(poll, 5000);
+      void pollWindowsOnce();
+      sessionTimer = setInterval(poll, SESSION_POLL_MS);
+      windowTimer = setInterval(pollWindowsOnce, WINDOW_POLL_MS);
       logger.info("Session monitor started");
     },
     stop() {
-      if (interval) {
-        clearInterval(interval);
-        interval = null;
-      }
+      if (sessionTimer) clearInterval(sessionTimer);
+      if (windowTimer) clearInterval(windowTimer);
+      sessionTimer = null;
+      windowTimer = null;
       logger.info("Session monitor stopped");
     },
     onSessionExit(cb) {
