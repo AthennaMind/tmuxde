@@ -41,6 +41,7 @@ import { cn } from "@repo/ui/lib/utils";
 import type { SessionInfo, WindowInfo, PaneInfo } from "@repo/protocol";
 import { getRelayClient } from "@/hooks/use-websocket";
 import { useConnectionStore } from "@/stores/connection-store";
+import { formatPaneName } from "@/lib/tmux-labels";
 
 interface SessionCardProps {
   session: SessionInfo;
@@ -59,29 +60,6 @@ function timeAgo(dateStr: string): string {
 
 function isRecentlyActive(dateStr: string): boolean {
   return Date.now() - new Date(dateStr).getTime() < 30_000;
-}
-
-const SHELL_COMMANDS = new Set([
-  "bash",
-  "zsh",
-  "fish",
-  "sh",
-  "dash",
-  "ksh",
-  "tcsh",
-  "csh",
-]);
-
-function shortenPath(path: string): string {
-  if (!path) return "";
-  return path.replace(/^\/home\/[^/]+/, "~").replace(/^\/root/, "~");
-}
-
-function formatPaneName(command?: string, path?: string): string {
-  if (!command || SHELL_COMMANDS.has(command)) {
-    return path ? shortenPath(path) : command || "shell";
-  }
-  return path ? `${command} · ${shortenPath(path)}` : command;
 }
 
 export function SessionCard({

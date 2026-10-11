@@ -99,20 +99,34 @@
 
 /*
  * Code in the repository viewer. Defaults are the phone sizes: 12px holds up on
- * a dense screen held close. The desktop files panel raises the variables,
- * because the same size reads thin at desk distance. `--code-weight` follows
- * the Code weight setting, synced onto the root by the terminal layout.
- * Monospace keeps zero tracking so body tracking does not leak into code.
+ * a dense screen held close. Desktop file tabs raise the variables, because
+ * the same size reads thin at desk distance. `--code-weight` follows the Code
+ * weight setting and `--code-zoom` follows Ctrl with -, = and 0, both synced
+ * onto the root by the terminal layout. Leading is unitless so it scales with
+ * the zoom. Monospace keeps zero tracking so body tracking does not leak into
+ * code.
  */
 @utility text-code {
-  font-size: var(--code-size, 0.75rem);
-  line-height: var(--code-leading, 1.25rem);
+  font-size: calc(var(--code-size, 0.75rem) * var(--code-zoom, 1));
+  line-height: var(--code-leading, 1.667);
   font-weight: var(--code-weight, 400);
   letter-spacing: 0;
 }
 
+/*
+ * Desktop sidebar, its menus and the main tab strip. Names of sessions,
+ * windows, panes and files read in the code face, as they do in the terminal.
+ * Ligatures off, so `a--b` or `x->y` show the characters typed. Zero tracking
+ * for the same reason as `text-code`.
+ */
+@utility font-chrome {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+}
+
 @utility text-code-meta {
-  font-size: var(--code-meta-size, 0.6875rem);
+  font-size: calc(var(--code-meta-size, 0.6875rem) * var(--code-zoom, 1));
   letter-spacing: 0;
 }
 

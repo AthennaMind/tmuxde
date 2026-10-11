@@ -51,10 +51,13 @@ export function MonacoEditor({
   onSave,
   theme = "vs-dark",
   wordWrap = "on",
-  fontSize = 14,
+  fontSize: fixedFontSize,
 }: MonacoEditorProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const codeWeight = useTerminalStore((s) => s.codeWeight);
+  // Follows the code zoom unless the caller fixes a size.
+  const codeZoom = useTerminalStore((s) => s.codeZoom);
+  const fontSize = fixedFontSize ?? Math.round(14 * codeZoom);
 
   const handleMount: OnMount = useCallback(
     (editor, monaco) => {

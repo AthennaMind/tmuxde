@@ -12,6 +12,8 @@ import {
 import { useSessionStore } from "@/stores/session-store";
 import { useStableMediaQuery } from "@repo/ui/hooks/use-media-query";
 import { MOBILE_MEDIA_QUERY, isMobileViewport } from "@/lib/mobile-query";
+import { fontZoomStep } from "@/lib/font-zoom-key.js";
+import { applyFontZoom } from "@/lib/font-zoom";
 import { MobileNav } from "@/components/mobile/mobile-nav";
 import { CommandComposer } from "@/components/mobile/command-composer";
 import { KeyboardToolbar } from "@/components/mobile/keyboard-toolbar";
@@ -114,7 +116,7 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
    * i.e. every ten seconds, and `composerDraft` in the UI store is written on
    * every character typed into the command composer — so the whole terminal
    * subtree was re-rendering per keystroke. Connection status lives in
-   * `SidebarStatus` for the same reason.
+   * the sidebar rail (`RailConnection`) for the same reason.
    */
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
 
@@ -194,24 +196,38 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
     }
   }, [activeSessionId]);
 
-  // Keyboard shortcuts. Ctrl/Cmd with -, = and 0 stay with the browser for
-  // page zoom. Terminal font size has its own buttons.
+  // Keyboard shortcuts.
+  //
+  // Ctrl/Cmd with -, = and 0 size the terminal, or the file or diff in front.
+  // They work everywhere, terminal included: xterm skips them (see
+  // xterm-factory.ts), so they reach here instead of the shell. Browser page
+  // zoom stays in the browser menu.
+  //
+  // Ctrl+B and Ctrl+E only outside the terminal. xterm has already sent those
+  // to tmux by the time they bubble here, and Ctrl+B is tmux's default prefix.
+  // Acting on it too would toggle the sidebar on every prefix press.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === "b") {
-          e.preventDefault();
-          useUiStore.getState().toggleSidebar();
-        } else if (e.key === "e") {
-          e.preventDefault();
-          if (filesDisabled(useConnectionStore.getState().capabilities)) return;
-          // Desktop has no Files tab. It has a side panel.
-          if (isMobileViewport()) {
-            useUiStore.getState().setMobileTab("files");
-          } else {
-            useUiStore.getState().toggleFilesPanel();
-          }
-        }
+      const zoom = fontZoomStep(e);
+      if (zoom !== null) {
+        e.preventDefault();
+        applyFontZoom(zoom);
+        return;
+      }
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key !== "b" && e.key !== "e") return;
+      if (e.target instanceof Element && e.target.closest(".xterm")) return;
+      e.preventDefault();
+      if (e.key === "b") {
+        useUiStore.getState().toggleSidebar();
+        return;
+      }
+      if (filesDisabled(useConnectionStore.getState().capabilities)) return;
+      // Desktop has no Files tab. It has a sidebar view.
+      if (isMobileViewport()) {
+        useUiStore.getState().setMobileTab("files");
+      } else {
+        useUiStore.getState().toggleSidebarView("files");
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -244,13 +260,14 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
   // subscription rather than a selector, so a change does not re-render the
   // terminal tree.
   useEffect(() => {
-    const apply = (weight: number) =>
-      document.documentElement.style.setProperty(
-        "--code-weight",
-        String(weight),
-      );
-    apply(useTerminalStore.getState().codeWeight);
-    return useTerminalStore.subscribe((s) => apply(s.codeWeight));
+    const apply = (weight: number, zoom: number) => {
+      const root = document.documentElement.style;
+      root.setProperty("--code-weight", String(weight));
+      root.setProperty("--code-zoom", String(zoom));
+    };
+    const { codeWeight, codeZoom } = useTerminalStore.getState();
+    apply(codeWeight, codeZoom);
+    return useTerminalStore.subscribe((s) => apply(s.codeWeight, s.codeZoom));
   }, []);
 
   // Hand the lock the one thing it cannot reach on its own. Locking has to

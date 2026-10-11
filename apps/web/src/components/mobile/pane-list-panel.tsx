@@ -33,31 +33,7 @@ import { MOBILE_MEDIA_QUERY } from "@/lib/mobile-query";
 import { usePaneStore } from "@/stores/pane-store";
 import { useUiStore } from "@/stores/ui-store";
 import { getRelayClient } from "@/hooks/use-websocket";
-
-const SHELL_COMMANDS = new Set([
-  "bash",
-  "zsh",
-  "fish",
-  "sh",
-  "dash",
-  "ksh",
-  "tcsh",
-  "csh",
-]);
-
-function shortenPath(path: string): string {
-  if (!path) return "";
-  // Replace home dir with ~
-  const shortened = path.replace(/^\/home\/[^/]+/, "~").replace(/^\/root/, "~");
-  return shortened;
-}
-
-function formatPaneName(command?: string, path?: string): string {
-  if (!command || SHELL_COMMANDS.has(command)) {
-    return path ? shortenPath(path) : command || "shell";
-  }
-  return path ? `${command} · ${shortenPath(path)}` : command;
-}
+import { formatPaneName } from "@/lib/tmux-labels";
 
 export function PaneListPanel() {
   const panes = usePaneStore((s) => s.panes);

@@ -54,7 +54,14 @@ import { useUiStore } from "@/stores/ui-store";
  * exist at all for a self-hosted pairing, so a browser that could not rename
  * *anything* was the wrong answer for both.
  */
-export function MachineSwitcher({ className }: { className?: string }) {
+export function MachineSwitcher({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  /** Icon-only trigger for the desktop sidebar rail. */
+  compact?: boolean;
+}) {
   const open = useUiStore((s) => s.machineSwitcherOpen);
   const setOpen = useUiStore((s) => s.setMachineSwitcherOpen);
   const [machines, setMachines] = useState<MachineEntry[]>([]);
@@ -88,7 +95,23 @@ export function MachineSwitcher({ className }: { className?: string }) {
       {/* A local token connection has no paired machine. A trigger that names
           nothing and opens an empty list is noise. The sheet below stays
           mounted for the command palette. */}
-      {machines.length > 0 && (
+      {machines.length > 0 && compact && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={
+            active?.name ? `Switch machine. Current: ${active.name}` : "Switch machine"
+          }
+          title={active?.name ? `Machine: ${active.name}` : "Switch machine"}
+          className={cn(
+            "flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            className,
+          )}
+        >
+          <Server className="h-4 w-4" aria-hidden />
+        </button>
+      )}
+      {machines.length > 0 && !compact && (
         <button
           type="button"
           onClick={() => setOpen(true)}
