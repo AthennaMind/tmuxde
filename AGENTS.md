@@ -1,6 +1,29 @@
 # mtmux local
 
-This fork runs local web client, relay and Caddy through `docker-compose.yml`. CLI, marketing site, hosted broker, billing, database and email apps have been removed. Current setup guide is [.docker/README.md](.docker/README.md).
+## What this is
+
+mtmux local is a self-hosted web terminal for tmux. It serves host tmux sessions to any browser on private network, mainly phones and tablets. User opens existing session from phone, types into it, scrolls history, uploads photos as file paths and browses repository files and Git changes. Main use case is driving long-running coding agents (Claude Code, Codex) and shells away from host keyboard. tmux owns session state. Closing browser, locking device or rebuilding containers never kills sessions.
+
+This is a fork of [mtmux/mtmux](https://github.com/mtmux/mtmux) (git remote `upstream`). Upstream ships `mtmux` npm CLI, QR and code pairing, hosted broker, sealed tunnel, accounts and billing. This fork removed CLI, marketing site, hosted broker, billing, database and email apps. What remains is web client and relay, run by Docker Compose behind Caddy with local CA. Sign-in uses relay token from `.docker/.env.token`. Current setup guide is [.docker/README.md](.docker/README.md).
+
+## Architecture
+
+```
+Browser ─https/wss:443─► Caddy ─┬─► web:24100   Next.js client
+                                └─► relay:24300 /_relay /_pair/* /_sessions /file /health
+relay ─ node-pty `tmux attach-session` ─► host tmux socket (mounted)
+relay ─ execFile tmux ─► list, capture, create, kill sessions
+relay ─ read-only bind of host home ─► Files and Changes viewer
+```
+
+- `.docker/Caddyfile`: routes relay paths to relay, everything else to web. Rejects non-private IPs. Sets CSP and permissions policy. Redirects upstream code entry routes (`/start`, `/pair`, `/j`) to `/login`.
+- Relay (`apps/relay/src`): `index.ts` checks tmux, starts HTTP server (`server.ts`) and WebSocket server (`ws-server.ts`). `wire-connections.ts` handles per-socket auth, caps, liveness and grants. `message-router.ts` dispatches every client message after `policy.ts` checks grant scope. `tmux-manager.ts` wraps tmux CLI. `pty-bridge.ts` attaches PTY with output backpressure. `session-monitor.ts` polls window and pane layout changes. `file-service.ts` and `repository-service.ts` enforce `ALLOWED_PATHS` and block credential directories. `config.ts` validates env with Zod.
+- Protocol (`packages/protocol`): Zod discriminated unions `ClientMessage` and `ServerMessage`, one JSON object per WebSocket message (`codec.ts`). `policy.test.ts` fails if new message type has no policy entry.
+- Web (`apps/web/src`): App Router with `(auth)` login routes and `(terminal)/s/[sessionId]`. `lib/ws-client.ts` owns reconnect, backoff and message queue over `lib/transport.ts`. `hooks/use-websocket.ts` applies server messages to Zustand stores in `stores/`. Terminal uses xterm.js (`lib/xterm-factory.ts`). Mobile controls live in `components/mobile`. Repository viewer lives in `components/files` with bundled Shiki highlighting.
+- Local lock: `lib/lock-store.ts`, `lib/lock-controller.ts` and `components/lock` keep stored credentials encrypted under in-memory master key, unlocked by PIN or passkey PRF. Locking drops key, disconnects and clears stores. It never touches tmux.
+- Relay clones (`tmux-clone.ts`) are grouped sessions created for read-only shares so viewers cannot switch sessions. They stay hidden from every session list.
+
+Inherited upstream code is still wired in: local pairing (`pairing-local.ts`), scoped grants, device approval and `SealedTransport`. Standalone stack does not issue pairing codes. Check whether path is reachable in local stack before changing it.
 
 ## Repository map
 
@@ -10,7 +33,29 @@ This fork runs local web client, relay and Caddy through `docker-compose.yml`. C
 - `packages/crypto`: local cryptography and stored device credentials.
 - `packages/ui`, `logger`: shared UI, local logging and configuration.
 - `.docker`: supported deployment, host tmux integration and Caddy local CA.
-- `docs/reference/upstream`: archived technical docs. Reference material only, not deployment instructions. Hosted and CLI instructions are historical.
+- `scripts/setup.sh`: writes `.env`, token and copies host tmux client into `.docker/host-tmux`.
+- `docs/reference/upstream`: archived technical docs. Reference material only, not deployment instructions. Hosted and CLI instructions are historical. Exception: `relay/protocol.mdx` is maintained.
+- `docs/superpowers/plans`: older dated plans from fork cleanup. New plans go to `.agents/plans/`.
+- `.agents/skills`: UI review skills (`better-*`, `interface-review`).
+
+## Commands
+
+All Node tooling runs in Docker. Run from repository root.
+
+```sh
+scripts/setup.sh                                  # first run, or after host tmux change
+docker compose up -d --build --wait               # dev stack with hot reload
+docker compose run --rm tools pnpm test           # all Vitest projects
+docker compose run --rm tools pnpm test apps/relay/src/auth.test.ts   # single file
+docker compose run --rm tools pnpm typecheck
+docker compose run --rm tools pnpm build
+docker compose logs -f
+docker compose down                               # keeps volumes and tmux sessions
+python3 .docker/dev/dependencies.py mutate --filter @app/web add <pkg>
+python3 .docker/tests/runtime.py                  # relay HOME check
+```
+
+Dev URL is `https://localhost` on `127.0.0.1`. Override with `LOCAL_DOMAIN` and `LOCAL_BIND_IP` in root `.env`. Production uses `.docker/compose/prod.yaml`.
 
 ## Runtime
 
@@ -20,7 +65,7 @@ Browser assets must be local. No analytics exporters, hosted accounts, cloud dic
 
 ## Changes
 
-Protocol changes require schemas, both handlers, tests and updates to `docs/reference/upstream/relay/protocol.mdx`. Relay file access must use path guards. Session operations go through `tmux-manager.ts`. Preserve authentication, origin checks and local lock behavior.
+Protocol changes require schemas, both handlers, tests and updates to `docs/reference/upstream/relay/protocol.mdx`. Both handlers means relay `message-router.ts` and web `use-websocket.ts`. New message types also need entry in relay `policy.ts`. Relay file access must use path guards. Session operations go through `tmux-manager.ts`. Preserve authentication, origin checks and local lock behavior.
 
 Use semantic color classes. Follow local import conventions. Shared dev tools (TypeScript, Vitest, @types/node) live in root package.json. Package tsconfigs extend root tsconfig.base.json. No task runner, linter or formatter. Validate environment variables with Zod. Use conventional commits.
 
