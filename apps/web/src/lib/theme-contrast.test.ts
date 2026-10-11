@@ -2,6 +2,12 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import {
+  DEFAULT_TERMINAL_THEME,
+  getTerminalTheme,
+  terminalThemes,
+  type TerminalTheme,
+} from "@repo/ui/terminal-themes";
 
 /**
  * Every foreground/background pair in the design system, checked against WCAG.
@@ -39,10 +45,11 @@ import { describe, expect, it } from "vitest";
  *   dark, against the 3:1 floor WCAG 1.4.11 sets for a control boundary.
  *   Fixing it needs a distinct token for control borders rather than a darker
  *   `--line` for every divider in the app — a design decision, not a bug fix.
- * - The xterm palettes in `terminal-themes.ts`. They are reproductions of
- *   named palettes (Dracula, Solarized, …); "correct" there means faithful to
- *   the original, and several originals fail. Changing them would make the
- *   themes wrong in a different way.
+ * - The named xterm palettes in `terminal-themes.ts`. They are reproductions
+ *   (Dracula, Solarized, …); "correct" there means faithful to the original,
+ *   and several originals fail. Changing them would make the themes wrong in
+ *   a different way. The two tmuxde palettes are ours and are checked at the
+ *   end.
  */
 
 const CSS = readFileSync(
@@ -302,5 +309,177 @@ describe("the brand hazard specifically", () => {
     expect(
       contrast(light["--surface-inverse"]!, light["--brand-fill"]!),
     ).toBeGreaterThanOrEqual(AA_NORMAL);
+  });
+});
+
+/** sRGB channel bytes, the way the browser paints an oklch token. */
+function toBytes(c: Oklch): number[] {
+  return linearSrgb(c).map((v) => {
+    const x = Math.min(1, Math.max(0, v));
+    const encoded = x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055;
+    return Math.round(encoded * 255);
+  });
+}
+
+function hexBytes(hex: string): number[] {
+  return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+}
+
+function hexLuminance(hex: string): number {
+  const [r, g, b] = hexBytes(hex).map((byte) => {
+    const v = byte / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+}
+
+function hexContrast(fg: string, bg: string): number {
+  const a = hexLuminance(fg);
+  const b = hexLuminance(bg);
+  return a > b ? (a + 0.05) / (b + 0.05) : (b + 0.05) / (a + 0.05);
+}
+
+type Ansi = Exclude<keyof TerminalTheme, "name" | "selectionForeground">;
+
+/** Theme keys that are the same app token in both schemes. */
+const SHARED_TOKENS: [Ansi, string][] = [
+  ["background", "--surface-base"],
+  ["foreground", "--text"],
+  ["cursor", "--brand"],
+  ["cursorAccent", "--brand-contrast"],
+  ["selectionBackground", "--brand"],
+  ["red", "--signal-failed"],
+  ["green", "--signal-done"],
+  ["yellow", "--signal-blocked"],
+  ["magenta", "--signal-agent"],
+  ["cyan", "--signal-stalled"],
+  ["brightBlack", "--text-subtle"],
+];
+
+const PALETTES = [
+  {
+    name: "dark",
+    key: "tmuxdeDark",
+    selector: ".dark {",
+    tokens: [
+      ["black", "--line"],
+      ["white", "--text"],
+      ["brightGreen", "--brand-hover"],
+      ["brightWhite", "--text-strong"],
+    ] as [Ansi, string][],
+    // Nearest the background. A surface, not text.
+    surfaces: ["black"] as Ansi[],
+    // tmux writes black text on green for its status line and on yellow for
+    // copy mode.
+    ink: "black" as Ansi,
+  },
+  {
+    name: "light",
+    key: "tmuxdeLight",
+    selector: ":root {",
+    tokens: [
+      ["black", "--text"],
+      ["white", "--line-subtle"],
+      ["brightWhite", "--surface-raised"],
+    ] as [Ansi, string][],
+    surfaces: ["white", "brightWhite"] as Ansi[],
+    // Badges written for dark terminals put white text on colour.
+    ink: "white" as Ansi,
+  },
+];
+
+const ANSI: Ansi[] = [
+  "foreground",
+  "black",
+  "red",
+  "green",
+  "yellow",
+  "blue",
+  "magenta",
+  "cyan",
+  "white",
+  "brightBlack",
+  "brightRed",
+  "brightGreen",
+  "brightYellow",
+  "brightBlue",
+  "brightMagenta",
+  "brightCyan",
+  "brightWhite",
+];
+
+describe.each(PALETTES)("the tmuxde $name terminal palette", (palette) => {
+  const theme = terminalThemes[palette.key]!;
+  const tokens = scheme(palette.selector);
+
+  it.each([...SHARED_TOKENS, ...palette.tokens])(
+    "paints %s as %s",
+    (key, token) => {
+      const want = toBytes(tokens[token]!);
+      const got = hexBytes(theme[key]);
+      // One step of rounding either way, so float error is not a failure.
+      got.forEach((byte, i) =>
+        expect(
+          Math.abs(byte - want[i]!),
+          `${key} ${theme[key]} vs ${token}`,
+        ).toBeLessThanOrEqual(1),
+      );
+    },
+  );
+
+  const text = ANSI.filter((key) => !palette.surfaces.includes(key));
+
+  // At 4.5:1 xterm's `minimumContrastRatio` never has to shift a colour, so
+  // what is drawn is what was chosen.
+  it.each(text)("is readable as %s text on the background", (key) => {
+    const ratio = hexContrast(theme[key], theme.background);
+    expect(ratio, `${key} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+      AA_NORMAL,
+    );
+  });
+
+  it.each(text.filter((key) => key !== "brightBlack"))(
+    `puts readable ${palette.ink} text on %s`,
+    (key) => {
+      const ratio = hexContrast(theme[palette.ink], theme[key]);
+      expect(
+        ratio,
+        `${palette.ink} on ${key} is ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(AA_NORMAL);
+    },
+  );
+
+  it("keeps selected text and the cursor readable", () => {
+    expect(theme.selectionForeground).toBe(theme.cursorAccent);
+    expect(
+      hexContrast(theme.selectionForeground!, theme.selectionBackground),
+    ).toBeGreaterThanOrEqual(AA_NORMAL);
+    expect(hexContrast(theme.cursorAccent, theme.cursor)).toBeGreaterThanOrEqual(
+      AA_NORMAL,
+    );
+  });
+});
+
+describe("the default terminal theme", () => {
+  it("matches the app scheme", () => {
+    expect(getTerminalTheme(DEFAULT_TERMINAL_THEME, "dark")).toBe(
+      terminalThemes.tmuxdeDark,
+    );
+    expect(getTerminalTheme(DEFAULT_TERMINAL_THEME, "light")).toBe(
+      terminalThemes.tmuxdeLight,
+    );
+  });
+
+  it("keeps a picked theme in either scheme", () => {
+    expect(getTerminalTheme("nord", "light")).toBe(terminalThemes.nord);
+    expect(getTerminalTheme("tmuxdeDark", "light")).toBe(
+      terminalThemes.tmuxdeDark,
+    );
+  });
+
+  it("falls back to the matching palette for an unknown name", () => {
+    expect(getTerminalTheme("removed-theme", "light")).toBe(
+      terminalThemes.tmuxdeLight,
+    );
   });
 });

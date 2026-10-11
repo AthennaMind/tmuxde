@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { DEFAULT_TERMINAL_THEME } from "@repo/ui/terminal-themes";
 import { DEFAULT_TERMINAL_FONT } from "@/lib/terminal-font.js";
 
 export function getDefaultFontSize(): number {
@@ -40,7 +41,9 @@ export type CodeWeight = (typeof CODE_WEIGHTS)[number];
 interface TerminalStore {
   fontSize: number;
   fontFamily: string;
-  /** Text weight in terminal, file and diff views and the editor. */
+  /** Text weight in the terminal. Bold output uses 700. */
+  terminalWeight: CodeWeight;
+  /** Text weight in file and diff views and the editor. */
   codeWeight: CodeWeight;
   /**
    * Scale of file, diff and editor text. Separate from `fontSize`: the
@@ -60,6 +63,7 @@ interface TerminalStore {
   gpuRendering: boolean;
   setFontSize: (size: number) => void;
   setFontFamily: (family: string) => void;
+  setTerminalWeight: (weight: CodeWeight) => void;
   setCodeWeight: (weight: CodeWeight) => void;
   setCodeZoom: (zoom: number) => void;
   setThemeName: (name: string) => void;
@@ -69,6 +73,31 @@ interface TerminalStore {
   setGpuRendering: (on: boolean) => void;
 }
 
+/**
+ * Version 1 turned GPU rendering off by default. Stored state from before
+ * saved the old default `true`, which was never a choice.
+ *
+ * Version 2 made the tmuxde theme the default. Dracula was the old default and
+ * was saved for everyone, so it moves too.
+ *
+ * Version 3 gave the terminal its own weight. It starts at the shared weight
+ * people already chose, so nothing changes until they change it.
+ */
+export function migrateTerminalStore(
+  persisted: unknown,
+  version: number,
+): Partial<TerminalStore> {
+  const state = { ...(persisted as Partial<TerminalStore>) };
+  if (version < 1) state.gpuRendering = false;
+  if (version < 2 && state.themeName === "dracula") {
+    state.themeName = DEFAULT_TERMINAL_THEME;
+  }
+  if (version < 3 && state.codeWeight !== undefined) {
+    state.terminalWeight = state.codeWeight;
+  }
+  return state;
+}
+
 export const useTerminalStore = create<TerminalStore>()(
   persist(
     (set) => ({
@@ -76,15 +105,17 @@ export const useTerminalStore = create<TerminalStore>()(
       fontFamily: DEFAULT_TERMINAL_FONT,
       // Heavy, with room left for bold. At 700, bold output would look like
       // everything else.
+      terminalWeight: 600,
       codeWeight: 600,
       codeZoom: 1,
-      themeName: "dracula",
+      themeName: DEFAULT_TERMINAL_THEME,
       cursorStyle: "block",
       cursorBlink: true,
       scrollback: 5000,
       gpuRendering: false,
       setFontSize: (fontSize) => set({ fontSize: clampFontSize(fontSize) }),
       setFontFamily: (fontFamily) => set({ fontFamily }),
+      setTerminalWeight: (terminalWeight) => set({ terminalWeight }),
       setCodeWeight: (codeWeight) => set({ codeWeight }),
       setCodeZoom: (codeZoom) => set({ codeZoom: clampCodeZoom(codeZoom) }),
       setThemeName: (themeName) => set({ themeName }),
@@ -95,13 +126,9 @@ export const useTerminalStore = create<TerminalStore>()(
     }),
     {
       name: "ccremote-terminal",
-      // Version 1 turned GPU rendering off by default. Stored state from
-      // before saved the old default `true`, which was never a choice.
-      version: 1,
-      migrate: (persisted, version) => {
-        const state = persisted as Partial<TerminalStore>;
-        return version < 1 ? { ...state, gpuRendering: false } : state;
-      },
+      version: 3,
+      migrate: (persisted, version) =>
+        migrateTerminalStore(persisted, version) as TerminalStore,
     },
   ),
 );

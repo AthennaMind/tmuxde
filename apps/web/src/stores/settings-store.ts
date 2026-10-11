@@ -273,6 +273,8 @@ interface SettingsStore {
   gestures: GestureSettings;
   hapticEnabled: boolean;
   autoZoom: boolean;
+  /** Soft wrap long lines in file and diff previews. */
+  wrapLines: boolean;
   setToolbarKeys: (keys: ToolbarKey[]) => void;
   toggleToolbarKey: (id: string) => void;
   resetToolbarKeys: () => void;
@@ -282,6 +284,7 @@ interface SettingsStore {
   ) => void;
   setHapticEnabled: (enabled: boolean) => void;
   setAutoZoom: (enabled: boolean) => void;
+  setWrapLines: (enabled: boolean) => void;
 }
 
 /**
@@ -350,6 +353,7 @@ export const useSettingsStore = create<SettingsStore>()(
       },
       hapticEnabled: true,
       autoZoom: true,
+      wrapLines: false,
       setToolbarKeys: (toolbarKeys) => set({ toolbarKeys }),
       toggleToolbarKey: (id) =>
         set((s) => ({
@@ -362,6 +366,7 @@ export const useSettingsStore = create<SettingsStore>()(
         set((s) => ({ gestures: { ...s.gestures, [key]: value } })),
       setHapticEnabled: (hapticEnabled) => set({ hapticEnabled }),
       setAutoZoom: (autoZoom) => set({ autoZoom }),
+      setWrapLines: (wrapLines) => set({ wrapLines }),
     }),
     {
       name: "ccremote-settings",

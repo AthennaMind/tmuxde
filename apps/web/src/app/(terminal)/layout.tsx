@@ -13,7 +13,11 @@ import { useSessionStore } from "@/stores/session-store";
 import { useStableMediaQuery } from "@repo/ui/hooks/use-media-query";
 import { MOBILE_MEDIA_QUERY, isMobileViewport } from "@/lib/mobile-query";
 import { fontZoomStep } from "@/lib/font-zoom-key.js";
-import { applyFontZoom } from "@/lib/font-zoom";
+import {
+  applyFontZoom,
+  fontZoomSurface,
+  trackZoomPointer,
+} from "@/lib/font-zoom";
 import { MobileNav } from "@/components/mobile/mobile-nav";
 import { CommandComposer } from "@/components/mobile/command-composer";
 import { KeyboardToolbar } from "@/components/mobile/keyboard-toolbar";
@@ -198,10 +202,9 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
 
   // Keyboard shortcuts.
   //
-  // Ctrl/Cmd with -, = and 0 size the terminal, or the file or diff in front.
-  // They work everywhere, terminal included: xterm skips them (see
-  // xterm-factory.ts), so they reach here instead of the shell. Browser page
-  // zoom stays in the browser menu.
+  // Ctrl/Cmd with -, = and 0 size whatever has focus: the terminal, or a file
+  // or diff. xterm skips them (see xterm-factory.ts), so they reach here
+  // instead of the shell. Anywhere else they stay browser page zoom.
   //
   // Ctrl+B and Ctrl+E only outside the terminal. xterm has already sent those
   // to tmux by the time they bubble here, and Ctrl+B is tmux's default prefix.
@@ -210,8 +213,10 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
     const handleKeyDown = (e: KeyboardEvent) => {
       const zoom = fontZoomStep(e);
       if (zoom !== null) {
+        const surface = fontZoomSurface(e.target);
+        if (!surface) return;
         e.preventDefault();
-        applyFontZoom(zoom);
+        applyFontZoom(surface, zoom);
         return;
       }
       if (!(e.ctrlKey || e.metaKey)) return;
@@ -231,7 +236,11 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    const stopTracking = trackZoomPointer();
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      stopTracking();
+    };
   }, []);
 
   // Copy the terminal's current selection. The toolbar lives in the shell
@@ -256,7 +265,7 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // File and diff views read the Code weight setting from CSS. A store
+  // File and diff views read their weight and size settings from CSS. A store
   // subscription rather than a selector, so a change does not re-render the
   // terminal tree.
   useEffect(() => {

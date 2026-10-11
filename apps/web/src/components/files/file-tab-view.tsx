@@ -7,6 +7,7 @@ import { useRelayClient } from "@/hooks/use-websocket";
 import { shortenPath } from "@/lib/tmux-labels";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useMainTabsStore, type FileTab } from "@/stores/main-tabs-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { RepositoryFileIcon } from "./repository-file-icon";
 import { FilePreview, Notice, useRepositoryQuery } from "./repository-preview";
 import type { RepositoryClient } from "./repository-request";
@@ -29,7 +30,8 @@ export function FileTabView({
   const status = useConnectionStore((s) => s.status);
   const closeTab = useMainTabsStore((s) => s.closeTab);
   const [refresh, setRefresh] = useState(0);
-  const [wrap, setWrap] = useState(false);
+  const wrap = useSettingsStore((s) => s.wrapLines);
+  const setWrap = useSettingsStore((s) => s.setWrapLines);
   const fullPath =
     tab.scope && tab.root
       ? `${tab.root.replace(/\/$/, "")}/${tab.path}`
@@ -39,6 +41,8 @@ export function FileTabView({
   return (
     <section
       aria-label={name}
+      // Ctrl with -, = and 0 size the code here. See font-zoom.ts.
+      data-zoom-surface="code"
       // Desk distance code sizes for `text-code`. See app/globals.css.
       className={cn(
         "flex min-h-0 min-w-0 flex-col bg-background [--code-leading:1.6] [--code-meta-size:0.75rem] [--code-size:0.8125rem]",
@@ -62,7 +66,7 @@ export function FileTabView({
         <HeaderButton
           label="Wrap lines"
           pressed={wrap}
-          onClick={() => setWrap((value) => !value)}
+          onClick={() => setWrap(!wrap)}
         >
           <WrapText className={cn("h-4 w-4", wrap && "text-primary")} />
         </HeaderButton>
