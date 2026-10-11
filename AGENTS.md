@@ -55,7 +55,9 @@ python3 .docker/dev/dependencies.py mutate --filter @app/web add <pkg>
 python3 .docker/tests/runtime.py                  # relay HOME check
 ```
 
-Dev URL is `https://localhost` on `127.0.0.1`. Override with `LOCAL_DOMAIN` and `LOCAL_BIND_IP` in root `.env`. Production uses `.docker/compose/prod.yaml`.
+Dev URL is `https://$LOCAL_DOMAIN`, bound on `LOCAL_BIND_IP`. Both live in root `.env`, default to `localhost` and `127.0.0.1`, and survive `scripts/setup.sh` reruns. Production uses `.docker/compose/prod.yaml`.
+
+Machine-specific notes (real domain, addresses, device trust) live in gitignored `AGENTS.local.md`. `CLAUDE.local.md` links to it. Read it when present. Never copy its values into tracked files.
 
 ## Runtime
 
