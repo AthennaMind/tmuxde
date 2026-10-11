@@ -26,13 +26,6 @@ import { TerminalGestureSurface } from "@/components/terminal/terminal-gesture-s
 import { SwitchHint } from "@/components/terminal/switch-hint";
 import { cn } from "@repo/ui/lib/utils";
 import { getFileViewMode } from "@/lib/file-utils";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@repo/ui/components/ui/sheet";
 import { useSessionStore } from "@/stores/session-store";
 import { useFileStore } from "@/stores/file-store";
 import { useUiStore } from "@/stores/ui-store";
@@ -85,7 +78,6 @@ export function TerminalWorkspace() {
   const isMobile = useStableMediaQuery(MOBILE_MEDIA_QUERY);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const editorFile = useFileStore((s) => s.editorFile);
   const editorForceText = useFileStore((s) => s.editorForceText);
   const mobileTab = useUiStore((s) => s.mobileTab);
@@ -95,12 +87,12 @@ export function TerminalWorkspace() {
   // and so can only reach the terminal through the store.
   const terminalSearchOpen = useUiStore((s) => s.terminalSearchOpen);
   const setTerminalSearchOpen = useUiStore((s) => s.setTerminalSearchOpen);
-  const fileTabs = useMainTabsStore((s) => s.tabs);
+  const mainTabs = useMainTabsStore((s) => s.tabs);
   const mainTab = useMainTabsStore((s) => s.active);
-  const activeFileTab =
+  const activeTab =
     mainTab === TERMINAL_TAB
       ? undefined
-      : fileTabs.find((tab) => tab.id === mainTab);
+      : mainTabs.find((tab) => tab.id === mainTab);
   const terminalRef = useRef<TerminalViewHandle>(null);
   /*
    * The terminal pane, for the wheel — see `useWheelScroll`.
@@ -142,13 +134,13 @@ export function TerminalWorkspace() {
     };
   }, [isMobile, mobileTab]);
 
-  // Same repaint on desktop, on the way back from a file tab. The terminal
-  // stays laid out while hidden, for the reason given above.
+  // Same repaint on desktop, on the way back from a file or settings tab. The
+  // terminal stays laid out while hidden, for the reason given above.
   useEffect(() => {
-    if (isMobile || activeFileTab) return;
+    if (isMobile || activeTab) return;
     const frame = requestAnimationFrame(() => terminalRef.current?.redraw());
     return () => cancelAnimationFrame(frame);
-  }, [isMobile, activeFileTab]);
+  }, [isMobile, activeTab]);
 
   const handleSearch = useCallback((term: string) => {
     terminalRef.current?.search(term);
@@ -161,15 +153,6 @@ export function TerminalWorkspace() {
   const handleSearchPrevious = useCallback(() => {
     terminalRef.current?.findPrevious();
   }, []);
-
-  // Desktop opens a sheet. The `/settings` route went with the hosted app.
-  const handleOpenSettings = useCallback(() => {
-    if (isMobile) {
-      setMobileTab("settings");
-    } else {
-      setSettingsOpen(true);
-    }
-  }, [isMobile, setMobileTab]);
 
   if (isMobile) {
     return (
@@ -265,15 +248,12 @@ export function TerminalWorkspace() {
     );
   }
 
-  // Desktop layout: rail and sidebar, then the main area. File tabs share the
-  // main area with the terminal. The terminal stays mounted under them.
-  const fileActive = !!activeFileTab;
+  // Desktop layout: rail and sidebar, then the main area. File and settings
+  // tabs share the main area with the terminal, which stays mounted under them.
+  const tabActive = !!activeTab;
   return (
     <div className="absolute inset-0 flex">
-      <WorkspaceSidebar
-        onCreateSession={() => setShowCreateDialog(true)}
-        onOpenSettings={handleOpenSettings}
-      />
+      <WorkspaceSidebar onCreateSession={() => setShowCreateDialog(true)} />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <MainTabs />
@@ -281,9 +261,9 @@ export function TerminalWorkspace() {
           <div
             className={cn(
               "absolute inset-0 flex flex-col",
-              fileActive && "invisible pointer-events-none",
+              tabActive && "invisible pointer-events-none",
             )}
-            inert={fileActive}
+            inert={tabActive}
           >
             <div ref={paneRef} className="relative flex-1 overflow-hidden">
               <TerminalView
@@ -307,12 +287,15 @@ export function TerminalWorkspace() {
               <TerminalScrollRail sessionName={activeSessionId} />
             </div>
           </div>
-          {activeFileTab && (
+          {activeTab?.kind === "file" && (
             <FileTabView
-              key={activeFileTab.id}
-              tab={activeFileTab}
+              key={activeTab.id}
+              tab={activeTab}
               className="absolute inset-0"
             />
+          )}
+          {activeTab?.kind === "settings" && (
+            <SettingsPanel touch={false} className="absolute inset-0" />
           )}
           <FloatingAlerts />
         </div>
@@ -325,21 +308,6 @@ export function TerminalWorkspace() {
         ) : (
           <FileViewer />
         ))}
-
-      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <SheetContent
-          side="right"
-          className="flex w-96 flex-col gap-0 p-0 sm:max-w-md"
-        >
-          <SheetHeader className="border-b px-4 py-3">
-            <SheetTitle className="text-sm">Settings</SheetTitle>
-            <SheetDescription className="sr-only">
-              Appearance, terminal and device lock
-            </SheetDescription>
-          </SheetHeader>
-          <SettingsPanel touch={false} className="min-h-0 flex-1" />
-        </SheetContent>
-      </Sheet>
 
       <SessionCreateDialog
         open={showCreateDialog}

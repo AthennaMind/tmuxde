@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { useCommandStore } from "@/stores/command-store";
 import { useUiStore } from "@/stores/ui-store";
+import { useMainTabsStore } from "@/stores/main-tabs-store";
+import { isMobileViewport } from "@/lib/mobile-query";
 import { getRelayClient } from "@/hooks/use-websocket";
 import { sendCommand } from "@/lib/send-command";
 
@@ -86,6 +88,11 @@ export function CommandPalette() {
       } else if (value === "open:search") {
         setPaletteOpen(false);
         useUiStore.getState().setTerminalSearchOpen(true);
+      } else if (value === "open:settings") {
+        // A tab on desktop, the Settings tab on a phone. No route of its own.
+        setPaletteOpen(false);
+        if (isMobileViewport()) useUiStore.getState().setMobileTab("settings");
+        else useMainTabsStore.getState().openSettings();
       } else if (value.startsWith("goto:")) {
         // A real navigation, not `router.push`: these leave the terminal group
         // entirely, and the palette's own open state is the only thing worth
@@ -153,7 +160,7 @@ export function CommandPalette() {
             <Server className="h-4 w-4" />
             Switch machine
           </CommandItem>
-          <CommandItem value="goto:/settings" onSelect={handleSelect}>
+          <CommandItem value="open:settings" onSelect={handleSelect}>
             <SlidersHorizontal className="h-4 w-4" />
             Settings
           </CommandItem>

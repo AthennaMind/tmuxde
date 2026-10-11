@@ -9,6 +9,7 @@ export type ChangeScope = "staged" | "unstaged" | "untracked";
  * pane's directory, and the active pane moves while the tab stays open.
  */
 export interface FileTab {
+  kind: "file";
   id: string;
   paneId: string;
   /** Absolute path for a file. Repository relative path for a diff. */
@@ -22,7 +23,16 @@ export interface FileTab {
   size?: number;
 }
 
+/** The settings page. At most one, opened from the rail or the palette. */
+export interface SettingsTab {
+  kind: "settings";
+  id: typeof SETTINGS_TAB;
+}
+
+export type MainTab = FileTab | SettingsTab;
+
 export const TERMINAL_TAB = "terminal";
+export const SETTINGS_TAB = "settings";
 const MAX_TABS = 12;
 
 export function fileTabId(tab: Pick<FileTab, "path" | "scope">): string {
@@ -30,13 +40,23 @@ export function fileTabId(tab: Pick<FileTab, "path" | "scope">): string {
 }
 
 interface MainTabsStore {
-  tabs: FileTab[];
-  /** `TERMINAL_TAB` or a file tab id. */
+  tabs: MainTab[];
+  /** `TERMINAL_TAB` or a tab id. */
   active: string;
-  openFile: (tab: Omit<FileTab, "id">) => void;
+  openFile: (tab: Omit<FileTab, "id" | "kind">) => void;
+  openSettings: () => void;
   closeTab: (id: string) => void;
   activate: (id: string) => void;
   showTerminal: () => void;
+}
+
+/** Replace a tab in place, or append it. Oldest goes once the strip is full. */
+function upsert(tabs: MainTab[], tab: MainTab): MainTab[] {
+  const existing = tabs.findIndex((t) => t.id === tab.id);
+  if (existing < 0) return [...tabs, tab].slice(-MAX_TABS);
+  const next = [...tabs];
+  next[existing] = tab;
+  return next;
 }
 
 export const useMainTabsStore = create<MainTabsStore>((set) => ({
@@ -44,19 +64,15 @@ export const useMainTabsStore = create<MainTabsStore>((set) => ({
   active: TERMINAL_TAB,
   openFile: (input) =>
     set((s) => {
+      // Same file again: refresh what it points at, keep its place.
       const id = fileTabId(input);
-      const tab: FileTab = { ...input, id };
-      const existing = s.tabs.findIndex((t) => t.id === id);
-      if (existing >= 0) {
-        // Same file again: refresh what it points at, keep its place.
-        const tabs = [...s.tabs];
-        tabs[existing] = tab;
-        return { tabs, active: id };
-      }
-      // Oldest tab goes first once the strip is full.
-      const tabs = [...s.tabs, tab].slice(-MAX_TABS);
-      return { tabs, active: id };
+      return { tabs: upsert(s.tabs, { ...input, kind: "file", id }), active: id };
     }),
+  openSettings: () =>
+    set((s) => ({
+      tabs: upsert(s.tabs, { kind: "settings", id: SETTINGS_TAB }),
+      active: SETTINGS_TAB,
+    })),
   closeTab: (id) =>
     set((s) => {
       const index = s.tabs.findIndex((t) => t.id === id);

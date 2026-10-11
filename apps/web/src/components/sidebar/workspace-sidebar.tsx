@@ -15,6 +15,7 @@ import { usePhotoHistory } from "@/hooks/use-photo-history";
 import { readStored, writeStored } from "@/lib/storage-keys";
 import { MachineSwitcher } from "@/components/machines/machine-switcher";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
+import { SETTINGS_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
 import {
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH,
@@ -86,10 +87,8 @@ function useSidebarPrefs() {
  */
 export function WorkspaceSidebar({
   onCreateSession,
-  onOpenSettings,
 }: {
   onCreateSession: () => void;
-  onOpenSettings: () => void;
 }) {
   useSidebarPrefs();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
@@ -100,6 +99,7 @@ export function WorkspaceSidebar({
   const capabilities = useConnectionStore((s) => s.capabilities);
   const noFiles = filesDisabled(capabilities);
   const { paths } = usePhotoHistory();
+  const settingsActive = useMainTabsStore((s) => s.active === SETTINGS_TAB);
 
   const repoVisible = !collapsed && (view === "files" || view === "changes");
   const repo = useRepositoryState(repoVisible);
@@ -162,11 +162,17 @@ export function WorkspaceSidebar({
         <div className="mt-auto flex flex-col items-center gap-1">
           <RailConnection />
           <MachineSwitcher compact />
+          {/* Opens settings as a main-area tab. A second click goes back to
+              the terminal and leaves the tab open. */}
           <RailButton
             label="Settings"
             icon={Settings}
-            active={false}
-            onClick={onOpenSettings}
+            active={settingsActive}
+            onClick={() => {
+              const tabs = useMainTabsStore.getState();
+              if (settingsActive) tabs.showTerminal();
+              else tabs.openSettings();
+            }}
           />
         </div>
       </nav>

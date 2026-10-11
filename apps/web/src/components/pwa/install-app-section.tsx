@@ -3,7 +3,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Check, Download, Share } from "lucide-react";
 import { Button } from "@repo/ui/components/ui/button";
-import { Separator } from "@repo/ui/components/ui/separator";
 import {
   getInstallSnapshot,
   getServerInstallSnapshot,
@@ -14,6 +13,7 @@ import {
   type InstallAvailability,
 } from "@/lib/install-prompt";
 import { useAlertStore } from "@/stores/alert-store";
+import { SettingsRow, SettingsSection } from "@/components/settings/settings-rows";
 
 /**
  * Observations that only exist in a browser, resolved after mount.
@@ -87,26 +87,28 @@ export function InstallAppSection() {
   if (availability === null || availability === "unavailable") return null;
 
   return (
-    <>
-      <Separator />
-      <section>
-        <h3 className="mb-1 text-sm font-semibold">Install</h3>
-        {availability === "installed" && (
-          <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            Running as an installed app.
-          </p>
-        )}
+    <SettingsSection title="Install">
+      {availability === "installed" && (
+        <SettingsRow
+          label="Installed"
+          hint="mtmux is running as an installed app."
+          textLabel
+        >
+          {() => <Check className="h-4 w-4 text-primary" aria-hidden />}
+        </SettingsRow>
+      )}
 
-        {availability === "prompt" && (
-          <>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Add mtmux to your home screen for a full-height terminal with no
-              browser chrome.
-            </p>
+      {availability === "prompt" && (
+        <SettingsRow
+          label="Install as an app"
+          hint="Full height, in its own window, with no browser chrome."
+          textLabel
+        >
+          {() => (
             <Button
               variant="outline"
-              className="h-11 w-full"
+              size="sm"
+              className="pointer-coarse:h-11"
               onClick={async () => {
                 const outcome = await promptInstall();
                 if (outcome === "unavailable") {
@@ -119,34 +121,37 @@ export function InstallAppSection() {
                 }
               }}
             >
-              <Download className="mr-2 h-4 w-4" aria-hidden />
+              <Download aria-hidden />
               Install mtmux
             </Button>
-          </>
-        )}
+          )}
+        </SettingsRow>
+      )}
 
-        {availability === "manual" && (
-          <p className="flex items-start gap-2 text-xs text-muted-foreground">
-            <Share className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span>
-              Tap <strong className="font-medium text-foreground">Share</strong>
-              , then{" "}
+      {availability === "manual" && (
+        <SettingsRow
+          label="Add to Home Screen"
+          hint={
+            <>
+              Tap{" "}
+              <Share className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden />{" "}
+              <strong className="font-medium text-foreground">Share</strong>,
+              then{" "}
               <strong className="font-medium text-foreground">
                 Add to Home Screen
-              </strong>{" "}
-              — you get a full-height terminal with no browser chrome.
-            </span>
-          </p>
-        )}
+              </strong>
+              . You get a full height terminal with no browser chrome.
+            </>
+          }
+        />
+      )}
 
-        {availability === "insecure" && (
-          <p className="text-xs text-muted-foreground">
-            Installing needs a secure origin. Open the invite link from{" "}
-            <code className="font-mono text-[11px]">mtmux start</code> instead
-            of the plain LAN address, and this page can be installed.
-          </p>
-        )}
-      </section>
-    </>
+      {availability === "insecure" && (
+        <SettingsRow
+          label="Install as an app"
+          hint="Installing needs HTTPS. Open mtmux at its https:// address to install it."
+        />
+      )}
+    </SettingsSection>
   );
 }
