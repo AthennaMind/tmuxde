@@ -16,7 +16,7 @@ async function main() {
     await execFileAsync("tmux", ["-V"]);
   } catch {
     logger.error(
-      "tmux is not installed or not found in PATH. Please install tmux 3.0+ to use mtmux.",
+      "tmux is not installed or not found in PATH. Please install tmux 3.0+ to use tmuxde.",
     );
     process.exit(1);
   }
@@ -28,7 +28,7 @@ async function main() {
   await startHttpServer(httpServer);
 
   logger.info(
-    `mtmux relay v${SERVER_VERSION} ready on ${config.host}:${config.port}`,
+    `tmuxde relay v${SERVER_VERSION} ready on ${config.host}:${config.port}`,
   );
 
   const shutdown = () => {

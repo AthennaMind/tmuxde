@@ -15,9 +15,9 @@ let siblingDir: string; // base/userdata — shares a string prefix with the roo
 let subDir: string; // base/user/sub — a legitimate subpath
 let outsideDir: string; // base/outside — symlink escape target
 let escapeLink: string; // base/user/escape -> base/outside
-let deniedDir: string; // base/user/.mtmux — holds AUTH_TOKEN, never readable
+let deniedDir: string; // base/user/.tmuxde — holds AUTH_TOKEN, never readable
 let sshDir: string; // base/user/.ssh
-let denySiblingDir: string; // base/user/.mtmuxfoo — prefix-only, still allowed
+let denySiblingDir: string; // base/user/.tmuxdefoo — prefix-only, still allowed
 let denyLink: string; // base/user/shortcut -> base/user/.ssh
 let realHome: string | undefined;
 let realConfigDir: string | undefined;
@@ -44,14 +44,14 @@ beforeAll(async () => {
   // production rather than hand-feeding it paths.
   realHome = process.env.HOME;
   process.env.HOME = allowedDir;
-  realConfigDir = process.env.MTMUX_CONFIG_DIR;
+  realConfigDir = process.env.TMUXDE_CONFIG_DIR;
   serviceConfigDir = path.join(allowedDir, "service-state");
   fs.mkdirSync(serviceConfigDir);
-  process.env.MTMUX_CONFIG_DIR = serviceConfigDir;
+  process.env.TMUXDE_CONFIG_DIR = serviceConfigDir;
 
-  deniedDir = path.join(allowedDir, ".mtmux");
+  deniedDir = path.join(allowedDir, ".tmuxde");
   sshDir = path.join(allowedDir, ".ssh");
-  denySiblingDir = path.join(allowedDir, ".mtmuxfoo");
+  denySiblingDir = path.join(allowedDir, ".tmuxdefoo");
   fs.mkdirSync(deniedDir);
   fs.mkdirSync(sshDir);
   fs.mkdirSync(denySiblingDir);
@@ -69,8 +69,8 @@ beforeAll(async () => {
 afterAll(() => {
   if (realHome === undefined) delete process.env.HOME;
   else process.env.HOME = realHome;
-  if (realConfigDir === undefined) delete process.env.MTMUX_CONFIG_DIR;
-  else process.env.MTMUX_CONFIG_DIR = realConfigDir;
+  if (realConfigDir === undefined) delete process.env.TMUXDE_CONFIG_DIR;
+  else process.env.TMUXDE_CONFIG_DIR = realConfigDir;
   fs.rmSync(base, { recursive: true, force: true });
 });
 

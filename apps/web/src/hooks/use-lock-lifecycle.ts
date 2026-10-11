@@ -98,7 +98,7 @@ export function useLockLifecycle(): void {
 
     const onVisibility = () => {
       const hidden = document.visibilityState === "hidden";
-      document.documentElement.classList.toggle("mtmux-hidden", hidden);
+      document.documentElement.classList.toggle("tmuxde-hidden", hidden);
 
       if (!lockOnBackground) return;
       if (!hidden) {
@@ -116,7 +116,7 @@ export function useLockLifecycle(): void {
     return () => {
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisibility);
-      document.documentElement.classList.remove("mtmux-hidden");
+      document.documentElement.classList.remove("tmuxde-hidden");
     };
   }, [settings]);
 

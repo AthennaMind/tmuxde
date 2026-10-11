@@ -59,7 +59,7 @@ def main():
         token_path.write_text(token + "\n")
     token_path.chmod(0o600)
 
-    upload_dir = (Path.home() / ".local" / "share" / "mtmux" / "uploads").resolve()
+    upload_dir = (Path.home() / ".local" / "share" / "tmuxde" / "uploads").resolve()
     upload_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     upload_dir.chmod(0o700)
 

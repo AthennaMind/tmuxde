@@ -56,7 +56,7 @@ function realpathResolve(targetPath: string): string {
  * Directories no grant may ever read, list, write or traverse.
  *
  * `config.allowedPaths` is `$HOME` for every `mtmux start`, and
- * `~/.mtmux/config.json` holds `AUTH_TOKEN` — which `auth.ts` trades for
+ * `~/.tmuxde/config.json` holds `AUTH_TOKEN` — which `auth.ts` trades for
  * `FULL_GRANT`. Without this, one `file:read` on a deliberately read-only
  * share returns a full shell. The neighbouring dotfile directories are the
  * same escalation by a different route (an SSH key, a cloud credential, a
@@ -70,10 +70,10 @@ function realpathResolve(targetPath: string): string {
  */
 function deniedRoots(): string[] {
   const home = os.homedir();
-  const configDir = process.env.MTMUX_CONFIG_DIR ?? path.join(home, ".mtmux");
+  const configDir = process.env.TMUXDE_CONFIG_DIR ?? path.join(home, ".tmuxde");
   return [
     configDir,
-    path.join(home, ".mtmux"),
+    path.join(home, ".tmuxde"),
     path.join(home, ".tmuxremote"),
     path.join(home, ".ssh"),
     path.join(home, ".aws"),
@@ -99,7 +99,7 @@ function isWithin(resolved: string, root: string): boolean {
  *
  * Compared after `realpathResolve`, so a symlink planted inside an allowed
  * directory that points at `~/.ssh` is caught, and a sibling like
- * `~/.mtmuxfoo` — which merely shares a string prefix — is not.
+ * `~/.tmuxdefoo` — which merely shares a string prefix — is not.
  */
 export function isPathDenied(targetPath: string): boolean {
   const resolved = realpathResolve(targetPath);

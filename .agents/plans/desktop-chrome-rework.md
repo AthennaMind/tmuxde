@@ -10,7 +10,7 @@ Desktop stacks three bars above terminal: global header, terminal toolbar, windo
 
 - Session name `dev` appears four times: header tab, toolbar title, sidebar card, tmux status line.
 - New session `+` appears in header and sidebar.
-- `mtmux` wordmark repeats browser tab title.
+- `tmuxde` wordmark repeats browser tab title.
 - `Machine` switcher has no name in local token mode. No machines are paired, so it opens an empty sheet.
 - Connection label shows Docker container id as hostname.
 - Theme toggle duplicates Settings.

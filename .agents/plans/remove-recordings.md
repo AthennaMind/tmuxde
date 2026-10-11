@@ -25,4 +25,4 @@ Delete session recording and playback end to end. No `.cast` capture, storage, l
 ## Notes
 
 - Grants are not read from disk in this fork. Only `FULL_GRANT` and pairing tokens exist, so dropping the `recordings` scope arm breaks no stored data.
-- Dev relay keeps state in `/tmp/mtmux-state`. No recordings persist in this deployment.
+- Dev relay keeps state in `/tmp/tmuxde-state`. No recordings persist in this deployment.

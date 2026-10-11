@@ -91,7 +91,7 @@ export function RepositoryBrowser({
               : status !== "connected"
                 ? "Connect to browse files and current changes."
                 : !supported
-                  ? "Update mtmux on this machine to browse files and changes."
+                  ? "Update tmuxde on this machine to browse files and changes."
                   : "Select a terminal pane to browse its working directory."}
           </Notice>
         </>

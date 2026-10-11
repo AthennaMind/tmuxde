@@ -182,7 +182,7 @@ export function KeyboardToolbar({
 
   return (
     <div
-      className={cn("mtmux-keyboard", className)}
+      className={cn("tmuxde-keyboard", className)}
       data-expanded={moreOpen}
       onPointerDown={(event) => {
         // Keep native keyboard open when tapping terminal keys.

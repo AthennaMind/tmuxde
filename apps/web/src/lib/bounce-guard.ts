@@ -27,7 +27,7 @@
  * navigation, and it must not outlive it.
  */
 
-const BOUNCE_KEY = "mtmux:bounced";
+const BOUNCE_KEY = "tmuxde:bounced";
 
 /** Called by the terminal as it gives up and sends the visitor to an entry page. */
 export function markBounced(): void {

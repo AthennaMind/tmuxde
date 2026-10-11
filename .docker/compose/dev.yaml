@@ -1,10 +1,10 @@
-name: mtmux-local-preview
+name: tmuxde
 networks:
   edge:
-    name: mtmux-local-preview_edge
+    name: tmuxde_edge
   offline:
     internal: true
-    name: mtmux-local-preview_offline
+    name: tmuxde_offline
 services:
   caddy:
     cap_add:
@@ -67,7 +67,7 @@ services:
         - fetch('http://127.0.0.1:24300/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
       timeout: 5s
     labels:
-      dev.mtmux.mode: development
+      dev.tmuxde.mode: development
     networks:
       offline: null
     restart: unless-stopped
@@ -84,7 +84,7 @@ services:
       ALLOWED_PATHS: ${LOCAL_UPLOAD_DIR:?Run
         scripts/setup.sh},${LOCAL_HOST_HOME:?Run scripts/setup.sh}
       HOME: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
-      MTMUX_CONFIG_DIR: /tmp/mtmux-state
+      TMUXDE_CONFIG_DIR: /tmp/tmuxde-state
     volumes:
       - bind:
           create_host_path: false
@@ -139,7 +139,7 @@ services:
         - fetch('http://127.0.0.1:24100/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
       timeout: 10s
     labels:
-      dev.mtmux.mode: development
+      dev.tmuxde.mode: development
     networks:
       offline: null
     restart: unless-stopped
@@ -181,12 +181,12 @@ services:
         condition: service_completed_successfully
 volumes:
   cache:
-    name: mtmux-dev-cache-v2
+    name: tmuxde-dev-cache-v2
   caddy-config:
-    name: mtmux-local-preview_caddy-config
+    name: tmuxde_caddy-config
   caddy-data:
-    name: mtmux-local-preview_caddy-data
+    name: tmuxde_caddy-data
   dependencies:
-    name: mtmux-dev-dependencies-v2
+    name: tmuxde-dev-dependencies-v2
   pnpm-store:
-    name: mtmux-dev-pnpm-store
+    name: tmuxde-dev-pnpm-store

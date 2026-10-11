@@ -20,7 +20,7 @@ import type { RateLimiter } from "./rate-limiter.js";
 
 vi.mock("./tmux-clone.js", () => ({
   destroyClone: () => Promise.resolve(),
-  isCloneSession: (name: string) => name.startsWith("__mtmux_"),
+  isCloneSession: (name: string) => name.startsWith("__tmuxde_"),
 }));
 
 function fakeWs(inbox: ServerMessage[]): WebSocket {

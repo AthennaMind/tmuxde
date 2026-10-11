@@ -1,6 +1,6 @@
 services:
   runtime:
-    image: "mtmux-dev:local"
+    image: "tmuxde-dev:local"
     build:
       context: "../.."
       dockerfile: ".docker/dev/Dockerfile"
@@ -193,7 +193,7 @@ services:
     extends:
       service: runtime
     environment:
-      HOME: "/tmp/mtmux-dev"
+      HOME: "/tmp/tmuxde-dev"
     volumes:
       - type: "volume"
         source: "cache"
@@ -240,7 +240,7 @@ services:
     extends:
       service: runtime
     environment:
-      HOME: "/tmp/mtmux-dev"
+      HOME: "/tmp/tmuxde-dev"
     volumes:
       - type: "volume"
         source: "cache"
@@ -267,7 +267,7 @@ services:
           nocopy: true
           subpath: "relay-dist"
   installer:
-    image: "mtmux-dev:local"
+    image: "tmuxde-dev:local"
     build:
       context: "../.."
       dockerfile: ".docker/dev/Dockerfile"
@@ -294,7 +294,7 @@ services:
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
-      HOME: "/tmp/mtmux-dev"
+      HOME: "/tmp/tmuxde-dev"
       LANG: "C.UTF-8"
       LC_ALL: "C.UTF-8"
       PNPM_HOME: "/tmp/pnpm"

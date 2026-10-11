@@ -27,7 +27,7 @@ export default function NotFound() {
         The link may be old, or the address may have a typo in it.
       </p>
       <Button asChild className="mt-6 h-11">
-        <Link href="/start">Go to mtmux</Link>
+        <Link href="/start">Go to tmuxde</Link>
       </Button>
     </div>
   );

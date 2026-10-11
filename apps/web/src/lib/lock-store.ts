@@ -66,7 +66,7 @@ import {
 const LOCK_KEY = "device";
 
 /**
- * Where the self-hosted `mtmux-token` goes once a lock exists.
+ * Where the self-hosted `tmuxde-token` goes once a lock exists.
  *
  * On that path the token in `localStorage` is a *working credential* — one line
  * in a devtools console, readable by any script on the origin, and it survives
@@ -518,8 +518,8 @@ export async function setSessionLock(
  * Erase this device: every key, every descriptor, the lock, the cache, the
  * service worker and its caches.
  *
- * There is **no recovery**, by construction, and mtmux is the rare product
- * where that is fine: re-pairing is running `mtmux` and typing one code. That
+ * There is **no recovery**, by construction, and tmuxde is the rare product
+ * where that is fine: signing in again takes only the relay token. That
  * sentence belongs in the enrollment dialog above the PIN entry, before the
  * first keystroke — not in a toast afterwards.
  */

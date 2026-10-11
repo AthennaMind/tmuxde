@@ -45,7 +45,7 @@ Recent photos in desktop header, previews and reuses last eight uploads without
 uploading again. Recent list lasts for current browser connection; saved files
 remain after refresh. Reuse checks file availability before inserting path.
 
-Setup creates `~/.local/share/mtmux/uploads` with private directory permissions.
+Setup creates `~/.local/share/tmuxde/uploads` with private directory permissions.
 `LOCAL_UPLOAD_DIR` in generated Compose environment mounts this directory at
 identical host and relay paths. This folder stays first in file allow-list so Photo keeps using it.
 Host home is also readable. Credential directories remain blocked.
@@ -75,8 +75,8 @@ arrows there. Explicitly reopening Files starts from current pane directory.
 at the same absolute path, so tmux pane paths also resolve inside relay container.
 Repositories outside this directory need an additional read-only bind and an
 entry in `ALLOWED_PATHS`. Git is bundled in relay image. File viewing and diffs
-run locally without network access. Relay state uses `/tmp/mtmux-state`; host
-`~/.mtmux` stays blocked even with this separate state directory.
+run locally without network access. Relay state uses `/tmp/tmuxde-state`; host
+`~/.tmuxde` stays blocked even with this separate state directory.
 
 Caddy binds TCP port 443 on `127.0.0.1` and accepts private network clients.
 Internal DNS must resolve `localhost` to that address on each
@@ -95,13 +95,13 @@ Export public root certificate from repository root after stack starts:
 
 ```bash
 mkdir -p .docker/certs
-docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt .docker/certs/mtmux-root.crt
+docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt .docker/certs/tmuxde-root.crt
 ```
 
-Transfer `.docker/certs/mtmux-root.crt` to iPhone, for example through AirDrop from Mac.
+Transfer `.docker/certs/tmuxde-root.crt` to iPhone, for example through AirDrop from Mac.
 Install downloaded certificate profile through Settings, then open
 Settings > General > About > Certificate Trust Settings and enable full trust
-for mtmux local CA. Safari will then trust this site's HTTPS certificate.
+for tmuxde local CA. Safari will then trust this site's HTTPS certificate.
 Use trusted file transfer for first installation because site certificate is
 not trusted yet. Only public root certificate should leave Caddy storage.
 
