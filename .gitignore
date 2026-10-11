@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Local checkouts of other projects, for reference
+.external/
+
 # Build outputs
 dist/
 .next/

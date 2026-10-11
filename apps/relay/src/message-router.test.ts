@@ -179,6 +179,7 @@ function makeConn(): ConnectionState {
     attachedSession: null,
     lastSize: null,
     cloneSession: null,
+    dictation: null,
     activeWindowId: null,
     remoteAddress: null,
     lastActivityAt: Date.now(),

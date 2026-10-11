@@ -26,6 +26,7 @@ import { currentWindowPanes, routeMessage } from "./message-router.js";
 import { defaultBrowsePath } from "./file-service.js";
 import { deviceIdForTokenId, onSessionTokenRevoked } from "./pairing-local.js";
 import * as accessLog from "./access-log.js";
+import { dictationAvailable, startSttProbe } from "./dictation.js";
 import { config } from "./config.js";
 
 // The `ws` liveness protocol tags each socket with an `isAlive` flag toggled by
@@ -272,7 +273,9 @@ export function wireConnections(
             files: conn.grant.files,
             scope: conn.grant.scope.kind,
           },
-          features: FEATURES,
+          // Dictation is the one feature that can come and go: the speech
+          // service is optional and may still be loading its model.
+          features: dictationAvailable() ? [...FEATURES, "dictation"] : FEATURES,
         });
         sendJson(ws, {
           type: "server:info",
@@ -442,6 +445,9 @@ export function wireConnections(
     }
   }, IDLE_SWEEP_MS);
 
+  // No-op unless STT_URL is set.
+  const stopSttProbe = startSttProbe();
+
   return {
     monitor,
     /**
@@ -460,6 +466,7 @@ export function wireConnections(
     shutdown: () => {
       clearInterval(idleSweep);
       stopRevokeSweep();
+      stopSttProbe();
       monitor.stop();
       for (const conn of getAllConnections()) {
         try {

@@ -16,12 +16,14 @@ Browser ─https/wss:443─► Caddy ─┬─► web:24100   Next.js client
 relay ─ node-pty `tmux attach-session` ─► host tmux socket (mounted)
 relay ─ execFile tmux ─► list, capture, create, kill sessions
 relay ─ read-only bind of host home ─► Files and Changes viewer
+relay ─ ws, network `speech` ─► stt:24400 (optional, profile `dictation`)
 ```
 
 - `.docker/Caddyfile`: routes relay paths to relay, everything else to web. Rejects non-private IPs. Sets CSP and permissions policy. Redirects upstream code entry routes (`/start`, `/pair`, `/j`) to `/login`.
 - Relay (`apps/relay/src`): `index.ts` checks tmux, starts HTTP server (`server.ts`) and WebSocket server (`ws-server.ts`). `wire-connections.ts` handles per-socket auth, caps, liveness and grants. `message-router.ts` dispatches every client message after `policy.ts` checks grant scope. `tmux-manager.ts` wraps tmux CLI. `pty-bridge.ts` attaches PTY with output backpressure. `session-monitor.ts` polls window and pane layout changes. `file-service.ts` and `repository-service.ts` enforce `ALLOWED_PATHS` and block credential directories. `config.ts` validates env with Zod.
 - Protocol (`packages/protocol`): Zod discriminated unions `ClientMessage` and `ServerMessage`, one JSON object per WebSocket message (`codec.ts`). `policy.test.ts` fails if new message type has no policy entry.
 - Web (`apps/web/src`): App Router with `(auth)` login routes and `(terminal)/s/[sessionId]`. `lib/ws-client.ts` owns reconnect, backoff and message queue over `lib/transport.ts`. `hooks/use-websocket.ts` applies server messages to Zustand stores in `stores/`. Terminal uses xterm.js (`lib/xterm-factory.ts`). Mobile controls live in `components/mobile`. Repository viewer lives in `components/files` with bundled Shiki highlighting.
+- Dictation (optional): `apps/stt` runs Parakeet TDT through `sherpa-onnx-node`, one decode per utterance found by Silero VAD (`segmenter.ts`). Node runs its TypeScript directly, no build. Relay `dictation.ts` forwards `dictation:*` audio to it and advertises `dictation` in features only while its health check passes. Web `lib/dictation.ts` records through `public/dictation-worklet.js`, then types into the focused field or pastes into the selected pane, never pressing Enter. Off unless `scripts/setup.sh --dictation`.
 - Local lock: `lib/lock-store.ts`, `lib/lock-controller.ts` and `components/lock` keep stored credentials encrypted under in-memory master key, unlocked by PIN or passkey PRF. Locking drops key, disconnects and clears stores. It never touches tmux.
 - Relay clones (`tmux-clone.ts`) are grouped sessions created for read-only shares so viewers cannot switch sessions. They stay hidden from every session list.
 
@@ -31,6 +33,7 @@ Inherited upstream code is still wired in: local pairing (`pairing-local.ts`), s
 
 - `apps/web`: Next.js terminal client, mobile controls, local device lock and repository viewer.
 - `apps/relay`: authenticated WebSocket bridge to tmux and local file access.
+- `apps/stt`: optional local speech to text for dictation. Own container, reached by relay only.
 - `packages/protocol`: validated client/server messages and shared types.
 - `packages/crypto`: local cryptography and stored device credentials.
 - `packages/ui`, `logger`: shared UI, local logging and configuration.
@@ -45,6 +48,7 @@ All Node tooling runs in Docker. Run from repository root.
 
 ```sh
 scripts/setup.sh                                  # first run, or after host tmux change
+scripts/setup.sh --dictation                      # also enable speech to text (downloads models once)
 docker compose up -d --build --wait               # dev stack with hot reload
 docker compose run --rm tools pnpm test           # all Vitest projects
 docker compose run --rm tools pnpm test apps/relay/src/auth.test.ts   # single file

@@ -92,6 +92,45 @@ Setup keeps both values when it rewrites `.env`. Relay uses same HTTPS origin
 through `/_relay`. Web and relay
 ports are not published. Port 80 remains available to existing services.
 
+## Dictation (optional)
+
+Talk, and the words appear where you type. Speech to text runs on this
+machine in a separate `stt` container. Audio never leaves the host.
+
+```sh
+scripts/setup.sh --dictation
+docker compose up -d --build --wait
+```
+
+Setup downloads two models once into `~/.local/share/tmuxde/models`, about
+670 MB: Parakeet TDT 0.6B v3 transcribes 25 European languages, English and
+Bulgarian included. Silero VAD finds the pauses between utterances. Files come
+from pinned HuggingFace revisions and are checked by SHA-256. Setup writes
+`COMPOSE_PROFILES=dictation`, `STT_URL`, `LOCAL_STT_MODELS` and `STT_THREADS`
+to `.env` and keeps the choice on later runs. `scripts/setup.sh --no-dictation`
+turns it off and keeps the models.
+
+Press the mic in the phone toolbar or desktop sidebar, or Ctrl+Shift+Space.
+The browser asks for microphone permission once. A focused text field gets the
+words at its caret. Otherwise they are pasted into the selected pane without
+Enter, so you can read them before sending. Text appears after each pause
+while you keep talking. Stop keeps what was said; the cross discards it. If the
+pane changes during dictation, the rest goes to Draft instead. Locking the
+device, switching app or losing the connection ends dictation.
+
+Language is detected per utterance. Pause briefly when switching between
+English and Bulgarian. A sentence that mixes both may lose words in the less
+dominant language.
+
+`stt` gets `STT_THREADS` CPUs (half the cores, at most 8) and 3 GB memory. The
+loaded model uses about 1.4 GB. On 8 Haswell cores 30 s of speech decodes in
+about 2.3 s. It has no internet route and no published port. Only relay
+reaches it, over internal network `speech`, after checking token, origin and
+write access. Audio and transcripts are neither stored nor logged. Without the
+profile there is no `stt` container, relay `STT_URL` stays empty and no mic is
+shown. Production Compose uses same profile and builds
+`.docker/prod/stt.Dockerfile`.
+
 ## Trust local CA
 
 Caddy issues and renews certificates locally. No DNS token or public certificate
@@ -129,7 +168,8 @@ Run setup again after changing host tmux version or socket. Restart stack with
 
 Web and relay use internal Docker network with no internet route. Caddy publishes
 HTTPS on internal network address. Browser connection policy permits this origin
-only, and microphone access is disabled. Next.js telemetry is disabled in development, builds and runtime.
+only. Microphone access is allowed for this origin only, and only dictation
+uses it. Next.js telemetry is disabled in development, builds and runtime.
 Hosted authentication and its telemetry dependency have been removed. No broker, account service, or CLI heartbeat runs in this stack.
 Builds still download images and package dependencies. Fonts are bundled locally. Commands running inside host
 tmux retain host network access.

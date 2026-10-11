@@ -25,6 +25,7 @@ const shortcuts = [
   { keys: ["Ctrl", "B"], description: "Toggle sidebar (outside the terminal)" },
   { keys: ["Ctrl", "E"], description: "Toggle files (outside the terminal)" },
   { keys: ["Ctrl/Cmd", "V"], description: "Paste a screenshot as a photo" },
+  { keys: ["Ctrl", "Shift", "Space"], description: "Start or stop dictation" },
   { keys: ["Ctrl/Cmd", "+"], description: "Larger text, terminal or open file" },
   { keys: ["Ctrl/Cmd", "-"], description: "Smaller text, terminal or open file" },
   { keys: ["Ctrl/Cmd", "0"], description: "Reset text size" },

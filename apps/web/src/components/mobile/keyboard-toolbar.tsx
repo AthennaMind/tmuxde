@@ -37,6 +37,10 @@ import { NavigationToolbar } from "./navigation-toolbar";
 import { RecentPhotos } from "@/components/terminal/recent-photos";
 import { KeySheet } from "./key-sheet";
 import { PhotoUpload } from "@/components/terminal/photo-upload";
+import {
+  DictationButton,
+  useDictationAvailable,
+} from "@/components/dictation/dictation-button";
 import { GestureHelpSheet } from "./gesture-help-sheet";
 
 interface KeyboardToolbarProps {
@@ -70,6 +74,8 @@ export function KeyboardToolbar({
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const inCopyMode = useBelievedInCopyMode(activeSessionId);
   const openComposer = useUiStore((s) => s.openComposer);
+  // One more column keeps the collapsed row to a single line with the mic.
+  const dictation = useDictationAvailable();
 
   useEffect(() => {
     const sync = () =>
@@ -204,7 +210,10 @@ export function KeyboardToolbar({
         <div
           role="group"
           aria-label="Terminal keyboard"
-          className="grid grid-cols-6 gap-1 p-1"
+          className={cn(
+            "grid gap-1 p-1",
+            dictation ? "grid-cols-7" : "grid-cols-6",
+          )}
         >
           <button
             data-terminal-key
@@ -235,6 +244,7 @@ export function KeyboardToolbar({
           {coreKey("esc")}
           {coreKey("tab")}
           <PhotoUpload compact />
+          <DictationButton variant="toolbar" />
           <button
             data-terminal-key
             className={keyClass}

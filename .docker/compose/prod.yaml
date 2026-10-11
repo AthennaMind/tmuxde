@@ -29,6 +29,13 @@ services:
       context: ../..
       dockerfile: .docker/prod/relay.Dockerfile
     user: "${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}"
+    # Browsers learn about dictation once, at login. Waiting for the model
+    # keeps phones that reconnect during a restart from losing the mic.
+    # Ignored when profile `dictation` is off.
+    depends_on:
+      stt:
+        condition: service_healthy
+        required: false
     environment:
       RELAY_HOST: 0.0.0.0
       RELAY_PORT: "24300"
@@ -38,6 +45,8 @@ services:
       ALLOWED_PATHS: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh},${LOCAL_HOST_HOME:?Run scripts/setup.sh}
       HOME: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
       TMUXDE_CONFIG_DIR: /tmp/tmuxde-state
+      # Empty unless setup enabled dictation. Relay then offers no mic.
+      STT_URL: ${STT_URL:-}
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
       NEXT_TELEMETRY_DISABLED: "1"
@@ -61,7 +70,32 @@ services:
         target: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh}
         bind:
           create_host_path: false
-    networks: [offline]
+    networks: [offline, speech]
+    restart: unless-stopped
+
+  # Optional speech to text. Starts only with profile `dictation`, which
+  # `scripts/setup.sh --dictation` writes to `.env` as COMPOSE_PROFILES.
+  stt:
+    <<: *contained
+    profiles: [dictation]
+    build:
+      context: ../..
+      dockerfile: .docker/prod/stt.Dockerfile
+    user: "${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}"
+    cpus: ${STT_THREADS:-4}
+    mem_limit: 3g
+    environment:
+      STT_MODEL_DIR: /models/parakeet-tdt-0.6b-v3-int8
+      STT_VAD_MODEL: /models/silero-vad/silero_vad.onnx
+      STT_THREADS: ${STT_THREADS:-4}
+    volumes:
+      - type: bind
+        source: ${LOCAL_STT_MODELS:-/nonexistent}
+        target: /models
+        read_only: true
+        bind:
+          create_host_path: false
+    networks: [speech]
     restart: unless-stopped
 
   caddy:
@@ -93,4 +127,7 @@ volumes:
 networks:
   edge:
   offline:
+    internal: true
+  # Relay and speech service only. Web and Caddy cannot reach it.
+  speech:
     internal: true

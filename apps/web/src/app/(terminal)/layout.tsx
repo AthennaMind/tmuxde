@@ -13,6 +13,8 @@ import { useSessionStore } from "@/stores/session-store";
 import { useStableMediaQuery } from "@repo/ui/hooks/use-media-query";
 import { MOBILE_MEDIA_QUERY, isMobileViewport } from "@/lib/mobile-query";
 import { fontZoomStep } from "@/lib/font-zoom-key.js";
+import { isDictationKey } from "@/lib/dictation-key";
+import { toggleDictation } from "@/lib/dictation";
 import {
   applyFontZoom,
   fontZoomSurface,
@@ -211,6 +213,13 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
   // Acting on it too would toggle the sidebar on every prefix press.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Works from the terminal too: xterm passes it through.
+      if (isDictationKey(e)) {
+        if (!useConnectionStore.getState().features.has("dictation")) return;
+        e.preventDefault();
+        if (!e.repeat) toggleDictation();
+        return;
+      }
       const zoom = fontZoomStep(e);
       if (zoom !== null) {
         const surface = fontZoomSurface(e.target);

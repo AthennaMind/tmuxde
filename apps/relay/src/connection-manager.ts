@@ -17,6 +17,7 @@ import type { PtyBridge } from "./pty-bridge.js";
 import type { DirectoryWatcher, UploadState } from "./file-service.js";
 import { cleanupUploads } from "./file-service.js";
 import type { RateLimiter } from "./rate-limiter.js";
+import { cancelDictation, type DictationSession } from "./dictation.js";
 
 const logger = createLogger("relay:connections");
 
@@ -54,6 +55,8 @@ export interface ConnectionState {
    * teardown can destroy it; a clone outliving its connection is a leak.
    */
   cloneSession: string | null;
+  /** Running dictation, forwarded to the speech service. */
+  dictation: DictationSession | null;
   activeWindowId: string | null;
   remoteAddress: string | null;
   /**
@@ -150,6 +153,7 @@ export function createConnection(
     attachedSession: null,
     lastSize: null,
     cloneSession: null,
+    dictation: null,
     activeWindowId: null,
     remoteAddress,
     transport: "loopback",
@@ -179,6 +183,9 @@ export function createConnection(
 }
 
 export async function removeConnection(conn: ConnectionState): Promise<void> {
+  // A closed tab must not leave a speech session holding a service slot.
+  cancelDictation(conn);
+
   // Clean up PTY (keep tmux session alive)
   if (conn.pty) {
     conn.pty.markDetaching();
