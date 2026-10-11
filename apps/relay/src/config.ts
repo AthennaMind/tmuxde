@@ -19,6 +19,15 @@ const ConfigSchema = z.object({
   tmuxDefaultShell: z.string().default("/bin/bash"),
   wsRateLimit: z.coerce.number().default(100),
   idleTimeoutMinutes: z.coerce.number().default(30),
+  /**
+   * Optional speech service for dictation, e.g. `ws://stt:24400`. Unset means
+   * dictation is off and browsers are offered no mic.
+   */
+  sttUrl: z
+    .string()
+    .url()
+    .regex(/^wss?:\/\//, "STT_URL must be a ws:// or wss:// URL")
+    .optional(),
   corsOrigins: z
     .string()
     .default("http://localhost:14100")
@@ -42,6 +51,8 @@ export const config = ConfigSchema.parse({
   wsRateLimit: process.env.WS_RATE_LIMIT,
   idleTimeoutMinutes: process.env.IDLE_TIMEOUT_MINUTES,
   corsOrigins: process.env.CORS_ORIGINS,
+  // Compose passes an empty string when dictation is off.
+  sttUrl: process.env.STT_URL || undefined,
 });
 
 // Refuse the default/empty token when bound to a non-loopback host — a

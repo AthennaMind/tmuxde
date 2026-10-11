@@ -24,6 +24,7 @@ import { PaneOptionsSheet } from "@/components/mobile/pane-options-sheet";
 import { PaneResizeControls } from "@/components/mobile/pane-resize-controls";
 import { TerminalGestureSurface } from "@/components/terminal/terminal-gesture-surface";
 import { SwitchHint } from "@/components/terminal/switch-hint";
+import { DictationIndicator } from "@/components/dictation/dictation-indicator";
 import { cn } from "@repo/ui/lib/utils";
 import { getFileViewMode } from "@/lib/file-utils";
 import { useSessionStore } from "@/stores/session-store";
@@ -184,7 +185,10 @@ export function TerminalWorkspace() {
                 <TerminalView
                   ref={terminalRef}
                   sessionName={activeSessionId}
-                  className="h-full"
+                  // Narrower gutter than desktop: the edge here is the screen,
+                  // and every column counts. See the desktop layout for why
+                  // the padding sits on `.xterm`.
+                  className="h-full [&_.xterm]:px-1"
                   onCreateSession={() => setShowCreateDialog(true)}
                 />
               </TerminalGestureSurface>
@@ -236,6 +240,10 @@ export function TerminalWorkspace() {
         >
           <SettingsPanel className="h-full" />
         </div>
+        {/* Outside the terminal tab, which turns invisible on the others, and
+            the toolbar mic goes with it. A live microphone must stay visible
+            whatever tab is open. */}
+        <DictationIndicator />
         {/* File editor overlay */}
         {editorFile &&
           (editorForceText || getFileViewMode(editorFile) === "text" ? (
@@ -274,10 +282,17 @@ export function TerminalWorkspace() {
             inert={tabActive}
           >
             <div ref={paneRef} className="relative flex-1 overflow-hidden">
+              {/* Gutter between sidebar border and column one. Output with no
+                  leading space of its own sat flush against the border. The
+                  padding goes on xterm's `.xterm` element, not this box: the
+                  fit addon subtracts that element's padding when it counts
+                  columns, so nothing is clipped, and xterm's viewport covers
+                  the padding box so the gutter paints in the theme
+                  background. */}
               <TerminalView
                 ref={terminalRef}
                 sessionName={activeSessionId}
-                className="h-full"
+                className="h-full [&_.xterm]:px-2"
                 onCreateSession={() => setShowCreateDialog(true)}
               />
               <SwitchHint />
@@ -313,6 +328,9 @@ export function TerminalWorkspace() {
             <SettingsPanel touch={false} className="absolute inset-0" />
           )}
           <FloatingAlerts />
+          {/* Outside the terminal box, which turns invisible under a file
+              tab. A live microphone must stay visible whatever is open. */}
+          <DictationIndicator />
         </div>
       </div>
 

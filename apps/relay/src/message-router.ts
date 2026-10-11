@@ -25,6 +25,12 @@ import * as tmux from "./tmux-manager.js";
 import * as files from "./file-service.js";
 import { repositoryRequest } from "./repository-service.js";
 import { resolveDeviceApproval } from "./device-approval.js";
+import {
+  cancelDictation,
+  feedDictation,
+  startDictation,
+  stopDictation,
+} from "./dictation.js";
 const logger = createLogger("relay:router");
 
 // Output backpressure thresholds. If the socket's send buffer grows past the
@@ -502,6 +508,22 @@ export async function routeMessage(
         }
         break;
       }
+
+      case "dictation:start":
+        startDictation(conn, msg.id, (reply) => send(ws, reply));
+        break;
+
+      case "dictation:audio":
+        feedDictation(conn, msg.id, msg.pcm, (reply) => send(ws, reply));
+        break;
+
+      case "dictation:stop":
+        stopDictation(conn, msg.id, (reply) => send(ws, reply));
+        break;
+
+      case "dictation:cancel":
+        cancelDictation(conn, msg.id);
+        break;
 
       case "repo:request": {
         if (!conn.attachedSession) throw new Error("No session attached");

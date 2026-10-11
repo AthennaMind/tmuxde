@@ -15,6 +15,7 @@ import { getRelayClient } from "@/hooks/use-websocket";
 import { usePhotoHistory } from "@/hooks/use-photo-history";
 import { readStored, writeStored } from "@/lib/storage-keys";
 import { MachineSwitcher } from "@/components/machines/machine-switcher";
+import { DictationButton } from "@/components/dictation/dictation-button";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
 import { SETTINGS_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
 import {
@@ -174,6 +175,7 @@ export function WorkspaceSidebar({
         />
 
         <div className="mt-auto flex flex-col items-center gap-1">
+          <DictationButton variant="rail" />
           <RailConnection />
           <MachineSwitcher compact />
           {/* Opens settings as a main-area tab. A second click goes back to
