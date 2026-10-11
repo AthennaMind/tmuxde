@@ -23,21 +23,29 @@ export function clampFontSize(size: number): number {
   return Math.max(8, Math.min(max, size));
 }
 
+/** Weights the variable code face carries. Bold text uses 700. */
+export const CODE_WEIGHTS = [400, 500, 600, 700] as const;
+export type CodeWeight = (typeof CODE_WEIGHTS)[number];
+
 interface TerminalStore {
   fontSize: number;
   fontFamily: string;
+  /** Text weight in terminal, file and diff views and the editor. */
+  codeWeight: CodeWeight;
   themeName: string;
   cursorStyle: "block" | "underline" | "bar";
   cursorBlink: boolean;
   scrollback: number;
   /**
-   * Use xterm's WebGL renderer. Faster, but it mis-scales cells by
-   * devicePixelRatio on HiDPI screens — see terminal-view.tsx. Turn it off if
-   * only part of each line is visible.
+   * Use xterm's WebGL renderer on desktop. Faster with heavy output, but text
+   * comes from a glyph atlas and looks softer than the DOM renderer's, and it
+   * mis-scales cells on some HiDPI screens. See terminal-view.tsx. Off by
+   * default.
    */
   gpuRendering: boolean;
   setFontSize: (size: number) => void;
   setFontFamily: (family: string) => void;
+  setCodeWeight: (weight: CodeWeight) => void;
   setThemeName: (name: string) => void;
   setCursorStyle: (style: "block" | "underline" | "bar") => void;
   setCursorBlink: (blink: boolean) => void;
@@ -50,19 +58,32 @@ export const useTerminalStore = create<TerminalStore>()(
     (set) => ({
       fontSize: getDefaultFontSize(),
       fontFamily: DEFAULT_TERMINAL_FONT,
+      // Heavy, with room left for bold. At 700, bold output would look like
+      // everything else.
+      codeWeight: 600,
       themeName: "dracula",
       cursorStyle: "block",
       cursorBlink: true,
       scrollback: 5000,
-      gpuRendering: true,
+      gpuRendering: false,
       setFontSize: (fontSize) => set({ fontSize: clampFontSize(fontSize) }),
       setFontFamily: (fontFamily) => set({ fontFamily }),
+      setCodeWeight: (codeWeight) => set({ codeWeight }),
       setThemeName: (themeName) => set({ themeName }),
       setCursorStyle: (cursorStyle) => set({ cursorStyle }),
       setCursorBlink: (cursorBlink) => set({ cursorBlink }),
       setScrollback: (scrollback) => set({ scrollback }),
       setGpuRendering: (gpuRendering) => set({ gpuRendering }),
     }),
-    { name: "ccremote-terminal" },
+    {
+      name: "ccremote-terminal",
+      // Version 1 turned GPU rendering off by default. Stored state from
+      // before saved the old default `true`, which was never a choice.
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = persisted as Partial<TerminalStore>;
+        return version < 1 ? { ...state, gpuRendering: false } : state;
+      },
+    },
   ),
 );

@@ -3,9 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@repo/ui/components/app-shell";
-import { cn } from "@repo/ui/lib/utils";
-import { ThemeToggle } from "@repo/ui/components/theme-toggle";
-import { ConnectionStatus } from "@repo/ui/components/connection-status";
 import { useWebSocket, getRelayClient } from "@/hooks/use-websocket";
 import {
   filesDisabled,
@@ -14,12 +11,10 @@ import {
 } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useStableMediaQuery } from "@repo/ui/hooks/use-media-query";
-import { MOBILE_MEDIA_QUERY } from "@/lib/mobile-query";
+import { MOBILE_MEDIA_QUERY, isMobileViewport } from "@/lib/mobile-query";
 import { MobileNav } from "@/components/mobile/mobile-nav";
 import { CommandComposer } from "@/components/mobile/command-composer";
 import { KeyboardToolbar } from "@/components/mobile/keyboard-toolbar";
-import { RecentPhotos } from "@/components/terminal/recent-photos";
-import { PhotoUpload } from "@/components/terminal/photo-upload";
 import { useUiStore } from "@/stores/ui-store";
 import { useAlertStore } from "@/stores/alert-store";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
@@ -31,15 +26,12 @@ import {
 import { CommandPalette } from "@/components/command/command-palette";
 import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { AlertBanner } from "@/components/alert-banner";
 import { DeviceApprovalDialog } from "@/components/device-approval-dialog";
 import { ConnectionBanner } from "@/components/connection-banner";
 import { CapabilityBanner } from "@/components/capability-banner";
 import { LockGate } from "@/components/lock/lock-gate";
 import { registerDisconnect } from "@/lib/lock-controller";
 import { VisualViewportSync } from "@/components/visual-viewport-sync";
-import { SessionTabs } from "@/components/session/session-tabs";
-import { MachineSwitcher } from "@/components/machines/machine-switcher";
 import { SessionCreateDialog } from "@/components/session/session-create-dialog";
 import { useMobileHistory } from "@/hooks/use-mobile-history";
 import { resolveRelayWsUrl } from "@/lib/relay-url";
@@ -52,7 +44,7 @@ import {
 } from "@/lib/session-store";
 import { type TransportFactory } from "@/lib/transport";
 import { resolveRoute } from "@/lib/resolve-route";
-import { Loader2, Terminal } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { markBounced } from "@/lib/bounce-guard";
 import { copyFailureReason, copyText } from "@/lib/clipboard";
 import {
@@ -120,18 +112,14 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
   /*
    * Field by field, not `useConnectionStore()`.
    *
-   * This component renders `AppShell` → header → children → the entire
+   * This component renders `AppShell` → children → the entire
    * `TerminalWorkspace` and its xterm instance, and an unselected subscription
    * re-renders on *any* write to the store. `setLatency` fires on every pong,
    * i.e. every ten seconds, and `composerDraft` in the UI store is written on
    * every character typed into the command composer — so the whole terminal
-   * subtree was re-rendering per keystroke. The rest of the app already avoids
-   * React state here for exactly this reason (see `VisualViewportSync`).
+   * subtree was re-rendering per keystroke. Connection status lives in
+   * `SidebarStatus` for the same reason.
    */
-  const status = useConnectionStore((s) => s.status);
-  const latency = useConnectionStore((s) => s.latency);
-  const reconnectCount = useConnectionStore((s) => s.reconnectCount);
-  const hostname = useConnectionStore((s) => s.hostname);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
 
   useMobileHistory();
@@ -229,8 +217,12 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
           useUiStore.getState().toggleSidebar();
         } else if (e.key === "e") {
           e.preventDefault();
-          if (!filesDisabled(useConnectionStore.getState().capabilities)) {
+          if (filesDisabled(useConnectionStore.getState().capabilities)) return;
+          // Desktop has no Files tab. It has a side panel.
+          if (isMobileViewport()) {
             useUiStore.getState().setMobileTab("files");
+          } else {
+            useUiStore.getState().toggleFilesPanel();
           }
         }
       }
@@ -259,6 +251,19 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
     } else {
       useAlertStore.getState().push("error", copyFailureReason());
     }
+  }, []);
+
+  // File and diff views read the Code weight setting from CSS. A store
+  // subscription rather than a selector, so a change does not re-render the
+  // terminal tree.
+  useEffect(() => {
+    const apply = (weight: number) =>
+      document.documentElement.style.setProperty(
+        "--code-weight",
+        String(weight),
+      );
+    apply(useTerminalStore.getState().codeWeight);
+    return useTerminalStore.subscribe((s) => apply(s.codeWeight));
   }, []);
 
   // Hand the lock the one thing it cannot reach on its own. Locking has to
@@ -297,59 +302,11 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const connectionStatusType =
-    status === "connected"
-      ? "connected"
-      : status === "connecting" || status === "authenticating"
-        ? "connecting"
-        : status === "reconnecting"
-          ? "reconnecting"
-          : "disconnected";
-
+  // Desktop has no header row. Window strip and actions sit in the terminal
+  // bar, connection status in the sidebar. Banners stay here so a degraded
+  // connection pushes the terminal down instead of covering its first row.
   const header = isMobile ? undefined : (
     <>
-      <div
-        className={cn(
-          "flex min-w-0 items-center gap-3 px-3",
-          isMobile ? "py-1" : "py-1.5",
-        )}
-      >
-        <Terminal className="h-4 w-4 text-primary" />
-        {/* #5: Hide the wordmark on mobile — icon only */}
-        {!isMobile && <span className="text-sm font-semibold">mtmux</span>}
-        <MachineSwitcher />
-        <ConnectionStatus
-          status={connectionStatusType}
-          latency={latency ?? undefined}
-          hostname={hostname ?? undefined}
-          reconnectCount={reconnectCount}
-          onReconnect={() => {
-            const client = getRelayClient();
-            if (client) {
-              client.disconnect();
-              client.connect();
-            }
-          }}
-          className="ml-1 shrink-0"
-        />
-        <AlertBanner />
-        {!isMobile && (
-          <SessionTabs
-            onCreateClick={() => setShowCreateDialog(true)}
-            className="flex-1 ml-2"
-          />
-        )}
-        {/* #5: ThemeToggle hidden on mobile — moved to settings panel (#12) */}
-        {!isMobile && (
-          <div className="ml-auto flex items-center gap-1">
-            <PhotoUpload className="h-8" />
-            <RecentPhotos className="h-8" />
-            <ThemeToggle />
-          </div>
-        )}
-      </div>
-      {/* Part of the header, not an overlay, so a degraded connection pushes the
-          terminal down instead of covering its first row. */}
       <ConnectionBanner />
       <CapabilityBanner />
     </>

@@ -90,13 +90,8 @@ export function ConnectionStatus({
           {status === "connected" && latency != null && (
             <span className="ml-1 text-foreground/70">{latency}ms</span>
           )}
-          {/* Shown, not just tooltipped, for the same reason as above — and
-              truncated because a tunnel hostname is longer than the header. */}
-          {hostname && (
-            <span className="ml-1 hidden max-w-[10ch] truncate align-bottom text-foreground/70 sm:inline-block">
-              {hostname}
-            </span>
-          )}
+          {/* Hostname stays in title and screen reader text only. In Docker it
+              is a container id, which tells the reader nothing. */}
         </span>
       )}
       {(status === "disconnected" || status === "reconnecting") &&

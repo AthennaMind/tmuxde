@@ -9,7 +9,18 @@ import { Switch } from "@repo/ui/components/ui/switch";
 import { ThemeToggle } from "@repo/ui/components/theme-toggle";
 import { cn } from "@repo/ui/lib/utils";
 import { terminalThemes } from "@repo/ui/terminal-themes";
-import { useTerminalStore } from "@/stores/terminal-store";
+import {
+  CODE_WEIGHTS,
+  useTerminalStore,
+  type CodeWeight,
+} from "@/stores/terminal-store";
+
+const WEIGHT_LABELS: Record<CodeWeight, string> = {
+  400: "Regular",
+  500: "Medium",
+  600: "Semibold",
+  700: "Bold",
+};
 import {
   GROUP_LABELS,
   useSettingsStore,
@@ -23,10 +34,16 @@ const focusRing =
   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 interface SettingsPanelProps {
+  /**
+   * Touch layout. Shows keyboard toolbar, gestures, haptics and auto-zoom.
+   * Pointer layout shows GPU rendering instead, the one renderer choice that
+   * only exists there.
+   */
+  touch?: boolean;
   className?: string;
 }
 
-export function SettingsPanel({ className }: SettingsPanelProps) {
+export function SettingsPanel({ touch = true, className }: SettingsPanelProps) {
   /*
    * Field by field, not `useTerminalStore()`.
    *
@@ -39,6 +56,8 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
    */
   const fontSize = useTerminalStore((s) => s.fontSize);
   const setFontSize = useTerminalStore((s) => s.setFontSize);
+  const codeWeight = useTerminalStore((s) => s.codeWeight);
+  const setCodeWeight = useTerminalStore((s) => s.setCodeWeight);
   const cursorStyle = useTerminalStore((s) => s.cursorStyle);
   const setCursorStyle = useTerminalStore((s) => s.setCursorStyle);
   const cursorBlink = useTerminalStore((s) => s.cursorBlink);
@@ -108,6 +127,43 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
               </div>
             </div>
             <div className="space-y-1">
+              <Label className="text-xs" id="setting-code-weight">
+                Code Weight
+              </Label>
+              <p
+                className="text-xs text-muted-foreground"
+                id="setting-code-weight-hint"
+              >
+                Terminal, files, diffs and editor. At Bold, bold output looks
+                like the rest.
+              </p>
+              <div
+                className="flex flex-wrap gap-1"
+                role="group"
+                aria-labelledby="setting-code-weight"
+                aria-describedby="setting-code-weight-hint"
+              >
+                {CODE_WEIGHTS.map((weight) => (
+                  <button
+                    key={weight}
+                    className={cn(
+                      "min-h-11 rounded-md border px-3 py-1 font-mono text-xs transition-colors",
+                      focusRing,
+                      codeWeight === weight
+                        ? "border-primary bg-primary/10"
+                        : "hover:bg-accent",
+                    )}
+                    // Each label previews its own weight.
+                    style={{ fontWeight: weight }}
+                    aria-pressed={codeWeight === weight}
+                    onClick={() => setCodeWeight(weight)}
+                  >
+                    {WEIGHT_LABELS[weight]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs" id="setting-cursor-style">
                 Cursor Style
               </Label>
@@ -148,45 +204,49 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
                 onCheckedChange={(checked) => setCursorBlink(checked)}
               />
             </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-xs" id="setting-auto-zoom">
-                  Auto-zoom Panes
-                </Label>
-                <p
-                  className="text-[10px] text-muted-foreground"
-                  id="setting-auto-zoom-hint"
-                >
-                  Auto-zoom into active pane on attach and split (mobile only)
-                </p>
+            {touch && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs" id="setting-auto-zoom">
+                    Auto-zoom Panes
+                  </Label>
+                  <p
+                    className="text-[10px] text-muted-foreground"
+                    id="setting-auto-zoom-hint"
+                  >
+                    Auto-zoom into active pane on attach and split (mobile only)
+                  </p>
+                </div>
+                <Switch
+                  aria-labelledby="setting-auto-zoom"
+                  aria-describedby="setting-auto-zoom-hint"
+                  checked={autoZoom}
+                  onCheckedChange={(checked) => setAutoZoom(checked)}
+                />
               </div>
-              <Switch
-                aria-labelledby="setting-auto-zoom"
-                aria-describedby="setting-auto-zoom-hint"
-                checked={autoZoom}
-                onCheckedChange={(checked) => setAutoZoom(checked)}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-xs" id="setting-gpu">
-                  GPU Rendering
-                </Label>
-                <p
-                  className="text-[10px] text-muted-foreground"
-                  id="setting-gpu-hint"
-                >
-                  Turn off if only part of each line is visible. Applies after
-                  reload.
-                </p>
+            )}
+            {!touch && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs" id="setting-gpu">
+                    GPU Rendering
+                  </Label>
+                  <p
+                    className="text-[10px] text-muted-foreground"
+                    id="setting-gpu-hint"
+                  >
+                    Faster with heavy output. Text looks softer. Applies after
+                    reload.
+                  </p>
+                </div>
+                <Switch
+                  aria-labelledby="setting-gpu"
+                  aria-describedby="setting-gpu-hint"
+                  checked={gpuRendering}
+                  onCheckedChange={(checked) => setGpuRendering(checked)}
+                />
               </div>
-              <Switch
-                aria-labelledby="setting-gpu"
-                aria-describedby="setting-gpu-hint"
-                checked={gpuRendering}
-                onCheckedChange={(checked) => setGpuRendering(checked)}
-              />
-            </div>
+            )}
             <div className="space-y-1">
               <Label className="text-xs" htmlFor="setting-scrollback">
                 Scrollback Lines
@@ -249,122 +309,126 @@ export function SettingsPanel({ className }: SettingsPanelProps) {
 
         <Separator />
 
-        {/* Keyboard Toolbar */}
-        <section>
-          <div className="mb-1 flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Keyboard Toolbar</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => resetToolbarKeys()}
-            >
-              Reset
-            </Button>
-          </div>
-          {/* Grouped, because one flat wrap of forty chips is a wall. The
-              agent keys are first: they are the ones people come here for. */}
-          <p className="mb-3 text-[10px] text-muted-foreground">
-            Which keys sit in the row above the keyboard. The rest are still one
-            tap away, under ⋯ in that row.
-          </p>
-          <div className="space-y-4">
-            {(
-              ["agent", "core", "edit", "nav", "symbol"] as ToolbarKeyGroup[]
-            ).map((group) => {
-              const keys = toolbarKeys.filter((k) => k.group === group);
-              if (keys.length === 0) return null;
-              return (
-                <div key={group}>
-                  <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    {GROUP_LABELS[group]}
-                  </Label>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {keys.map((key) => (
-                      <button
-                        key={key.id}
-                        className={cn(
-                          "min-h-11 rounded-md border px-2.5 py-1 text-xs transition-colors",
-                          focusRing,
-                          key.visible
-                            ? "border-primary bg-primary/10"
-                            : "opacity-50",
-                        )}
-                        aria-pressed={key.visible}
-                        aria-label={
-                          key.hint ? `${key.label} — ${key.hint}` : key.label
-                        }
-                        title={key.hint}
-                        onClick={() => toggleToolbarKey(key.id)}
-                      >
-                        {key.label}
-                      </button>
-                    ))}
+        {touch && (
+          <>
+            {/* Keyboard Toolbar */}
+            <section>
+              <div className="mb-1 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Keyboard Toolbar</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => resetToolbarKeys()}
+                >
+                  Reset
+                </Button>
+              </div>
+              {/* Grouped, because one flat wrap of forty chips is a wall. The
+                  agent keys are first: they are the ones people come here for. */}
+              <p className="mb-3 text-[10px] text-muted-foreground">
+                Which keys sit in the row above the keyboard. The rest are still one
+                tap away, under ⋯ in that row.
+              </p>
+              <div className="space-y-4">
+                {(
+                  ["agent", "core", "edit", "nav", "symbol"] as ToolbarKeyGroup[]
+                ).map((group) => {
+                  const keys = toolbarKeys.filter((k) => k.group === group);
+                  if (keys.length === 0) return null;
+                  return (
+                    <div key={group}>
+                      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {GROUP_LABELS[group]}
+                      </Label>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {keys.map((key) => (
+                          <button
+                            key={key.id}
+                            className={cn(
+                              "min-h-11 rounded-md border px-2.5 py-1 text-xs transition-colors",
+                              focusRing,
+                              key.visible
+                                ? "border-primary bg-primary/10"
+                                : "opacity-50",
+                            )}
+                            aria-pressed={key.visible}
+                            aria-label={
+                              key.hint ? `${key.label} — ${key.hint}` : key.label
+                            }
+                            title={key.hint}
+                            onClick={() => toggleToolbarKey(key.id)}
+                          >
+                            {key.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* Gestures — #11: Switch replaces manual toggles */}
+            <section>
+              <h3 className="text-sm font-semibold mb-3">Gestures</h3>
+              {/* Only gestures the reducer actually reads. "Double-tap to copy"
+                  and "Long-press context menu" used to sit here, defaulted on and
+                  wired to nothing — see GestureSettings in the store. */}
+              <div className="space-y-2">
+                {(
+                  [
+                    ["swipeToSwitchSessions", "Swipe to switch sessions"],
+                    ["swipeToSwitchPanes", "Swipe to switch panes"],
+                    ["dragToScroll", "Drag to scroll history"],
+                    ["pinchToZoom", "Pinch to zoom"],
+                    ["longPressPaneMenu", "Long-press a pane for options"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <Label className="text-xs" id={`setting-gesture-${key}`}>
+                      {label}
+                    </Label>
+                    <Switch
+                      aria-labelledby={`setting-gesture-${key}`}
+                      checked={gestures[key]}
+                      onCheckedChange={(checked) => setGesture(key, checked)}
+                    />
                   </div>
+                ))}
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* Haptics — #11: Switch replaces manual toggle */}
+            <section>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold" id="setting-haptics">
+                    Haptic Feedback
+                  </h3>
+                  <p
+                    className="text-xs text-muted-foreground"
+                    id="setting-haptics-hint"
+                  >
+                    Vibrate on key press
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <Separator />
-
-        {/* Gestures — #11: Switch replaces manual toggles */}
-        <section>
-          <h3 className="text-sm font-semibold mb-3">Gestures</h3>
-          {/* Only gestures the reducer actually reads. "Double-tap to copy"
-              and "Long-press context menu" used to sit here, defaulted on and
-              wired to nothing — see GestureSettings in the store. */}
-          <div className="space-y-2">
-            {(
-              [
-                ["swipeToSwitchSessions", "Swipe to switch sessions"],
-                ["swipeToSwitchPanes", "Swipe to switch panes"],
-                ["dragToScroll", "Drag to scroll history"],
-                ["pinchToZoom", "Pinch to zoom"],
-                ["longPressPaneMenu", "Long-press a pane for options"],
-              ] as const
-            ).map(([key, label]) => (
-              <div key={key} className="flex items-center justify-between">
-                <Label className="text-xs" id={`setting-gesture-${key}`}>
-                  {label}
-                </Label>
                 <Switch
-                  aria-labelledby={`setting-gesture-${key}`}
-                  checked={gestures[key]}
-                  onCheckedChange={(checked) => setGesture(key, checked)}
+                  aria-labelledby="setting-haptics"
+                  aria-describedby="setting-haptics-hint"
+                  checked={hapticEnabled}
+                  onCheckedChange={(checked) => setHapticEnabled(checked)}
                 />
               </div>
-            ))}
-          </div>
-        </section>
+            </section>
 
-        <Separator />
-
-        {/* Haptics — #11: Switch replaces manual toggle */}
-        <section>
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold" id="setting-haptics">
-                Haptic Feedback
-              </h3>
-              <p
-                className="text-xs text-muted-foreground"
-                id="setting-haptics-hint"
-              >
-                Vibrate on key press
-              </p>
-            </div>
-            <Switch
-              aria-labelledby="setting-haptics"
-              aria-describedby="setting-haptics-hint"
-              checked={hapticEnabled}
-              onCheckedChange={(checked) => setHapticEnabled(checked)}
-            />
-          </div>
-        </section>
-
-        <Separator />
+            <Separator />
+          </>
+        )}
 
         <LockSettings />
 

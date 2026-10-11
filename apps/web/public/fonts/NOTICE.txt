@@ -13,3 +13,12 @@ IBM Plex Sans, IBM Plex Mono, and Martian Mono are bundled locally.
 Latin WOFF2 assets copied from existing mtmux web build.
 Font sources: https://github.com/google/fonts/tree/main/ofl
 See accompanying LICENSE files for each font family.
+
+Cascadia Code v2407.24
+
+Source: https://github.com/microsoft/cascadia-code/releases/tag/v2407.24
+Files: woff2/CascadiaCode.woff2, woff2/CascadiaCodeItalic.woff2 from CascadiaCode-2407.24.zip
+Release zip SHA-256: e67a68ee3386db63f48b9054bd196ea752bc6a4ebb4df35adce6733da50c8474
+Variable fonts, weight axis 200 to 700. Unmodified.
+
+Upstream license: LICENSE-cascadia-code.txt

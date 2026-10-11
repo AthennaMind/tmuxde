@@ -25,7 +25,14 @@ import { useTerminalInput } from "@/lib/terminal-input.js";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
 import { PhotoThumbnail } from "@/components/terminal/photo-thumbnail";
 
-export function RecentPhotos({ className }: { className?: string }) {
+export function RecentPhotos({
+  className,
+  labelClassName,
+}: {
+  className?: string;
+  /** Lets a narrow toolbar hide the visible label. */
+  labelClassName?: string;
+}) {
   const { client, paths, scope } = usePhotoHistory();
   const status = useConnectionStore((s) => s.status);
   const capabilities = useConnectionStore((s) => s.capabilities);
@@ -130,13 +137,16 @@ export function RecentPhotos({ className }: { className?: string }) {
         <button
           type="button"
           disabled={!paths.length || status !== "connected" || !canRead}
+          title="Recent photos"
           className={cn(
             "flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
             className,
           )}
         >
           <Images className="h-4 w-4 shrink-0" aria-hidden />
-          Recent photos{paths.length > 0 ? ` (${paths.length})` : ""}
+          <span className={labelClassName}>
+            Recent photos{paths.length > 0 ? ` (${paths.length})` : ""}
+          </span>
         </button>
       </DialogTrigger>
       <DialogContent

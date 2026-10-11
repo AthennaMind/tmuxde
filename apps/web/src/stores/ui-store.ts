@@ -7,6 +7,8 @@ interface UiStore {
   fabOpen: boolean;
   resizeModeActive: boolean;
   sidebarCollapsed: boolean;
+  /** Desktop repository panel. In the store so Ctrl+E can toggle it. */
+  filesPanelOpen: boolean;
   copyModeOpen: boolean;
   terminalSearchOpen: boolean;
   /** The machines sheet. In the store so the palette can open it too. */
@@ -36,6 +38,8 @@ interface UiStore {
   setFabOpen: (open: boolean) => void;
   setResizeModeActive: (active: boolean) => void;
   toggleSidebar: () => void;
+  setFilesPanelOpen: (open: boolean) => void;
+  toggleFilesPanel: () => void;
   setCopyModeOpen: (open: boolean) => void;
   setTerminalSearchOpen: (open: boolean) => void;
   setMachineSwitcherOpen: (open: boolean) => void;
@@ -54,6 +58,7 @@ export const useUiStore = create<UiStore>((set) => ({
   fabOpen: false,
   resizeModeActive: false,
   sidebarCollapsed: false,
+  filesPanelOpen: false,
   copyModeOpen: false,
   terminalSearchOpen: false,
   machineSwitcherOpen: false,
@@ -67,6 +72,8 @@ export const useUiStore = create<UiStore>((set) => ({
   setFabOpen: (fabOpen) => set({ fabOpen }),
   setResizeModeActive: (resizeModeActive) => set({ resizeModeActive }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+  setFilesPanelOpen: (filesPanelOpen) => set({ filesPanelOpen }),
+  toggleFilesPanel: () => set((s) => ({ filesPanelOpen: !s.filesPanelOpen })),
   setCopyModeOpen: (copyModeOpen) =>
     set(
       copyModeOpen

@@ -267,7 +267,9 @@
      root layout; these are the fallback chains and the semantic names. The app
      defined no font tokens at all before this. */
   --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-mono:
+    var(--font-cascadia-code), var(--font-plex-mono), ui-monospace,
+    SFMono-Regular, monospace;
   --font-display:
     var(--font-martian-mono), var(--font-plex-mono), ui-monospace, monospace;
   --font-heading: var(--font-display);

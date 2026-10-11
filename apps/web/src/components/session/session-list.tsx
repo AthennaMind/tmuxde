@@ -17,10 +17,16 @@ import { getActiveServerId } from "@/lib/relay-registry";
 
 interface SessionListProps {
   onCreateClick: () => void;
+  /** Desktop sidebar control placed before the heading. */
+  leading?: React.ReactNode;
   className?: string;
 }
 
-export function SessionList({ onCreateClick, className }: SessionListProps) {
+export function SessionList({
+  onCreateClick,
+  leading,
+  className,
+}: SessionListProps) {
   const sessions = useSessionStore((s) => s.sessions);
   const sessionsLoaded = useSessionStore((s) => s.sessionsLoaded);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -116,8 +122,18 @@ export function SessionList({ onCreateClick, className }: SessionListProps) {
 
   return (
     <div className={cn("flex flex-col overflow-hidden", className)}>
-      <div className="flex items-center justify-between px-3 py-1 border-b shrink-0">
-        <h2 className="text-sm font-semibold">Sessions</h2>
+      {/* With `leading`, this row sits beside the desktop terminal bar and
+          drops its vertical padding so both bottom borders line up. */}
+      <div
+        className={cn(
+          "flex items-center justify-between border-b shrink-0",
+          leading ? "min-h-11 ps-1 pe-1" : "px-3 py-1",
+        )}
+      >
+        <div className="flex min-w-0 items-center gap-1">
+          {leading}
+          <h2 className="text-sm font-semibold">Sessions</h2>
+        </div>
         <div className="flex gap-1">
           <Button
             variant="ghost"

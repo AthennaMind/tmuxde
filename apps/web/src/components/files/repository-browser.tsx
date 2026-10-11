@@ -399,7 +399,7 @@ function BrowserContents({
                   </Button>
                 </div>
                 <div className="shrink-0 border-b bg-muted/30 px-3 py-2">
-                  <p className="break-all font-mono text-[11px] leading-relaxed text-muted-foreground">
+                  <p className="break-all font-mono text-code-meta leading-relaxed text-muted-foreground">
                     {previewPath}
                   </p>
                   {preview.scope && (
@@ -503,7 +503,7 @@ function BrowserContents({
                     </span>
                   </div>
                   {context.root && (
-                    <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+                    <p className="mt-1 break-all font-mono text-code-meta text-muted-foreground">
                       {context.root}
                     </p>
                   )}
@@ -687,7 +687,7 @@ function FilePreview({
       >
         <div
           className={cn(
-            "py-2 font-mono text-xs leading-5",
+            "py-2 font-mono text-code",
             wrap ? "w-full" : "min-w-max",
           )}
         >

@@ -107,6 +107,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
     // component for the others (pinch-zoom writes fontSize many times a second).
     const fontSize = useTerminalStore((s) => s.fontSize);
     const fontFamily = useTerminalStore((s) => s.fontFamily);
+    const codeWeight = useTerminalStore((s) => s.codeWeight);
     const themeName = useTerminalStore((s) => s.themeName);
     const cursorStyle = useTerminalStore((s) => s.cursorStyle);
     const cursorBlink = useTerminalStore((s) => s.cursorBlink);
@@ -294,7 +295,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
         themeName,
         fontSize,
         fontFamily,
-        readableText: isMobileViewport(),
+        fontWeight: codeWeight,
         cursorStyle,
         cursorBlink,
         scrollback,
@@ -371,7 +372,10 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
       // which is why this only shows up on mobile / HiDPI. Disabling the addon
       // renders correctly at every DPR, so `gpuRendering` exists as an escape
       // hatch (Settings → Terminal) for anyone hitting it.
-      // Mobile keeps DOM rendering for readable text and dim-color styling.
+      //
+      // DOM rendering is the default everywhere. It draws text with the
+      // browser's own rasterizer, which stays sharp at any DPR, and it is the
+      // renderer `brightenDimText` patches. GPU is opt-in for heavy output.
       if (gpuRendering && !isMobileViewport()) {
         try {
           webglAddon = new WebglAddon();
@@ -636,6 +640,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
 
         terminal.options.fontSize = fontSize;
         terminal.options.fontFamily = terminalFontFamily(fontFamily);
+        terminal.options.fontWeight = codeWeight;
         terminal.options.cursorStyle = cursorStyle;
         terminal.options.cursorBlink = cursorBlink;
         terminal.options.scrollback = scrollback;
@@ -656,7 +661,15 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
           });
         }
       });
-    }, [fontSize, fontFamily, themeName, cursorStyle, cursorBlink, scrollback]);
+    }, [
+      fontSize,
+      fontFamily,
+      codeWeight,
+      themeName,
+      cursorStyle,
+      cursorBlink,
+      scrollback,
+    ]);
 
     useRelaySubscription((msg: ServerMessage) => {
       // NOTE: there is deliberately no auth:success re-attach here. Reconnects
