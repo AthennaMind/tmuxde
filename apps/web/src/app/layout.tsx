@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "tmuxde",
-  description: "Your tmux on any screen. Nothing leaves your network.",
+  description: "An IDE with tmux as its backend. Nothing leaves your network.",
   manifest: "/manifest.json",
   /*
    * The app itself is never a search result — every route is either behind a

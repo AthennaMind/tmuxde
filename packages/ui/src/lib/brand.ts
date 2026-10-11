@@ -20,9 +20,9 @@
 export const brand = {
   name: "tmuxde",
   longName: "Tmux Development Environment",
-  tagline: "Your tmux on any screen. Nothing leaves your network.",
+  tagline: "An IDE with tmux as its backend. Nothing leaves your network.",
   description:
-    "Self-hosted web terminal for tmux. Drive shells and coding agents from your phone over your private network. No accounts, no telemetry, no update checks.",
+    "Self-hosted IDE built on tmux. It follows the pane you select, on desktop or phone, over your private network. No accounts, no telemetry, no update checks.",
   repository: "https://github.com/AthennaMind/tmuxde",
 } as const;
 
