@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { isMobileViewport } from "@/lib/mobile-query";
 
 export type RepositoryView = {
-  tab: "files" | "changes";
+  tab: "files" | "changes" | "history";
   directory: string | null;
   filter: string;
   preview: {
@@ -12,6 +12,8 @@ export type RepositoryView = {
     scope?: "staged" | "unstaged" | "untracked";
     size?: number;
   } | null;
+  /** A commit open from History. Absent in entries saved before history. */
+  commit?: { hash: string; subject: string } | null;
 };
 
 type Entry = { id: number; view: RepositoryView };
@@ -48,7 +50,8 @@ function sameView(left: RepositoryView, right: RepositoryView) {
     left.filter === right.filter &&
     left.preview?.path === right.preview?.path &&
     left.preview?.scope === right.preview?.scope &&
-    left.preview?.size === right.preview?.size
+    left.preview?.size === right.preview?.size &&
+    left.commit?.hash === right.commit?.hash
   );
 }
 
@@ -101,9 +104,18 @@ function isView(value: unknown): value is RepositoryView {
   if (!value || typeof value !== "object") return false;
   const view = value as RepositoryView;
   if (
-    !["files", "changes"].includes(view.tab) ||
+    !["files", "changes", "history"].includes(view.tab) ||
     (view.directory !== null && typeof view.directory !== "string") ||
     typeof view.filter !== "string"
+  )
+    return false;
+  const commit = view.commit;
+  if (
+    commit != null &&
+    (typeof commit !== "object" ||
+      typeof commit.hash !== "string" ||
+      !/^[0-9a-f]{40,64}$/.test(commit.hash) ||
+      typeof commit.subject !== "string")
   )
     return false;
   const preview = view.preview;

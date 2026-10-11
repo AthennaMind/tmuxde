@@ -6,7 +6,9 @@ import {
   ArrowRight,
   ChevronRight,
   GitBranch,
+  GitCommitHorizontal,
   GitCompareArrows,
+  History,
   RefreshCw,
   Search,
   WrapText,
@@ -16,7 +18,9 @@ import type { FileEntry } from "@repo/protocol";
 import { cn } from "@repo/ui/lib/utils";
 import { Button } from "@repo/ui/components/ui/button";
 import { useRelayClient } from "@/hooks/use-websocket";
-import { useRepositoryHistory } from "./repository-history";
+import { CommitList, useCommitLog } from "./commit-log";
+import { CommitDetail } from "./commit-view";
+import { useRepositoryHistory, type RepositoryView } from "./repository-history";
 import { RepositoryNavigationSurface } from "./repository-navigation-surface";
 import { ChangesList } from "./repository-changes";
 import { RepositoryFileIcon } from "./repository-file-icon";
@@ -32,6 +36,12 @@ const SCOPE_LABELS: Record<Scope, string> = {
   staged: "Staged",
   unstaged: "Unstaged",
   untracked: "Untracked",
+};
+type Tab = RepositoryView["tab"];
+const TAB_LABELS: Record<Tab, string> = {
+  files: "Files",
+  changes: "Changes",
+  history: "History",
 };
 const clientIds = new WeakMap<RepositoryClient, number>();
 let nextClientId = 0;
@@ -129,6 +139,13 @@ function BrowserContents({
   const { view, navigate, replace, back, forward, canBack, canForward } =
     useRepositoryHistory(paneId);
   const { tab, directory, filter, preview } = view;
+  const commit = view.commit ?? null;
+  const historySupported = useConnectionStore((s) =>
+    s.features.has("repo:history"),
+  );
+  const tabs: Tab[] = historySupported
+    ? ["files", "changes", "history"]
+    : ["files", "changes"];
   const [refresh, setRefresh] = useState(0);
   const wrap = useSettingsStore((s) => s.wrapLines);
   const setWrap = useSettingsStore((s) => s.setWrapLines);
@@ -148,7 +165,7 @@ function BrowserContents({
   const path = directory ?? context?.path;
   const listing = useRepositoryQuery(
     client,
-    context && path && !preview && tab === "files"
+    context && path && !preview && !commit && tab === "files"
       ? { id: paneId, action: "list", path }
       : null,
     refresh,
@@ -179,6 +196,26 @@ function BrowserContents({
     fileQuery.result?.kind === "read" || fileQuery.result?.kind === "diff"
       ? fileQuery.result
       : undefined;
+  const log = useCommitLog({
+    client: historySupported ? client : null,
+    paneId,
+    path: context?.path,
+    // Asks nothing until History is open.
+    root: tab === "history" ? context?.root : undefined,
+    refresh,
+    tick: statusQuery.result,
+  });
+  const commitQuery = useRepositoryQuery(
+    client,
+    commit && context && historySupported
+      ? { id: paneId, action: "show", path: context.path, commit: commit.hash }
+      : null,
+    refresh,
+  );
+  const commitResult =
+    commitQuery.result?.kind === "show" ? commitQuery.result : undefined;
+  const openCommit = (hash: string, subject: string) =>
+    navigate({ ...view, preview: null, commit: { hash, subject } });
   const entries = listing.result?.kind === "list" ? listing.result.entries : [];
   const filtered = entries.filter((entry) =>
     entry.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase()),
@@ -190,7 +227,7 @@ function BrowserContents({
     preview?.scope && context?.root
       ? `${context.root.replace(/\/$/, "")}/${preview.path}`
       : preview?.path;
-  const tabButton = (value: "files" | "changes", label: string) => (
+  const tabButton = (value: Tab) => (
     <button
       type="button"
       role="tab"
@@ -202,19 +239,21 @@ function BrowserContents({
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
           return;
         event.preventDefault();
+        const index = tabs.indexOf(value);
         const next =
           event.key === "Home"
-            ? "files"
+            ? tabs[0]!
             : event.key === "End"
-              ? "changes"
-              : value === "files"
-                ? "changes"
-                : "files";
-        navigate({ ...view, tab: next, preview: null });
+              ? tabs[tabs.length - 1]!
+              : tabs[
+                  (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) %
+                    tabs.length
+                ]!;
+        navigate({ ...view, tab: next, preview: null, commit: null });
         document.getElementById(`${id}-${next}`)?.focus();
       }}
       onClick={() => {
-        navigate({ ...view, tab: value, preview: null });
+        navigate({ ...view, tab: value, preview: null, commit: null });
       }}
       className={cn(
         "flex min-h-12 items-center gap-2 border-b-2 px-4 text-sm font-medium",
@@ -223,7 +262,7 @@ function BrowserContents({
           : "border-transparent text-muted-foreground hover:text-foreground",
       )}
     >
-      {label}
+      {TAB_LABELS[value]}
       {value === "changes" && status?.entries.length ? (
         <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] tabular-nums">
           {status.entries.length}
@@ -236,8 +275,7 @@ function BrowserContents({
     <RepositoryNavigationSurface back={back} forward={forward}>
       <div className="flex shrink-0 items-center justify-between gap-1 border-b px-1">
         <div role="tablist" aria-label="Repository views" className="flex">
-          {tabButton("files", "Files")}
-          {tabButton("changes", "Changes")}
+          {tabs.map(tabButton)}
         </div>
         <div className="flex items-center">
           <Button
@@ -267,8 +305,8 @@ function BrowserContents({
             size="icon"
             className="h-11 w-11"
             onClick={() => setRefresh((value) => value + 1)}
-            aria-label="Refresh files and changes"
-            title="Refresh files and changes"
+            aria-label="Refresh"
+            title="Refresh"
           >
             <RefreshCw
               className={cn(
@@ -276,7 +314,9 @@ function BrowserContents({
                 (contextQuery.loading ||
                   listing.loading ||
                   statusQuery.loading ||
-                  fileQuery.loading) &&
+                  fileQuery.loading ||
+                  commitQuery.loading ||
+                  log.refreshing) &&
                   "animate-spin motion-reduce:animate-none",
               )}
             />
@@ -355,6 +395,61 @@ function BrowserContents({
                   />
                 ) : null}
               </>
+            ) : commit ? (
+              <>
+                <div className="flex shrink-0 items-center gap-1 border-b px-2">
+                  <Button
+                    variant="ghost"
+                    className="h-11 shrink-0 gap-1 px-2"
+                    onClick={() =>
+                      canBack ? back() : navigate({ ...view, commit: null })
+                    }
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                  </Button>
+                  <GitCommitHorizontal
+                    className="h-4 w-4 shrink-0 text-muted-foreground"
+                    aria-hidden
+                  />
+                  <span
+                    className="min-w-0 flex-1 truncate text-sm font-medium"
+                    title={commit.subject || commitResult?.commit.subject}
+                  >
+                    {commit.subject ||
+                      commitResult?.commit.subject ||
+                      commit.hash.slice(0, 7)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-11 w-11"
+                    aria-label="Wrap lines"
+                    aria-pressed={wrap}
+                    title="Wrap lines"
+                    onClick={() => setWrap(!wrap)}
+                  >
+                    <WrapText
+                      className={cn("h-4 w-4", wrap && "text-primary")}
+                    />
+                  </Button>
+                </div>
+                {!historySupported ? (
+                  <Notice>Update tmuxde on this machine to browse history.</Notice>
+                ) : commitQuery.error ? (
+                  <Notice error>{commitQuery.error}</Notice>
+                ) : commitQuery.loading || !commitResult ? (
+                  <Notice>Loading commit...</Notice>
+                ) : (
+                  <CommitDetail
+                    key={commitResult.commit.hash}
+                    touch
+                    result={commitResult}
+                    wrap={wrap}
+                    onOpenCommit={(hash) => openCommit(hash, "")}
+                  />
+                )}
+              </>
             ) : tab === "files" ? (
               <>
                 <Breadcrumbs path={path ?? context.path} go={go} />
@@ -422,26 +517,12 @@ function BrowserContents({
                   <span>Read only</span>
                 </div>
               </>
-            ) : (
+            ) : tab === "changes" ? (
               <>
-                <div className="shrink-0 border-b px-3 py-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <GitBranch className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span
-                      className="truncate"
-                      title={status?.branch ?? context.branch ?? undefined}
-                    >
-                      {status?.branch ??
-                        context.branch ??
-                        (context.root ? "Detached HEAD" : "No repository")}
-                    </span>
-                  </div>
-                  {context.root && (
-                    <p className="mt-1 break-all font-mono text-code-meta text-muted-foreground">
-                      {context.root}
-                    </p>
-                  )}
-                </div>
+                <BranchBlock
+                  branch={status?.branch ?? context.branch}
+                  root={context.root}
+                />
                 <div className="min-h-0 flex-1 overflow-auto">
                   {statusQuery.error ? (
                     <Notice error>{statusQuery.error}</Notice>
@@ -480,11 +561,95 @@ function BrowserContents({
                   Current working tree · Read only
                 </div>
               </>
+            ) : (
+              <>
+                <BranchBlock
+                  branch={status?.branch ?? context.branch}
+                  root={context.root}
+                />
+                <div className="min-h-0 flex-1 overflow-auto">
+                  {!historySupported ? (
+                    <Notice>
+                      Update tmuxde on this machine to browse history.
+                    </Notice>
+                  ) : !context.root ? (
+                    <Notice>
+                      Pane directory is outside a Git repository. Use Files to
+                      browse this folder.
+                    </Notice>
+                  ) : log.loading ? (
+                    <Notice>Loading history...</Notice>
+                  ) : log.commits.length === 0 && log.error ? (
+                    <Notice error>{log.error}</Notice>
+                  ) : log.commits.length === 0 ? (
+                    <div className="px-4 py-8">
+                      <History className="mb-3 h-5 w-5 text-muted-foreground" />
+                      <p className="text-sm font-medium">No commits yet</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Commits on this branch show here after the first one.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <CommitList
+                        commits={log.commits}
+                        onOpen={(item) => openCommit(item.hash, item.subject)}
+                      />
+                      {log.error && <Notice error>{log.error}</Notice>}
+                      {log.more && (
+                        <div className="px-4 pt-1 pb-4">
+                          <Button
+                            variant="outline"
+                            className="h-11 w-full gap-2"
+                            disabled={log.loadingMore}
+                            onClick={log.loadMore}
+                          >
+                            {log.loadingMore && (
+                              <RefreshCw
+                                className="h-4 w-4 animate-spin motion-reduce:animate-none"
+                                aria-hidden
+                              />
+                            )}
+                            Load older commits
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="shrink-0 border-t px-3 py-2 text-[11px] text-muted-foreground">
+                  History of HEAD · Read only
+                </div>
+              </>
             )}
           </>
         )}
       </div>
     </RepositoryNavigationSurface>
+  );
+}
+
+function BranchBlock({
+  branch,
+  root,
+}: {
+  branch: string | null;
+  root: string | null;
+}) {
+  return (
+    <div className="shrink-0 border-b px-3 py-3">
+      <div className="flex items-center gap-2 text-sm">
+        <GitBranch className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="truncate" title={branch ?? undefined}>
+          {branch ?? (root ? "Detached HEAD" : "No repository")}
+        </span>
+      </div>
+      {root && (
+        <p className="mt-1 break-all font-mono text-code-meta text-muted-foreground">
+          {root}
+        </p>
+      )}
+    </div>
   );
 }
 

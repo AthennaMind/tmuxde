@@ -48,6 +48,14 @@ const FileTabView = dynamic(
   { ssr: false },
 );
 
+const CommitTabView = dynamic(
+  () =>
+    import("@/components/files/commit-tab-view").then((m) => ({
+      default: m.CommitTabView,
+    })),
+  { ssr: false },
+);
+
 const FileViewer = dynamic(
   () =>
     import("@/components/files/file-viewer").then((m) => ({
@@ -289,6 +297,13 @@ export function TerminalWorkspace() {
           </div>
           {activeTab?.kind === "file" && (
             <FileTabView
+              key={activeTab.id}
+              tab={activeTab}
+              className="absolute inset-0"
+            />
+          )}
+          {activeTab?.kind === "commit" && (
+            <CommitTabView
               key={activeTab.id}
               tab={activeTab}
               className="absolute inset-0"

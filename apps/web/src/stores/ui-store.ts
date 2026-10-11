@@ -2,7 +2,12 @@ import { create } from "zustand";
 import type { MobileTab } from "@/components/mobile/mobile-nav";
 
 /** Views the desktop sidebar rail switches between. */
-export type SidebarView = "sessions" | "files" | "changes" | "photos";
+export type SidebarView =
+  | "sessions"
+  | "files"
+  | "changes"
+  | "history"
+  | "photos";
 
 export const SIDEBAR_MIN_WIDTH = 220;
 export const SIDEBAR_MAX_WIDTH = 480;

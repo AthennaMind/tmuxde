@@ -125,4 +125,35 @@ describe("native repository history", () => {
       ),
     ).toBeNull();
   });
+
+  it("restores a commit view and refuses a malformed one", () => {
+    const commit = {
+      ...root,
+      tab: "history" as const,
+      commit: { hash: "a".repeat(40), subject: "Fix it" },
+    };
+    const history = navigateRepositoryHistory(
+      createRepositoryHistory(root),
+      commit,
+    );
+    const state = repositoryHistoryState({}, "%1", history);
+    expect(readRepositoryHistory(state, "%1")).toEqual(history);
+    const bad = navigateRepositoryHistory(createRepositoryHistory(root), {
+      ...commit,
+      commit: { hash: "HEAD", subject: "" },
+    });
+    expect(
+      readRepositoryHistory(repositoryHistoryState({}, "%1", bad), "%1"),
+    ).toBeNull();
+  });
+
+  it("treats a different commit as a new step", () => {
+    const first = { ...root, tab: "history" as const, commit: { hash: "a".repeat(40), subject: "" } };
+    const second = { ...first, commit: { hash: "b".repeat(40), subject: "" } };
+    const history = navigateRepositoryHistory(
+      navigateRepositoryHistory(createRepositoryHistory(root), first),
+      second,
+    );
+    expect(history.entries).toHaveLength(3);
+  });
 });

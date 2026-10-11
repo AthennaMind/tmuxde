@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import {
   FolderTree,
   GitCompareArrows,
+  History,
   Images,
   Settings,
   SquareTerminal,
@@ -26,11 +27,20 @@ import {
 import { SessionTree } from "./session-tree";
 import { FilesView } from "./files-view";
 import { ChangesView } from "./changes-view";
+import { HistoryView } from "./history-view";
 import { PhotosView } from "./photos-view";
 import { useRepositoryState } from "./use-repository-state";
 
 const PREFS_KEY = "tmuxde-sidebar";
-const VIEWS: SidebarView[] = ["sessions", "files", "changes", "photos"];
+const VIEWS: SidebarView[] = [
+  "sessions",
+  "files",
+  "changes",
+  "history",
+  "photos",
+];
+/** Views that read the active pane's repository. */
+const REPO_VIEWS: SidebarView[] = ["files", "changes", "history"];
 
 /** Load view, width and collapsed state once, then save on every change. */
 function useSidebarPrefs() {
@@ -93,7 +103,6 @@ export function WorkspaceSidebar({
   useSidebarPrefs();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const view = useUiStore((s) => s.sidebarView);
-  const width = useUiStore((s) => s.sidebarWidth);
   const toggleView = useUiStore((s) => s.toggleSidebarView);
   const showView = useUiStore((s) => s.showSidebarView);
   const capabilities = useConnectionStore((s) => s.capabilities);
@@ -101,19 +110,18 @@ export function WorkspaceSidebar({
   const { paths } = usePhotoHistory();
   const settingsActive = useMainTabsStore((s) => s.active === SETTINGS_TAB);
 
-  const repoVisible = !collapsed && (view === "files" || view === "changes");
+  const repoVisible = !collapsed && REPO_VIEWS.includes(view);
   const repo = useRepositoryState(repoVisible);
   const { refreshStatus } = repo;
 
-  // Opening Files or Changes asks again. The badge may be minutes old.
+  // Opening a repository view asks again. The badge may be minutes old.
   useEffect(() => {
     if (repoVisible) refreshStatus();
   }, [repoVisible, view, refreshStatus]);
 
-  // A share without file access has no Files or Changes to show.
+  // A share without file access has no repository views to show.
   useEffect(() => {
-    if (noFiles && (view === "files" || view === "changes"))
-      showView("sessions");
+    if (noFiles && REPO_VIEWS.includes(view)) showView("sessions");
   }, [noFiles, view, showView]);
 
   const changeCount = repo.status?.entries.length ?? 0;
@@ -150,6 +158,12 @@ export function WorkspaceSidebar({
               badge={changeCount}
               onClick={() => toggleView("changes")}
             />
+            <RailButton
+              label="History"
+              icon={History}
+              active={open("history")}
+              onClick={() => toggleView("history")}
+            />
           </>
         )}
         <RailButton
@@ -178,19 +192,32 @@ export function WorkspaceSidebar({
       </nav>
 
       {!collapsed && (
-        <div
-          className="relative flex min-w-0 flex-col border-e"
-          style={{ width }}
-        >
+        <SidebarPanel>
           {view === "sessions" && (
             <SessionTree onCreateSession={onCreateSession} />
           )}
           {view === "files" && !noFiles && <FilesView repo={repo} />}
           {view === "changes" && !noFiles && <ChangesView repo={repo} />}
+          {view === "history" && !noFiles && <HistoryView repo={repo} />}
           {view === "photos" && <PhotosView />}
-          <ResizeHandle />
-        </div>
+        </SidebarPanel>
       )}
+    </div>
+  );
+}
+
+/**
+ * The resizable panel. It alone reads the width, so a drag re-renders this box
+ * and its handle. The view comes in as `children`, elements the sidebar made,
+ * and React skips them. Reading the width in the sidebar re-rendered the whole
+ * view on every frame of a drag, a few hundred rows in History.
+ */
+function SidebarPanel({ children }: { children: React.ReactNode }) {
+  const width = useUiStore((s) => s.sidebarWidth);
+  return (
+    <div className="relative flex min-w-0 flex-col border-e" style={{ width }}>
+      {children}
+      <ResizeHandle />
     </div>
   );
 }

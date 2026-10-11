@@ -242,19 +242,7 @@ function ChangeButton({
         paddingInlineStart: `${(dense ? 12 : 16) + Math.min(depth, 8) * 12}px`,
       }}
     >
-      <span
-        aria-label={changeLabel(code)}
-        className={cn(
-          "w-4 shrink-0 font-mono text-xs font-semibold",
-          code === "D"
-            ? "text-term-removed"
-            : code === "A" || code === "?"
-              ? "text-term-added"
-              : "text-term-path",
-        )}
-      >
-        {code}
-      </span>
+      <ChangeCode code={code} />
       <RepositoryFileIcon path={entry.path} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm">
@@ -268,6 +256,25 @@ function ChangeButton({
       </span>
       <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
     </button>
+  );
+}
+
+/** Git status letter, colored, with its meaning for screen readers. */
+export function ChangeCode({ code }: { code: string }) {
+  return (
+    <span
+      className={cn(
+        "w-4 shrink-0 font-mono text-xs font-semibold",
+        code === "D"
+          ? "text-term-removed"
+          : code === "A" || code === "?"
+            ? "text-term-added"
+            : "text-term-path",
+      )}
+    >
+      <span aria-hidden>{code}</span>
+      <span className="sr-only">{changeLabel(code)}</span>
+    </span>
   );
 }
 
