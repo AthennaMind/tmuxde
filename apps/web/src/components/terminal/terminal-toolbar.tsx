@@ -3,8 +3,6 @@
 import {
   Search,
   FolderOpen,
-  Maximize2,
-  Minimize2,
   Settings,
   ZoomIn,
   ZoomOut,
@@ -30,18 +28,15 @@ const ghostPhotoClass =
 /**
  * The bar gives way in steps as the terminal column narrows, so window tabs
  * keep their room. Below 64rem, text labels go. They stay as screen reader
- * text, and each button keeps a tooltip. Below 48rem, font size and fullscreen
- * go. Settings and Ctrl+=/- still reach font size. Past that, actions wrap to
- * a second row.
+ * text, and each button keeps a tooltip. Below 48rem, font size goes.
+ * Settings still reaches it. Past that, actions wrap to a second row.
  */
 const labelClass = "@max-5xl:sr-only";
 const groupGap = "gap-x-4 @max-3xl:gap-x-2";
 
 interface TerminalToolbarProps {
-  onToggleFullscreen?: () => void;
   onOpenSettings?: () => void;
   onOpenFiles?: () => void;
-  isFullscreen?: boolean;
   filesOpen?: boolean;
   /** The sidebar names the session. Collapsed, nothing else does. */
   showSessionName?: boolean;
@@ -55,10 +50,8 @@ interface TerminalToolbarProps {
  * input, browse, view. Space separates the groups, so no dividers.
  */
 export function TerminalToolbar({
-  onToggleFullscreen,
   onOpenSettings,
   onOpenFiles,
-  isFullscreen = false,
   filesOpen = false,
   showSessionName = false,
   className,
@@ -142,7 +135,7 @@ export function TerminalToolbar({
                 className="h-8 w-8"
                 onClick={() => setFontSize(clampFontSize(fontSize - 1))}
                 aria-label="Decrease font size"
-                title="Decrease font size (Ctrl+-)"
+                title="Decrease font size"
               >
                 <ZoomOut aria-hidden />
               </Button>
@@ -154,7 +147,7 @@ export function TerminalToolbar({
                 className="h-8 px-1.5 tabular-nums text-muted-foreground"
                 onClick={() => setFontSize(getDefaultFontSize())}
                 aria-label={`Font size ${fontSize}px. Reset to default`}
-                title="Reset font size (Ctrl+0)"
+                title="Reset font size"
               >
                 {fontSize}px
               </Button>
@@ -164,25 +157,11 @@ export function TerminalToolbar({
                 className="h-8 w-8"
                 onClick={() => setFontSize(clampFontSize(fontSize + 1))}
                 aria-label="Increase font size"
-                title="Increase font size (Ctrl+=)"
+                title="Increase font size"
               >
                 <ZoomIn aria-hidden />
               </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 @max-3xl:hidden"
-              onClick={onToggleFullscreen}
-              aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-              title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-            >
-              {isFullscreen ? (
-                <Minimize2 aria-hidden />
-              ) : (
-                <Maximize2 aria-hidden />
-              )}
-            </Button>
             <Button
               variant="ghost"
               size="icon"
