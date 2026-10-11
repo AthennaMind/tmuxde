@@ -23,7 +23,9 @@ export function proxy(request: NextRequest) {
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set(
     "Permissions-Policy",
-    "microphone=(), camera=(), geolocation=()",
+    // Microphone for dictation, this origin only. Nothing records until the
+    // user presses the mic and the browser asks.
+    "microphone=(self), camera=(), geolocation=()",
   );
   response.headers.set(
     "Content-Security-Policy",

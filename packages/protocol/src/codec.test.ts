@@ -38,6 +38,10 @@ const clientMessages: ClientMessage[] = [
   { type: "command:send", command: "npm test" },
   { type: "pane:resize", id: "%1", direction: "R", amount: 5 },
   { type: "window:layout", preset: "tiled" },
+  { type: "dictation:start", id: "d1" },
+  { type: "dictation:audio", id: "d1", pcm: "AAABAP//" },
+  { type: "dictation:stop", id: "d1" },
+  { type: "dictation:cancel", id: "d1" },
 ];
 
 // Representative ServerMessage variants exercising the wire contract.
@@ -89,6 +93,10 @@ const serverMessages: ServerMessage[] = [
     path: "/home/user/gone.txt",
     success: true,
   },
+  { type: "dictation:ready", id: "d1" },
+  { type: "dictation:text", id: "d1", text: "Пусни тестовете" },
+  { type: "dictation:done", id: "d1" },
+  { type: "dictation:error", id: "d1", code: "BUSY", message: "busy" },
 ];
 
 describe("codec round-trip", () => {
@@ -240,5 +248,30 @@ describe("auth:success capabilities", () => {
 
   it("treats absent capabilities as unrestricted, which an older relay is", () => {
     expect(ServerMessageSchema.safeParse(base).success).toBe(true);
+  });
+});
+
+describe("dictation messages", () => {
+  it("refuses audio that is not base64", () => {
+    const result = tryDeserializeClientMessage(
+      JSON.stringify({ type: "dictation:audio", id: "d1", pcm: "not base64!" }),
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("refuses an audio frame far larger than any real one", () => {
+    const result = tryDeserializeClientMessage(
+      JSON.stringify({ type: "dictation:audio", id: "d1", pcm: "A".repeat(65 * 1024) }),
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("refuses an empty or oversized id", () => {
+    for (const id of ["", "x".repeat(65)]) {
+      const result = tryDeserializeClientMessage(
+        JSON.stringify({ type: "dictation:start", id }),
+      );
+      expect(result.ok).toBe(false);
+    }
   });
 });

@@ -32,6 +32,7 @@ import {
 import { isMobileViewport } from "@/lib/mobile-query";
 import { noteSessionAttached, noteSessionDetached } from "@/lib/session-target";
 import { useSessionTreeStore } from "@/stores/session-tree-store";
+import { handleDictationMessage } from "@/lib/dictation";
 
 // #1: Dedup session exit toasts — track handled exits at module scope
 const handledExits = new Set<string>();
@@ -348,6 +349,12 @@ export function useWebSocket(
            * and the request would expire while they were reading the terminal.
            */
           useDeviceApprovalStore.getState().open(msg);
+          break;
+        case "dictation:ready":
+        case "dictation:text":
+        case "dictation:done":
+        case "dictation:error":
+          handleDictationMessage(msg);
           break;
         case "device:approval-resolved": {
           /*

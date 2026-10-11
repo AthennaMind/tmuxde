@@ -5,6 +5,10 @@ networks:
   offline:
     internal: true
     name: tmuxde_offline
+  # Relay and speech service only. Web and Caddy cannot reach it.
+  speech:
+    internal: true
+    name: tmuxde_speech
 services:
   caddy:
     cap_add:
@@ -70,11 +74,18 @@ services:
       dev.tmuxde.mode: development
     networks:
       offline: null
+      speech: null
     restart: unless-stopped
     user: ${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}
     depends_on:
       deps-build:
         condition: service_completed_successfully
+      # Browsers learn about dictation once, at login. Waiting for the model
+      # keeps phones that reconnect during a restart from losing the mic.
+      # Ignored when profile `dictation` is off.
+      stt:
+        condition: service_healthy
+        required: false
     environment:
       RELAY_HOST: 0.0.0.0
       RELAY_PORT: "24300"
@@ -85,6 +96,8 @@ services:
         scripts/setup.sh},${LOCAL_HOST_HOME:?Run scripts/setup.sh}
       HOME: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
       TMUXDE_CONFIG_DIR: /tmp/tmuxde-state
+      # Empty unless setup enabled dictation. Relay then offers no mic.
+      STT_URL: ${STT_URL:-}
     volumes:
       - bind:
           create_host_path: false
@@ -113,6 +126,51 @@ services:
           create_host_path: false
         source: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh}
         target: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh}
+        type: bind
+  # Optional speech to text. Starts only with profile `dictation`, which
+  # `scripts/setup.sh --dictation` writes to `.env` as COMPOSE_PROFILES.
+  stt:
+    extends:
+      file: workspace.yaml
+      service: runtime
+    profiles:
+      - dictation
+    command:
+      - node
+      - --watch
+      - apps/stt/src/index.ts
+    cpus: ${STT_THREADS:-4}
+    mem_limit: 3g
+    healthcheck:
+      interval: 10s
+      start_period: 30s
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:24400/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      timeout: 5s
+    labels:
+      dev.tmuxde.mode: development
+    networks:
+      speech: null
+    restart: unless-stopped
+    user: ${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}
+    depends_on:
+      deps-build:
+        condition: service_completed_successfully
+    environment:
+      STT_HOST: 0.0.0.0
+      STT_PORT: "24400"
+      STT_MODEL_DIR: /models/parakeet-tdt-0.6b-v3-int8
+      STT_VAD_MODEL: /models/silero-vad/silero_vad.onnx
+      STT_THREADS: ${STT_THREADS:-4}
+    volumes:
+      - bind:
+          create_host_path: false
+        read_only: true
+        source: ${LOCAL_STT_MODELS:-/nonexistent}
+        target: /models
         type: bind
   web:
     extends:

@@ -24,6 +24,7 @@ import { PaneOptionsSheet } from "@/components/mobile/pane-options-sheet";
 import { PaneResizeControls } from "@/components/mobile/pane-resize-controls";
 import { TerminalGestureSurface } from "@/components/terminal/terminal-gesture-surface";
 import { SwitchHint } from "@/components/terminal/switch-hint";
+import { DictationIndicator } from "@/components/dictation/dictation-indicator";
 import { cn } from "@repo/ui/lib/utils";
 import { getFileViewMode } from "@/lib/file-utils";
 import { useSessionStore } from "@/stores/session-store";
@@ -239,6 +240,10 @@ export function TerminalWorkspace() {
         >
           <SettingsPanel className="h-full" />
         </div>
+        {/* Outside the terminal tab, which turns invisible on the others, and
+            the toolbar mic goes with it. A live microphone must stay visible
+            whatever tab is open. */}
+        <DictationIndicator />
         {/* File editor overlay */}
         {editorFile &&
           (editorForceText || getFileViewMode(editorFile) === "text" ? (
@@ -323,6 +328,9 @@ export function TerminalWorkspace() {
             <SettingsPanel touch={false} className="absolute inset-0" />
           )}
           <FloatingAlerts />
+          {/* Outside the terminal box, which turns invisible under a file
+              tab. A live microphone must stay visible whatever is open. */}
+          <DictationIndicator />
         </div>
       </div>
 

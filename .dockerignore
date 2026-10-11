@@ -11,6 +11,7 @@
 .docker/certs
 **/coverage
 .worktrees
+.external
 data
 logs
 .docker/tmux-client

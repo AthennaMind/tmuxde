@@ -2,6 +2,7 @@
 set -euo pipefail
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/dependencies/root
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/dependencies/apps-relay
+install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/dependencies/apps-stt
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/dependencies/apps-web
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/dependencies/packages-crypto
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/dependencies/packages-logger

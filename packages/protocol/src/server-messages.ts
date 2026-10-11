@@ -332,6 +332,45 @@ export const DeviceApprovalResolvedMessage = z.object({
   reason: z.enum(["decided", "expired", "withdrawn"]),
 });
 
+const DictationId = z.string().min(1).max(64);
+
+/** The speech service is listening. Audio sent from now on is transcribed. */
+export const DictationReadyMessage = z.object({
+  type: z.literal("dictation:ready"),
+  id: DictationId,
+});
+
+/**
+ * Transcribed text, one message per decoded stretch of audio, in order.
+ * Long dictation is cut at pauses, so text arrives while the user talks.
+ * Carries no separator: the client decides spacing between pieces.
+ */
+export const DictationTextMessage = z.object({
+  type: z.literal("dictation:text"),
+  id: DictationId,
+  text: z.string().max(20_000),
+});
+
+/** Everything after `dictation:stop` is transcribed. Nothing more follows. */
+export const DictationDoneMessage = z.object({
+  type: z.literal("dictation:done"),
+  id: DictationId,
+});
+
+/**
+ * The dictation ended without finishing. Nothing more follows.
+ *
+ * `code` is `UNAVAILABLE` (no speech service), `BUSY` (service at capacity),
+ * `OVERLOADED` (audio arriving faster than it can be forwarded), `NOT_FOUND`
+ * (audio or stop for a dictation that is not running) or `FAILED`.
+ */
+export const DictationErrorMessage = z.object({
+  type: z.literal("dictation:error"),
+  id: DictationId,
+  code: z.string(),
+  message: z.string(),
+});
+
 export const ServerMessage = z.discriminatedUnion("type", [
   RepoResponse,
   AuthSuccessMessage,
@@ -362,6 +401,10 @@ export const ServerMessage = z.discriminatedUnion("type", [
   DevicePairedMessage,
   DeviceApprovalRequestMessage,
   DeviceApprovalResolvedMessage,
+  DictationReadyMessage,
+  DictationTextMessage,
+  DictationDoneMessage,
+  DictationErrorMessage,
 ]);
 
 export type ServerMessage = z.infer<typeof ServerMessage>;
@@ -397,3 +440,7 @@ export type SessionAttachedMessage = z.infer<typeof SessionAttachedMessage>;
 export type PaneCapturedMessage = z.infer<typeof PaneCapturedMessage>;
 export type TmuxScrollStateMessage = z.infer<typeof TmuxScrollStateMessage>;
 export type SessionWindowsResponse = z.infer<typeof SessionWindowsResponse>;
+export type DictationReadyMessage = z.infer<typeof DictationReadyMessage>;
+export type DictationTextMessage = z.infer<typeof DictationTextMessage>;
+export type DictationDoneMessage = z.infer<typeof DictationDoneMessage>;
+export type DictationErrorMessage = z.infer<typeof DictationErrorMessage>;
