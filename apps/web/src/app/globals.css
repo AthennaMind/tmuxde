@@ -73,10 +73,47 @@
   font-display: swap;
 }
 
+/* Code face for terminal, file, diff and editor. Variable, weights 200 to 700. */
+@font-face {
+  font-family: "Cascadia Code";
+  src: url("/fonts/cascadia-code-v2407.24.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Cascadia Code";
+  src: url("/fonts/cascadia-code-italic-v2407.24.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: italic;
+  font-display: swap;
+}
+
 :root {
+  --font-cascadia-code: "Cascadia Code";
   --font-martian-mono: "Martian Mono";
   --font-plex-sans: "IBM Plex Sans";
   --font-plex-mono: "IBM Plex Mono";
+}
+
+/*
+ * Code in the repository viewer. Defaults are the phone sizes: 12px holds up on
+ * a dense screen held close. The desktop files panel raises the variables,
+ * because the same size reads thin at desk distance. `--code-weight` follows
+ * the Code weight setting, synced onto the root by the terminal layout.
+ * Monospace keeps zero tracking so body tracking does not leak into code.
+ */
+@utility text-code {
+  font-size: var(--code-size, 0.75rem);
+  line-height: var(--code-leading, 1.25rem);
+  font-weight: var(--code-weight, 400);
+  letter-spacing: 0;
+}
+
+@utility text-code-meta {
+  font-size: var(--code-meta-size, 0.6875rem);
+  letter-spacing: 0;
 }
 
 @font-face {

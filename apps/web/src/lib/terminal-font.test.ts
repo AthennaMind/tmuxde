@@ -16,7 +16,14 @@ describe("terminal icon font", () => {
       terminalFontFamily(
         "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       ),
-    ).toBe('"Symbols Nerd Font Mono", "IBM Plex Mono", monospace');
+    ).toBe(
+      '"Symbols Nerd Font Mono", "Cascadia Code", "IBM Plex Mono", monospace',
+    );
+  });
+  it("replaces previous bundled default with Cascadia Code", () => {
+    expect(terminalFontFamily('"IBM Plex Mono", monospace')).toBe(
+      '"Symbols Nerd Font Mono", "Cascadia Code", "IBM Plex Mono", monospace',
+    );
   });
   it("supports saved text fonts without replacing their preference", () => {
     const saved = "'JetBrains Mono', monospace";
@@ -41,7 +48,7 @@ describe("terminal icon font", () => {
       '16px "Symbols Nerd Font Mono"',
       "\ue0b0",
     );
-    expect(load).toHaveBeenCalledWith('500 16px "IBM Plex Mono"', "W");
+    expect(load).toHaveBeenCalledWith('400 16px "Cascadia Code"', "W");
     finish[0]!([]);
     await Promise.resolve();
     expect(remeasure).not.toHaveBeenCalled();

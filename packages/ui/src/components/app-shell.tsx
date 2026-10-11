@@ -47,7 +47,9 @@ export function AppShell({
       }}
     >
       {header && (
-        <header className="shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        // `empty:hidden`: banners render nothing when healthy, and an empty
+        // header would still draw its border.
+        <header className="shrink-0 border-b bg-background/95 empty:hidden backdrop-blur supports-[backdrop-filter]:bg-background/60">
           {header}
         </header>
       )}
