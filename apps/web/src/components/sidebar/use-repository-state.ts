@@ -76,7 +76,7 @@ export function useRepositoryState(watching: boolean): RepositoryState {
     : connection !== "connected" || !client
       ? "Connect to browse files and changes."
       : !supported
-        ? "Update mtmux on this machine to browse files and changes."
+        ? "Update tmuxde on this machine to browse files and changes."
         : !paneId
           ? "Open a terminal pane to browse its folder."
           : null;

@@ -17,10 +17,10 @@ import { bytesToHex, hexToBytes, constantTimeEqual } from "./bytes";
 const KEY_BYTES = 32;
 
 export const LABEL = {
-  c2s: "mtmux/v1 browser→cli",
-  s2c: "mtmux/v1 cli→browser",
-  confirm: "mtmux/v1 confirm",
-  directToken: "mtmux/v1 direct-token",
+  c2s: "tmuxde/v1 browser→cli",
+  s2c: "tmuxde/v1 cli→browser",
+  confirm: "tmuxde/v1 confirm",
+  directToken: "tmuxde/v1 direct-token",
 } as const;
 
 export type SessionKeys = {
@@ -51,7 +51,7 @@ export const SUBKEY_SALT_BYTES = 16;
  * Labels for the keys actually used to seal bytes.
  *
  * `LABEL` above derives the *session* keys from the CPace ISK, and stays at
- * `mtmux/v1` — those are what `~/.mtmux/config.json` and IndexedDB hold, so
+ * `tmuxde/v1` — those are what `~/.tmuxde/config.json` and IndexedDB hold, so
  * changing them would invalidate every persisted pairing. What changes at v2
  * is how those keys are consumed: never directly, always through a subkey
  * bound to a fresh salt and to what the bytes are for.
@@ -65,12 +65,12 @@ export const SUBKEY_SALT_BYTES = 16;
  */
 export const SUBKEY_LABEL = {
   frame: {
-    c2s: "mtmux/v2 frame browser→cli",
-    s2c: "mtmux/v2 frame cli→browser",
+    c2s: "tmuxde/v2 frame browser→cli",
+    s2c: "tmuxde/v2 frame cli→browser",
   },
   descriptor: {
-    c2s: "mtmux/v2 descriptor browser→cli",
-    s2c: "mtmux/v2 descriptor cli→browser",
+    c2s: "tmuxde/v2 descriptor browser→cli",
+    s2c: "tmuxde/v2 descriptor cli→browser",
   },
 } as const;
 
@@ -126,7 +126,7 @@ export function deriveSessionKeys(
 }
 
 /**
- * Serialised form for `~/.mtmux/config.json`.
+ * Serialised form for `~/.tmuxde/config.json`.
  *
  * The keys are bytes and JSON has no byte type, so hex — the same encoding
  * `StoredDeviceKey` uses, for the same reason.
@@ -189,7 +189,7 @@ export function confirmationTag(
   confirmKey: Uint8Array,
   role: Role,
 ): Uint8Array {
-  return hmac(sha256, confirmKey, utf8ToBytes(`mtmux/v1 confirm ${role}`));
+  return hmac(sha256, confirmKey, utf8ToBytes(`tmuxde/v1 confirm ${role}`));
 }
 
 export function verifyConfirmation(

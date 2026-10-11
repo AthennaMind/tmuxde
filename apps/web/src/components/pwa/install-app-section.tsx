@@ -91,7 +91,7 @@ export function InstallAppSection() {
       {availability === "installed" && (
         <SettingsRow
           label="Installed"
-          hint="mtmux is running as an installed app."
+          hint="tmuxde is running as an installed app."
           textLabel
         >
           {() => <Check className="h-4 w-4 text-primary" aria-hidden />}
@@ -122,7 +122,7 @@ export function InstallAppSection() {
               }}
             >
               <Download aria-hidden />
-              Install mtmux
+              Install tmuxde
             </Button>
           )}
         </SettingsRow>
@@ -149,7 +149,7 @@ export function InstallAppSection() {
       {availability === "insecure" && (
         <SettingsRow
           label="Install as an app"
-          hint="Installing needs HTTPS. Open mtmux at its https:// address to install it."
+          hint="Installing needs HTTPS. Open tmuxde at its https:// address to install it."
         />
       )}
     </SettingsSection>

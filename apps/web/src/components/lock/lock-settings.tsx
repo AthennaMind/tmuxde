@@ -69,7 +69,7 @@ export function LockSettings() {
     setBusy(true);
     try {
       const result = await duringCeremony(() =>
-        enrollPasskeyFactor("mtmux device lock"),
+        enrollPasskeyFactor("tmuxde device lock"),
       );
       if (!result.ok) {
         toast.error(
@@ -239,7 +239,7 @@ export function LockSettings() {
             ) : (
               <p className="text-[13px] leading-5 text-muted-foreground">
                 {support === "insecure-context"
-                  ? "Passkeys need HTTPS. Open mtmux at its https:// address to add one."
+                  ? "Passkeys need HTTPS. Open tmuxde at its https:// address to add one."
                   : "This browser does not support passkeys."}
               </p>
             )}

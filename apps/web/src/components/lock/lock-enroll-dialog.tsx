@@ -25,8 +25,8 @@ import { PinPad } from "./pin-pad";
  * ## Where the recovery copy goes
  *
  * Above the PIN entry, before the first keystroke — not in a toast afterwards.
- * There is no recovery, by construction, and mtmux is the rare product where
- * that is fine: re-pairing is running `mtmux` and typing one code. Someone
+ * There is no recovery, by construction, and tmuxde is the rare product where
+ * that is fine: signing in again takes only the relay token. Someone
  * needs to know that *while deciding*, not after they have forgotten the PIN.
  *
  * ## Why the entropy numbers are on the buttons
@@ -92,7 +92,7 @@ export function LockEnrollDialog({
       // The visibility events fired by the platform's own prompt must not be
       // read as "the user backgrounded the app".
       const result = await duringCeremony(() =>
-        enrollPasskeyFactor("mtmux device lock"),
+        enrollPasskeyFactor("tmuxde device lock"),
       );
       if (result.ok) {
         await addFactor("passkey", result.secret, { label: "Passkey" });

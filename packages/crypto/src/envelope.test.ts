@@ -46,8 +46,8 @@ const VECTORS = {
   /** wrapMasterKey(pin6at1000, MK, "pin", "factor-1") */
   wrapNonce: "4c46b6e37e9f5fab46b2c85a",
   wrapCt:
-    "b5fd9308d1cf7455637955b280e96d605e8163a37946047a81f24a1fac1ff5b0" +
-    "5c8785cfc9f8e0d995daa129b83a77d7",
+    "24c36d37652452648a9e45d0fb2eb71f81931539894e03f4c9da1151c5dc52b5" +
+    "5dcd4c4fcbd5b27cc7f32032ebb691ed",
 } as const;
 
 /**
@@ -234,11 +234,11 @@ describe("nonces", () => {
 
 describe("AAD construction", () => {
   it("builds the documented strings", () => {
-    expect(LOCK_AAD_PREFIX).toBe("mtmux/lock/v1");
+    expect(LOCK_AAD_PREFIX).toBe("tmuxde/lock/v1");
     expect(recordAad("session-keys", "srv_abc")).toBe(
-      "mtmux/lock/v1|rec|session-keys|srv_abc",
+      "tmuxde/lock/v1|rec|session-keys|srv_abc",
     );
-    expect(wrapAad("pin", "factor-1")).toBe("mtmux/lock/v1|wrap|pin|factor-1");
+    expect(wrapAad("pin", "factor-1")).toBe("tmuxde/lock/v1|wrap|pin|factor-1");
   });
 
   it("keeps record and wrap AADs in separate namespaces", () => {

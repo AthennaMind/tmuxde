@@ -55,7 +55,7 @@ interface DeviceApprovalStore {
  */
 declare global {
   interface Window {
-    __mtmuxDeviceApproval?: typeof useDeviceApprovalStore;
+    __tmuxdeDeviceApproval?: typeof useDeviceApprovalStore;
   }
 }
 
@@ -73,5 +73,5 @@ export const useDeviceApprovalStore = create<DeviceApprovalStore>((set) => ({
 }));
 
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
-  window.__mtmuxDeviceApproval = useDeviceApprovalStore;
+  window.__tmuxdeDeviceApproval = useDeviceApprovalStore;
 }

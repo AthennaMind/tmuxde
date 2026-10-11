@@ -12,6 +12,6 @@ Stack: React, existing WebSocket protocol, Zod, Docker Compose.
 4. Update setup script and Compose shared storage. Document retention and paths. Rebuild, deploy, verify host/container file visibility and mobile/desktop interaction.
 5. Review changes and fix material findings. No commits required for this local working tree.
 
-Decisions: advertise `file:upload:ack` in auth features; hide Photo on older relays. Use server:info.defaultPath as destination. Setup creates ~/.local/share/mtmux/uploads with mode 0700, writes LOCAL_UPLOAD_DIR to Compose env, and mounts that absolute path unchanged into relay. ALLOWED_PATHS contains only that folder in local stack.
+Decisions: advertise `file:upload:ack` in auth features; hide Photo on older relays. Use server:info.defaultPath as destination. Setup creates ~/.local/share/tmuxde/uploads with mode 0700, writes LOCAL_UPLOAD_DIR to Compose env, and mounts that absolute path unchanged into relay. ALLOWED_PATHS contains only that folder in local stack.
 
 Completed: protocol and shared mount deployed. 30 web unit tests, 88 relay tests, and 17 browser tests passed. Mobile and desktop browser tests verified original bytes through authenticated download, no Return, preserved hidden keyboard, and closing More during upload. Host files matched test fixture and were removed after verification. Web and relay containers healthy. Review found no blockers; copy-mode insertion and More lifetime concerns addressed. Physical iPhone picker and agent model interpretation remain user checks.

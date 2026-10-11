@@ -35,7 +35,7 @@ import { isFullGrant } from "./grant.js";
  * be set by an embedding CLI at any point before the first connection.
  */
 export function accessLogPath(): string {
-  const dir = process.env.MTMUX_CONFIG_DIR ?? join(homedir(), ".mtmux");
+  const dir = process.env.TMUXDE_CONFIG_DIR ?? join(homedir(), ".tmuxde");
   return join(dir, "access.log");
 }
 

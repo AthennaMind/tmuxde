@@ -36,7 +36,7 @@ import { cacheKeys, cachedKeys, isEnrolled, masterKey } from "./unlocked";
  * footprint stays exactly one record.
  */
 
-const DB_NAME = "mtmux";
+const DB_NAME = "tmuxde";
 /**
  * v2 added the descriptor store; v3 added `lock` and `census`; v4 adds
  * `machines`.
@@ -58,7 +58,7 @@ export const LOCK_STORE = "lock";
 export const CENSUS_STORE = "census";
 /** Device-local names and ordering for paired machines. See machine-directory.ts. */
 export const MACHINE_STORE = "machines";
-const DESCRIPTOR_KEY = "mtmux:session-descriptor";
+const DESCRIPTOR_KEY = "tmuxde:session-descriptor";
 
 export type PairedSession = {
   descriptor: SealedDescriptor;
@@ -74,7 +74,7 @@ export type PairedSession = {
    * record: the one persistent copy is the one `saveSessionKeys` already writes
    * to IndexedDB, and `hydrateDescriptor` reads it back from there. This is a
    * 24-hour scoped session token, the same class of credential as the
-   * self-hosted path's `mtmux-token`, not the machine's long-lived
+   * self-hosted path's `tmuxde-token`, not the machine's long-lived
    * AUTH_TOKEN — which never reaches the browser at all.
    */
   directToken?: string;

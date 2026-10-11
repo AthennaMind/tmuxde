@@ -230,8 +230,8 @@ export function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
             <AlertDialogDescription>
               This browser forgets every machine it has paired with, and the
               lock goes with them. Nothing on the machines themselves changes —
-              your sessions keep running, and pairing again is{" "}
-              <code className="font-mono">mtmux</code> and the code it prints.
+              your sessions keep running, and signing in again takes only the
+              relay token.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">

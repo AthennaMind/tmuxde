@@ -149,7 +149,7 @@
  * `visibility: hidden` would be stronger but forces a full relayout of xterm on
  * every app switch; a blur filter is composited and costs nothing.
  */
-.mtmux-hidden body {
+.tmuxde-hidden body {
   filter: blur(18px);
 }
 
@@ -167,17 +167,17 @@
  * has comments about how expensive that is. `data-keyboard` is stamped on the
  * root by `VisualViewportSync`; nothing here re-renders.
  */
-html[data-keyboard="open"] .mtmux-hide-when-keyboard {
+html[data-keyboard="open"] .tmuxde-hide-when-keyboard {
   display: none;
 }
 
 /* One row while typing. More reveals remaining controls at full touch size. */
 html[data-keyboard="open"]
-  .mtmux-keyboard[data-expanded="false"]
+  .tmuxde-keyboard[data-expanded="false"]
   [data-extra-control] {
   display: none;
 }
 
-html[data-keyboard="open"] .mtmux-terminal-shell {
+html[data-keyboard="open"] .tmuxde-terminal-shell {
   padding-bottom: 0;
 }

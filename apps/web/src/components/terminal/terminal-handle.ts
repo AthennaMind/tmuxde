@@ -122,14 +122,14 @@ let mounted: TerminalHandle | null = null;
  */
 declare global {
   interface Window {
-    __mtmuxTerminalHandle?: TerminalHandle | null;
+    __tmuxdeTerminalHandle?: TerminalHandle | null;
   }
 }
 
 export function setTerminalHandle(handle: TerminalHandle | null): void {
   mounted = handle;
   if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
-    window.__mtmuxTerminalHandle = handle;
+    window.__tmuxdeTerminalHandle = handle;
   }
 }
 
