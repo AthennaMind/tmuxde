@@ -56,7 +56,7 @@ docker compose up -d --build --wait
 
 Setup writes a private `.env`, generates the relay token and copies your host tmux client. No Node or pnpm install on the host.
 
-Set `LOCAL_DOMAIN` and `LOCAL_BIND_IP` in `.env` for your network. Trust the Caddy local CA on your devices, following [.docker/README.md](.docker/README.md). Then open your domain and sign in with the token from `.docker/.env.token`.
+Set `LOCAL_DOMAIN` and `LOCAL_BIND_IP` in `.env` for your network. Defaults are `localhost` and `127.0.0.1`, reachable only from the host. Setup keeps your values on later runs. Trust the Caddy local CA on your devices, following [.docker/README.md](.docker/README.md). Then open your domain and sign in with the token from `.docker/.env.token`.
 
 ## Development
 

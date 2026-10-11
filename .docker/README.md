@@ -11,8 +11,8 @@ docker compose up -d --build
 cat .docker/.env.token
 ```
 
-Trust local CA using steps below, then open
-<https://localhost/login>, paste token, and select session.
+Trust local CA using steps below, then open `https://<LOCAL_DOMAIN>/login`,
+paste token, and select session.
 Fresh browsers opening site root also reach token login. Caddy redirects code
 entry routes to `/login` because standalone relay does not issue pairing codes.
 Browser controls live host sessions. Socket access includes all sessions on that
@@ -78,10 +78,18 @@ entry in `ALLOWED_PATHS`. Git is bundled in relay image. File viewing and diffs
 run locally without network access. Relay state uses `/tmp/tmuxde-state`; host
 `~/.tmuxde` stays blocked even with this separate state directory.
 
-Caddy binds TCP port 443 on `127.0.0.1` and accepts private network clients.
-Internal DNS must resolve `localhost` to that address on each
-device. `LOCAL_DOMAIN` and `LOCAL_BIND_IP` can override these defaults through
-shell environment. Relay uses same HTTPS origin through `/_relay`. Web and relay
+Caddy binds TCP port 443 on `LOCAL_BIND_IP` and accepts private network
+clients. Defaults are `127.0.0.1` and `localhost`, which only reach the host
+itself. For phones, set `LOCAL_BIND_IP` to the host LAN address and
+`LOCAL_DOMAIN` to a name your internal DNS resolves to that address on each
+device. Put both in root `.env`, or pass them to setup once:
+
+```sh
+LOCAL_DOMAIN=tmux.home.arpa LOCAL_BIND_IP=192.168.1.10 scripts/setup.sh
+```
+
+Setup keeps both values when it rewrites `.env`. Relay uses same HTTPS origin
+through `/_relay`. Web and relay
 ports are not published. Port 80 remains available to existing services.
 
 ## Trust local CA

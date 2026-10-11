@@ -71,4 +71,5 @@ apps/web/next-env.d.ts
 # Local agent settings.
 .claude/local/
 .claude/settings.local.json
+AGENTS.local.md
 CLAUDE.local.md
