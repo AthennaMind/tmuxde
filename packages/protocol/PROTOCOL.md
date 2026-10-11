@@ -137,10 +137,12 @@ inside attached session. Each request receives `repo:result` with matching
   type: "repo:request";
   requestId: string;
   id: string; // Target pane ID. Required for every action.
-  action: "context" | "list" | "read" | "status" | "diff";
+  action: "context" | "list" | "read" | "status" | "diff" | "log" | "show";
   path?: string;
   file?: string;
   scope?: "unstaged" | "staged" | "untracked";
+  skip?: number; // log: commits to pass over. Integer, 0 to 1,000,000.
+  commit?: string; // show: 7 to 64 lowercase hex characters.
 }
 ```
 
@@ -148,6 +150,14 @@ inside attached session. Each request receives `repo:result` with matching
 directory. `read` requires `path`. `status` and `diff` accept captured context
 in `path` so changing pane directory does not silently switch repositories.
 `diff` requires `file`, relative to repository root, and `scope`.
+
+`log` and `show` require `repo:history` in `auth:success.features`. `log`
+pages history from `HEAD`, 100 commits per page, starting after `skip`
+commits. `show` requires `commit` and answers its metadata and whole patch.
+A merge is compared with its first parent. A root commit is compared with an
+empty tree. Files whose path file policy denies are left out and counted in
+`hidden`. History reads also disable signature verification, mailmap and
+notes, so a repository setting never runs a GPG program.
 
 All paths pass relay file policy. Git roots, worktree metadata, and common Git
 directories must remain inside allowed paths. Git configuration includes,
@@ -221,7 +231,21 @@ flagged. Repository actions never stage, commit, restore, or write files.
 | `read` | `path`, `content`, `truncated`, `binary` |
 | `status` | `root`, `branch`, `entries: { path, originalPath?, index, worktree }[]`, `truncated` |
 | `diff` | `path`, `scope`, `content`, `truncated`, `binary` |
+| `log` | `root: string \| null`, `branch: string \| null`, `skip`, `commits: Commit[]`, `more` |
+| `show` | `root`, `commit: Commit & { email, committer, committerDate, body }`, `files: CommitFile[]`, `hidden`, `truncated` |
 | `error` | `message` |
+
+`Commit` is `{ hash, parents: string[], author, date, subject, refs: string[] }`.
+`date` is the author date in ISO 8601. `refs` are decorations as Git prints
+them, such as `HEAD -> main` or `tag: v1`. `more` is true when older commits
+exist past the page.
+
+`CommitFile` is `{ path, originalPath?, status, additions, deletions, binary,
+patch }`. `status` is the Git raw status letter (`A`, `M`, `D`, `R`, `C`,
+`T`). `originalPath` is set for renames and copies. Counts are null for binary
+files. `patch` is this file's section of the patch from its `diff --git` line,
+and is empty when output reached the size limit before it. `truncated` marks a
+patch cut at the output limit or a commit with more than 2,000 files.
 
 Status paths are relative to repository root. `index` and `worktree` preserve
 Git porcelain status characters, including spaces and `?` for untracked files.

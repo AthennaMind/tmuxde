@@ -1,9 +1,21 @@
 "use client";
 
-import { Settings, SquareTerminal, X } from "lucide-react";
+import { GitCommitHorizontal, Settings, SquareTerminal, X } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@repo/ui/components/ui/context-menu";
 import { cn } from "@repo/ui/lib/utils";
 import { RepositoryFileIcon } from "@/components/files/repository-file-icon";
-import { useMainTabsStore, TERMINAL_TAB, type FileTab } from "@/stores/main-tabs-store";
+import {
+  inGroup,
+  useMainTabsStore,
+  TERMINAL_TAB,
+  type CloseGroup,
+  type FileTab,
+} from "@/stores/main-tabs-store";
 import { useSessionStore } from "@/stores/session-store";
 
 const SCOPE_SHORT = { staged: "staged", unstaged: "diff", untracked: "new" };
@@ -17,53 +29,96 @@ function tabLabel(tab: FileTab) {
  *
  * Only drawn once another tab is open. With the terminal alone there is nothing
  * to switch between, and the row would cost the terminal 44px for nothing.
+ *
+ * Right click anywhere on the row offers bulk close. The terminal never closes.
  */
 export function MainTabs() {
   const tabs = useMainTabsStore((s) => s.tabs);
   const active = useMainTabsStore((s) => s.active);
   const activate = useMainTabsStore((s) => s.activate);
   const closeTab = useMainTabsStore((s) => s.closeTab);
+  const closeTabs = useMainTabsStore((s) => s.closeTabs);
   const session = useSessionStore((s) => s.activeSessionId);
 
   if (!tabs.length) return null;
 
+  const has = (group: CloseGroup) => tabs.some((tab) => inGroup(tab, group));
+
   return (
-    <nav
-      aria-label="Open views"
-      className="flex min-h-11 shrink-0 items-end gap-0.5 overflow-x-auto border-b px-1.5 font-chrome scrollbar-none"
-    >
-      <Tab
-        label={session ?? "Terminal"}
-        icon={<SquareTerminal className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-        active={active === TERMINAL_TAB}
-        onSelect={() => activate(TERMINAL_TAB)}
-      />
-      {tabs.map((tab) =>
-        tab.kind === "settings" ? (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <nav
+          aria-label="Open views"
+          className="flex min-h-11 shrink-0 items-end gap-0.5 overflow-x-auto border-b px-1.5 font-chrome scrollbar-none"
+        >
           <Tab
-            key={tab.id}
-            label="Settings"
-            icon={<Settings className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-            active={active === tab.id}
-            onSelect={() => activate(tab.id)}
-            onClose={() => closeTab(tab.id)}
+            label={session ?? "Terminal"}
+            icon={<SquareTerminal className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+            active={active === TERMINAL_TAB}
+            onSelect={() => activate(TERMINAL_TAB)}
           />
-        ) : (
-          <Tab
-            key={tab.id}
-            label={tabLabel(tab)}
-            detail={tab.scope ? SCOPE_SHORT[tab.scope] : undefined}
-            title={tab.scope ? `${tab.path} (${tab.scope} changes)` : tab.path}
-            icon={
-              <RepositoryFileIcon path={tab.path} className="h-3.5 w-3.5" />
-            }
-            active={active === tab.id}
-            onSelect={() => activate(tab.id)}
-            onClose={() => closeTab(tab.id)}
-          />
-        ),
-      )}
-    </nav>
+          {tabs.map((tab) =>
+            tab.kind === "commit" ? (
+              <Tab
+                key={tab.id}
+                label={tab.subject || tab.hash.slice(0, 7)}
+                detail={tab.subject ? tab.hash.slice(0, 7) : undefined}
+                title={`${tab.hash.slice(0, 7)} ${tab.subject}`.trim()}
+                icon={
+                  <GitCommitHorizontal
+                    className="h-3.5 w-3.5 shrink-0"
+                    aria-hidden
+                  />
+                }
+                active={active === tab.id}
+                onSelect={() => activate(tab.id)}
+                onClose={() => closeTab(tab.id)}
+              />
+            ) : tab.kind === "settings" ? (
+              <Tab
+                key={tab.id}
+                label="Settings"
+                icon={<Settings className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                active={active === tab.id}
+                onSelect={() => activate(tab.id)}
+                onClose={() => closeTab(tab.id)}
+              />
+            ) : (
+              <Tab
+                key={tab.id}
+                label={tabLabel(tab)}
+                detail={tab.scope ? SCOPE_SHORT[tab.scope] : undefined}
+                title={tab.scope ? `${tab.path} (${tab.scope} changes)` : tab.path}
+                icon={
+                  <RepositoryFileIcon path={tab.path} className="h-3.5 w-3.5" />
+                }
+                active={active === tab.id}
+                onSelect={() => activate(tab.id)}
+                onClose={() => closeTab(tab.id)}
+              />
+            ),
+          )}
+        </nav>
+      </ContextMenuTrigger>
+      {/* Portalled out of the row, so it does not inherit the face. */}
+      <ContextMenuContent className="min-w-40 font-chrome text-[13px]">
+        <ContextMenuItem onSelect={() => closeTabs("all")}>
+          Close all
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={!has("diffs")}
+          onSelect={() => closeTabs("diffs")}
+        >
+          Close diffs
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={!has("files")}
+          onSelect={() => closeTabs("files")}
+        >
+          Close files
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 

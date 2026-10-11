@@ -133,7 +133,7 @@ function FileTabBody({
   );
 }
 
-function HeaderButton({
+export function HeaderButton({
   label,
   pressed,
   onClick,

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ClientMessage, ServerMessage } from "@repo/protocol";
+import { usePaneStore } from "@/stores/pane-store";
 import { repositoryRequest, type RepositoryClient } from "./repository-request";
 
 function fakeClient() {
@@ -27,7 +28,10 @@ function fakeClient() {
   return { client, sent, messages, statuses };
 }
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  usePaneStore.setState({ activePaneId: null });
+});
 
 describe("repositoryRequest", () => {
   it("matches concurrent replies by request ID and removes subscriptions", async () => {
@@ -115,5 +119,33 @@ describe("repositoryRequest", () => {
         result: { kind: "error", message: "Permission denied" },
       });
     await expect(promise).rejects.toThrow("Permission denied");
+  });
+
+  it("carries absolute paths through the active pane, the rest through their own", () => {
+    const { client, sent } = fakeClient();
+    usePaneStore.setState({ activePaneId: "%9" });
+    const ignore = () => {};
+    repositoryRequest(client, { id: "%1", action: "list", path: "/one" }).catch(ignore);
+    repositoryRequest(client, { id: "%1", action: "list", path: "rel" }).catch(ignore);
+    repositoryRequest(client, { id: "%1", action: "context" }).catch(ignore);
+    repositoryRequest(client, {
+      id: "%1",
+      action: "context",
+      path: "/one",
+    }).catch(ignore);
+    expect(sent.map((m) => (m.type === "repo:request" ? m.id : null))).toEqual([
+      "%9",
+      "%1",
+      "%1",
+      "%1",
+    ]);
+  });
+
+  it("keeps the given pane when none is active", () => {
+    const { client, sent } = fakeClient();
+    repositoryRequest(client, { id: "%1", action: "list", path: "/one" }).catch(
+      () => {},
+    );
+    expect(sent[0]).toMatchObject({ id: "%1" });
   });
 });

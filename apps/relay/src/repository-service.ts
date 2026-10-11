@@ -2,14 +2,24 @@ import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
-import type { FileEntry, RepoRequest, RepoResult } from "@repo/protocol";
+import type {
+  FileEntry,
+  RepoCommit,
+  RepoCommitFile,
+  RepoRequest,
+  RepoResult,
+} from "@repo/protocol";
 import { isPathAllowed } from "./file-service.js";
 
 const READ_LIMIT = 100 * 1024;
 const OUTPUT_LIMIT = 512 * 1024;
 const ENTRY_LIMIT = 2000;
 const TIMEOUT = 5000;
-type Request = Pick<RepoRequest, "action" | "path" | "file" | "scope">;
+const LOG_PAGE = 100;
+type Request = Pick<
+  RepoRequest,
+  "action" | "path" | "file" | "scope" | "skip" | "commit"
+>;
 type Repository = { root: string; gitdir: string };
 
 function inside(file: string, root: string): boolean {
@@ -218,6 +228,201 @@ async function branch(repo: Repository): Promise<string | null> {
   return result.content.trim() || null;
 }
 
+// History reads never verify signatures, map names or show notes. Signature
+// checks run the configured GPG program, and mailmap and notes read more
+// files than the commit itself.
+export const HISTORY_FLAGS = [
+  "--no-show-signature",
+  "--no-mailmap",
+  "--no-notes",
+  "--no-color",
+];
+const FIELD = "\x1f";
+// Subject last: it is free text, so a stray separator only lands in it.
+const LOG_FORMAT = "%H%x1f%P%x1f%an%x1f%aI%x1f%D%x1f%s";
+const SHOW_FORMAT = "%H%x1f%P%x1f%an%x1f%ae%x1f%aI%x1f%cn%x1f%cI%x1f%D%x1f%s%x1f%b";
+
+function summary(fields: string[]): RepoCommit {
+  const [hash = "", parents = "", author = "", date = "", refs = ""] = fields;
+  return {
+    hash,
+    parents: parents ? parents.split(" ") : [],
+    author,
+    date,
+    subject: fields.slice(5).join(FIELD),
+    refs: refs ? refs.split(", ") : [],
+  };
+}
+
+async function log(repo: Repository, skip: number): Promise<RepoResult> {
+  const base = {
+    kind: "log" as const,
+    root: repo.root,
+    branch: await branch(repo),
+    skip,
+  };
+  // A new repository has no HEAD commit yet. That is an empty history.
+  const head = await git(repo, ["rev-parse", "--verify", "-q", "HEAD"], [0, 1]);
+  if (!head.content.trim()) return { ...base, commits: [], more: false };
+  const output = await git(repo, [
+    "log",
+    ...HISTORY_FLAGS,
+    "-z",
+    `--format=${LOG_FORMAT}`,
+    `--max-count=${LOG_PAGE + 1}`,
+    `--skip=${skip}`,
+    "--end-of-options",
+    "HEAD",
+  ]);
+  const records = output.content.split("\0").filter(Boolean);
+  // Output cut at the limit ends in a partial record.
+  if (output.truncated) records.pop();
+  return {
+    ...base,
+    commits: records
+      .slice(0, LOG_PAGE)
+      .map((record) => summary(record.split(FIELD))),
+    more: records.length > LOG_PAGE || output.truncated,
+  };
+}
+
+type TreeFile = Pick<RepoCommitFile, "path" | "originalPath" | "status">;
+
+/**
+ * Split `diff-tree -z --raw --numstat -p` output into files.
+ *
+ * All three formats come from one diff queue, so raw record, count and patch
+ * section `n` describe the same file. Output cut at the limit leaves the tail
+ * without counts or patch.
+ */
+export function parseCommitTree(content: string): RepoCommitFile[] {
+  const tokens = content.split("\0");
+  let i = 0;
+  const files: TreeFile[] = [];
+  while (tokens[i]?.startsWith(":")) {
+    const status = tokens[i]!.split(" ").pop()?.[0] ?? "M";
+    const pair = status === "R" || status === "C";
+    const first = tokens[i + 1];
+    const second = pair ? tokens[i + 2] : first;
+    if (first === undefined || second === undefined) break;
+    files.push(
+      pair
+        ? { path: second, originalPath: first, status }
+        : { path: first, status },
+    );
+    i += pair ? 3 : 2;
+  }
+  while (tokens[i] === "") i++;
+  const counts: { additions: number | null; deletions: number | null }[] = [];
+  while (counts.length < files.length && i < tokens.length) {
+    const match = /^(-|\d+)\t(-|\d+)\t([^]*)$/.exec(tokens[i]!);
+    if (!match) break;
+    counts.push({
+      additions: match[1] === "-" ? null : Number(match[1]),
+      deletions: match[2] === "-" ? null : Number(match[2]),
+    });
+    // A rename prints its two paths as their own records.
+    i += match[3] ? 1 : 3;
+  }
+  const patch = tokens.slice(i).join("\0").replace(/^\0+/, "");
+  const sections = patch
+    .split(/^(?=diff --git )/m)
+    .filter((section) => section.startsWith("diff --git "));
+  return files.map((file, index) => {
+    const count = counts[index];
+    const section = (sections[index] ?? "").replace(/\n$/, "");
+    const binary =
+      (count !== undefined && count.additions === null) ||
+      /^Binary files .* differ$/m.test(section);
+    return {
+      ...file,
+      additions: count?.additions ?? null,
+      deletions: count?.deletions ?? null,
+      binary,
+      patch: section,
+    };
+  });
+}
+
+async function show(repo: Repository, commit: string): Promise<RepoResult> {
+  if (!/^[0-9a-f]{7,64}$/.test(commit)) throw new Error("Invalid commit");
+  const resolved = await git(
+    repo,
+    ["rev-parse", "--verify", "-q", `${commit}^{commit}`],
+    [0, 1],
+  );
+  const hash = resolved.content.trim();
+  if (!/^[0-9a-f]{40,64}$/.test(hash)) throw new Error("Commit not found");
+  const meta = await git(repo, [
+    "show",
+    "-s",
+    ...HISTORY_FLAGS,
+    `--format=${SHOW_FORMAT}`,
+    "--end-of-options",
+    hash,
+  ]);
+  const fields = meta.content.split(FIELD);
+  const [, parents = "", author = "", email = "", date = ""] = fields;
+  const [committer = "", committerDate = "", refs = "", subject = ""] =
+    fields.slice(5);
+  const output = await git(repo, [
+    "diff-tree",
+    "-r",
+    "-z",
+    "-M",
+    "--root",
+    "--raw",
+    "--numstat",
+    "-p",
+    "--no-commit-id",
+    "--no-abbrev",
+    // A merge shows what it brought in over the branch it was merged into.
+    "--diff-merges=first-parent",
+    "--no-ext-diff",
+    "--no-textconv",
+    "--no-color",
+    "--end-of-options",
+    hash,
+  ]);
+  const files: RepoCommitFile[] = [];
+  let hidden = 0;
+  const all = parseCommitTree(output.content);
+  for (const file of all.slice(0, ENTRY_LIMIT)) {
+    try {
+      for (const name of [file.path, file.originalPath]) {
+        if (name === undefined) continue;
+        const absolute = path.resolve(repo.root, name);
+        if (!inside(absolute, repo.root))
+          throw new Error("Access denied: file outside repository");
+        await checked(absolute);
+      }
+      files.push(file);
+    } catch {
+      // Same rule as status: paths file policy denies stay out of view.
+      hidden++;
+    }
+  }
+  return {
+    kind: "show",
+    root: repo.root,
+    commit: {
+      hash,
+      parents: parents ? parents.split(" ") : [],
+      author,
+      email,
+      date,
+      committer,
+      committerDate,
+      refs: refs ? refs.split(", ") : [],
+      subject,
+      body: fields.slice(9).join(FIELD).trim(),
+    },
+    files,
+    hidden,
+    truncated: output.truncated || all.length > ENTRY_LIMIT,
+  };
+}
+
 async function list(directory: string): Promise<RepoResult> {
   const safe = await checked(directory);
   const entries: FileEntry[] = [];
@@ -329,7 +534,23 @@ export async function repositoryRequest(
       truncated: output.truncated || records.length > ENTRY_LIMIT,
     };
   }
+  if (request.action === "log") {
+    if (!repo)
+      return {
+        kind: "log",
+        root: null,
+        branch: null,
+        skip: 0,
+        commits: [],
+        more: false,
+      };
+    return log(repo, request.skip ?? 0);
+  }
   if (!repo) throw new Error("Current pane directory is not a Git repository");
+  if (request.action === "show") {
+    if (!request.commit) throw new Error("Commit required");
+    return show(repo, request.commit);
+  }
   if (!request.file || !request.scope)
     throw new Error("File and change scope required");
   const file = path.resolve(repo.root, request.file);
