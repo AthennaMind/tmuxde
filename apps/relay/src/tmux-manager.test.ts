@@ -280,6 +280,32 @@ describeTmux("scrollHistory", { timeout: TMUX_TEST_TIMEOUT_MS }, () => {
   });
 });
 
+describeTmux("splitPane", { timeout: TMUX_TEST_TIMEOUT_MS }, () => {
+  const SPLIT = "relay-split-fixture";
+  let folder: string;
+
+  beforeAll(() => {
+    folder = path.join(base, "split-here");
+    fs.mkdirSync(folder);
+    tmuxExec(["new-session", "-d", "-s", SPLIT, "-c", folder, "sleep 600"]);
+  });
+
+  afterAll(() => {
+    try {
+      tmuxExec(["kill-session", "-t", SPLIT]);
+    } catch {
+      // already gone
+    }
+  });
+
+  it("starts the new pane in the folder of the pane it splits", async () => {
+    await tmux.splitPane(SPLIT, "h");
+    const panes = await tmux.listPanes(SPLIT);
+    expect(panes).toHaveLength(2);
+    expect(panes.map((p) => p.path)).toEqual([folder, folder]);
+  });
+});
+
 /**
  * The window/pane scoping the mobile switcher depends on.
  *
@@ -441,6 +467,26 @@ describeTmux("windows and panes", { timeout: TMUX_TEST_TIMEOUT_MS }, () => {
     expect(windows).toHaveLength(3);
     const current = await tmux.currentWindowId(MULTI);
     expect(current).toBe(windows.find((w) => w.active)?.id);
+  });
+
+  it("shows the window of a pane selected through its session", async () => {
+    const start = await tmux.currentWindowId(MULTI);
+    const other = (await tmux.listPanes(MULTI)).find(
+      (p) => p.windowId !== start,
+    );
+    expect(other).toBeDefined();
+
+    // Without the session, tmux focuses the pane inside its own window and
+    // leaves the screen where it was. A split sent next lands off target.
+    await tmux.selectPane(other!.id);
+    expect(await tmux.currentWindowId(MULTI)).toBe(start);
+
+    await tmux.selectPane(other!.id, MULTI);
+    expect(await tmux.currentWindowId(MULTI)).toBe(other!.windowId);
+    const panes = await tmux.listPanes(MULTI, other!.windowId);
+    expect(panes.find((p) => p.active)?.id).toBe(other!.id);
+
+    await tmux.selectWindow(start);
   });
 
   it("returns exactly one active pane when scoped to a window", async () => {
