@@ -18,7 +18,7 @@ import { z } from "zod";
  * wrong code, repeatedly, for as long as they retry. And sealed frames moved to
  * a per-connection subkey, so a 0.6.x peer's frames simply fail to open. Both
  * failures are silent and both look like the *other* side being broken. A floor
- * turns them into one sentence: update mtmux.
+ * turns them into one sentence: update tmuxde.
  *
  * ## What the numbers mean
  *

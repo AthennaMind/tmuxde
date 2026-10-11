@@ -45,11 +45,11 @@ export function PinPad({
 
   return (
     <div className="relative">
-      <label className="sr-only" htmlFor="mtmux-pin">
+      <label className="sr-only" htmlFor="tmuxde-pin">
         {label}
       </label>
       <input
-        id="mtmux-pin"
+        id="tmuxde-pin"
         ref={inputRef}
         type="password"
         inputMode="numeric"
@@ -62,10 +62,10 @@ export function PinPad({
         value={value}
         onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
         className="absolute inset-0 h-full w-full cursor-default opacity-0"
-        aria-describedby="mtmux-pin-dots"
+        aria-describedby="tmuxde-pin-dots"
       />
       <div
-        id="mtmux-pin-dots"
+        id="tmuxde-pin-dots"
         className="pointer-events-none flex items-center justify-center gap-3 py-4"
         aria-hidden
       >

@@ -12,7 +12,7 @@ import { bytesToHex, hexToBytes, randomBytes } from "./bytes";
  * once, ever — and revocation is just forgetting a public key.
  */
 
-const CHALLENGE_DOMAIN = utf8ToBytes("mtmux/v1 device-challenge");
+const CHALLENGE_DOMAIN = utf8ToBytes("tmuxde/v1 device-challenge");
 export const CHALLENGE_BYTES = 32;
 
 export type DeviceKeyPair = {
@@ -65,7 +65,7 @@ export function verifyChallenge(
   }
 }
 
-/** Serialised form for ~/.mtmux/config.json and IndexedDB. */
+/** Serialised form for ~/.tmuxde/config.json and IndexedDB. */
 export type StoredDeviceKey = {
   deviceId: string;
   publicKey: string;

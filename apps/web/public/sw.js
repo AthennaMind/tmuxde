@@ -19,7 +19,7 @@
  * to nothing that changes between deploys, so a stale copy is still a correct
  * copy. Bump CACHE_NAME by hand if that page's contents ever change.
  */
-const CACHE_NAME = "mtmux-offline-v2";
+const CACHE_NAME = "tmuxde-offline-v2";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {

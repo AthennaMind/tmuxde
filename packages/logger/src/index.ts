@@ -18,7 +18,7 @@ const isDev = process.env.NODE_ENV !== "production";
  * and then die on its first log line.
  *
  * `sync: false` because a terminal server must never block on a disk write, and
- * `mkdir` because `~/.mtmux/logs` does not exist on a first run.
+ * `mkdir` because `~/.tmuxde/logs` does not exist on a first run.
  */
 const dest = process.env.LOG_FILE;
 

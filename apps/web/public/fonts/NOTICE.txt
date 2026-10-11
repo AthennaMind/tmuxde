@@ -7,10 +7,10 @@ Converted to WOFF2 with fontTools 4.60.1. No glyphs removed.
 Upstream license: LICENSE-NerdFonts.txt
 Icon authors and individual licenses: https://github.com/ryanoasis/nerd-fonts/tree/v3.4.0/src/glyphs
 
-Served locally by mtmux. No external font service is used.
+Served locally by tmuxde. No external font service is used.
 
 IBM Plex Sans, IBM Plex Mono, and Martian Mono are bundled locally.
-Latin WOFF2 assets copied from existing mtmux web build.
+Latin WOFF2 assets copied from upstream mtmux web build.
 Font sources: https://github.com/google/fonts/tree/main/ofl
 See accompanying LICENSE files for each font family.
 

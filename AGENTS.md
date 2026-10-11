@@ -1,10 +1,10 @@
-# mtmux local
+# tmuxde
 
 ## What this is
 
-mtmux local is a self-hosted web terminal for tmux. It serves host tmux sessions to any browser on private network, mainly phones and tablets. User opens existing session from phone, types into it, scrolls history, uploads photos as file paths and browses repository files and Git changes. Main use case is driving long-running coding agents (Claude Code, Codex) and shells away from host keyboard. tmux owns session state. Closing browser, locking device or rebuilding containers never kills sessions.
+tmuxde (Tmux Development Environment) is a self-hosted web terminal for tmux. It serves host tmux sessions to any browser on private network, mainly phones and tablets. User opens existing session from phone, types into it, scrolls history, uploads photos as file paths and browses repository files and Git changes. Main use case is driving long-running coding agents (Claude Code, Codex) and shells away from host keyboard. tmux owns session state. Closing browser, locking device or rebuilding containers never kills sessions.
 
-This is a fork of [mtmux/mtmux](https://github.com/mtmux/mtmux) (git remote `upstream`). Upstream ships `mtmux` npm CLI, QR and code pairing, hosted broker, sealed tunnel, accounts and billing. This fork removed CLI, marketing site, hosted broker, billing, database and email apps. What remains is web client and relay, run by Docker Compose behind Caddy with local CA. Sign-in uses relay token from `.docker/.env.token`. Current setup guide is [.docker/README.md](.docker/README.md).
+Repository is [AthennaMind/tmuxde](https://github.com/AthennaMind/tmuxde). It is a fork of [mtmux/mtmux](https://github.com/mtmux/mtmux) (git remote `upstream`). Upstream ships `mtmux` npm CLI, QR and code pairing, hosted broker, sealed tunnel, accounts and billing. This fork removed CLI, marketing site, hosted broker, billing, database and email apps. What remains is web client and relay, run by Docker Compose behind Caddy with local CA. Sign-in uses relay token from `.docker/.env.token`. Current setup guide is [.docker/README.md](.docker/README.md).
 
 ## Architecture
 

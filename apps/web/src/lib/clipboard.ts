@@ -1,5 +1,5 @@
 /**
- * Copy text, including on the origin most mtmux users are actually on.
+ * Copy text, including on the origin most tmuxde users are actually on.
  *
  * `navigator.clipboard` exists only in a secure context, and `mtmux start`
  * serves the app over plain http on the LAN (`apps/cli/src/serve.ts`) — so on

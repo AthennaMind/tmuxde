@@ -167,7 +167,7 @@ export function TerminalWorkspace() {
           )}
         >
           <div className="flex h-full flex-col">
-            <WindowTabs className="mtmux-hide-when-keyboard" />
+            <WindowTabs className="tmuxde-hide-when-keyboard" />
             <div ref={paneRef} className="relative flex-1 overflow-hidden">
               {/* One recogniser for scroll, swipe and pinch — the three used
                   to be split across two stacked components that fought each
