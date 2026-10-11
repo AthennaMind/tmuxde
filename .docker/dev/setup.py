@@ -15,6 +15,26 @@ def output(*args):
     return subprocess.check_output(args, text=True).strip()
 
 
+NETWORK_KEYS = ("LOCAL_DOMAIN", "LOCAL_BIND_IP")
+
+
+def network_settings(env_path):
+    """Keep domain and bind address across reruns. Shell environment wins."""
+    kept = {}
+    if env_path.exists():
+        for line in env_path.read_text().splitlines():
+            key, sep, value = line.partition("=")
+            if sep and key in NETWORK_KEYS:
+                value = value.strip()
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+                    value = value[1:-1]
+                kept[key] = value.replace("\\'", "'")
+    for key in NETWORK_KEYS:
+        if os.environ.get(key):
+            kept[key] = os.environ[key]
+    return {key: value for key, value in kept.items() if value}
+
+
 def main():
     if platform.system() != "Linux" or platform.machine() != "x86_64":
         raise SystemExit("Local Docker setup requires Linux x86_64 with glibc.")
@@ -75,12 +95,13 @@ def main():
         "LOCAL_HOST_HOME": str(Path.home().resolve()),
     }
     env_path = local.parent / ".env"
+    values.update(network_settings(env_path))
     env_path.touch(mode=0o600)
     env_path.chmod(0o600)
     with env_path.open("w") as env:
         for key, value in values.items():
             if "\n" in value or "\r" in value:
-                raise SystemExit("Socket path must fit on one line.")
+                raise SystemExit(f"{key} must fit on one line.")
             value = value.replace("'", "\\'")
             env.write(f"{key}='{value}'\n")
     print(f"Prepared {output(tmux, '-V')} for socket {socket}")
