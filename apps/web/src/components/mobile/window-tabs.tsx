@@ -11,6 +11,7 @@ import { useSessionStore } from "@/stores/session-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useUiStore } from "@/stores/ui-store";
 import { useConnectionStore } from "@/stores/connection-store";
+import { isMobileViewport } from "@/lib/mobile-query";
 
 interface WindowTabsProps {
   className?: string;
@@ -283,10 +284,15 @@ export function WindowTabs({ className }: WindowTabsProps) {
         </button>
       )}
 
-      {/* Pane indicator button — always clickable to open PaneListPanel */}
+      {/* Pane indicator. Phones open the pane sheet. Desktop has the panes
+          in the sidebar session tree. */}
       <button
         className="flex h-11 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        onClick={() => setPaneListOpen(true)}
+        onClick={() =>
+          isMobileViewport()
+            ? setPaneListOpen(true)
+            : useUiStore.getState().showSidebarView("sessions")
+        }
         aria-label={zoomedPaneId ? "Hide pane list" : "Show pane list"}
       >
         {zoomedPaneId ? (

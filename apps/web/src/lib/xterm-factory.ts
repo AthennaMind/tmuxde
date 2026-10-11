@@ -6,7 +6,7 @@ import { Terminal as XTerm } from "@xterm/xterm";
 
 import { refreshWhenFontLoads, terminalFontFamily } from "./terminal-font.js";
 import { brightenDimText } from "./terminal-dim.js";
-import { isBrowserZoomKey } from "./browser-zoom-key.js";
+import { isFontZoomKey } from "./font-zoom-key.js";
 
 import {
   getTerminalTheme,
@@ -143,9 +143,10 @@ export function createXterm(options: XtermOptions): XtermBundle {
   terminal.loadAddon(unicode11Addon);
   terminal.loadAddon(webLinksAddon);
 
-  // Page zoom belongs to the browser. Without this, a focused terminal turns
-  // Ctrl+- into a control character and the browser never sees it.
-  terminal.attachCustomKeyEventHandler((event) => !isBrowserZoomKey(event));
+  // Font size keys belong to the app, not the shell. Without this, a focused
+  // terminal turns Ctrl+- into a control character. Skipped here, the key
+  // bubbles to the terminal layout, which sizes the terminal or the code view.
+  terminal.attachCustomKeyEventHandler((event) => !isFontZoomKey(event));
 
   terminal.unicode.activeVersion = "11";
   terminal.open(options.container);

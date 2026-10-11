@@ -52,9 +52,11 @@ const icons = {
 export function RepositoryFileIcon({
   path,
   type = "file",
+  className,
 }: {
   path: string;
   type?: FileEntry["type"];
+  className?: string;
 }) {
   const kind =
     type === "file"
@@ -80,6 +82,7 @@ export function RepositoryFileIcon({
                 kind === "font"
               ? "text-term-value"
               : "text-term-path",
+        className,
       )}
     />
   );

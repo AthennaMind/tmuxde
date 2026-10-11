@@ -29,6 +29,8 @@ import {
   serverIdFor,
 } from "@/lib/session-store";
 import { isMobileViewport } from "@/lib/mobile-query";
+import { noteSessionAttached, noteSessionDetached } from "@/lib/session-target";
+import { useSessionTreeStore } from "@/stores/session-tree-store";
 
 // #1: Dedup session exit toasts — track handled exits at module scope
 const handledExits = new Set<string>();
@@ -222,6 +224,7 @@ export function useWebSocket(
           break;
         case "session:killed":
           sessionStore.removeSession(msg.name);
+          useSessionTreeStore.getState().forget(msg.name);
           break;
         case "session:activity":
           sessionStore.updateSessionActivity(msg.name, msg.activity);
@@ -231,6 +234,7 @@ export function useWebSocket(
           if (!handledExits.has(msg.name)) {
             handledExits.add(msg.name);
             sessionStore.removeSession(msg.name);
+            useSessionTreeStore.getState().forget(msg.name);
             // Clear pane/zoom state if this was the active session
             if (sessionStore.activeSessionId === null) {
               usePaneStore.getState().clearAll();
@@ -296,7 +300,9 @@ export function useWebSocket(
           break;
         }
         case "session:attached":
-          // Handled in terminal-view
+          // Terminal view handles the stream. The session tree sends any
+          // window or pane selection that waited on this attach.
+          noteSessionAttached(msg.name);
           break;
         case "tmux:scroll-state":
           noteScrollStateReply(msg.inMode);
@@ -311,7 +317,11 @@ export function useWebSocket(
           useUiStore.getState().setCapturedPane(msg.id, msg.content);
           break;
         case "session:windows":
-          // Handled by SessionCard via direct onMessage subscription
+          // Mobile SessionCard also listens directly for its own request.
+          useSessionTreeStore.getState().setDetails(msg.name, {
+            windows: msg.windows,
+            panes: msg.panes,
+          });
           break;
         case "device:approval-request":
           /*
@@ -428,6 +438,7 @@ export function useWebSocket(
           },
           onStatusChange: (status) => {
             useConnectionStore.getState().setStatus(status);
+            if (status !== "connected") noteSessionDetached();
             if (status === "reconnecting") {
               useConnectionStore.getState().incrementReconnect();
             }
