@@ -658,6 +658,25 @@ describeTmux("application scrolling", { timeout: TMUX_TEST_TIMEOUT_MS }, () => {
     },
   );
 
+  it("sends a long flick as one repeated event", async () => {
+    // Each hex byte is its own `send-keys` argument, and tmux rejects the
+    // command as too long well under a hundred spelled-out events. A flick
+    // is the clamp, five hundred lines, so it has to go through `-N`.
+    const target = await openTui("sgr");
+    await tmux.scrollHistory(target, 500);
+    await expect
+      .poll(
+        () =>
+          fs.existsSync(received)
+            ? // eslint-disable-next-line no-control-regex
+              (fs.readFileSync(received, "utf8").match(/\x1b\[<64;\d+;\d+M/g) ?? [])
+                .length
+            : 0,
+      )
+      .toBe(500);
+    expect(await tmux.isInCopyMode(target)).toBe(false);
+  });
+
   it("encodes legacy mouse wheel bytes", async () => {
     const target = await openTui("legacy");
     await tmux.scrollHistory(target, 1);
