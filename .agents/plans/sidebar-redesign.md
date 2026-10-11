@@ -148,7 +148,7 @@ No protocol change for phases 1 to 4.
 2. Sessions tree: tree store, functional rows, cross-session targeting, hover actions, context menu, inline rename, keyboard. Remove desktop `PaneListPanel`. Strip pane count button focuses the tree.
 3. Files and Changes: inline tree, file and diff tabs in main area, remove 48rem aside. Shortcut opens Files view.
 4. Photos view.
-5. Optional, needs protocol work: drag to reorder windows and move panes between windows (`swap-window`, `join-pane`). Requires schemas, both handlers, tests and `docs/reference/upstream/relay/protocol.mdx`.
+5. Optional, needs protocol work: drag to reorder windows and move panes between windows (`swap-window`, `join-pane`). Requires schemas, both handlers, tests and `packages/protocol/PROTOCOL.md`.
 
 Mobile untouched in phases 1 to 4. Tree component built density-aware so mobile Sessions tab can adopt it later.
 

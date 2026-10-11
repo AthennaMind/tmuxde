@@ -1,6 +1,6 @@
 FROM node:26.11.1-alpine AS base
 LABEL org.opencontainers.image.source="https://github.com/AthennaMind/tmuxde"
-LABEL org.opencontainers.image.description="tmuxde web client - your tmux on any screen"
+LABEL org.opencontainers.image.description="tmuxde web client - IDE with tmux as its backend"
 LABEL org.opencontainers.image.licenses="MIT"
 
 RUN apk add --no-cache wget

@@ -2,7 +2,9 @@
 
 ## What this is
 
-tmuxde (Tmux Development Environment) is a self-hosted web terminal for tmux. It serves host tmux sessions to any browser on private network, mainly phones and tablets. User opens existing session from phone, types into it, scrolls history, uploads photos as file paths and browses repository files and Git changes. Main use case is driving long-running coding agents (Claude Code, Codex) and shells away from host keyboard. tmux owns session state. Closing browser, locking device or rebuilding containers never kills sessions.
+tmuxde (Tmux Development Environment) is a self-hosted IDE with tmux as its backend. tmux owns sessions, windows, panes and their processes. tmuxde is the IDE around it, in browser on desktop or phone, served on private network only. Main use case is driving long-running coding agents (Claude Code, Codex) and shells. Closing browser, locking device or rebuilding containers never kills sessions.
+
+Selected pane is the focus. IDE surfaces take their context from it: folder, repository, branch, changes. Switching panes or `cd` in the pane moves the IDE with it. New features should follow this model. Current surfaces (session tree, files, changes, diffs, mobile terminal controls) are early and expected to change.
 
 Repository is [AthennaMind/tmuxde](https://github.com/AthennaMind/tmuxde). It is a fork of [mtmux/mtmux](https://github.com/mtmux/mtmux) (git remote `upstream`). Upstream ships `mtmux` npm CLI, QR and code pairing, hosted broker, sealed tunnel, accounts and billing. This fork removed CLI, marketing site, hosted broker, billing, database and email apps. What remains is web client and relay, run by Docker Compose behind Caddy with local CA. Sign-in uses relay token from `.docker/.env.token`. Current setup guide is [.docker/README.md](.docker/README.md).
 
@@ -34,8 +36,7 @@ Inherited upstream code is still wired in: local pairing (`pairing-local.ts`), s
 - `packages/ui`, `logger`: shared UI, local logging and configuration.
 - `.docker`: supported deployment, host tmux integration and Caddy local CA.
 - `scripts/setup.sh`: writes `.env`, token and copies host tmux client into `.docker/host-tmux`.
-- `docs/reference/upstream`: archived technical docs. Reference material only, not deployment instructions. Hosted and CLI instructions are historical. Exception: `relay/protocol.mdx` is maintained.
-- `docs/superpowers/plans`: older dated plans from fork cleanup. New plans go to `.agents/plans/`.
+- `packages/protocol/PROTOCOL.md`: maintained reference for every message type.
 - `.agents/skills`: UI review skills (`better-*`, `interface-review`).
 
 ## Commands
@@ -67,7 +68,7 @@ Browser assets must be local. No analytics exporters, hosted accounts, cloud dic
 
 ## Changes
 
-Protocol changes require schemas, both handlers, tests and updates to `docs/reference/upstream/relay/protocol.mdx`. Both handlers means relay `message-router.ts` and web `use-websocket.ts`. New message types also need entry in relay `policy.ts`. Relay file access must use path guards. Session operations go through `tmux-manager.ts`. Preserve authentication, origin checks and local lock behavior.
+Protocol changes require schemas, both handlers, tests and updates to `packages/protocol/PROTOCOL.md`. Both handlers means relay `message-router.ts` and web `use-websocket.ts`. New message types also need entry in relay `policy.ts`. Relay file access must use path guards. Session operations go through `tmux-manager.ts`. Preserve authentication, origin checks and local lock behavior.
 
 Use semantic color classes. Follow local import conventions. Shared dev tools (TypeScript, Vitest, @types/node) live in root package.json. Package tsconfigs extend root tsconfig.base.json. No task runner, linter or formatter. Validate environment variables with Zod. Use conventional commits.
 

@@ -61,7 +61,7 @@ Plan: `.agents/plans/sidebar-redesign.md`.
 
 ### Phase 5: optional, needs protocol
 
-- [ ] `window:move` or `swap-window`, `pane:join`. Schemas, both handlers, tests, `docs/reference/upstream/relay/protocol.mdx`.
+- [ ] `window:move` or `swap-window`, `pane:join`. Schemas, both handlers, tests, `packages/protocol/PROTOCOL.md`.
 - [ ] Drag and drop in session tree.
 
 ### QA
