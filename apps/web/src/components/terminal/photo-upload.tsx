@@ -3,23 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus } from "lucide-react";
 import { cn } from "@repo/ui/lib/utils";
-import { getRelayClient } from "@/hooks/use-websocket";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
-import { usePaneStore } from "@/stores/pane-store";
-import { useAlertStore } from "@/stores/alert-store";
-import {
-  preparePhoto,
-  uploadPhoto,
-  photoPathText,
-} from "@/lib/photo-upload.js";
-import { useTerminalInput } from "@/lib/terminal-input.js";
-import { getTerminalHandle } from "@/components/terminal/terminal-handle";
 import { useBelievedInCopyMode } from "@/hooks/use-copy-mode";
-import { believedInCopyMode } from "@/lib/copy-mode-belief";
-import { photoHistory } from "@/lib/photo-history.js";
 import { usePhotoHistory } from "@/hooks/use-photo-history";
 import { PhotoThumbnail } from "@/components/terminal/photo-thumbnail";
+import {
+  canUploadPhotos,
+  insertPhoto,
+  usePhotoUploads,
+} from "@/lib/photo-insert";
 
 export function PhotoUpload({
   className,
@@ -33,7 +26,8 @@ export function PhotoUpload({
 }) {
   const input = useRef<HTMLInputElement>(null);
   const mounted = useRef(true);
-  const [uploading, setUploading] = useState(false);
+  // Shared with paste, so a pasted screenshot shows progress here too.
+  const uploading = usePhotoUploads((s) => s.pending > 0);
   const [savedPath, setSavedPath] = useState<string | null>(null);
   const status = useConnectionStore((s) => s.status);
   const capabilities = useConnectionStore((s) => s.capabilities);
@@ -49,75 +43,16 @@ export function PhotoUpload({
     };
   }, []);
 
-  if (
-    !features.has("file:upload:ack") ||
-    !directory ||
-    capabilities?.readOnly ||
-    (capabilities && capabilities.files !== "write")
-  )
+  if (!canUploadPhotos({ features, defaultPath: directory, capabilities }))
     return null;
 
   const upload = async (file: File) => {
-    const client = getRelayClient();
-    const terminal = getTerminalHandle();
-    if (!client || client.status !== "connected" || !session || !terminal)
-      return;
-    const pane = usePaneStore.getState().activePaneId;
-    let changed = false;
-    const offSession = useSessionStore.subscribe((s) => {
-      if (s.activeSessionId !== session) changed = true;
-    });
-    const offPane = usePaneStore.subscribe((s) => {
-      if (s.activePaneId !== pane) changed = true;
-    });
-    const offStatus = client.onStatusChange((s) => {
-      if (s !== "connected") changed = true;
-    });
-    setUploading(true);
-    setSavedPath(null);
-    try {
-      const photo = await preparePhoto(file);
-      if (changed || !mounted.current)
-        throw new Error("Session changed. Choose photo again.");
-      const path = await uploadPhoto(client, photo, directory);
-      photoHistory.add(client, path);
-      if (
-        changed ||
-        !mounted.current ||
-        getRelayClient() !== client ||
-        getTerminalHandle() !== terminal ||
-        believedInCopyMode(session)
-      ) {
-        if (mounted.current) setSavedPath(path);
-        useAlertStore
-          .getState()
-          .push(
-            "info",
-            `Photo saved: ${path}. Terminal changed, so path was not inserted.`,
-          );
-        return;
-      }
-      useTerminalInput.getState().reset();
-      terminal.paste(photoPathText(path));
-      useAlertStore
-        .getState()
-        .push(
-          "success",
-          "Photo path inserted. Add your question, then press Enter.",
-        );
-    } catch (error) {
-      useAlertStore
-        .getState()
-        .push(
-          "error",
-          error instanceof Error ? error.message : "Photo upload failed",
-        );
-    } finally {
-      offSession();
-      offPane();
-      offStatus();
-      if (mounted.current) setUploading(false);
-    }
+    if (mounted.current) setSavedPath(null);
+    const result = await insertPhoto(file);
+    // Not inserted means the terminal changed mid-upload. Keep the path
+    // where it can be copied.
+    if (result && !result.inserted && mounted.current)
+      setSavedPath(result.path);
   };
 
   return (

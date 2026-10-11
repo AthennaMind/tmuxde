@@ -100,7 +100,6 @@ export function TerminalWorkspace() {
    * and a callback ref is what lets the listener follow the swap between them.
    */
   const paneRef = useWheelScroll();
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // #3: Auto-switch to terminal tab on session attach
   useEffect(() => {
@@ -144,20 +143,6 @@ export function TerminalWorkspace() {
 
   const handleSearchPrevious = useCallback(() => {
     terminalRef.current?.findPrevious();
-  }, []);
-
-  const handleToggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement
-        .requestFullscreen()
-        .then(() => setIsFullscreen(true))
-        .catch(() => {});
-    } else {
-      document
-        .exitFullscreen()
-        .then(() => setIsFullscreen(false))
-        .catch(() => {});
-    }
   }, []);
 
   // Desktop opens a sheet. The `/settings` route went with the hosted app.
@@ -312,10 +297,8 @@ export function TerminalWorkspace() {
       {/* Main terminal area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <TerminalToolbar
-          onToggleFullscreen={handleToggleFullscreen}
           onOpenSettings={handleOpenSettings}
           onOpenFiles={toggleFilesPanel}
-          isFullscreen={isFullscreen}
           filesOpen={filesOpen}
           showSessionName={sidebarCollapsed}
         />
@@ -362,6 +345,9 @@ export function TerminalWorkspace() {
         ) : (
           <FileViewer />
         ))}
+
+      {/* Opened by the pane count in the window strip. */}
+      <PaneListPanel />
 
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
         <SheetContent

@@ -20,6 +20,8 @@ import {
 import { createXterm } from "@/lib/xterm-factory";
 import { terminalFontFamily } from "@/lib/terminal-font.js";
 import { consumeTerminalInput } from "@/lib/terminal-input.js";
+import { clipboardImage } from "@/lib/photo-upload.js";
+import { insertPhoto, photoInsertBlocker } from "@/lib/photo-insert";
 import { useTerminalStore } from "@/stores/terminal-store";
 import { usePaneStore } from "@/stores/pane-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -282,6 +284,31 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
       setTerminalHandle(makeHandle());
       return () => setTerminalHandle(null);
     }, [makeHandle]);
+
+    /*
+     * A pasted screenshot goes through the Photo flow: upload, then the path at
+     * the prompt. Capture phase on the container, so the event never reaches
+     * xterm's textarea. xterm reads only text, and an image-only clipboard
+     * would arrive at the shell as an empty bracketed paste.
+     */
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+      const onPaste = (event: ClipboardEvent) => {
+        const file = clipboardImage(event.clipboardData);
+        if (!file) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const blocked = photoInsertBlocker();
+        if (blocked) {
+          useAlertStore.getState().push("info", `${blocked}. Photo not pasted.`);
+          return;
+        }
+        void insertPhoto(file);
+      };
+      container.addEventListener("paste", onPaste, true);
+      return () => container.removeEventListener("paste", onPaste, true);
+    }, []);
 
     // Initialize terminal ONCE on mount — no sessionName dependency
     useEffect(() => {

@@ -5,7 +5,7 @@ import type {
   FileUploadMessage,
 } from "@repo/protocol";
 type Status = "connecting" | "connected" | "reconnecting" | "disconnected";
-import { uploadPhoto, photoPathText } from "./photo-upload.js";
+import { uploadPhoto, photoPathText, clipboardImage } from "./photo-upload.js";
 
 function client() {
   const handlers = new Set<(msg: ServerMessage) => void>();
@@ -119,5 +119,57 @@ describe("photo upload", () => {
     expect(photoPathText("/uploads/p.png")).toBe(" /uploads/p.png ");
     expect(photoPathText("/a b/p.png")).toBe(" '/a b/p.png' ");
     expect(() => photoPathText("/evil\nfile")).toThrow();
+  });
+});
+
+describe("clipboardImage", () => {
+  const png = () => new File([new Uint8Array([1])], "image.png", { type: "image/png" });
+
+  function clipboard(
+    text: string,
+    files: File[],
+    { listed = true }: { listed?: boolean } = {},
+  ) {
+    return {
+      getData: (type: string) => (type === "text/plain" ? text : ""),
+      items: (listed
+        ? files.map((file) => ({
+            kind: "file",
+            type: file.type,
+            getAsFile: () => file,
+          }))
+        : []) as unknown as DataTransferItemList,
+      files: files as unknown as FileList,
+    };
+  }
+
+  it("takes a screenshot that carries no text", () => {
+    const file = png();
+    expect(clipboardImage(clipboard("", [file]))).toBe(file);
+  });
+
+  it("keeps text when a copy carries both, like a spreadsheet range", () => {
+    expect(clipboardImage(clipboard("A1\tB1", [png()]))).toBeNull();
+  });
+
+  it("treats whitespace-only text as no text", () => {
+    const file = png();
+    expect(clipboardImage(clipboard(" \n", [file]))).toBe(file);
+  });
+
+  it("ignores files that are not images", () => {
+    const pdf = new File([new Uint8Array([1])], "a.pdf", {
+      type: "application/pdf",
+    });
+    expect(clipboardImage(clipboard("", [pdf]))).toBeNull();
+  });
+
+  it("falls back to the file list when items are empty", () => {
+    const file = png();
+    expect(clipboardImage(clipboard("", [file], { listed: false }))).toBe(file);
+  });
+
+  it("returns null without clipboard data", () => {
+    expect(clipboardImage(null)).toBeNull();
   });
 });

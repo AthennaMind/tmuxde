@@ -18,11 +18,7 @@ import { KeyboardToolbar } from "@/components/mobile/keyboard-toolbar";
 import { useUiStore } from "@/stores/ui-store";
 import { useAlertStore } from "@/stores/alert-store";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
-import {
-  useTerminalStore,
-  getDefaultFontSize,
-  clampFontSize,
-} from "@/stores/terminal-store";
+import { useTerminalStore } from "@/stores/terminal-store";
 import { CommandPalette } from "@/components/command/command-palette";
 import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -198,21 +194,12 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
     }
   }, [activeSessionId]);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts. Ctrl/Cmd with -, = and 0 stay with the browser for
+  // page zoom. Terminal font size has its own buttons.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
-        const { fontSize, setFontSize } = useTerminalStore.getState();
-        if (e.key === "=" || e.key === "+") {
-          e.preventDefault();
-          setFontSize(clampFontSize(fontSize + 1));
-        } else if (e.key === "-") {
-          e.preventDefault();
-          setFontSize(clampFontSize(fontSize - 1));
-        } else if (e.key === "0") {
-          e.preventDefault();
-          setFontSize(getDefaultFontSize());
-        } else if (e.key === "b") {
+        if (e.key === "b") {
           e.preventDefault();
           useUiStore.getState().toggleSidebar();
         } else if (e.key === "e") {

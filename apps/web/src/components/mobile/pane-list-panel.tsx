@@ -71,6 +71,9 @@ export function PaneListPanel() {
   // silently change what the next tap does. The bare width query it carried
   // also called a phone in landscape a desktop; see MOBILE_MEDIA_QUERY.
   const isMobile = useStableMediaQuery(MOBILE_MEDIA_QUERY);
+  // A bottom sheet suits a thumb. On desktop it would span the whole window,
+  // so the list opens beside the terminal, like Settings.
+  const side = isMobile ? "bottom" : "right";
   /** The pane a "kill" tap is waiting on, if any. */
   const [killing, setKilling] = useState<string | null>(null);
   // A raw `overflow-y-auto`, so no scrollbar of any kind was drawn on touch —
@@ -82,7 +85,10 @@ export function PaneListPanel() {
     return (
       <Sheet open={paneListOpen} onOpenChange={setPaneListOpen}>
         {/* px/pt only: the sheet's own bottom padding carries the safe-area inset. */}
-        <SheetContent side="bottom" className="h-[30vh] px-4 pt-4">
+        <SheetContent
+          side={side}
+          className={cn("px-4 pt-4", isMobile && "h-[30vh]")}
+        >
           <SheetHeader className="pb-2">
             <SheetTitle className="text-sm">Panes</SheetTitle>
           </SheetHeader>
@@ -130,11 +136,13 @@ export function PaneListPanel() {
     <>
       <Sheet open={paneListOpen} onOpenChange={setPaneListOpen}>
         <SheetContent
-          side="bottom"
-          className="flex h-[40vh] flex-col px-4 pt-4"
+          side={side}
+          className={cn("flex flex-col px-4 pt-4", isMobile && "h-[40vh]")}
         >
           <SheetHeader className="pb-2">
-            <div className="flex items-center justify-between">
+            {/* `pe-8` clears the sheet's own close button, which sits in the
+                top corner over where the zoom button used to land. */}
+            <div className="flex items-center justify-between pe-8">
               <SheetTitle className="text-sm">
                 Panes ({panes.length})
               </SheetTitle>
