@@ -8,7 +8,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ==========================================================================
-   mtmux design system
+   tmuxde design system
 
    Ported from apps/site so the app and the site it is linked from stop
    reading as two different products. Every colour in the app is defined here
@@ -105,7 +105,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   Layer 1b: dark scheme — the canonical mtmux look, taken verbatim from the
+   Layer 1b: dark scheme — the canonical tmuxde look, taken verbatim from the
    site so the two are the same colours and not merely similar ones.
    -------------------------------------------------------------------------- */
 .dark {

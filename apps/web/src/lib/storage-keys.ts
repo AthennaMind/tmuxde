@@ -3,15 +3,18 @@ import { localToken } from "./unlocked";
 /**
  * localStorage keys, and the one-time migration off the old product name.
  *
- * This app shipped as `ccremote`, then `tmuxremote`, before settling on
- * `mtmux`. The auth token key came along for the ride, so renaming it without
- * care would sign out every existing install — the token is the only thing
- * standing between a returning user and a login screen they cannot satisfy,
- * because the token lives on a machine they may not be sitting at.
+ * This app shipped as `ccremote`, then `tmuxremote`, then `mtmux`, before
+ * settling on `tmuxde`. The auth token key came along for the ride, so renaming
+ * it without care would sign out every existing install — the token is the only
+ * thing standing between a returning user and a login screen they cannot
+ * satisfy, because the token lives on a machine they may not be sitting at.
  *
  * So the rename is done with a copy-forward: read the new key, fall back to the
  * old one, and promote it on first touch. After one visit the legacy key is
  * gone and this file is the only place that remembers it existed.
+ *
+ * The `mtmux-*` keys have no copy-forward. That rename came with a fresh
+ * deployment, so every device signs in again once.
  *
  * Zustand's persisted stores (`ccremote-terminal`, `ccremote-commands`, …) are
  * deliberately *not* renamed. Their names are invisible, and changing one makes
@@ -20,8 +23,8 @@ import { localToken } from "./unlocked";
  * that; they can move whenever those stores next take a schema version.
  */
 
-export const TOKEN_KEY = "mtmux-token";
-export const LAST_SESSION_KEY = "mtmux-last-session";
+export const TOKEN_KEY = "tmuxde-token";
+export const LAST_SESSION_KEY = "tmuxde-last-session";
 
 /**
  * Set by the dashboard's "New session", read and cleared by the terminal.
@@ -32,7 +35,7 @@ export const LAST_SESSION_KEY = "mtmux-last-session";
  * connection, which the dashboard does not have and the terminal does — so the
  * dashboard's job is to say what to do on arrival, not to do it.
  */
-export const OPEN_NEW_SESSION_KEY = "mtmux-open-new-session";
+export const OPEN_NEW_SESSION_KEY = "tmuxde-open-new-session";
 
 /**
  * The first-run checklist, and the second-credential banner, once dismissed.
@@ -46,8 +49,8 @@ export const OPEN_NEW_SESSION_KEY = "mtmux-open-new-session";
  * Not in `LEGACY`: they never had an old spelling, and a missing key already
  * means "not dismissed", which is the safe default.
  */
-export const ONBOARDING_DISMISSED_KEY = "mtmux-onboarding-dismissed";
-export const SECOND_CREDENTIAL_DISMISSED_KEY = "mtmux-second-credential-dismissed";
+export const ONBOARDING_DISMISSED_KEY = "tmuxde-onboarding-dismissed";
+export const SECOND_CREDENTIAL_DISMISSED_KEY = "tmuxde-second-credential-dismissed";
 
 /**
  * Set by sign-up, read by the dashboard.
@@ -57,10 +60,10 @@ export const SECOND_CREDENTIAL_DISMISSED_KEY = "mtmux-second-credential-dismisse
  * that detour so the checklist still greets them on their first visit rather
  * than being computed away by state that has moved on.
  */
-export const ONBOARDING_STARTED_KEY = "mtmux-onboarding-started";
+export const ONBOARDING_STARTED_KEY = "tmuxde-onboarding-started";
 
 /** The signed-out account pitch in the terminal settings panel, once hidden. */
-export const ACCOUNT_NUDGE_DISMISSED_KEY = "mtmux-account-nudge-dismissed";
+export const ACCOUNT_NUDGE_DISMISSED_KEY = "tmuxde-account-nudge-dismissed";
 
 const LEGACY = {
   [TOKEN_KEY]: "ccremote-token",

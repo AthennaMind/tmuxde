@@ -334,7 +334,7 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
       )}
       {/* Hidden by CSS while the keyboard is up — see globals.css. The
           wrapper exists so the nav itself stays a plain component. */}
-      <div className="mtmux-hide-when-keyboard">
+      <div className="tmuxde-hide-when-keyboard">
         <MobileNav activeTab={mobileTab} onTabChange={setMobileTab} />
       </div>
     </div>
@@ -342,7 +342,7 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <AppShell
-      className="mtmux-terminal-shell"
+      className="tmuxde-terminal-shell"
       header={header}
       toolbar={toolbar}
     >
@@ -351,7 +351,7 @@ function TerminalLayoutInner({ children }: { children: React.ReactNode }) {
       {isMobile && (
         <div
           aria-hidden="true"
-          className="mtmux-status-bar pointer-events-none fixed inset-x-0 top-0 z-[var(--z-banner)] h-[max(11px,env(safe-area-inset-top))] bg-background bg-clip-text"
+          className="tmuxde-status-bar pointer-events-none fixed inset-x-0 top-0 z-[var(--z-banner)] h-[max(11px,env(safe-area-inset-top))] bg-background bg-clip-text"
         />
       )}
       <VisualViewportSync />

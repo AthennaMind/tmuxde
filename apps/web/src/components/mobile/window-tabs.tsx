@@ -213,7 +213,7 @@ export function WindowTabs({ className }: WindowTabsProps) {
                 role="tab"
                 aria-selected={isActive}
                 // The full name, for a tab whose visible label is clipped to
-                // 80px. Two sessions called `mtmux-web-1` and `mtmux-web-2`
+                // 80px. Two sessions called `tmuxde-web-1` and `tmuxde-web-2`
                 // are otherwise the same tab twice.
                 title={entry.label}
                 className="group flex h-11 shrink-0 items-center rounded-md disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"

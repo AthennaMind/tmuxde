@@ -52,7 +52,7 @@ export type LockState = {
 let masterKeyRef: Uint8Array | null = null;
 let enrolledRef = false;
 /**
- * The self-hosted path's `mtmux-token`, once a lock has taken it out of
+ * The self-hosted path's `tmuxde-token`, once a lock has taken it out of
  * `localStorage`.
  *
  * It has to be readable synchronously — `getFileDownloadUrl()` builds a

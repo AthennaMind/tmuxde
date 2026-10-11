@@ -41,8 +41,8 @@ import { constantTimeEqual, lvCat, randomBytes } from "./bytes";
 /** Digits a human compares. 10^6, single-shot, checked by eye. */
 export const SAS_DIGITS = 6;
 
-const COMMIT_DOMAIN = utf8ToBytes("mtmux/v1 rtp-commit");
-const SAS_LABEL = "mtmux/v1 sas";
+const COMMIT_DOMAIN = utf8ToBytes("tmuxde/v1 rtp-commit");
+const SAS_LABEL = "tmuxde/v1 sas";
 const SAS_BYTES = 8;
 
 export type EphemeralKeyPair = {

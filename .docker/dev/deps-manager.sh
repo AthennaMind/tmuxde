@@ -13,7 +13,7 @@ fingerprint="$({
   node --version
   pnpm --version
 } | sha256sum | cut -d ' ' -f 1)"
-marker=/workspace/node_modules/.mtmux-native-sync
+marker=/workspace/node_modules/.tmuxde-native-sync
 case "${1:-download}" in
   download)
     shift

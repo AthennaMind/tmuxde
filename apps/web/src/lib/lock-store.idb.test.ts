@@ -258,10 +258,10 @@ describe("the self-hosted token", () => {
     // On the self-hosted path this is a *working credential* sitting in a
     // store any script on the origin can read, surviving a lock that encrypts
     // everything else.
-    localStorage.setItem("mtmux-token", "self-hosted-secret");
+    localStorage.setItem("tmuxde-token", "self-hosted-secret");
 
     await enrollPin("123456");
-    expect(localStorage.getItem("mtmux-token")).toBeNull();
+    expect(localStorage.getItem("tmuxde-token")).toBeNull();
     expect(readSelfHostedToken()).toBe("self-hosted-secret");
 
     forget();
@@ -272,9 +272,9 @@ describe("the self-hosted token", () => {
   });
 
   it("leaves localStorage alone on a device with no lock", async () => {
-    localStorage.setItem("mtmux-token", "self-hosted-secret");
+    localStorage.setItem("tmuxde-token", "self-hosted-secret");
     expect(readSelfHostedToken()).toBe("self-hosted-secret");
-    expect(localStorage.getItem("mtmux-token")).toBe("self-hosted-secret");
+    expect(localStorage.getItem("tmuxde-token")).toBe("self-hosted-secret");
   });
 });
 

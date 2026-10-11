@@ -1,4 +1,4 @@
-name: mtmux-local-preview
+name: tmuxde
 
 include:
   - .docker/compose/dev.yaml

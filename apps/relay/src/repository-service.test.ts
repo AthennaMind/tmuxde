@@ -12,7 +12,7 @@ const git = (...args: string[]) =>
     encoding: "utf8",
   });
 beforeAll(async () => {
-  base = await fs.mkdtemp(path.join(os.tmpdir(), "mtmux-repo-"));
+  base = await fs.mkdtemp(path.join(os.tmpdir(), "tmuxde-repo-"));
   root = path.join(base, "repo");
   await fs.mkdir(root);
   process.env.ALLOWED_PATHS = root;

@@ -6,7 +6,7 @@
 	}
 	pki {
 		ca local {
-			name "mtmux local CA"
+			name "tmuxde local CA"
 		}
 	}
 }

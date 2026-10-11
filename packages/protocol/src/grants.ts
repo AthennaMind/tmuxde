@@ -10,7 +10,7 @@ import { z } from "zod";
  *
  * ## Local-only, permanently
  *
- * Grants live in `~/.mtmux/grants.json` on the machine being shared and are
+ * Grants live in `~/.tmuxde/grants.json` on the machine being shared and are
  * never sent to the broker. That is not an implementation detail to revisit
  * later: a grant maps a session *name* to a browser, and handing the broker
  * that mapping is precisely what invariant #2 exists to prevent. The broker

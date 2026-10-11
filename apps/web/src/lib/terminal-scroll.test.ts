@@ -131,7 +131,7 @@ describe("requestScrollState", () => {
   it("stops asking a relay too old to answer, and stops scrolling it too", () => {
     requestScrollState();
     expect(awaitingScrollStateProbe()).toBe(true);
-    // An older `mtmux` rejects the message instead of answering it. Silence is
+    // An older relay rejects the message instead of answering it. Silence is
     // read the same way, which is what this timeout is.
     vi.advanceTimersByTime(5000);
     expect(awaitingScrollStateProbe()).toBe(false);

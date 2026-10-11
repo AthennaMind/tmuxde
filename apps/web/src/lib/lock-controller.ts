@@ -19,7 +19,7 @@ import { clearDescriptorMirror } from "./session-store";
  * cost of locking and unlocking again is ~200–800 ms and a repaint.
  */
 
-const CHANNEL_NAME = "mtmux-lock";
+const CHANNEL_NAME = "tmuxde-lock";
 
 export type LockReason = "manual" | "idle" | "background" | "other-tab";
 

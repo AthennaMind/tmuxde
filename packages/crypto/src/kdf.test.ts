@@ -181,7 +181,7 @@ describe("session key serialisation", () => {
 
 /**
  * The per-connection subkey. `LABEL` above still derives the session keys from
- * the ISK and is deliberately unchanged at `mtmux/v1` — persisted pairings hold
+ * the ISK and is deliberately unchanged at `tmuxde/v1` — persisted pairings hold
  * those. What is new is that nothing seals with them directly.
  */
 describe("deriveSubkey", () => {

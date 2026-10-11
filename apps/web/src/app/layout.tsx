@@ -5,9 +5,8 @@ import { PwaProvider } from "@/components/pwa/pwa-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "mtmux",
-  description:
-    "Access Claude Code from any browser — remote terminal with tmux session management",
+  title: "tmuxde",
+  description: "Your tmux on any screen. Nothing leaves your network.",
   manifest: "/manifest.json",
   /*
    * The app itself is never a search result — every route is either behind a
@@ -28,7 +27,7 @@ export const metadata: Metadata = {
     // which in standalone + light theme is a white clock on `#fcfdfb`. Left
     // to `default`, iOS picks the legible pair for the scheme in use.
     statusBarStyle: "default",
-    title: "mtmux",
+    title: "tmuxde",
   },
 };
 
@@ -61,7 +60,7 @@ export default function RootLayout({
         {/*
           Dark by default rather than following the OS.
 
-          This is a terminal. The canonical mtmux look is the dark one — it is
+          This is a terminal. The canonical tmuxde look is the dark one — it is
           what the site shows, what the screenshots show, and what a shell looks
           like. Light mode is fully supported and one tap away; it is just not
           the thing to show someone who has expressed no preference.
