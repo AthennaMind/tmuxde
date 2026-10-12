@@ -1,0 +1,38 @@
+# air config for the server-dev container. air rebuilds and restarts the
+# dev binary on every Go change. See .docker/compose/dev.yaml.
+# The source mount is read only, so every output lives under /tmp.
+
+# Watch root, the working dir /workspace. It holds the Go module, the
+# protocol fixtures and the build caches.
+root = "."
+# air keeps its build log here. Outside the read only source.
+tmp_dir = "/tmp/air"
+
+[build]
+# Build command. Offline from vendor/, GOFLAGS comes from the image.
+cmd = "go build -o /tmp/tmuxde-dev/bin/tmuxde ./cmd/tmuxde"
+# Binary to run. entrypoint replaces bin, which air 1.67 marks deprecated.
+entrypoint = ["/tmp/tmuxde-dev/bin/tmuxde"]
+# Arguments after the binary.
+args_bin = ["serve"]
+# Only Go files trigger a rebuild.
+include_ext = ["go"]
+# Not watched. Paths are relative to root, so only top level dirs match.
+# After a go-vendor run, restart server-dev to pick up new modules.
+exclude_dir = ["vendor", "testdata", "packages", ".cache"]
+# Tests are not part of the binary.
+exclude_regex = ["_test.go"]
+# Wait this many ms after a change, so a save of many files builds once.
+delay = 300
+# air sends SIGINT to the process tree, then waits this long before SIGKILL.
+kill_delay = "2s"
+# Interrupt first, so tmuxde closes its WebSockets and removes its socket.
+send_interrupt = true
+# After a failed build air restarts the last good binary. true would stop it.
+stop_on_error = false
+# Do not restart the binary when it exits on its own.
+rerun = false
+
+[log]
+# Prefix air log lines with the time.
+time = true
