@@ -1,5 +1,10 @@
 name: tmuxde
 
+# Production runs the tmuxde binary on the host as the systemd user unit
+# tmuxde.service, with the ui build embedded. Build it and install it with
+# scripts/setup.sh --host-service, see .docker/README.md. This file runs only
+# Caddy in front of it and the optional speech service.
+
 x-contained: &contained
   read_only: true
   cap_drop: [ALL]
@@ -9,70 +14,6 @@ x-contained: &contained
   pids_limit: 512
 
 services:
-  web:
-    <<: *contained
-    build:
-      context: ../..
-      dockerfile: .docker/prod/web.Dockerfile
-      args:
-        NEXT_PUBLIC_RELAY_URL: ""
-    environment:
-      HOSTNAME: 0.0.0.0
-      NEXT_TELEMETRY_DISABLED: "1"
-      DO_NOT_TRACK: "1"
-    networks: [offline]
-    restart: unless-stopped
-
-  relay:
-    <<: *contained
-    build:
-      context: ../..
-      dockerfile: .docker/prod/relay.Dockerfile
-    user: "${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}"
-    # Browsers learn about dictation once, at login. Waiting for the model
-    # keeps phones that reconnect during a restart from losing the mic.
-    # Ignored when profile `dictation` is off.
-    depends_on:
-      stt:
-        condition: service_healthy
-        required: false
-    environment:
-      RELAY_HOST: 0.0.0.0
-      RELAY_PORT: "24300"
-      TMUX_SOCKET: /host-tmux/${LOCAL_TMUX_SOCKET:?Run scripts/setup.sh}
-      AUTH_TOKEN: ${AUTH_TOKEN:?Run scripts/setup.sh}
-      CORS_ORIGINS: https://${LOCAL_DOMAIN:-localhost}
-      ALLOWED_PATHS: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh},${LOCAL_HOST_HOME:?Run scripts/setup.sh}
-      HOME: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
-      TMUXDE_CONFIG_DIR: /tmp/tmuxde-state
-      # Empty unless setup enabled dictation. Relay then offers no mic.
-      STT_URL: ${STT_URL:-}
-      LANG: C.UTF-8
-      LC_ALL: C.UTF-8
-      NEXT_TELEMETRY_DISABLED: "1"
-      DO_NOT_TRACK: "1"
-    volumes:
-      - type: bind
-        source: ${LOCAL_TMUX_DIR:?Run scripts/setup.sh}
-        target: /host-tmux
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
-        target: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
-        read_only: true
-        bind:
-          create_host_path: false
-      - ../host-tmux:/opt/host-tmux:ro
-      - ../tmux-client:/usr/local/bin/tmux:ro
-      - type: bind
-        source: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh}
-        target: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh}
-        bind:
-          create_host_path: false
-    networks: [offline, speech]
-    restart: unless-stopped
-
   # Optional speech to text. Starts only with profile `dictation`, which
   # `scripts/setup.sh --dictation` writes to `.env` as COMPOSE_PROFILES.
   stt:
@@ -84,7 +25,11 @@ services:
     user: "${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}"
     cpus: ${STT_THREADS:-4}
     mem_limit: 3g
+    # No network. The tmuxde binary on the host dials stt.sock, and the
+    # image health check uses it too.
+    network_mode: none
     environment:
+      STT_SOCKET: /run/tmuxde/stt/stt.sock
       STT_MODEL_DIR: /models/parakeet-tdt-0.6b-v3-int8
       STT_VAD_MODEL: /models/silero-vad/silero_vad.onnx
       STT_THREADS: ${STT_THREADS:-4}
@@ -95,12 +40,25 @@ services:
         read_only: true
         bind:
           create_host_path: false
-    networks: [speech]
+      # stt subdir of the run directory, the only one it can write.
+      # Written by scripts/setup.sh. Owned by the host user, mode 0750.
+      - type: bind
+        source: ${LOCAL_STT_SOCKET_DIR:?Run scripts/setup.sh}/stt
+        target: /run/tmuxde/stt
+        bind:
+          create_host_path: false
     restart: unless-stopped
 
+  # Caddy proxies to the tmuxde binary on the host over http.sock in the
+  # run directory.
   caddy:
     <<: *contained
     cap_add: [NET_BIND_SERVICE]
+    # Caddy runs as root without DAC_OVERRIDE. The host user group lets it
+    # enter the 0750 run directory and connect to http.sock, which must be
+    # group writable. stt/stt.sock has no group write, so Caddy cannot reach
+    # it.
+    group_add: ["${LOCAL_GID:?Run scripts/setup.sh}"]
     image: caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
     environment:
       LOCAL_DOMAIN: ${LOCAL_DOMAIN:-localhost}
@@ -108,14 +66,17 @@ services:
       - ../Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+      # Run directory of the host tmuxde binary. Written by scripts/setup.sh.
+      # Owned by the host user, mode 0750.
+      - type: bind
+        source: ${LOCAL_STT_SOCKET_DIR:?Run scripts/setup.sh}
+        target: /run/tmuxde
+        read_only: true
+        bind:
+          create_host_path: false
     ports:
       - "${LOCAL_BIND_IP:-127.0.0.1}:443:443"
-    networks: [edge, offline]
-    depends_on:
-      web:
-        condition: service_healthy
-      relay:
-        condition: service_healthy
+    networks: [edge]
     restart: unless-stopped
 
 volumes:
@@ -126,8 +87,3 @@ volumes:
 
 networks:
   edge:
-  offline:
-    internal: true
-  # Relay and speech service only. Web and Caddy cannot reach it.
-  speech:
-    internal: true
