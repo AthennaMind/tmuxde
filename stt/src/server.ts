@@ -21,8 +21,8 @@ export type SttServerOptions = {
 /**
  * Health check and one WebSocket route.
  *
- * No authentication of its own. The service sits on a Docker network shared
- * with the relay only, publishes no port, and the relay has already checked
+ * No authentication of its own. The service publishes no port. The Go server
+ * reaches it over a unix socket in the run directory, and has already checked
  * the browser's token, origin and grant before any audio reaches it.
  */
 export function createSttServer(options: SttServerOptions): http.Server {

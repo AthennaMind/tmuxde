@@ -1,18 +1,31 @@
-import type { AddressInfo } from "node:net";
-import type http from "node:http";
+import { mkdtemp, rename, rm, stat, writeFile } from "node:fs/promises";
+import http from "node:http";
+import net from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
+import { listenOnSocket } from "./index.ts";
 import { createSttServer, STREAM_PATH } from "./server.ts";
 import type { SessionLimits, SttMessage } from "./session.ts";
 import { serialize, type Transcriber } from "./transcriber.ts";
 
 const servers: http.Server[] = [];
+const dirs: string[] = [];
 
 afterEach(async () => {
   await Promise.all(
     servers.splice(0).map((s) => new Promise((done) => s.close(done))),
   );
+  await Promise.all(dirs.splice(0).map((d) => rm(d, { recursive: true, force: true })));
 });
+
+/** A short socket path in a fresh directory. Linux allows 107 bytes. */
+async function socketPath(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "stt-"));
+  dirs.push(dir);
+  return join(dir, "stt.sock");
+}
 
 /** Names each decode by its sample count, so tests can see the chunking. */
 function counting(): Transcriber & { calls: number[] } {
@@ -26,10 +39,12 @@ function counting(): Transcriber & { calls: number[] } {
   };
 }
 
-async function start(
+type StartOptions = { maxSessions?: number; limits?: Partial<SessionLimits> };
+
+function create(
   transcriber: Transcriber,
-  { maxSessions = 4, limits = {} }: { maxSessions?: number; limits?: Partial<SessionLimits> } = {},
-): Promise<string> {
+  { maxSessions = 4, limits = {} }: StartOptions = {},
+): http.Server {
   const server = createSttServer({
     transcriber,
     model: "test-model",
@@ -37,13 +52,37 @@ async function start(
     limits: { maxSeconds: 600, idleMs: 5000, ...limits },
   });
   servers.push(server);
-  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
-  return `127.0.0.1:${(server.address() as AddressInfo).port}`;
+  return server;
+}
+
+/** Starts a service on a fresh socket and returns the socket path. */
+async function start(transcriber: Transcriber, options: StartOptions = {}): Promise<string> {
+  const path = await socketPath();
+  await listenOnSocket(create(transcriber, options), path);
+  return path;
+}
+
+/** GET /health over a unix socket. fetch cannot dial one. */
+function health(socketPath: string): Promise<{ status?: number; body: unknown }> {
+  return new Promise((done, fail) => {
+    const req = http.get({ socketPath, path: "/health", agent: false }, (res) => {
+      let text = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk: string) => (text += chunk));
+      res.on("end", () => done({ status: res.statusCode, body: JSON.parse(text) }));
+    });
+    req.on("error", fail);
+  });
+}
+
+/** WebSocket URL for a route on the unix socket at `path`. */
+function wsUrl(path: string, route: string): string {
+  return `ws+unix://${path}:${route}`;
 }
 
 /** Collects everything the service says until it closes the socket. */
-function session(host: string) {
-  const ws = new WebSocket(`ws://${host}${STREAM_PATH}`);
+function session(path: string) {
+  const ws = new WebSocket(wsUrl(path, STREAM_PATH));
   const messages: SttMessage[] = [];
   const closed = new Promise<{ code: number; messages: SttMessage[] }>((done) => {
     ws.on("close", (code) => done({ code, messages }));
@@ -65,23 +104,24 @@ function silence(seconds: number): Buffer {
 
 describe("speech service", () => {
   it("answers health checks with the model name", async () => {
-    const host = await start(counting());
-    const res = await fetch(`http://${host}/health`);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, model: "test-model", sessions: 0 });
+    const path = await start(counting());
+    expect(await health(path)).toEqual({
+      status: 200,
+      body: { ok: true, model: "test-model", sessions: 0 },
+    });
   });
 
   it("refuses WebSocket upgrades on any other path", async () => {
-    const host = await start(counting());
-    const ws = new WebSocket(`ws://${host}/elsewhere`);
+    const path = await start(counting());
+    const ws = new WebSocket(wsUrl(path, "/elsewhere"));
     const error = await new Promise<Error>((done) => ws.on("error", done));
     expect(error.message).toMatch(/404/);
   });
 
   it("transcribes audio after stop, then says done and closes", async () => {
     const transcriber = counting();
-    const host = await start(transcriber);
-    const { ws, ready, closed } = session(host);
+    const path = await start(transcriber);
+    const { ws, ready, closed } = session(path);
     await ready;
     ws.send(silence(0.5));
     ws.send(silence(0.5));
@@ -96,8 +136,8 @@ describe("speech service", () => {
   });
 
   it("skips a tail too short to be speech", async () => {
-    const host = await start(counting());
-    const { ws, ready, closed } = session(host);
+    const path = await start(counting());
+    const { ws, ready, closed } = session(path);
     await ready;
     ws.send(silence(0.05));
     ws.send(JSON.stringify({ type: "stop" }));
@@ -107,8 +147,8 @@ describe("speech service", () => {
 
   it("decodes full chunks while audio is still arriving", async () => {
     const transcriber = counting();
-    const host = await start(transcriber);
-    const { ws, ready, closed } = session(host);
+    const path = await start(transcriber);
+    const { ws, ready, closed } = session(path);
     await ready;
     for (let i = 0; i < 31; i++) ws.send(silence(1));
     ws.send(JSON.stringify({ type: "stop" }));
@@ -122,8 +162,8 @@ describe("speech service", () => {
 
   it("stops by itself at the length limit and keeps what fits", async () => {
     const transcriber = counting();
-    const host = await start(transcriber, { limits: { maxSeconds: 1 } });
-    const { ws, ready, closed } = session(host);
+    const path = await start(transcriber, { limits: { maxSeconds: 1 } });
+    const { ws, ready, closed } = session(path);
     await ready;
     ws.send(silence(1.5));
     const { code, messages } = await closed;
@@ -133,8 +173,8 @@ describe("speech service", () => {
   });
 
   it("rejects audio that is not whole 16-bit samples", async () => {
-    const host = await start(counting());
-    const { ws, ready, closed } = session(host);
+    const path = await start(counting());
+    const { ws, ready, closed } = session(path);
     await ready;
     ws.send(Buffer.alloc(3));
     const { code, messages } = await closed;
@@ -143,8 +183,8 @@ describe("speech service", () => {
   });
 
   it("rejects text that is not stop", async () => {
-    const host = await start(counting());
-    const { ws, ready, closed } = session(host);
+    const path = await start(counting());
+    const { ws, ready, closed } = session(path);
     await ready;
     ws.send(JSON.stringify({ type: "start" }));
     const { messages } = await closed;
@@ -152,10 +192,10 @@ describe("speech service", () => {
   });
 
   it("reports a failed decode", async () => {
-    const host = await start({
+    const path = await start({
       transcribe: () => Promise.reject(new Error("native crash")),
     });
-    const { ws, ready, closed } = session(host);
+    const { ws, ready, closed } = session(path);
     await ready;
     ws.send(silence(1));
     ws.send(JSON.stringify({ type: "stop" }));
@@ -165,21 +205,55 @@ describe("speech service", () => {
   });
 
   it("closes a session that goes quiet", async () => {
-    const host = await start(counting(), { limits: { idleMs: 50 } });
-    const { ready, closed } = session(host);
+    const path = await start(counting(), { limits: { idleMs: 50 } });
+    const { ready, closed } = session(path);
     await ready;
     const { messages } = await closed;
     expect(messages.at(-1)).toMatchObject({ type: "error", code: "IDLE" });
   });
 
   it("turns away sessions over the limit", async () => {
-    const host = await start(counting(), { maxSessions: 1 });
-    const first = session(host);
+    const path = await start(counting(), { maxSessions: 1 });
+    const first = session(path);
     await first.ready;
-    const second = session(host);
+    expect(await health(path)).toMatchObject({ body: { sessions: 1 } });
+    const second = session(path);
     const { code } = await second.closed;
     expect(code).toBe(1013);
     first.ws.close();
+    await first.closed;
+  });
+});
+
+describe("unix socket", () => {
+  it("removes a stale socket file before listening", async () => {
+    const path = await socketPath();
+    // close() removes the file it listened on. Moving the file first leaves
+    // a socket nobody listens on, as after SIGKILL.
+    const dead = net.createServer();
+    await new Promise<void>((done) => dead.listen(`${path}.old`, done));
+    await rename(`${path}.old`, path);
+    await new Promise((done) => dead.close(done));
+    expect((await stat(path)).isSocket()).toBe(true);
+
+    await listenOnSocket(create(counting()), path);
+    expect(await health(path)).toMatchObject({ status: 200 });
+  });
+
+  it("leaves a socket alone while something listens on it", async () => {
+    const path = await socketPath();
+    await listenOnSocket(create(counting()), path);
+
+    await expect(listenOnSocket(create(counting()), path)).rejects.toThrow(/already listens/);
+    expect(await health(path)).toMatchObject({ status: 200 });
+  });
+
+  it("refuses a path that is not a socket", async () => {
+    const path = await socketPath();
+    await writeFile(path, "keep me");
+
+    await expect(listenOnSocket(create(counting()), path)).rejects.toThrow(/not a socket/);
+    expect((await stat(path)).isFile()).toBe(true);
   });
 });
 
