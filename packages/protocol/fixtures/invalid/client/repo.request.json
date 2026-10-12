@@ -1,0 +1,142 @@
+[
+  {
+    "field": "requestId",
+    "message": {
+      "type": "repo:request",
+      "requestId": "",
+      "id": "%3",
+      "action": "diff",
+      "path": "/home/dev/projects/tmuxde",
+      "file": "apps/server/internal/protocol/repo.go",
+      "scope": "unstaged",
+      "skip": 0,
+      "commit": "aba3127"
+    }
+  },
+  {
+    "field": "requestId",
+    "message": {
+      "type": "repo:request",
+      "requestId": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+      "id": "%3",
+      "action": "diff",
+      "path": "/home/dev/projects/tmuxde",
+      "file": "apps/server/internal/protocol/repo.go",
+      "scope": "unstaged",
+      "skip": 0,
+      "commit": "aba3127"
+    }
+  },
+  {
+    "field": "id",
+    "message": {
+      "type": "repo:request",
+      "requestId": "repo-mgl3k8x2-14",
+      "id": "",
+      "action": "diff",
+      "path": "/home/dev/projects/tmuxde",
+      "file": "apps/server/internal/protocol/repo.go",
+      "scope": "unstaged",
+      "skip": 0,
+      "commit": "aba3127"
+    }
+  },
+  {
+    "field": "action",
+    "message": {
+      "type": "repo:request",
+      "requestId": "repo-mgl3k8x2-14",
+      "id": "%3",
+      "action": "push",
+      "path": "/home/dev/projects/tmuxde",
+      "file": "apps/server/internal/protocol/repo.go",
+      "scope": "unstaged",
+      "skip": 0,
+      "commit": "aba3127"
+    }
+  },
+  {
+    "field": "scope",
+    "message": {
+      "type": "repo:request",
+      "requestId": "repo-mgl3k8x2-14",
+      "id": "%3",
+      "action": "diff",
+      "path": "/home/dev/projects/tmuxde",
+      "file": "apps/server/internal/protocol/repo.go",
+      "scope": "all",
+      "skip": 0,
+      "commit": "aba3127"
+    }
+  },
+  {
+    "field": "skip",
+    "message": {
+      "type": "repo:request",
+      "requestId": "repo-mgl3k8x2-14",
+      "id": "%3",
+      "action": "diff",
+      "path": "/home/dev/projects/tmuxde",
+      "file": "apps/server/internal/protocol/repo.go",
+      "scope": "unstaged",
+      "skip": -1,
+      "commit": "aba3127"
+    }
+  },
+  {
+    "field": "skip",
+    "message": {
+      "type": "repo:request",
+      "requestId": "repo-mgl3k8x2-14",
+      "id": "%3",
+      "action": "diff",
+      "path": "/home/dev/projects/tmuxde",
+      "file": "apps/server/internal/protocol/repo.go",
+      "scope": "unstaged",
+      "skip": 1000001,
+      "commit": "aba3127"
+    }
+  },
+  {
+    "field": "skip",
+    "message": {
+      "type": "repo:request",
+      "requestId": "repo-mgl3k8x2-14",
+      "id": "%3",
+      "action": "diff",
+      "path": "/home/dev/projects/tmuxde",
+      "file": "apps/server/internal/protocol/repo.go",
+      "scope": "unstaged",
+      "skip": 1.5,
+      "commit": "aba3127"
+    }
+  },
+  {
+    "field": "commit",
+    "message": {
+      "type": "repo:request",
+      "requestId": "repo-mgl3k8x2-14",
+      "id": "%3",
+      "action": "diff",
+      "path": "/home/dev/projects/tmuxde",
+      "file": "apps/server/internal/protocol/repo.go",
+      "scope": "unstaged",
+      "skip": 0,
+      "commit": "ABCDEF1"
+    }
+  },
+  {
+    "field": "commit",
+    "message": {
+      "type": "repo:request",
+      "requestId": "repo-mgl3k8x2-14",
+      "id": "%3",
+      "action": "diff",
+      "path": "/home/dev/projects/tmuxde",
+      "file": "apps/server/internal/protocol/repo.go",
+      "scope": "unstaged",
+      "skip": 0,
+      "commit": "abc123"
+    }
+  }
+]

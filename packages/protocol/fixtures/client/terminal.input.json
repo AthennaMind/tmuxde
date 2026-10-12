@@ -1,0 +1,10 @@
+[
+  {
+    "type": "terminal:input",
+    "data": "git status\r"
+  },
+  {
+    "type": "terminal:input",
+    "data": "\u001b[A"
+  }
+]

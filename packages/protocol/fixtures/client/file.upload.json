@@ -1,0 +1,15 @@
+[
+  {
+    "type": "file:upload",
+    "path": "/home/dev/uploads/screenshot.png",
+    "content": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+    "final": true,
+    "ack": true
+  },
+  {
+    "type": "file:upload",
+    "path": "/home/dev/uploads/build.log",
+    "content": "W2J1aWxkXSBjb21waWxpbmcgYXBwcy9zZXJ2ZXIK",
+    "final": false
+  }
+]

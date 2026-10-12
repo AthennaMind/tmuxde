@@ -1,0 +1,10 @@
+[
+  {
+    "field": "direction",
+    "message": {
+      "type": "pane:swap",
+      "id": "%3",
+      "direction": "X"
+    }
+  }
+]

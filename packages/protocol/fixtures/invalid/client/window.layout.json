@@ -1,0 +1,9 @@
+[
+  {
+    "field": "preset",
+    "message": {
+      "type": "window:layout",
+      "preset": "grid"
+    }
+  }
+]

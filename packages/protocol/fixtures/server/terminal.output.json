@@ -1,0 +1,10 @@
+[
+  {
+    "type": "terminal:output",
+    "data": "\u001b[1;32m✓\u001b[0m apps/relay/src/auth.test.ts (12 tests) 48ms\r\n"
+  },
+  {
+    "type": "terminal:output",
+    "data": "dev@workstation:~/src/tmuxde$ "
+  }
+]

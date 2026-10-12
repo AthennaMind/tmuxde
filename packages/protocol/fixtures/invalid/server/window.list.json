@@ -1,0 +1,76 @@
+[
+  {
+    "field": "windows[0].paneCount",
+    "message": {
+      "type": "window:list",
+      "windows": [
+        {
+          "id": "@1",
+          "index": 0,
+          "name": "editor",
+          "active": true,
+          "paneCount": 1.5,
+          "layout": "c4d5,200x50,0,0{100x50,0,0,1,99x50,101,0,2}",
+          "activity": false,
+          "zoomed": false,
+          "dimensions": {
+            "cols": 200,
+            "rows": 50
+          }
+        },
+        {
+          "id": "@2",
+          "index": 1,
+          "name": "claude",
+          "active": false,
+          "paneCount": 1,
+          "layout": "b7de,200x50,0,0,3",
+          "activity": true,
+          "zoomed": false,
+          "dimensions": {
+            "cols": 200,
+            "rows": 50
+          }
+        }
+      ],
+      "sessionName": "dev"
+    }
+  },
+  {
+    "field": "windows[0].dimensions.cols",
+    "message": {
+      "type": "window:list",
+      "windows": [
+        {
+          "id": "@1",
+          "index": 0,
+          "name": "editor",
+          "active": true,
+          "paneCount": 2,
+          "layout": "c4d5,200x50,0,0{100x50,0,0,1,99x50,101,0,2}",
+          "activity": false,
+          "zoomed": false,
+          "dimensions": {
+            "cols": 1001,
+            "rows": 50
+          }
+        },
+        {
+          "id": "@2",
+          "index": 1,
+          "name": "claude",
+          "active": false,
+          "paneCount": 1,
+          "layout": "b7de,200x50,0,0,3",
+          "activity": true,
+          "zoomed": false,
+          "dimensions": {
+            "cols": 200,
+            "rows": 50
+          }
+        }
+      ],
+      "sessionName": "dev"
+    }
+  }
+]

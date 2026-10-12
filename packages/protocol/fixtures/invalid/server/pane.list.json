@@ -1,0 +1,88 @@
+[
+  {
+    "field": "panes[0].index",
+    "message": {
+      "type": "pane:list",
+      "panes": [
+        {
+          "id": "%3",
+          "index": 0.5,
+          "windowId": "@1",
+          "active": true,
+          "zoomed": false,
+          "dimensions": {
+            "cols": 120,
+            "rows": 40
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "command": "claude",
+          "path": "/home/dev/src/tmuxde"
+        },
+        {
+          "id": "%5",
+          "index": 1,
+          "windowId": "@1",
+          "active": false,
+          "zoomed": false,
+          "dimensions": {
+            "cols": 119,
+            "rows": 40
+          },
+          "position": {
+            "x": 121,
+            "y": 0
+          },
+          "command": "zsh",
+          "path": "/home/dev/src/tmuxde/apps/server"
+        }
+      ],
+      "windowId": "@1"
+    }
+  },
+  {
+    "field": "panes[1].dimensions.cols",
+    "message": {
+      "type": "pane:list",
+      "panes": [
+        {
+          "id": "%3",
+          "index": 0,
+          "windowId": "@1",
+          "active": true,
+          "zoomed": false,
+          "dimensions": {
+            "cols": 120,
+            "rows": 40
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "command": "claude",
+          "path": "/home/dev/src/tmuxde"
+        },
+        {
+          "id": "%5",
+          "index": 1,
+          "windowId": "@1",
+          "active": false,
+          "zoomed": false,
+          "dimensions": {
+            "cols": 0,
+            "rows": 40
+          },
+          "position": {
+            "x": 121,
+            "y": 0
+          },
+          "command": "zsh",
+          "path": "/home/dev/src/tmuxde/apps/server"
+        }
+      ],
+      "windowId": "@1"
+    }
+  }
+]

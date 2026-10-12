@@ -323,24 +323,6 @@ export const SessionWindowsMessage = z.object({
 });
 
 /**
- * The human's answer to `device:approval-request`.
- *
- * `approved` is a boolean and not an enum of one value, because a denial has
- * to be sendable: a browser that says no must be able to say it *now*, rather
- * than closing the dialog and leaving the requester to sit out the timeout.
- * Silence still denies — that is what the timeout is for — but an explicit no
- * is faster and kinder, and it is the answer people actually give.
- *
- * Restricted to full-grant connections by `POLICY`. A read-only share that
- * could admit devices would be a share that could grant more than it holds.
- */
-export const DeviceApproveMessage = z.object({
-  type: z.literal("device:approve"),
-  id: z.string().min(1).max(64),
-  approved: z.boolean(),
-});
-
-/**
  * One dictation, named by the client.
  *
  * The id lets the client tell a late reply for a dictation it already
@@ -437,7 +419,6 @@ export const ClientMessage = z.discriminatedUnion("type", [
   TmuxExitCopyModeMessage,
   PaneCaptureMessage,
   SessionWindowsMessage,
-  DeviceApproveMessage,
   DictationStartMessage,
   DictationAudioMessage,
   DictationStopMessage,
@@ -495,7 +476,6 @@ export type TmuxScrollStateRequest = z.infer<typeof TmuxScrollStateRequest>;
 export type TmuxExitCopyModeMessage = z.infer<typeof TmuxExitCopyModeMessage>;
 export type PaneCaptureMessage = z.infer<typeof PaneCaptureMessage>;
 export type SessionWindowsMessage = z.infer<typeof SessionWindowsMessage>;
-export type DeviceApproveMessage = z.infer<typeof DeviceApproveMessage>;
 export type DictationStartMessage = z.infer<typeof DictationStartMessage>;
 export type DictationAudioMessage = z.infer<typeof DictationAudioMessage>;
 export type DictationStopMessage = z.infer<typeof DictationStopMessage>;

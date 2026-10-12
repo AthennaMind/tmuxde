@@ -1,0 +1,6 @@
+[
+  {
+    "type": "auth:failure",
+    "reason": "Invalid token"
+  }
+]
