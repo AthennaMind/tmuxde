@@ -2,79 +2,95 @@
 
 ## What this is
 
-tmuxde (Tmux Development Environment) is a self-hosted IDE with tmux as its backend. tmux owns sessions, windows, panes and their processes. tmuxde is the IDE around it, in browser on desktop or phone, served on private network only. Main use case is driving long-running coding agents (Claude Code, Codex) and shells. Closing browser, locking device or rebuilding containers never kills sessions.
+tmuxde (Tmux Development Environment) is a self-hosted IDE with tmux as its backend. tmux owns sessions, windows, panes and their processes. tmuxde is the IDE around it, in browser on desktop or phone, served on private network only. Main use case is driving long-running coding agents (Claude Code, Codex) and shells. Closing browser, locking device, restarting the server or rebuilding containers never kills sessions.
 
 Selected pane is the focus. IDE surfaces take their context from it: folder, repository, branch, changes. Switching panes or `cd` in the pane moves the IDE with it. New features should follow this model. Current surfaces (session tree, files, changes, diffs, commit history, mobile terminal controls) are early and expected to change.
 
-Repository is [AthennaMind/tmuxde](https://github.com/AthennaMind/tmuxde). It is a fork of [mtmux/mtmux](https://github.com/mtmux/mtmux) (git remote `upstream`). Upstream ships `mtmux` npm CLI, QR and code pairing, hosted broker, sealed tunnel, accounts and billing. This fork removed CLI, marketing site, hosted broker, billing, database and email apps. What remains is web client and relay, run by Docker Compose behind Caddy with local CA. Sign-in uses relay token from `.docker/.env.token`. Current setup guide is [.docker/README.md](.docker/README.md).
+Repository is [AthennaMind/tmuxde](https://github.com/AthennaMind/tmuxde). It is a fork of [mtmux/mtmux](https://github.com/mtmux/mtmux) (git remote `upstream`). Upstream ships `mtmux` npm CLI, QR and code pairing, hosted broker, sealed tunnel, accounts and billing. This fork removed all of that and the Node relay. What remains is the React web client and a Go server, single binary `tmuxde`. Production runs the binary as host user unit behind Caddy with local CA. Development runs in Docker Compose. Sign-in uses token from `.docker/.env.token`. Setup and operation guide is [.docker/README.md](.docker/README.md).
 
 ## Architecture
 
 ```
-Browser ─https/wss:443─► Caddy ─┬─► web:24100   Next.js client
-                                └─► relay:24300 /_relay /_pair/* /_sessions /file /health
-relay ─ node-pty `tmux attach-session` ─► host tmux socket (mounted)
-relay ─ execFile tmux ─► list, capture, create, kill sessions
-relay ─ read-only bind of host home ─► Files and Changes viewer
-relay ─ ws, network `speech` ─► stt:24400 (optional, profile `dictation`)
+Production, port 443:
+Browser ─https/wss─► Caddy (Docker) ─► run/http.sock ─► tmuxde, host user unit tmuxde.service
+                                                         ├─ embedded ui build (web/dist)
+                                                         ├─ host tmux server, host files and git
+                                                         └─ run/stt/stt.sock ─► stt (Docker, optional)
+
+Development, port 18443:
+Browser ─https/wss─► Caddy ─┬─► run/dev/http-dev.sock  /_relay /file /health ─► server-dev (Docker)
+                            └─► ui:24100 everything else ─► Vite dev server with HMR (Docker)
+server-dev: air rebuilds and runs tmuxde on Go change. Own tmux server, /repo read only, scratch dir, run/stt/stt.sock
 ```
 
-- `.docker/Caddyfile`: routes relay paths to relay, everything else to web. Rejects non-private IPs. Sets CSP and permissions policy. Redirects upstream code entry routes (`/start`, `/pair`, `/j`) to `/login`.
-- Relay (`apps/relay/src`): `index.ts` checks tmux, starts HTTP server (`server.ts`) and WebSocket server (`ws-server.ts`). `wire-connections.ts` handles per-socket auth, caps, liveness and grants. `message-router.ts` dispatches every client message after `policy.ts` checks grant scope. `tmux-manager.ts` wraps tmux CLI. `pty-bridge.ts` attaches PTY with output backpressure. `session-monitor.ts` polls window and pane layout changes. `file-service.ts` and `repository-service.ts` enforce `ALLOWED_PATHS` and block credential directories. `config.ts` validates env with Zod.
-- Protocol (`packages/protocol`): Zod discriminated unions `ClientMessage` and `ServerMessage`, one JSON object per WebSocket message (`codec.ts`). `policy.test.ts` fails if new message type has no policy entry.
-- Web (`apps/web/src`): App Router with `(auth)` login routes and `(terminal)/s/[sessionId]`. `lib/ws-client.ts` owns reconnect, backoff and message queue over `lib/transport.ts`. `hooks/use-websocket.ts` applies server messages to Zustand stores in `stores/`. Terminal uses xterm.js (`lib/xterm-factory.ts`). Mobile controls live in `components/mobile`. Repository viewer lives in `components/files` with bundled Shiki highlighting.
-- Dictation (optional): `apps/stt` runs Parakeet TDT through `sherpa-onnx-node`, one decode per utterance found by Silero VAD (`segmenter.ts`). Node runs its TypeScript directly, no build. Relay `dictation.ts` forwards `dictation:*` audio to it and advertises `dictation` in features only while its health check passes. Web `lib/dictation.ts` records through `public/dictation-worklet.js`, then types into the focused field or pastes into the selected pane, never pressing Enter. Off unless `scripts/setup.sh --dictation`.
-- Local lock: `lib/lock-store.ts`, `lib/lock-controller.ts` and `components/lock` keep stored credentials encrypted under in-memory master key, unlocked by PIN or passkey PRF. Locking drops key, disconnects and clears stores. It never touches tmux.
-- Relay clones (`tmux-clone.ts`) are grouped sessions created for read-only shares so viewers cannot switch sessions. They stay hidden from every session list.
+`run` is the run directory `LOCAL_STT_SOCKET_DIR`, default `~/.local/state/tmuxde/run`, mode 0750. Caddy mounts it read only. `stt` mounts only `run/stt`. `server-dev` mounts only `run/dev` (read write) and `run/stt` (read only), never `http.sock`.
 
-Inherited upstream code is still wired in: local pairing (`pairing-local.ts`), scoped grants, device approval and `SealedTransport`. Standalone stack does not issue pairing codes. Check whether path is reachable in local stack before changing it.
+- `.docker/Caddyfile`: site on 443 sends every request to `unix//run/tmuxde/http.sock`. Site on 18443 routes `/_relay`, `/health` and `/file` to `unix//run/tmuxde/dev/http-dev.sock` and everything else to `ui:24100`. Both reject non-private IPs, set CSP and permissions policy, and redirect upstream code entry routes (`/start`, `/pair`, `/j`) to `/login`. Any Caddy restart loads the file on disk.
+- Server (`cmd/tmuxde`, `internal`, `web`): Go module `tmuxde` at the repository root. `cmd/tmuxde` is the binary with subcommands `serve` and `version`. `serve` runs one hub and one local node in one process. `internal/hub` faces the browser: `edge` (routes, security headers, redirects, dev proxy), `ws` (WebSocket lifecycle and origin check on `/_relay`), `auth` (token and failure throttle), `conns`, `static` (serves the embedded ui build), `filehttp` (`GET /file`), `dictation` (bridge to `stt.sock`), `accesslog`, `useragent`. `internal/node` drives this machine: `local` routes every client message and applies the pane and window ownership rule, `tmux` wraps tmux CLI, `pty` attaches tmux clients, `monitor` polls session and layout changes, `files` and `repo` enforce `ALLOWED_PATHS` and the credential deny list. `internal/protocol` holds the Go message types. `internal/config` reads env. `web/` embeds `web/dist`, the ui build. `vendor/` holds Go modules, builds run offline.
+- Protocol (`packages/protocol`): Zod discriminated unions `ClientMessage` and `ServerMessage`, one JSON object per WebSocket message (`codec.ts`). `fixtures/` holds a sample for every wire type plus invalid cases. Vitest (`fixtures.test.ts`) and the Go contract test (`internal/protocol/contract_test.go`) both check them, and the Go test requires the Go registries to match the TypeScript types exactly.
+- UI (`ui/src`, package `@app/ui`): client only React app built by Vite. `router.tsx` holds React Router routes (`createBrowserRouter`): `/login` under the entry layout, `/` and `/s/:sessionId` under the terminal layout, catch all not found. Route components live in `routes/`. Static metadata lives in `index.html`. Monaco workers come from `lib/monaco-workers.ts`. `lib/ws-client.ts` owns reconnect, backoff and message queue over `lib/transport.ts` (plain WebSocket). `hooks/use-websocket.ts` applies server messages to Zustand stores in `stores/`. Terminal uses xterm.js (`lib/xterm-factory.ts`). Mobile controls live in `components/mobile`. Repository viewer lives in `components/files` with bundled Shiki highlighting.
+- Dictation (optional): `stt` runs Parakeet TDT through `sherpa-onnx-node`, one decode per utterance found by Silero VAD (`segmenter.ts`). Node runs its TypeScript directly, no build. It listens only on `STT_SOCKET`, has no TCP listener and no network. Server `internal/hub/dictation` forwards `dictation:*` audio to it and advertises `dictation` in features only while its probe passes. UI `lib/dictation.ts` records through `public/dictation-worklet.js`, then types into the focused field or pastes into the selected pane, never pressing Enter. Off unless `scripts/setup.sh --dictation`.
+- Local lock: `lib/lock-store.ts`, `lib/lock-controller.ts` and `components/lock` keep the stored token encrypted under in-memory master key, unlocked by PIN or passkey PRF. Locking drops key, disconnects and clears stores. It never touches tmux. `lib/session-store.ts` owns the IndexedDB database. Its session key records are upstream pairing leftovers that the lock still seals if a browser holds any.
+- Hidden sessions: names starting with `__tmuxde_` were read only clones of the old relay. The server never creates them, hides them from every session list and sweeps them at start.
+
+Token login is the only sign-in path. Pairing, device approval, the sealed tunnel and the machine switcher were removed from UI, protocol and crypto.
 
 ## Repository map
 
-- `apps/web`: Next.js terminal client, mobile controls, local device lock and repository viewer.
-- `apps/relay`: authenticated WebSocket bridge to tmux and local file access.
-- `apps/stt`: optional local speech to text for dictation. Own container, reached by relay only.
-- `packages/protocol`: validated client/server messages and shared types.
-- `packages/crypto`: local cryptography and stored device credentials.
-- `packages/ui`, `logger`: shared UI, local logging and configuration.
-- `.docker`: supported deployment, host tmux integration and Caddy local CA.
-- `scripts/setup.sh`: writes `.env`, token and copies host tmux client into `.docker/host-tmux`.
-- `packages/protocol/PROTOCOL.md`: maintained reference for every message type.
-- `.agents/skills`: UI review skills (`better-*`, `interface-review`).
+- `cmd/tmuxde`, `internal`, `web`: Go server `tmuxde`. Module `tmuxde`, `go.mod`, `go.sum`, `vendor/` and `.air.toml` at the repository root.
+- `ui`: React app, Vite and React Router. Terminal client, mobile controls, local device lock and repository viewer.
+- `stt`: optional local speech to text for dictation. Own container, reached by the Go servers only.
+- `packages/protocol`: validated client/server messages, shared types, wire fixtures and `PROTOCOL.md`, the maintained reference for every message type.
+- `packages/crypto`: envelope sealing and PIN key derivation for the device lock.
+- `packages/ui-kit`: shared UI components and styles, imported as `@repo/ui`.
+- `.docker`: Compose files (`compose/dev.yaml`, `prod.yaml`, `tooling.yaml`, `workspace.yaml`), dev images, prod `tmuxde.Dockerfile` and `stt.Dockerfile`, host unit template, Caddyfile and `README.md`.
+- `scripts/setup.sh`: writes `.env`, token and run directory. `--host-service` installs the binary as user unit.
+- `.agents`: plans, backlogs, reviews and UI review skills (`better-*`, `interface-review`).
 
 ## Commands
 
-All Node tooling runs in Docker. Run from repository root.
+All Node and Go tooling runs in Docker. Run from repository root.
 
 ```sh
-scripts/setup.sh                                  # first run, or after host tmux change
+scripts/setup.sh                                  # first run: .env, token, upload folder, run directory
 scripts/setup.sh --dictation                      # also enable speech to text (downloads models once)
-docker compose up -d --build --wait               # dev stack with hot reload
+scripts/setup.sh --host-service                   # install .docker/bin/tmuxde as systemd user unit, enabled, not started. --print is a dry run
+scripts/setup.sh --host-service --uninstall       # stop, disable, remove unit. Keeps settings and binary unless --purge
+docker build -f .docker/prod/tmuxde.Dockerfile --target binary --output type=local,dest=.docker/bin .   # release binary with embedded ui build
+systemctl --user restart tmuxde.service           # production picks up a new binary or env file
+journalctl --user -u tmuxde -f                    # production log
+docker compose up -d --build --wait               # dev stack: caddy, ui, server-dev, stt with dictation
+docker compose logs -f server-dev                 # air rebuilds and restarts the dev binary on every Go change
 docker compose run --rm tools pnpm test           # all Vitest projects
-docker compose run --rm tools pnpm test apps/relay/src/auth.test.ts   # single file
+docker compose run --rm tools pnpm test ui/src/lib/relay-url.test.ts   # single file
 docker compose run --rm tools pnpm typecheck
-docker compose run --rm tools pnpm build
-docker compose logs -f
-docker compose down                               # keeps volumes and tmux sessions
-python3 .docker/dev/dependencies.py mutate --filter @app/web add <pkg>
-python3 .docker/tests/runtime.py                  # relay HOME check
+docker compose run --rm tools pnpm --filter @app/ui build
+docker compose run --rm gotools go vet ./...      # gotools works in /workspace, the module root
+docker compose run --rm gotools go test ./...
+docker compose run --rm -e CGO_ENABLED=1 gotools go test -race ./...   # race detector needs CGO
+docker compose run --rm gotools go build -trimpath -o /out/tmuxde ./cmd/tmuxde   # writes .docker/bin/tmuxde without the ui build
+docker compose run --rm go-vendor                 # after go.mod change. Networked, five day release check
+python3 .docker/dev/dependencies.py mutate --filter @app/ui add <pkg>
+python3 -B .docker/dev/setup_test.py              # setup.py tests
+python3 .docker/tests/runtime.py                  # dev user IDs, server-dev and stt isolation
+docker compose down                               # keeps volumes and host tmux sessions. Also stops Caddy, so production on 443 goes offline, and ends server-dev sessions
 ```
 
-Dev URL is `https://$LOCAL_DOMAIN`, bound on `LOCAL_BIND_IP`. Both live in root `.env`, default to `localhost` and `127.0.0.1`, and survive `scripts/setup.sh` reruns. Production uses `.docker/compose/prod.yaml`.
+Production URL is `https://$LOCAL_DOMAIN`, served by `tmuxde.service` through Caddy. Development URL is `https://$LOCAL_DOMAIN:18443`. Both bind on `LOCAL_BIND_IP`. Domain and address live in root `.env`, default to `localhost` and `127.0.0.1`, and survive `scripts/setup.sh` reruns. Production Compose config is `.docker/compose/prod.yaml` (Caddy and stt only).
 
 Machine-specific notes (real domain, addresses, device trust) live in gitignored `AGENTS.local.md`. `CLAUDE.local.md` links to it. Read it when present. Never copy its values into tracked files.
 
 ## Runtime
 
-Caddy exposes internal HTTPS on port 443. Web and relay have no published ports and use internal Docker network. Preserve Caddy volumes across deployments. Host tmux sessions and upload storage must survive container rebuilds.
+Caddy exposes internal HTTPS on port 443, and 18443 in development. The binary listens on unix sockets only and never does TLS. `ui` publishes `127.0.0.1:24100` for a host binary run by hand with `TMUXDE_DEV_WEB_URL`. `stt` and `server-dev` have no network. Preserve Caddy volumes across deployments. Host tmux sessions and upload storage must survive container rebuilds and service restarts.
 
 Browser assets must be local. No analytics exporters, hosted accounts, cloud dictation or automatic public service requests. Framework telemetry stays disabled during development, builds and runtime. User commands in host tmux retain host network behavior.
 
 ## Changes
 
-Protocol changes require schemas, both handlers, tests and updates to `packages/protocol/PROTOCOL.md`. Both handlers means relay `message-router.ts` and web `use-websocket.ts`. New message types also need entry in relay `policy.ts`. Relay file access must use path guards. Session operations go through `tmux-manager.ts`. Preserve authentication, origin checks and local lock behavior.
+Protocol changes require Zod schemas, Go types with their registry entry in `internal/protocol/client` or `internal/protocol/server`, fixtures in `packages/protocol/fixtures` (invalid cases too), both handlers, tests and updates to `packages/protocol/PROTOCOL.md`. Both handlers means Go router in `internal/node/local` and UI `ui/src/hooks/use-websocket.ts`. File access must use path guards in `internal/node/files`. Session operations go through `internal/node/tmux`. Preserve authentication, origin checks and local lock behavior.
 
-Use semantic color classes. Follow local import conventions. Shared dev tools (TypeScript, Vitest, @types/node) live in root package.json. Package tsconfigs extend root tsconfig.base.json. No task runner, linter or formatter. Validate environment variables with Zod. Use conventional commits.
+Use semantic color classes. Follow local import conventions. Shared dev tools (TypeScript, Vitest, @types/node) live in root package.json. Package tsconfigs extend root tsconfig.base.json. No task runner, linter or formatter. Validate environment variables with Zod in TypeScript and in `internal/config` in Go. Use conventional commits.
 
 ## Plans, Backlogs and Reviews
 
@@ -107,12 +123,12 @@ Reviews (security, performance, implementation and others) are saved to `.agents
 
 ## Verification
 
-Run checks appropriate to changes. Browser checks use playwright-cli against running stack, in isolated tmux sessions. Never type test commands into active user sessions. Deploy from `.docker` without removing volumes. Secrets and generated host binaries stay outside Git and Docker build context.
+Run checks appropriate to changes. Browser checks use playwright-cli against the 18443 development instance, whose tmux server lives in `server-dev`. Never type test commands into active user sessions on the host tmux server. Production checks are read only: health, login, session list. Deploy from `.docker` without removing volumes. Secrets and generated binaries stay outside Git and Docker build context.
 
 ## Docker development
 
-Run Node tooling only in Docker. Setup: scripts/setup.sh. Start hot reload: docker compose up -d --build --wait. Checks: docker compose run --rm tools pnpm test, typecheck or build. Never install host node_modules.
+Run Node and Go tooling only in Docker. Setup: `scripts/setup.sh`. Start hot reload: `docker compose up -d --build --wait`. Checks: `docker compose run --rm tools pnpm test`, `typecheck` or `build`, and `docker compose run --rm gotools go test ./...` or `go vet ./...`. Never install host node_modules. Nothing in Docker uses the host tmux.
 
-Docker assets live under .docker. Root docker-compose.yml includes standalone development config. Production config lives under .docker/compose. Dependency manager downloads with scripts disabled. Approved native builds run offline. Three development volumes hold dependencies, caches and pnpm store. Keep five-day dependency release delay without exclusions.
+Docker assets live under .docker. Root docker-compose.yml includes the development config. Production config lives under .docker/compose. Dependency manager downloads with scripts disabled. Approved native builds run offline. Three development volumes hold dependencies, caches and pnpm store. Keep five-day dependency release delay without exclusions.
 
-Dependency mutations use python3 .docker/dev/dependencies.py mutate followed by pnpm arguments. Host helper exports only manifests and lockfile, with security policy unchanged. New workspaces need subpath mounts in workspace.yaml and directories in init-volumes.sh. Workspaces with tests also need an entry in root vitest.config.ts projects. Runtime source and dependencies stay read-only. Preserve Caddy volumes, uploads and host tmux sessions.
+Dependency mutations use `python3 .docker/dev/dependencies.py mutate` followed by pnpm arguments. A plain run resyncs. The helper stops `ui` and `stt` while it writes and starts them again. After a failure run `docker compose up -d --no-build --wait ui stt`. Host helper exports only manifests and lockfile, with security policy unchanged. pnpm workspaces are `ui`, `stt` and `packages/*`. New workspaces need subpath mounts in workspace.yaml and directories in init-volumes.sh. Workspaces with tests also need an entry in root vitest.config.ts projects. Go containers (`gotools`, `go-vendor`, `server-dev`) bind each part of the Go module on its own, so a new top level Go directory needs a bind in tooling.yaml and dev.yaml. Runtime source and dependencies stay read-only. Preserve Caddy volumes, uploads and host tmux sessions.
