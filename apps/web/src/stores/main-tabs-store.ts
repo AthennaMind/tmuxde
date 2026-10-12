@@ -26,7 +26,10 @@ export interface FileTab {
   contextPath?: string;
   /** Repository root, so a diff tab can name its file in full. */
   root?: string | null;
+  /** Unknown when opened from a Markdown link. */
   size?: number;
+  /** The tree listed the path as a symbolic link. */
+  symlink?: boolean;
 }
 
 /**

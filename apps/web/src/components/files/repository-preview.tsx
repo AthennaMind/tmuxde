@@ -1,12 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import type { RepoResult } from "@repo/protocol";
 import { cn } from "@repo/ui/lib/utils";
 import { useFileObjectUrl } from "@/hooks/use-file-object-url";
 import { RepositorySyntaxLine, useRepositorySyntax } from "./repository-syntax";
 import { filesAvailable } from "@/lib/file-url";
 import { getFileCategory } from "@/lib/file-utils";
+import { isMarkdownPath } from "@/lib/markdown";
+
+// The Markdown parser ships only once a Markdown file opens rendered.
+const MarkdownPreview = dynamic(
+  () => import("./markdown-preview").then((m) => m.MarkdownPreview),
+  { ssr: false, loading: () => <Notice>Loading preview...</Notice> },
+);
 import { useSessionTreeStore } from "@/stores/session-tree-store";
 import {
   isPaneFree,
@@ -107,21 +115,36 @@ export function FilePreview({
   path,
   wrap,
   size,
+  symlink = false,
+  rendered = false,
+  onOpenPath,
 }: {
   result: Extract<Result, { kind: "read" | "diff" }>;
   path: string;
   wrap: boolean;
+  /** Unknown for a file opened from a Markdown link. */
   size?: number;
+  /** The tree listed this path as a symbolic link. */
+  symlink?: boolean;
+  /** Show a Markdown file rendered instead of as source. */
+  rendered?: boolean;
+  /** Open a file linked from rendered Markdown. */
+  onOpenPath?: (path: string) => void;
 }) {
+  const markdown =
+    result.kind === "read" &&
+    rendered &&
+    !result.binary &&
+    isMarkdownPath(path);
   const syntax = useRepositorySyntax(
     path,
-    result.binary ? "" : result.content,
+    result.binary || markdown ? "" : result.content,
     result.kind === "diff",
   );
   if (result.kind === "read" && getFileCategory(path) === "image") {
-    if (size === undefined)
+    if (symlink)
       return <Notice>Image preview is unavailable for symbolic links.</Notice>;
-    if (size > 10 * 1024 * 1024)
+    if (size !== undefined && size > 10 * 1024 * 1024)
       return <Notice>Image exceeds 10 MB preview limit.</Notice>;
     return filesAvailable() ? (
       <ImagePreview key={path} path={path} />
@@ -144,7 +167,8 @@ export function FilePreview({
   const isDiff = result.kind === "diff";
   return (
     <>
-      {(result.truncated || lines.length > visible.length) && (
+      {(result.truncated ||
+        (!markdown && lines.length > visible.length)) && (
         <p
           role="status"
           className="shrink-0 border-b bg-warning/10 px-3 py-2 text-xs text-foreground"
@@ -152,6 +176,13 @@ export function FilePreview({
           Preview shortened. Only part of this file is shown.
         </p>
       )}
+      {markdown ? (
+        <MarkdownPreview
+          path={path}
+          content={result.content}
+          onOpenPath={onOpenPath}
+        />
+      ) : (
       <div
         tabIndex={0}
         role="region"
@@ -200,6 +231,7 @@ export function FilePreview({
           ))}
         </div>
       </div>
+      )}
     </>
   );
 }

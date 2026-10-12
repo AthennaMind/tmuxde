@@ -11,6 +11,7 @@ export type RepositoryView = {
     path: string;
     scope?: "staged" | "unstaged" | "untracked";
     size?: number;
+    symlink?: boolean;
   } | null;
   /** A commit open from History. Absent in entries saved before history. */
   commit?: { hash: string; subject: string } | null;
@@ -51,6 +52,7 @@ function sameView(left: RepositoryView, right: RepositoryView) {
     left.preview?.path === right.preview?.path &&
     left.preview?.scope === right.preview?.scope &&
     left.preview?.size === right.preview?.size &&
+    left.preview?.symlink === right.preview?.symlink &&
     left.commit?.hash === right.commit?.hash
   );
 }
