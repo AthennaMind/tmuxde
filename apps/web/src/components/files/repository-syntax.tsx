@@ -43,6 +43,40 @@ export function useRepositorySyntax(
     : undefined;
 }
 
+/** Tokens for one fenced block. Nothing loads when the language is unknown. */
+export function useCodeSyntax(language: string | undefined, source: string) {
+  const [state, setState] = useState<{
+    language: string;
+    source: string;
+    tokens?: RepositorySyntaxToken[][];
+  }>();
+  useEffect(() => {
+    if (!language) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void import("./repository-syntax-tokens")
+        .then(({ highlightCodeByLanguage }) =>
+          cancelled ? undefined : highlightCodeByLanguage(language, source),
+        )
+        .then((tokens) => {
+          if (!cancelled) setState({ language, source, tokens });
+        })
+        .catch(() => {
+          // Plain text stays readable if loading or tokenization fails.
+        });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [language, source]);
+  return state !== undefined &&
+    state.language === language &&
+    state.source === source
+    ? state.tokens
+    : undefined;
+}
+
 export function RepositorySyntaxLine({
   line,
   tokens,
