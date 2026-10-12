@@ -54,7 +54,7 @@ Create or update a GitHub Pull Request for the current branch.
    - The "What this does" section always comes first and stays plain-language;
      anyone reading only that section should understand the point of the PR.
    - The summary should cover ALL commits on the branch, not just the latest.
-   - Test plan items should be concrete and testable.
+   - No test plan or verification section. Keep the body to the two sections above.
    - Never use emojis.
 
 8. **Create or update the PR:**
