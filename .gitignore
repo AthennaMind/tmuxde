@@ -6,13 +6,14 @@ node_modules/
 
 # Build outputs
 dist/
-.next/
-# Next development and build directories.
-.next-*/
 out/
 
 # Tool caches
 .cache/
+
+# Vite dependency cache of the React app. Its build output ui/dist is
+# covered by dist/ above.
+ui/.vite/
 
 # Environment variables
 .env
@@ -58,18 +59,25 @@ logs/
 # Local runtime state.
 data/
 
-# Local worktrees (see .worktrees/<branch>) — checkouts, not source.
+# Local worktrees (see .worktrees/<branch>). These are checkouts, not source.
 .worktrees/
 
-# Next's generated ambient types. They import from whichever dist directory
-# ran last (`.next-dev` or `.next-build`), so committing them breaks other
-# machines. Next regenerates the file on every `dev`/`build`, and
-# `pnpm typecheck` passes without it.
-apps/web/next-env.d.ts
+# Python bytecode from setup.py and the Docker tests.
+__pycache__/
 
-# Host binaries copied for local Docker access to existing tmux sessions.
-.docker/host-tmux/
+# Public copy of the Caddy local CA root, for device trust.
 .docker/certs/
+
+# Go binaries built by the gotools service. The dir itself stays tracked so
+# Docker does not create it as root.
+.docker/bin/*
+!.docker/bin/.gitkeep
+
+# Web build embedded by the Go server. .gitkeep keeps the embed compiling
+# without a build. dist/ above ignores the dir, so it is re-included first.
+!/web/dist/
+/web/dist/*
+!/web/dist/.gitkeep
 
 # Local agent settings.
 .claude/local/

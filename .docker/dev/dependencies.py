@@ -17,7 +17,8 @@ os.environ['DEV_GID'] = str(os.getgid())
 COMPOSE = ['docker', 'compose', '-f', '.docker/compose/tooling.yaml']
 STACK = ['docker', 'compose']
 MANIFESTS = [Path('package.json'), Path('pnpm-lock.yaml'), Path('pnpm-workspace.yaml')]
-MANIFESTS += sorted(p for parent in ('apps', 'packages') for p in Path(parent).glob('*/package.json'))
+MANIFESTS += [Path('ui/package.json'), Path('stt/package.json')]
+MANIFESTS += sorted(Path('packages').glob('*/package.json'))
 VOLUME = 'tmuxde-dev-dependencies-v2'
 
 
@@ -51,7 +52,9 @@ def sync(mutation=None, install_args=()):
         print('Dependencies unchanged. Install skipped.')
         return
     running = subprocess.check_output(['docker', 'ps', '--filter', 'label=com.docker.compose.project=tmuxde', '--filter', 'label=dev.tmuxde.mode=development', '--format', '{{.Label "com.docker.compose.service"}}'], text=True).split()
-    resume = [s for s in ('web', 'relay') if s in running]
+    # Services that mount the dependency volume. server-dev does not, and
+    # stopping it would end its tmux sessions for nothing.
+    resume = [s for s in ('ui', 'stt') if s in running]
     if resume:
         run(STACK + ['stop', *resume])
     run(COMPOSE + ['run', '--rm', '-T', 'volume-init'])

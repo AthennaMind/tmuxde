@@ -1,5 +1,6 @@
 packages:
-  - "apps/*"
+  - "ui"
+  - "stt"
   - "packages/*"
 
 overrides:
@@ -7,8 +8,6 @@ overrides:
 allowBuilds:
   '@tailwindcss/oxide': true
   esbuild: true
-  node-pty: true
-  sharp: true
 
 shamefullyHoist: false
 strictPeerDependencies: true
