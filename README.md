@@ -1,6 +1,10 @@
-# tmuxde
+<p align="center">
+  <img src="apps/web/public/icon-512.png" width="112" alt="tmuxde icon">
+</p>
 
-**A Development Environment with tmux as its backend.**
+<h1 align="center">tmuxde</h1>
+
+<p align="center"><strong>A Development Environment with tmux as its backend.</strong></p>
 
 tmuxde (Tmux Development Environment) is a self-hosted DE built on top of tmux. tmux is the backend. It owns your sessions, windows, panes and every process running in them. tmuxde is the IDE around it, in your browser, on a desktop or a phone.
 

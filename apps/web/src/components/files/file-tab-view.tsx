@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, WrapText, X } from "lucide-react";
+import { BookOpen, RefreshCw, WrapText, X } from "lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import { useRelayClient } from "@/hooks/use-websocket";
+import { isMarkdownPath } from "@/lib/markdown";
 import { shortenPath } from "@/lib/tmux-labels";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useMainTabsStore, type FileTab } from "@/stores/main-tabs-store";
@@ -32,11 +33,16 @@ export function FileTabView({
   const [refresh, setRefresh] = useState(0);
   const wrap = useSettingsStore((s) => s.wrapLines);
   const setWrap = useSettingsStore((s) => s.setWrapLines);
+  const rendered = useSettingsStore((s) => s.markdownPreview);
+  const setRendered = useSettingsStore((s) => s.setMarkdownPreview);
+  const openFile = useMainTabsStore((s) => s.openFile);
   const fullPath =
     tab.scope && tab.root
       ? `${tab.root.replace(/\/$/, "")}/${tab.path}`
       : tab.path;
   const name = tab.path.split("/").pop() || tab.path;
+  const markdown = !tab.scope && isMarkdownPath(fullPath);
+  const showRendered = markdown && rendered;
 
   return (
     <section
@@ -63,13 +69,24 @@ export function FileTabView({
         >
           {shortenPath(fullPath)}
         </span>
-        <HeaderButton
-          label="Wrap lines"
-          pressed={wrap}
-          onClick={() => setWrap(!wrap)}
-        >
-          <WrapText className={cn("h-4 w-4", wrap && "text-primary")} />
-        </HeaderButton>
+        {markdown && (
+          <HeaderButton
+            label="Render Markdown"
+            pressed={rendered}
+            onClick={() => setRendered(!rendered)}
+          >
+            <BookOpen className={cn("h-4 w-4", rendered && "text-primary")} />
+          </HeaderButton>
+        )}
+        {!showRendered && (
+          <HeaderButton
+            label="Wrap lines"
+            pressed={wrap}
+            onClick={() => setWrap(!wrap)}
+          >
+            <WrapText className={cn("h-4 w-4", wrap && "text-primary")} />
+          </HeaderButton>
+        )}
         <HeaderButton
           label="Reload"
           onClick={() => setRefresh((value) => value + 1)}
@@ -87,6 +104,8 @@ export function FileTabView({
           refresh={refresh}
           wrap={wrap}
           fullPath={fullPath}
+          rendered={showRendered}
+          onOpenPath={(path) => openFile({ paneId: tab.paneId, path })}
         />
       ) : (
         <Notice>Connect to view this file.</Notice>
@@ -101,12 +120,16 @@ function FileTabBody({
   refresh,
   wrap,
   fullPath,
+  rendered,
+  onOpenPath,
 }: {
   client: RepositoryClient;
   tab: FileTab;
   refresh: number;
   wrap: boolean;
   fullPath: string;
+  rendered: boolean;
+  onOpenPath: (path: string) => void;
 }) {
   const query = useRepositoryQuery(
     client,
@@ -129,7 +152,15 @@ function FileTabBody({
   if (query.loading) return <Notice>Loading</Notice>;
   if (!content) return null;
   return (
-    <FilePreview result={content} path={fullPath} wrap={wrap} size={tab.size} />
+    <FilePreview
+      result={content}
+      path={fullPath}
+      wrap={wrap}
+      size={tab.size}
+      symlink={tab.symlink}
+      rendered={rendered}
+      onOpenPath={onOpenPath}
+    />
   );
 }
 
@@ -151,7 +182,7 @@ export function HeaderButton({
       aria-pressed={pressed}
       title={label}
       onClick={onClick}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-pressed:bg-accent aria-pressed:text-foreground"
     >
       {children}
     </button>

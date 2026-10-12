@@ -275,6 +275,8 @@ interface SettingsStore {
   autoZoom: boolean;
   /** Soft wrap long lines in file and diff previews. */
   wrapLines: boolean;
+  /** Show Markdown files rendered. Off shows their source. */
+  markdownPreview: boolean;
   setToolbarKeys: (keys: ToolbarKey[]) => void;
   toggleToolbarKey: (id: string) => void;
   resetToolbarKeys: () => void;
@@ -285,6 +287,7 @@ interface SettingsStore {
   setHapticEnabled: (enabled: boolean) => void;
   setAutoZoom: (enabled: boolean) => void;
   setWrapLines: (enabled: boolean) => void;
+  setMarkdownPreview: (enabled: boolean) => void;
 }
 
 /**
@@ -354,6 +357,7 @@ export const useSettingsStore = create<SettingsStore>()(
       hapticEnabled: true,
       autoZoom: true,
       wrapLines: false,
+      markdownPreview: true,
       setToolbarKeys: (toolbarKeys) => set({ toolbarKeys }),
       toggleToolbarKey: (id) =>
         set((s) => ({
@@ -367,6 +371,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setHapticEnabled: (hapticEnabled) => set({ hapticEnabled }),
       setAutoZoom: (autoZoom) => set({ autoZoom }),
       setWrapLines: (wrapLines) => set({ wrapLines }),
+      setMarkdownPreview: (markdownPreview) => set({ markdownPreview }),
     }),
     {
       name: "ccremote-settings",
