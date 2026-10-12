@@ -1,0 +1,52 @@
+[
+  {
+    "field": "size.cols",
+    "message": {
+      "type": "terminal:resize",
+      "size": {
+        "cols": 0,
+        "rows": 40
+      }
+    }
+  },
+  {
+    "field": "size.cols",
+    "message": {
+      "type": "terminal:resize",
+      "size": {
+        "cols": 1001,
+        "rows": 40
+      }
+    }
+  },
+  {
+    "field": "size.rows",
+    "message": {
+      "type": "terminal:resize",
+      "size": {
+        "cols": 120,
+        "rows": 0
+      }
+    }
+  },
+  {
+    "field": "size.rows",
+    "message": {
+      "type": "terminal:resize",
+      "size": {
+        "cols": 120,
+        "rows": 501
+      }
+    }
+  },
+  {
+    "field": "size.cols",
+    "message": {
+      "type": "terminal:resize",
+      "size": {
+        "cols": 1.5,
+        "rows": 40
+      }
+    }
+  }
+]

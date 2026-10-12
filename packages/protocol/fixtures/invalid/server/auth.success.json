@@ -1,0 +1,22 @@
+[
+  {
+    "field": "capabilities.files",
+    "message": {
+      "type": "auth:success",
+      "serverVersion": "1.0.0",
+      "capabilities": {
+        "readOnly": false,
+        "files": "all",
+        "scope": "all"
+      },
+      "features": [
+        "repo:request",
+        "repo:history",
+        "file:upload:ack",
+        "window:step",
+        "pane:step",
+        "dictation"
+      ]
+    }
+  }
+]

@@ -1,0 +1,9 @@
+[
+  {
+    "type": "window:create",
+    "name": "logs"
+  },
+  {
+    "type": "window:create"
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "field": "id",
+    "message": {
+      "type": "dictation:text",
+      "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "text": "Run the relay tests again and show me the failures"
+    }
+  }
+]

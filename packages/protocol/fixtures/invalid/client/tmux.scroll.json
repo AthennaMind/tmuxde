@@ -1,0 +1,23 @@
+[
+  {
+    "field": "lines",
+    "message": {
+      "type": "tmux:scroll",
+      "lines": 501
+    }
+  },
+  {
+    "field": "lines",
+    "message": {
+      "type": "tmux:scroll",
+      "lines": -501
+    }
+  },
+  {
+    "field": "lines",
+    "message": {
+      "type": "tmux:scroll",
+      "lines": 1.5
+    }
+  }
+]

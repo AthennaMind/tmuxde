@@ -1,0 +1,7 @@
+[
+  {
+    "type": "file:rename",
+    "oldPath": "/home/dev/projects/tmuxde/notes.md",
+    "newPath": "/home/dev/projects/tmuxde/docs/notes.md"
+  }
+]

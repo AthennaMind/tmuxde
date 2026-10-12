@@ -1,0 +1,12 @@
+[
+  {
+    "type": "error",
+    "code": "RATE_LIMITED",
+    "message": "Too many messages"
+  },
+  {
+    "type": "error",
+    "code": "INVALID_MESSAGE",
+    "message": "Unknown message type \"session:frobnicate\""
+  }
+]

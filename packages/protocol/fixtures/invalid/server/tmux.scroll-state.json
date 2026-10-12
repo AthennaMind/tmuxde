@@ -1,0 +1,42 @@
+[
+  {
+    "field": "position",
+    "message": {
+      "type": "tmux:scroll-state",
+      "position": -1,
+      "historySize": 4821,
+      "paneHeight": 40,
+      "inMode": true
+    }
+  },
+  {
+    "field": "historySize",
+    "message": {
+      "type": "tmux:scroll-state",
+      "position": 120,
+      "historySize": -1,
+      "paneHeight": 40,
+      "inMode": true
+    }
+  },
+  {
+    "field": "paneHeight",
+    "message": {
+      "type": "tmux:scroll-state",
+      "position": 120,
+      "historySize": 4821,
+      "paneHeight": -1,
+      "inMode": true
+    }
+  },
+  {
+    "field": "position",
+    "message": {
+      "type": "tmux:scroll-state",
+      "position": 1.5,
+      "historySize": 4821,
+      "paneHeight": 40,
+      "inMode": true
+    }
+  }
+]

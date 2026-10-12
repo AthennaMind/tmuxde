@@ -1,0 +1,11 @@
+[
+  {
+    "field": "id",
+    "message": {
+      "type": "dictation:error",
+      "id": "",
+      "code": "BUSY",
+      "message": "Speech service is busy. Try again shortly."
+    }
+  }
+]

@@ -61,22 +61,6 @@ export const AuthSuccessMessage = z.object({
 export const AuthFailureMessage = z.object({
   type: z.literal("auth:failure"),
   reason: z.string(),
-  /**
-   * Why it failed, in a form a client may branch on.
-   *
-   * The difference this exists to carry is the difference between "your
-   * credential is dead" and "nobody said yes". The browser's answer to an
-   * auth failure is to wipe the stored token and the session keys and bounce
-   * to `/start` — correct for a token the machine has forgotten, and
-   * catastrophic for a connection that was merely not approved, which would
-   * destroy a working pairing every time somebody was slow to answer.
-   *
-   * `unapproved` means the credential was fine and the human was not asked,
-   * said no, or never answered. Nothing is stored about it; trying again
-   * simply asks again. Optional so an older client — which cannot branch on
-   * it anyway — keeps parsing the message.
-   */
-  code: z.enum(["unapproved"]).optional(),
 });
 
 export const PongMessage = z.object({
@@ -242,96 +226,6 @@ export const SessionWindowsResponse = z.object({
   panes: z.array(PaneInfoSchema),
 });
 
-/**
- * Another device just paired with this machine.
- *
- * A security signal, and a cheap one. Everything else about pairing is visible
- * only on the machine's own screen, so a browser already holding a session had
- * no way to learn that a second device had been let in — which is exactly the
- * event a user would want to hear about and exactly the one an attacker would
- * want kept quiet.
- *
- * Deliberately carries no token, no key and no descriptor: it is a notice, and
- * everything it names is already visible in `mtmux devices`.
- */
-export const DevicePairedMessage = z.object({
-  type: z.literal("device:paired"),
-  /** Coarse, e.g. "Chrome on iOS". Never a full user-agent. */
-  label: z.string().max(128),
-  /** How the device got in, so the notice can say something true. */
-  via: z.enum(["code", "request"]),
-  at: z.number().int().positive(),
-});
-
-/**
- * A browser somewhere is asking to be let onto this machine. Decide.
- *
- * The one message in the protocol that is a *question*, and the only one whose
- * absence of an answer means something. It carries exactly what a human needs
- * to answer it and nothing that would help anyone who should not be answering
- * it: a coarse device label, the account that asked, and the six-digit SAS to
- * compare against what that browser is showing on its own screen.
- *
- * The SAS is not a secret and this is not a leak. It is a *comparison* value
- * derived from a key exchange that has already happened; knowing it lets you
- * confirm a pairing you are already being asked about, and nothing else. It
- * goes only to connections holding the full grant — see `POLICY` for the other
- * half of that rule — because a read-only share must not be able to widen
- * itself into "I can admit new devices".
- *
- * `expiresAt` is the wall clock the request dies at, so a tab that was in the
- * background can tell a live question from a stale one without asking.
- */
-export const DeviceApprovalRequestMessage = z.object({
-  type: z.literal("device:approval-request"),
-  /** Opaque, server-minted. Echoed back in `device:approve`. */
-  id: z.string().min(1).max(64),
-  /** Coarse, e.g. "Chrome on iOS". Never a full user-agent. */
-  deviceLabel: z.string().max(128),
-  /** The account that pressed the button, or "" when anonymous. */
-  accountEmail: z.string().max(254),
-  /**
-   * Six digits to compare against the requesting browser's own screen.
-   *
-   * Absent for a code pairing, and that absence is meaningful rather than
-   * missing data: the nine-digit code *was* the shared secret, so there is
-   * nothing left to compare and showing digits nobody can check would teach
-   * people to wave through the ones that do matter. The question in that case
-   * is "did you just type this code?", not "do these match?".
-   */
-  sas: z.string().max(16).optional(),
-  /**
-   * How the device is asking, so the dialog can pose the right question.
-   *
-   * `returning` is not a pairing at all: the device already proved itself
-   * cryptographically and what is being asked is a policy question — "let this
-   * one back in?" — which reads very differently from "someone just typed your
-   * code". Dressing the two up as the same question is how people learn to
-   * answer both without reading either.
-   */
-  via: z.enum(["code", "request", "returning"]).default("request"),
-  expiresAt: z.number().int().positive(),
-});
-
-/**
- * That question is closed — stop asking.
- *
- * Fans out to every connection that was shown the request, including the one
- * that answered it, so a second phone's dialog closes itself rather than
- * sitting there offering a decision that can no longer be made. `approved`
- * reports what actually happened so the notice can say something true.
- */
-export const DeviceApprovalResolvedMessage = z.object({
-  type: z.literal("device:approval-resolved"),
-  id: z.string().min(1).max(64),
-  approved: z.boolean(),
-  /**
-   * How it ended. `expired` and `withdrawn` are both "nobody said yes", and
-   * they are distinguished because only one of them is the human's fault.
-   */
-  reason: z.enum(["decided", "expired", "withdrawn"]),
-});
-
 const DictationId = z.string().min(1).max(64);
 
 /** The speech service is listening. Audio sent from now on is transcribed. */
@@ -398,9 +292,6 @@ export const ServerMessage = z.discriminatedUnion("type", [
   PaneCapturedMessage,
   TmuxScrollStateMessage,
   SessionWindowsResponse,
-  DevicePairedMessage,
-  DeviceApprovalRequestMessage,
-  DeviceApprovalResolvedMessage,
   DictationReadyMessage,
   DictationTextMessage,
   DictationDoneMessage,
@@ -408,13 +299,6 @@ export const ServerMessage = z.discriminatedUnion("type", [
 ]);
 
 export type ServerMessage = z.infer<typeof ServerMessage>;
-export type DevicePairedMessage = z.infer<typeof DevicePairedMessage>;
-export type DeviceApprovalRequestMessage = z.infer<
-  typeof DeviceApprovalRequestMessage
->;
-export type DeviceApprovalResolvedMessage = z.infer<
-  typeof DeviceApprovalResolvedMessage
->;
 export type AuthSuccessMessage = z.infer<typeof AuthSuccessMessage>;
 export type AuthFailureMessage = z.infer<typeof AuthFailureMessage>;
 export type PongMessage = z.infer<typeof PongMessage>;

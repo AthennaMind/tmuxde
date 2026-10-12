@@ -1,0 +1,41 @@
+[
+  {
+    "type": "file:list",
+    "path": "/home/dev/projects/tmuxde/apps",
+    "entries": [
+      {
+        "name": "relay",
+        "path": "/home/dev/projects/tmuxde/apps/relay",
+        "type": "directory",
+        "size": 4096,
+        "modified": "2026-10-11T08:42:17.512Z"
+      },
+      {
+        "name": "server",
+        "path": "/home/dev/projects/tmuxde/apps/server",
+        "type": "directory",
+        "size": 4096,
+        "modified": "2026-10-12T09:05:44.031Z"
+      },
+      {
+        "name": "README.md",
+        "path": "/home/dev/projects/tmuxde/apps/README.md",
+        "type": "file",
+        "size": 1873,
+        "modified": "2026-09-30T16:20:03.904Z"
+      },
+      {
+        "name": "current",
+        "path": "/home/dev/projects/tmuxde/apps/current",
+        "type": "symlink",
+        "size": 6,
+        "modified": "2026-10-01T11:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "type": "file:list",
+    "path": "/home/dev/projects/tmuxde/apps/empty",
+    "entries": []
+  }
+]

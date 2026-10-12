@@ -1,0 +1,10 @@
+[
+  {
+    "type": "window:layout",
+    "preset": "main-vertical"
+  },
+  {
+    "type": "window:layout",
+    "preset": "tiled"
+  }
+]

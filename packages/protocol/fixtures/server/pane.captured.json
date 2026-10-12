@@ -1,0 +1,12 @@
+[
+  {
+    "type": "pane:captured",
+    "id": "%3",
+    "content": "dev@workstation:~/src/tmuxde$ git status\nOn branch main\nnothing to commit, working tree clean\ndev@workstation:~/src/tmuxde$ "
+  },
+  {
+    "type": "pane:captured",
+    "id": "%9",
+    "content": ""
+  }
+]
