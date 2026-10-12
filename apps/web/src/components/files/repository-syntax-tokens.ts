@@ -48,7 +48,32 @@ const extensions: Record<string, Language> = {
   sql: "sql",
   toml: "toml",
 };
+// Fenced block info strings: extensions above plus the names people type.
+const names: Record<string, Language> = {
+  ...extensions,
+  typescript: "typescript",
+  javascript: "javascript",
+  shell: "shellscript",
+  shellscript: "shellscript",
+  console: "shellscript",
+  python: "python",
+  golang: "go",
+  rust: "rust",
+  dockerfile: "dockerfile",
+  docker: "dockerfile",
+  jsonc: "json",
+  json5: "json",
+  markdown: "markdown",
+  yaml: "yaml",
+};
 
+/** Shiki language for a fenced block info string such as `ts` or `bash {1}`. */
+export function resolveCodeLanguage(info: string | undefined): Language | undefined {
+  const word = info?.trim().toLowerCase().split(/[\s{:,]/)[0];
+  return word ? names[word] : undefined;
+}
+
+type Highlighter = Awaited<ReturnType<typeof createHighlighterCore>>;
 let highlighter: ReturnType<typeof createHighlighterCore> | undefined;
 function getHighlighter() {
   return (highlighter ??= createHighlighterCore({
@@ -101,21 +126,13 @@ export async function highlightRepositoryCode(
     name === "dockerfile" || name.startsWith("dockerfile.")
       ? "dockerfile"
       : extensions[name.split(".").pop() ?? ""];
-  if (!language || content.length > 200_000) return undefined;
+  if (!language) return undefined;
   const lines = content.split("\n");
-  if (lines.length > 4_000 || lines.some((line) => line.length > 2_000))
-    return undefined;
+  if (!withinBounds(content, lines)) return undefined;
   try {
-    const highlighter = await getHighlighter();
-    if (!highlighter.getLoadedLanguages().includes(language)) {
-      await highlighter.loadLanguage(await grammars[language]());
-    }
-    const tokenize = (source: string): RepositorySyntaxToken[][] =>
-      highlighter
-        .codeToTokens(source, { lang: language, theme: "repository" })
-        .tokens.map((line) =>
-          line.map(({ content, color }) => ({ content, color })),
-        );
+    const highlighter = await loadLanguage(language);
+    const tokenize = (source: string) =>
+      tokenizeWith(highlighter, language, source);
     if (!isDiff) {
       const tokens = tokenize(content);
       // TextMate normalizes line endings. Keep original preview text exact.
@@ -162,6 +179,52 @@ export async function highlightRepositoryCode(
   } catch {
     return undefined;
   }
+}
+
+/** Fenced code in a Markdown preview. Same grammars, theme and bounds. */
+export async function highlightCodeByLanguage(
+  info: string,
+  source: string,
+): Promise<RepositorySyntaxToken[][] | undefined> {
+  const language = resolveCodeLanguage(info);
+  if (!language) return undefined;
+  const lines = source.split("\n");
+  if (!withinBounds(source, lines)) return undefined;
+  try {
+    const highlighter = await loadLanguage(language);
+    const tokens = tokenizeWith(highlighter, language, source);
+    return lines.map((line, index) => restoreLine(line, tokens[index]));
+  } catch {
+    return undefined;
+  }
+}
+
+function withinBounds(content: string, lines: string[]) {
+  return (
+    content.length <= 200_000 &&
+    lines.length <= 4_000 &&
+    !lines.some((line) => line.length > 2_000)
+  );
+}
+
+async function loadLanguage(language: Language): Promise<Highlighter> {
+  const highlighter = await getHighlighter();
+  if (!highlighter.getLoadedLanguages().includes(language)) {
+    await highlighter.loadLanguage(await grammars[language]());
+  }
+  return highlighter;
+}
+
+function tokenizeWith(
+  highlighter: Highlighter,
+  language: Language,
+  source: string,
+): RepositorySyntaxToken[][] {
+  return highlighter
+    .codeToTokens(source, { lang: language, theme: "repository" })
+    .tokens.map((line) =>
+      line.map(({ content, color }) => ({ content, color })),
+    );
 }
 
 function restoreLine(

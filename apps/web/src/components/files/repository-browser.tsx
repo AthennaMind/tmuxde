@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  BookOpen,
   ChevronRight,
   GitBranch,
   GitCommitHorizontal,
@@ -26,6 +27,7 @@ import { ChangesList } from "./repository-changes";
 import { RepositoryFileIcon } from "./repository-file-icon";
 import { FilePreview, Notice, useRepositoryQuery } from "./repository-preview";
 import { formatFileSize } from "@/lib/file-utils";
+import { isMarkdownPath } from "@/lib/markdown";
 import { usePaneStore } from "@/stores/pane-store";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -149,6 +151,8 @@ function BrowserContents({
   const [refresh, setRefresh] = useState(0);
   const wrap = useSettingsStore((s) => s.wrapLines);
   const setWrap = useSettingsStore((s) => s.setWrapLines);
+  const rendered = useSettingsStore((s) => s.markdownPreview);
+  const setRendered = useSettingsStore((s) => s.setMarkdownPreview);
   const id = useId();
   const contextQuery = useRepositoryQuery(
     client,
@@ -227,6 +231,8 @@ function BrowserContents({
     preview?.scope && context?.root
       ? `${context.root.replace(/\/$/, "")}/${preview.path}`
       : preview?.path;
+  const markdown = !!preview && !preview.scope && isMarkdownPath(preview.path);
+  const showRendered = markdown && rendered;
   const tabButton = (value: Tab) => (
     <button
       type="button"
@@ -358,19 +364,36 @@ function BrowserContents({
                   >
                     {preview.path.split("/").pop()}
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-11 w-11"
-                    aria-label="Wrap lines"
-                    aria-pressed={wrap}
-                    title="Wrap lines"
-                    onClick={() => setWrap(!wrap)}
-                  >
-                    <WrapText
-                      className={cn("h-4 w-4", wrap && "text-primary")}
-                    />
-                  </Button>
+                  {markdown && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-11 w-11 aria-pressed:bg-accent aria-pressed:text-foreground"
+                      aria-label="Render Markdown"
+                      aria-pressed={rendered}
+                      title="Render Markdown"
+                      onClick={() => setRendered(!rendered)}
+                    >
+                      <BookOpen
+                        className={cn("h-4 w-4", rendered && "text-primary")}
+                      />
+                    </Button>
+                  )}
+                  {!showRendered && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-11 w-11 aria-pressed:bg-accent aria-pressed:text-foreground"
+                      aria-label="Wrap lines"
+                      aria-pressed={wrap}
+                      title="Wrap lines"
+                      onClick={() => setWrap(!wrap)}
+                    >
+                      <WrapText
+                        className={cn("h-4 w-4", wrap && "text-primary")}
+                      />
+                    </Button>
+                  )}
                 </div>
                 <div className="shrink-0 border-b bg-muted/30 px-3 py-2">
                   <p className="break-all font-mono text-code-meta leading-relaxed text-muted-foreground">
@@ -392,6 +415,11 @@ function BrowserContents({
                     path={previewPath ?? preview.path}
                     wrap={wrap}
                     size={preview.size}
+                    symlink={preview.symlink}
+                    rendered={showRendered}
+                    onOpenPath={(path) =>
+                      navigate({ ...view, preview: { path } })
+                    }
                   />
                 ) : null}
               </>
@@ -489,6 +517,7 @@ function BrowserContents({
                                       entry.type === "file"
                                         ? entry.size
                                         : undefined,
+                                    symlink: entry.type === "symlink",
                                   },
                                 })
                           }

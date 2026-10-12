@@ -203,6 +203,7 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
       paneId,
       path: entry.path,
       size: entry.type === "file" ? entry.size : undefined,
+      symlink: entry.type === "symlink",
     });
   };
 

@@ -16,6 +16,10 @@ export const metadata: Metadata = {
    */
   robots: { index: false, follow: false },
   icons: {
+    // Setting `icons` here makes Next ignore file based icons in `app/`,
+    // except `favicon.ico`, which it still prepends. So the SVG lives in
+    // `public/` and is listed here.
+    icon: [{ url: "/icon.svg", type: "image/svg+xml", sizes: "any" }],
     // iOS composites home-screen icon transparency against black, so the
     // rounded-corner PNGs in `icons` would pick up black corners and then be
     // masked again. `apple-icon.png` is the same mark on an opaque tile.
