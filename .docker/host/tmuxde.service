@@ -1,0 +1,63 @@
+# tmuxde server as a systemd user unit.
+# scripts/setup.sh --host-service writes this template to
+# ~/.config/systemd/user/tmuxde.service and fills in the PATH line.
+# Edit the template and rerun the script. Edits to the written copy are lost.
+
+[Unit]
+# Name shown by systemctl status and in the journal.
+Description=tmuxde server for host tmux
+# Start once the user manager is up. With linger that happens at boot.
+# systemd drops the reverse order that WantedBy would add, so no cycle.
+After=default.target
+
+[Service]
+# Started once the binary runs. A missing binary fails the start.
+Type=exec
+# serve takes every setting from the environment.
+ExecStart=%h/.local/bin/tmuxde serve
+# Token, allowed paths, origin and sockets. Mode 0600, written by the script.
+EnvironmentFile=%h/.config/tmuxde/tmuxde.env
+# User units get a short PATH without tmux and git from Homebrew.
+# Their directories come first, as found when the script ran.
+# The system directories of /etc/environment follow, sbin included. Panes
+# of a tmux server that tmuxde starts inherit this PATH.
+# Rerun the script after moving tmux or git.
+Environment=PATH=@PATH@
+# Restart after a crash or a failed exit. systemctl stop stays stopped.
+Restart=on-failure
+# Pause between restarts.
+RestartSec=2
+# serve shuts down on SIGTERM. It closes WebSockets, then open requests.
+KillSignal=SIGTERM
+# Shutdown takes up to 10 seconds. SIGKILL follows after 15.
+TimeoutStopSec=15
+# Makes http.sock group writable. Caddy runs as root without DAC_OVERRIDE
+# and connects through the host user group. With 0022 it gets permission
+# denied. Files saved from the IDE get the same modes as from an Ubuntu
+# login shell.
+UMask=0002
+
+# tmux server start. tmuxde starts a missing tmux server through
+# systemd-run --user --scope, in its own scope tmuxde-tmux-<hex>.scope
+# outside this unit. Attach clients run with tmux -N (3.2 and later) and
+# never start one. So stopping or restarting this unit leaves the server
+# and every session alone. A server started from a shell is outside the
+# unit anyway.
+# TMUXDE_TMUX_LAUNCHER picks the way. auto, the default, uses systemd-run
+# in a unit and falls back to a plain start with a warning. systemd-run
+# fails instead of falling back. none makes the server a child of this
+# unit. Set it in a drop-in (systemctl --user edit tmuxde.service). Setup
+# rewrites the env file.
+# control-group stops every process left in this unit on stop and restart.
+# That includes the tmux attach clients, which is fine. With none or the
+# fallback it includes the tmux server too. Do not switch to
+# KillMode=process to hide that.
+KillMode=control-group
+
+# No PrivateTmp. The tmux socket lives in /tmp/tmux-<uid>.
+# No ProtectHome. The server reads and writes the home.
+# No NoNewPrivileges. It would reach shells and break sudo in panes.
+
+[Install]
+# enable starts it with the user manager, at login or at boot with linger.
+WantedBy=default.target

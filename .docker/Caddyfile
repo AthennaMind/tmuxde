@@ -15,7 +15,6 @@ https://{$LOCAL_DOMAIN} {
 	tls internal
 
 	@outside not remote_ip private_ranges
-	@relay path /_relay /health /_pair/* /_sessions /file
 	@code_entry path /start /pair /j
 
 	header {
@@ -26,12 +25,41 @@ https://{$LOCAL_DOMAIN} {
 	route {
 		respond @outside "Internal network only" 403
 		redir @code_entry /login 302
-		handle @relay {
-			reverse_proxy relay:24300
-		}
+		# Everything else goes to the tmuxde binary on the host. It listens on
+		# http.sock in its run directory, which Compose mounts read only at
+		# /run/tmuxde. Caddy sets X-Forwarded-For to the client address. The
+		# binary trusts that header only from peers on this socket or on
+		# loopback, never from LAN clients.
+		reverse_proxy unix//run/tmuxde/http.sock
+	}
+}
 
-		handle {
-			reverse_proxy web:24100
-		}
+# Development instance. Only the development Compose file publishes this
+# port. Production Compose loads this block too but publishes nothing, so no
+# browser reaches it there. Same CA, filter, redirects and headers as the
+# site above. Its own origin keeps browser storage and login apart.
+https://{$LOCAL_DOMAIN}:18443 {
+	tls internal
+
+	@outside not remote_ip private_ranges
+	@code_entry path /start /pair /j
+	@api path /_relay /health /file
+
+	header {
+		>Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://{$LOCAL_DOMAIN} wss://{$LOCAL_DOMAIN}:18443; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		>Permissions-Policy "microphone=(self), camera=(), geolocation=()"
+	}
+
+	route {
+		respond @outside "Internal network only" 403
+		redir @code_entry /login 302
+		# Server routes go to the dev binary in the server-dev container. It
+		# listens on http-dev.sock in the dev subdir of the run directory. As
+		# above, it trusts X-Forwarded-For only from peers on its socket.
+		reverse_proxy @api unix//run/tmuxde/dev/http-dev.sock
+		# Pages, modules and the HMR WebSocket go to the Vite dev server in
+		# the ui container. Caddy passes the browser Host header through
+		# unchanged, so the Vite allowedHosts check sees LOCAL_DOMAIN.
+		reverse_proxy ui:24100
 	}
 }
