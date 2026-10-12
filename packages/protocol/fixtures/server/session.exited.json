@@ -1,0 +1,11 @@
+[
+  {
+    "type": "session:exited",
+    "name": "dev",
+    "exitCode": 0
+  },
+  {
+    "type": "session:exited",
+    "name": "scratch"
+  }
+]

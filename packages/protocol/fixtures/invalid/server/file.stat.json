@@ -1,0 +1,19 @@
+[
+  {
+    "field": "stat.type",
+    "message": {
+      "type": "file:stat",
+      "stat": {
+        "name": "package.json",
+        "path": "/home/dev/projects/tmuxde/package.json",
+        "type": "socket",
+        "size": 1342,
+        "modified": "2026-10-10T14:03:51.220Z",
+        "created": "2026-04-02T09:11:08.716Z",
+        "permissions": "rw",
+        "isReadable": true,
+        "isWritable": true
+      }
+    }
+  }
+]

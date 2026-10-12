@@ -1,0 +1,29 @@
+[
+  {
+    "field": "direction",
+    "message": {
+      "type": "pane:resize",
+      "id": "%3",
+      "direction": "u",
+      "amount": 5
+    }
+  },
+  {
+    "field": "amount",
+    "message": {
+      "type": "pane:resize",
+      "id": "%3",
+      "direction": "L",
+      "amount": 0
+    }
+  },
+  {
+    "field": "amount",
+    "message": {
+      "type": "pane:resize",
+      "id": "%3",
+      "direction": "L",
+      "amount": 1.5
+    }
+  }
+]

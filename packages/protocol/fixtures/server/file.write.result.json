@@ -1,0 +1,20 @@
+[
+  {
+    "type": "file:write:result",
+    "path": "/home/dev/projects/tmuxde/notes.md",
+    "success": false,
+    "error": "EACCES: permission denied, open '/home/dev/projects/tmuxde/notes.md'",
+    "size": 0
+  },
+  {
+    "type": "file:write:result",
+    "path": "/home/dev/projects/tmuxde/notes.md",
+    "success": true,
+    "size": 47
+  },
+  {
+    "type": "file:write:result",
+    "path": "/home/dev/projects/tmuxde/notes.md",
+    "success": false
+  }
+]

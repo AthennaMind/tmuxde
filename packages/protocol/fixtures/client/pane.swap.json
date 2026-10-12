@@ -1,0 +1,12 @@
+[
+  {
+    "type": "pane:swap",
+    "id": "%3",
+    "direction": "R"
+  },
+  {
+    "type": "pane:swap",
+    "id": "%5",
+    "direction": "U"
+  }
+]

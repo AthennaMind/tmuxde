@@ -1,0 +1,16 @@
+[
+  {
+    "field": "id",
+    "message": {
+      "type": "dictation:start",
+      "id": ""
+    }
+  },
+  {
+    "field": "id",
+    "message": {
+      "type": "dictation:start",
+      "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  }
+]

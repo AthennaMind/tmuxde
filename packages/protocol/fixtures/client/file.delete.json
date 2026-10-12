@@ -1,0 +1,6 @@
+[
+  {
+    "type": "file:delete",
+    "path": "/home/dev/projects/tmuxde/notes.old.md"
+  }
+]

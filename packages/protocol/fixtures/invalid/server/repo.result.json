@@ -1,0 +1,30 @@
+[
+  {
+    "field": "result.kind",
+    "message": {
+      "type": "repo:result",
+      "requestId": "repo-mgl3k8x2-1",
+      "result": {
+        "kind": "branch",
+        "path": "/home/dev/projects/tmuxde",
+        "root": "/home/dev/projects/tmuxde",
+        "branch": "main"
+      }
+    }
+  },
+  {
+    "field": "result.scope",
+    "message": {
+      "type": "repo:result",
+      "requestId": "repo-mgl3k8x2-3",
+      "result": {
+        "kind": "diff",
+        "path": "apps/web/src/lib/ws-client.ts",
+        "scope": "all",
+        "content": "diff --git a/apps/web/src/lib/ws-client.ts b/apps/web/src/lib/ws-client.ts\nindex 1f2e3d4..5a6b7c8 100644\n--- a/apps/web/src/lib/ws-client.ts\n+++ b/apps/web/src/lib/ws-client.ts\n@@ -12,7 +12,7 @@ const MAX_BACKOFF_MS = 30_000;\n-const PING_INTERVAL_MS = 25_000;\n+const PING_INTERVAL_MS = 20_000;\n",
+        "truncated": false,
+        "binary": false
+      }
+    }
+  }
+]

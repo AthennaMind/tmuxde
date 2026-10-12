@@ -1,0 +1,14 @@
+[
+  {
+    "type": "file:content",
+    "path": "/home/dev/projects/tmuxde/README.md",
+    "content": "# tmuxde\n\nSelf-hosted IDE with tmux as its backend.\n",
+    "truncated": false
+  },
+  {
+    "type": "file:content",
+    "path": "/home/dev/logs/build.log",
+    "content": "[build] compiling apps/server\n[build] compiling apps/web\n",
+    "truncated": true
+  }
+]

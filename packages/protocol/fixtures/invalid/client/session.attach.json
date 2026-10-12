@@ -1,0 +1,15 @@
+[
+  {
+    "field": "size.cols",
+    "message": {
+      "type": "session:attach",
+      "name": "dev",
+      "size": {
+        "cols": 0,
+        "rows": 40
+      },
+      "capture": true,
+      "attachId": "a3"
+    }
+  }
+]
