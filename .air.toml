@@ -19,7 +19,7 @@ args_bin = ["serve"]
 include_ext = ["go"]
 # Not watched. Paths are relative to root, so only top level dirs match.
 # After a go-vendor run, restart server-dev to pick up new modules.
-exclude_dir = ["vendor", "testdata", "packages", ".cache"]
+exclude_dir = ["vendor", "testdata", "src", ".cache"]
 # Tests are not part of the binary.
 exclude_regex = ["_test.go"]
 # Wait this many ms after a change, so a save of many files builds once.

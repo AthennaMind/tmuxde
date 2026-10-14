@@ -59,37 +59,37 @@ services:
         type: bind
   # Optional speech to text. Starts only with profile `dictation`, which
   # `scripts/setup.sh --dictation` writes to `.env` as COMPOSE_PROFILES.
+  # It builds the production image with the Go binary tmuxde-stt. There is
+  # no hot reload. Rebuild after a change with
+  # `docker compose up -d --build stt`. The image health check runs
+  # `tmuxde-stt health`, a GET /health over stt.sock. Hardened like
+  # prod.yaml.
   stt:
-    extends:
-      file: workspace.yaml
-      service: runtime
+    image: tmuxde-stt:local
+    build:
+      context: ../..
+      dockerfile: .docker/prod/stt.Dockerfile
+    # The binary installs its signal handler after the model load. init
+    # forwards SIGTERM to it as a child, so a stop during the load ends it.
+    init: true
     profiles:
       - dictation
-    command:
-      - node
-      - --watch
-      - stt/src/index.ts
     cpus: ${STT_THREADS:-4}
     mem_limit: 3g
-    # GET /health over the unix socket. There is no TCP listener.
-    healthcheck:
-      interval: 10s
-      start_period: 30s
-      test:
-        - CMD
-        - node
-        - -e
-        - process.getBuiltinModule('node:http').get({socketPath:process.env.STT_SOCKET,path:'/health'},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))
-      timeout: 5s
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,mode=1777,size=256m
     labels:
       dev.tmuxde.mode: development
     # No network. The tmuxde servers reach it over stt.sock.
     network_mode: none
     restart: unless-stopped
     user: ${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}
-    depends_on:
-      deps-build:
-        condition: service_completed_successfully
     environment:
       STT_SOCKET: /run/tmuxde/stt/stt.sock
       STT_MODEL_DIR: /models/parakeet-tdt-0.6b-v3-int8
@@ -109,7 +109,7 @@ services:
         source: ${LOCAL_STT_SOCKET_DIR:?Run scripts/setup.sh}/stt
         target: /run/tmuxde/stt
         type: bind
-  # Vite dev server of the React app in ui/, for the 18443 site. A host
+  # Vite dev server of the React app in src/ui, for the 18443 site. A host
   # tmuxde binary run by hand proxies it too, see TMUXDE_DEV_WEB_URL.
   ui:
     extends:
@@ -119,8 +119,6 @@ services:
     # place. The default loader bundles it to a temp file first.
     command:
       - pnpm
-      - --filter
-      - "@app/ui"
       - exec
       - vite
       - --configLoader
@@ -284,8 +282,8 @@ services:
       - bind:
           create_host_path: false
         read_only: true
-        source: ../../packages/protocol
-        target: /workspace/packages/protocol
+        source: ../../src/ui/src/protocol
+        target: /workspace/src/ui/src/protocol
         type: bind
       - source: cache
         target: /workspace/.cache/go-build
