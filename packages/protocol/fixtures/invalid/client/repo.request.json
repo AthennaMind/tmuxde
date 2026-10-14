@@ -138,5 +138,17 @@
       "skip": 0,
       "commit": "abc123"
     }
+  },
+  {
+    "field": "all",
+    "message": {
+      "type": "repo:request",
+      "requestId": "repo-mgl3k8x2-14",
+      "id": "%3",
+      "action": "log",
+      "path": "/home/dev/projects/tmuxde",
+      "skip": 0,
+      "all": "true"
+    }
   }
 ]

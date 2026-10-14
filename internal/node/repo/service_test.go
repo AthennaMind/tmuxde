@@ -168,6 +168,19 @@ func TestGitInvocation(t *testing.T) {
 			{"log", "--no-show-signature", "--no-mailmap", "--no-notes", "--no-color", "-z",
 				"--format=%H%x1f%P%x1f%an%x1f%aI%x1f%D%x1f%s", "--max-count=101", "--skip=3", "--end-of-options", "HEAD"},
 		}},
+		{"log all", client.RepoRequest{Action: "log", Skip: ptr(3), All: ptr(true)}, [][]string{
+			branch,
+			{"rev-parse", "--verify", "-q", "HEAD"},
+			{"log", "--no-show-signature", "--no-mailmap", "--no-notes", "--no-color", "-z",
+				"--format=%H%x1f%P%x1f%an%x1f%aI%x1f%D%x1f%s", "--max-count=101", "--skip=3",
+				"--branches", "--tags", "--remotes", "--end-of-options", "HEAD"},
+		}},
+		{"log all false", client.RepoRequest{Action: "log", All: ptr(false)}, [][]string{
+			branch,
+			{"rev-parse", "--verify", "-q", "HEAD"},
+			{"log", "--no-show-signature", "--no-mailmap", "--no-notes", "--no-color", "-z",
+				"--format=%H%x1f%P%x1f%an%x1f%aI%x1f%D%x1f%s", "--max-count=101", "--skip=0", "--end-of-options", "HEAD"},
+		}},
 		{"show", client.RepoRequest{Action: "show", Commit: ptr(hash[:7])}, [][]string{
 			{"rev-parse", "--verify", "-q", hash[:7] + "^{commit}"},
 			{"show", "-s", "--no-show-signature", "--no-mailmap", "--no-notes", "--no-color",

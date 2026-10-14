@@ -18,15 +18,94 @@ export interface CommitLog {
   /** A refresh someone asked for is in flight. Polls never set this. */
   refreshing: boolean;
   error?: string;
+  /** Repository root the first page named. Null outside Git. */
+  root?: string | null;
+  /** Current branch the first page named. Null on a detached HEAD. */
+  branch?: string | null;
   loadMore: () => void;
+}
+
+/**
+ * The loaded list after a new first page, when the old one continues inside
+ * it. The old first commit must sit in `next` at some index, and from there
+ * on `next` must match the old list commit for commit. Then the commits
+ * loaded past what `next` holds stay behind it. Null when nothing older is
+ * loaded or the history changed in another way.
+ *
+ * A new commit on any branch moves the old first page down by one or more
+ * rows. That keeps every page loaded past the first.
+ */
+export function keepOlderPages(
+  prev: readonly RepoCommit[],
+  next: readonly RepoCommit[],
+): RepoCommit[] | null {
+  const head = prev[0]?.hash;
+  const at = head === undefined ? -1 : next.findIndex((c) => c.hash === head);
+  if (at < 0) return null;
+  const overlap = next.length - at;
+  if (prev.length <= overlap) return null;
+  for (let i = 0; i < overlap; i++)
+    if (prev[i]!.hash !== next[at + i]!.hash) return null;
+  const shown = new Set(next.map((c) => c.hash));
+  return [...next, ...prev.slice(overlap).filter((c) => !shown.has(c.hash))];
+}
+
+/**
+ * When to ask for a new first page. One request runs at a time. Asks that
+ * come while one is in flight wait, and go out as one request once the
+ * answer lands. A hidden list asks nothing. It holds no watch and gets no
+ * pushes, so it asks once when it is shown again.
+ */
+export class FirstPageGate {
+  private busy = false;
+  private stale = false;
+  private hidden = false;
+
+  /** Something asked for a new first page. */
+  mark(): void {
+    this.stale = true;
+  }
+
+  /**
+   * True when a request should go now: something asked, or the list was
+   * hidden since the last call, none is in flight and the list is shown.
+   * The caller sends it, and calls `settle` once it ends.
+   */
+  take(shown: boolean): boolean {
+    if (!shown) {
+      this.hidden = true;
+      return false;
+    }
+    if (this.hidden) {
+      this.hidden = false;
+      this.stale = true;
+    }
+    if (this.busy || !this.stale) return false;
+    this.busy = true;
+    this.stale = false;
+    return true;
+  }
+
+  /** The request in flight answered, failed or was dropped. */
+  settle(): void {
+    this.busy = false;
+  }
 }
 
 /**
  * Commit history from HEAD of the repository at `root`, a page at a time.
  *
  * Keyed by repository root, so moving between panes of one repository keeps
- * the list. `refresh` and `tick` ask for the first page again. When HEAD has
- * not moved, that page only refreshes decorations and older pages stay.
+ * the list. `refresh` and `tick` ask for the first page again. When that
+ * page still continues into the pages loaded before, as `keepOlderPages`
+ * checks, they stay. With `all` it walks every branch, tag and remote
+ * branch.
+ *
+ * One first page request runs at a time. A `tick` or `refresh` while one is
+ * in flight marks the log stale, and one more request runs after the
+ * answer. While `active` is false nothing goes out, and one request runs
+ * once it turns true again. An abort in the browser does not stop Git on
+ * the server, so a stream of pushes must not start a request each.
  */
 export function useCommitLog({
   client,
@@ -35,6 +114,8 @@ export function useCommitLog({
   root,
   refresh,
   tick,
+  all = false,
+  active = true,
 }: {
   client: RepositoryClient | null;
   paneId: string | null;
@@ -44,9 +125,19 @@ export function useCommitLog({
   refresh: number;
   /** Any value that changes on each status poll. */
   tick: unknown;
+  /** Every branch, tag and remote branch, not only HEAD. */
+  all?: boolean;
+  /**
+   * The list is on screen. A hidden one asks nothing, and asks once when it
+   * comes back.
+   */
+  active?: boolean;
 }): CommitLog {
   const attached = useSessionTreeStore((s) => s.attachedSession !== null);
-  const key = client && paneId && path && root && attached ? root : "";
+  const key =
+    client && paneId && path && root && attached
+      ? `${all ? "all" : "head"}:${root}`
+      : "";
   // Latest request target. A pane switch inside one repository asks nothing.
   const target = useRef({ client, paneId, path });
   target.current = { client, paneId, path };
@@ -60,44 +151,54 @@ export function useCommitLog({
     commits: RepoCommit[];
     more: boolean;
     error?: string;
+    root?: string | null;
+    branch?: string | null;
   }>();
   const [loadingMore, setLoadingMore] = useState(false);
   // Last `refresh` value answered. Differs from `refresh` while one loads.
   const [answered, setAnswered] = useState(refresh);
   const pending = useRef<AbortController | null>(null);
 
-  useEffect(() => {
+  // The first page request in flight, if any, and when to send the next.
+  const flight = useRef<{ key: string; controller: AbortController } | null>(
+    null,
+  );
+  const [gate] = useState(() => new FirstPageGate());
+  // Key of the last answer, so a remount asks again.
+  const loaded = useRef("");
+  const seen = useRef({ key: "", refresh, poll });
+  const latest = useRef({ key, refresh, active });
+  latest.current = { key, refresh, active };
+
+  // Sends the first page request the gate let through. False when there is
+  // nothing to send it to.
+  const send = useCallback((): boolean => {
+    const { key, refresh } = latest.current;
     const { client, paneId, path } = target.current;
-    if (!key || !client || !paneId || !path) return;
+    if (!key || !client || !paneId || !path) return false;
     const controller = new AbortController();
+    flight.current = { key, controller };
+    const all = key.startsWith("all:");
     repositoryRequest(
       client,
-      { id: paneId, action: "log", path },
+      { id: paneId, action: "log", path, ...(all ? { all: true } : {}) },
       controller.signal,
     )
       .then((result) => {
         if (controller.signal.aborted || result.kind !== "log") return;
-        setAnswered(refresh);
+        const { root, branch } = result;
         setState((prev) => {
-          const same =
-            prev?.key === key &&
-            prev.commits[0]?.hash === result.commits[0]?.hash;
-          // Same HEAD means the same history. Keep pages loaded past the first.
-          if (same && prev.commits.length > result.commits.length)
-            return {
-              key,
-              commits: [
-                ...result.commits,
-                ...prev.commits.slice(result.commits.length),
-              ],
-              more: prev.more,
-            };
-          return { key, commits: result.commits, more: result.more };
+          const kept =
+            prev?.key === key
+              ? keepOlderPages(prev.commits, result.commits)
+              : null;
+          if (kept && prev)
+            return { key, commits: kept, more: prev.more, root, branch };
+          return { key, commits: result.commits, more: result.more, root, branch };
         });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
-        setAnswered(refresh);
         const message =
           error instanceof Error ? error.message : "Could not load history.";
         setState((prev) =>
@@ -105,9 +206,50 @@ export function useCommitLog({
             ? { ...prev, error: message }
             : { key, commits: [], more: false, error: message },
         );
+      })
+      .finally(() => {
+        if (flight.current?.controller !== controller) return;
+        flight.current = null;
+        gate.settle();
+        loaded.current = key;
+        setAnswered(refresh);
+        const now = latest.current;
+        if (now.key === key && gate.take(now.active) && !send()) gate.settle();
       });
-    return () => controller.abort();
-  }, [key, refresh, poll]);
+    return true;
+  }, [gate]);
+
+  useEffect(() => {
+    const last = seen.current;
+    seen.current = { key, refresh, poll };
+    // A different repository, or none, drops the request for the old one.
+    if (flight.current && flight.current.key !== key) {
+      flight.current.controller.abort();
+      flight.current = null;
+      gate.settle();
+    }
+    if (!key) return;
+    // Nothing answered for this key and nothing on the way, as after a
+    // remount.
+    const unanswered = loaded.current !== key && flight.current?.key !== key;
+    if (
+      last.key !== key ||
+      last.refresh !== refresh ||
+      last.poll !== poll ||
+      unanswered
+    )
+      gate.mark();
+    if (gate.take(active) && !send()) gate.settle();
+  }, [key, refresh, poll, active, send, gate]);
+
+  useEffect(
+    () => () => {
+      flight.current?.controller.abort();
+      flight.current = null;
+      gate.settle();
+    },
+    [gate],
+  );
 
   // A different repository drops a page request still in flight.
   useEffect(() => {
@@ -128,7 +270,13 @@ export function useCommitLog({
     setLoadingMore(true);
     repositoryRequest(
       client,
-      { id: paneId, action: "log", path, skip: current.commits.length },
+      {
+        id: paneId,
+        action: "log",
+        path,
+        skip: current.commits.length,
+        ...(key.startsWith("all:") ? { all: true } : {}),
+      },
       controller.signal,
     )
       .then((result) => {
@@ -137,7 +285,7 @@ export function useCommitLog({
           if (prev?.key !== key) return prev;
           const seen = new Set(prev.commits.map((c) => c.hash));
           return {
-            key,
+            ...prev,
             commits: [
               ...prev.commits,
               ...result.commits.filter((c) => !seen.has(c.hash)),
@@ -175,6 +323,8 @@ export function useCommitLog({
     loadingMore,
     refreshing: !!key && answered !== refresh,
     error: current?.error,
+    root: current?.root,
+    branch: current?.branch,
     loadMore,
   };
 }

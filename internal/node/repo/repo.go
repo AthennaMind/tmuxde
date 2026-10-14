@@ -228,7 +228,7 @@ func (s *Service) handle(ctx context.Context, cwd string, req *client.RepoReques
 		if skip < 0 || skip > maxSkip {
 			return nil, fail(msgInvalidSkip)
 		}
-		return s.history(ctx, *repo, skip)
+		return s.history(ctx, *repo, skip, req.All != nil && *req.All)
 	}
 	if repo == nil {
 		return nil, fail(msgNotRepository)
