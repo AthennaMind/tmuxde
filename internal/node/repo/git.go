@@ -387,8 +387,14 @@ func jsString(s string) string {
 	return b.String()
 }
 
-// history is one page of commits reachable from HEAD.
-func (s *Service) history(ctx context.Context, repo repository, skip int) (*protocol.RepoLog, error) {
+// history is one page of commits reachable from HEAD. With all it also
+// walks every branch, tag and remote branch. Both walks use Git's default
+// order, newest commit date first, which streams the first page without
+// reading the whole history. --date-order would walk everything first
+// when the repository has no commit-graph file. A parent can come before
+// one of its children when commit dates disagree, so the graph orders the
+// loaded commits itself.
+func (s *Service) history(ctx context.Context, repo repository, skip int, all bool) (*protocol.RepoLog, error) {
 	branch, err := s.branch(ctx, repo)
 	if err != nil {
 		return nil, err
@@ -409,9 +415,11 @@ func (s *Service) history(ctx context.Context, repo repository, skip int) (*prot
 		"--format="+logFormat,
 		"--max-count="+strconv.Itoa(s.opts.PageSize+1),
 		"--skip="+strconv.Itoa(skip),
-		"--end-of-options",
-		"HEAD",
 	)
+	if all {
+		args = append(args, "--branches", "--tags", "--remotes")
+	}
+	args = append(args, "--end-of-options", "HEAD")
 	out, err := s.git(ctx, repo, args)
 	if err != nil {
 		return nil, err

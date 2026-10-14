@@ -1,4 +1,10 @@
-import { GitCommitHorizontal, Settings, SquareTerminal, X } from "lucide-react";
+import {
+  GitCommitHorizontal,
+  GitGraph,
+  Settings,
+  SquareTerminal,
+  X,
+} from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -68,6 +74,20 @@ export function MainTabs() {
                     aria-hidden
                   />
                 }
+                active={active === tab.id}
+                onSelect={() => activate(tab.id)}
+                onClose={() => closeTab(tab.id)}
+              />
+            ) : tab.kind === "graph" ? (
+              <Tab
+                key={tab.id}
+                label="Graph"
+                detail={
+                  tab.contextPath.replace(/\/+$/, "").split("/").pop() ||
+                  tab.contextPath
+                }
+                title={`Graph of ${tab.contextPath}`}
+                icon={<GitGraph className="h-3.5 w-3.5 shrink-0" aria-hidden />}
                 active={active === tab.id}
                 onSelect={() => activate(tab.id)}
                 onClose={() => closeTab(tab.id)}

@@ -8,7 +8,8 @@
     "file": "apps/server/internal/protocol/repo.go",
     "scope": "unstaged",
     "skip": 0,
-    "commit": "aba3127"
+    "commit": "aba3127",
+    "all": false
   },
   {
     "type": "repo:request",
@@ -39,6 +40,15 @@
     "action": "log",
     "path": "/home/dev/projects/tmuxde",
     "skip": 100
+  },
+  {
+    "type": "repo:request",
+    "requestId": "repo-mgl3k8x2-6",
+    "id": "%3",
+    "action": "log",
+    "path": "/home/dev/projects/tmuxde",
+    "skip": 100,
+    "all": true
   },
   {
     "type": "repo:request",
