@@ -1,0 +1,10 @@
+[
+  {
+    "field": "id",
+    "message": {
+      "type": "repo:watch",
+      "id": "",
+      "path": "/home/dev/projects/tmuxde"
+    }
+  }
+]

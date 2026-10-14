@@ -77,7 +77,7 @@ const FeatureDictation = "dictation"
 // features are the message types this server understands beyond the
 // original protocol. A browser that does not see one falls back to the
 // older form.
-var features = []string{"repo:request", "repo:history", "file:upload:ack", "window:step", "pane:step"}
+var features = []string{"repo:request", "repo:history", "file:upload:ack", "window:step", "pane:step", "repo:watch"}
 
 // Features returns the auth:success features list.
 func Features(dictation bool) []string {

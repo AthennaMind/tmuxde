@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BookOpen, RefreshCw, WrapText, X } from "lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import { useRelayClient } from "@/hooks/use-websocket";
 import { isMarkdownPath } from "@/lib/markdown";
+import { changeTouchesDiff, changeTouchesFile } from "@/lib/repo-change";
+import { useRepoChangeCount } from "@/stores/repo-watch-store";
 import { shortenPath } from "@/lib/tmux-labels";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useMainTabsStore, type FileTab } from "@/stores/main-tabs-store";
@@ -29,6 +31,9 @@ export function FileTabView({
   const status = useConnectionStore((s) => s.status);
   const closeTab = useMainTabsStore((s) => s.closeTab);
   const [refresh, setRefresh] = useState(0);
+  // Spins from a Reload click until its answer lands.
+  const [reloading, setReloading] = useState(false);
+  const settled = useCallback(() => setReloading(false), []);
   const wrap = useSettingsStore((s) => s.wrapLines);
   const setWrap = useSettingsStore((s) => s.setWrapLines);
   const rendered = useSettingsStore((s) => s.markdownPreview);
@@ -41,6 +46,14 @@ export function FileTabView({
   const name = tab.path.split("/").pop() || tab.path;
   const markdown = !tab.scope && isMarkdownPath(fullPath);
   const showRendered = markdown && rendered;
+  // A push that touches the file reloads it quietly. Staged and unstaged
+  // diffs also follow the index and HEAD.
+  const pushed = useRepoChangeCount((change) =>
+    tab.scope
+      ? !!tab.root &&
+        changeTouchesDiff(change, tab.root, tab.path, tab.scope !== "untracked")
+      : changeTouchesFile(change, tab.path),
+  );
 
   return (
     <section
@@ -87,9 +100,17 @@ export function FileTabView({
         )}
         <HeaderButton
           label="Reload"
-          onClick={() => setRefresh((value) => value + 1)}
+          onClick={() => {
+            setRefresh((value) => value + 1);
+            setReloading(true);
+          }}
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw
+            className={cn(
+              "h-4 w-4",
+              reloading && "animate-spin motion-reduce:animate-none",
+            )}
+          />
         </HeaderButton>
         <HeaderButton label="Close" onClick={() => closeTab(tab.id)}>
           <X className="h-4 w-4" />
@@ -99,7 +120,8 @@ export function FileTabView({
         <FileTabBody
           client={client}
           tab={tab}
-          refresh={refresh}
+          refresh={refresh + pushed}
+          onSettled={settled}
           wrap={wrap}
           fullPath={fullPath}
           rendered={showRendered}
@@ -116,6 +138,7 @@ function FileTabBody({
   client,
   tab,
   refresh,
+  onSettled,
   wrap,
   fullPath,
   rendered,
@@ -124,6 +147,8 @@ function FileTabBody({
   client: RepositoryClient;
   tab: FileTab;
   refresh: number;
+  /** The answer for the current `refresh` landed. */
+  onSettled: () => void;
   wrap: boolean;
   fullPath: string;
   rendered: boolean;
@@ -141,13 +166,18 @@ function FileTabBody({
         }
       : { id: tab.paneId, action: "read", path: tab.path },
     refresh,
+    // A reload keeps the text on screen until the new text lands.
+    { keepOnRefresh: true },
   );
   const content =
     query.result?.kind === "read" || query.result?.kind === "diff"
       ? query.result
       : undefined;
+  useEffect(() => {
+    if (!query.loading) onSettled();
+  }, [query.loading, onSettled]);
   if (query.error) return <Notice error>{query.error}</Notice>;
-  if (query.loading) return <Notice>Loading</Notice>;
+  if (query.loading && !content) return <Notice>Loading</Notice>;
   if (!content) return null;
   return (
     <FilePreview

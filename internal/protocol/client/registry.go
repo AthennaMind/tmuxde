@@ -3,7 +3,7 @@ package client
 import "tmuxde/internal/protocol"
 
 // registry holds every client wire type. Each group file owns one map.
-var registry = protocol.Merge(authTypes, sessionTypes, paneTypes, fileTypes, dictationTypes)
+var registry = protocol.Merge(authTypes, sessionTypes, paneTypes, fileTypes, repoWatchTypes, dictationTypes)
 
 // Types lists every registered client wire type, sorted.
 func Types() []string {

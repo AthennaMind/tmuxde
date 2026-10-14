@@ -26,6 +26,83 @@ type fakeRepo struct {
 	mu     sync.Mutex
 	calls  []repoCall
 	result protocol.RepoResult
+
+	// roots maps a pane folder to the root WatchRoot finds. A missing
+	// folder is the error rootErr, or a plain folder.
+	roots   map[string]string
+	rootErr error
+	// watchErr fails Watch.
+	watchErr error
+	// partial is what new watches report.
+	partial bool
+	// watches holds every watch Watch started, in order.
+	watches []*fakeWatch
+	// rootCalls records the folder and context path of each WatchRoot.
+	rootCalls []string
+}
+
+// fakeWatch is a watch of fakeRepo. Send pushes a change as the real one
+// would.
+type fakeWatch struct {
+	root    string
+	partial bool
+	send    func(server.Message)
+	mu      sync.Mutex
+	closed  int
+}
+
+func (w *fakeWatch) Partial() bool { return w.partial }
+
+func (w *fakeWatch) Close() error {
+	w.mu.Lock()
+	w.closed++
+	w.mu.Unlock()
+	return nil
+}
+
+func (w *fakeWatch) isClosed() bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.closed > 0
+}
+
+func (r *fakeRepo) WatchRoot(_ context.Context, cwd string, path *string) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	call := cwd
+	if path != nil {
+		call += "|" + *path
+	}
+	r.rootCalls = append(r.rootCalls, call)
+	if r.rootErr != nil {
+		return "", r.rootErr
+	}
+	start := cwd
+	if path != nil {
+		start = *path
+	}
+	root, ok := r.roots[start]
+	if !ok {
+		return "", errors.New("not a repository")
+	}
+	return root, nil
+}
+
+func (r *fakeRepo) Watch(_ context.Context, root string, send func(server.Message)) (repo.WatchHandle, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.watchErr != nil {
+		return nil, r.watchErr
+	}
+	w := &fakeWatch{root: root, partial: r.partial, send: send}
+	r.watches = append(r.watches, w)
+	return w, nil
+}
+
+func (r *fakeRepo) started() []*fakeWatch {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.watches)
 }
 
 type repoCall struct {

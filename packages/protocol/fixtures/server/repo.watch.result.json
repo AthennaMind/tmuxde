@@ -1,0 +1,28 @@
+[
+  {
+    "type": "repo:watch:result",
+    "root": null,
+    "ok": false,
+    "partial": false,
+    "message": "Current pane directory is not a Git repository"
+  },
+  {
+    "type": "repo:watch:result",
+    "root": "/home/dev/projects/tmuxde",
+    "ok": true,
+    "partial": false
+  },
+  {
+    "type": "repo:watch:result",
+    "root": "/home/dev/projects/huge",
+    "ok": true,
+    "partial": true
+  },
+  {
+    "type": "repo:watch:result",
+    "root": "/home/dev/projects/other",
+    "ok": false,
+    "partial": false,
+    "message": "Too many repository watchers"
+  }
+]
