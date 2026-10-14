@@ -1,0 +1,6 @@
+[
+  {
+    "type": "file:mkdir",
+    "path": "/home/dev/projects/tmuxde/docs/notes"
+  }
+]

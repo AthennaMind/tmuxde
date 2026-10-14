@@ -1,0 +1,15 @@
+[
+  {
+    "type": "pane:zoom",
+    "id": "%3",
+    "zoomed": true
+  },
+  {
+    "type": "pane:zoom"
+  },
+  {
+    "type": "pane:zoom",
+    "id": "%3",
+    "zoomed": false
+  }
+]

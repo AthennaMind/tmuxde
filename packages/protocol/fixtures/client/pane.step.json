@@ -1,0 +1,10 @@
+[
+  {
+    "type": "pane:step",
+    "delta": 1
+  },
+  {
+    "type": "pane:step",
+    "delta": -1
+  }
+]

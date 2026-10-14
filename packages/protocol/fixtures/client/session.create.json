@@ -1,0 +1,11 @@
+[
+  {
+    "type": "session:create",
+    "name": "agents",
+    "cwd": "/home/dev/src/tmuxde",
+    "command": "claude"
+  },
+  {
+    "type": "session:create"
+  }
+]

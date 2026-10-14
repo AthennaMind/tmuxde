@@ -1,0 +1,16 @@
+[
+  {
+    "type": "session:attach",
+    "name": "dev",
+    "size": {
+      "cols": 120,
+      "rows": 40
+    },
+    "capture": true,
+    "attachId": "a3"
+  },
+  {
+    "type": "session:attach",
+    "name": "dev"
+  }
+]

@@ -1,20 +1,19 @@
 .git
 **/node_modules
-**/.next
-**/.next-*
+**/.vite
 **/.cache
 **/dist
 **/.env
 **/.env.*
 !**/.env.example
-.docker/host-tmux
 .docker/certs
+.docker/bin/
+.playwright-cli
 **/coverage
 .worktrees
 .external
 data
 logs
-.docker/tmux-client
 
 **/__pycache__
 **/*.pyc

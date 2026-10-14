@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/web/public/icon-512.png" width="112" alt="tmuxde icon">
+  <img src="ui/public/icon-512.png" width="112" alt="tmuxde icon">
 </p>
 
 <h1 align="center">tmuxde</h1>
@@ -42,12 +42,38 @@ This is also the most fun and the most stressful building software has been in y
 ## How it works
 
 ```
-browser (IDE) ──► relay ──► tmux server
-                    └─────► speech service (optional)
+browser (IDE) ──https──► Caddy ──unix socket──► tmuxde ──► tmux server
+                                                   └─────► speech service (optional)
 ```
 
-tmuxde has two parts. The relay runs on the machine that hosts tmux and talks to its tmux server. The web client is the IDE you open in a browser, and it reaches the relay over your private network. The optional speech service turns dictation into text (useful for controlling AI agents from your phone). Only the relay can reach it.
+tmuxde is one Go binary on the machine that hosts tmux. It runs as a systemd user service, talks to the tmux server and serves the web client, the IDE you open in a browser over your private network. Caddy in Docker holds TLS with a local CA and only lets private addresses in. The optional speech service turns dictation into text (useful for controlling AI agents from your phone). Only the binary can reach it.
+
+## Run it
+
+Linux with systemd, Docker, tmux and git. From the repository root:
+
+```sh
+scripts/setup.sh
+docker build -f .docker/prod/tmuxde.Dockerfile --target binary --output type=local,dest=.docker/bin .
+scripts/setup.sh --host-service
+systemctl --user start tmuxde.service
+docker compose up -d --wait caddy
+```
+
+Then trust the local CA and sign in with the token from `.docker/.env.token`. The full guide, development setup and dictation are in [.docker/README.md](.docker/README.md).
+
+## Repository
+
+| Path | What |
+| --- | --- |
+| `cmd/tmuxde`, `internal`, `web` | Go server. Module `tmuxde`, `go.mod` and `vendor/` at the root |
+| `ui` | React web client, Vite and React Router |
+| `stt` | Optional speech to text service |
+| `packages/protocol` | Message schemas, wire fixtures and [PROTOCOL.md](packages/protocol/PROTOCOL.md) |
+| `packages/crypto`, `packages/ui-kit` | Device lock crypto and shared UI components |
+| `.docker` | Compose files, images, Caddyfile and the host unit template |
+| `scripts/setup.sh` | Setup and host service install |
 
 ## Credits
 
-tmuxde is a fork of [mtmux](https://github.com/mtmux/mtmux) by Gagandeep Singh. We mostly dropped everything except for the protocol and the relay architecture.
+tmuxde is a fork of [mtmux](https://github.com/mtmux/mtmux) by Gagandeep Singh. We kept the web client and the message protocol. The Node relay became a Go server, and the CLI, pairing, hosted broker and accounts are gone.

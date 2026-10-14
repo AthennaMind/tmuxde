@@ -1,0 +1,9 @@
+[
+  {
+    "field": "delta",
+    "message": {
+      "type": "pane:step",
+      "delta": 0.5
+    }
+  }
+]

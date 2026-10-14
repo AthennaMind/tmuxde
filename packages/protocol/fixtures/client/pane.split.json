@@ -1,0 +1,10 @@
+[
+  {
+    "type": "pane:split",
+    "direction": "h"
+  },
+  {
+    "type": "pane:split",
+    "direction": "v"
+  }
+]

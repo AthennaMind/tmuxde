@@ -1,0 +1,9 @@
+[
+  {
+    "field": "direction",
+    "message": {
+      "type": "pane:split",
+      "direction": "x"
+    }
+  }
+]

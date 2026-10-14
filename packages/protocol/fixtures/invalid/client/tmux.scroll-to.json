@@ -1,0 +1,16 @@
+[
+  {
+    "field": "position",
+    "message": {
+      "type": "tmux:scroll-to",
+      "position": -1
+    }
+  },
+  {
+    "field": "position",
+    "message": {
+      "type": "tmux:scroll-to",
+      "position": 0.5
+    }
+  }
+]

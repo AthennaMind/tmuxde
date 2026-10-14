@@ -1,0 +1,14 @@
+[
+  {
+    "type": "dictation:error",
+    "id": "6f1c2e9a-4b7d-4e2a-9c3f-8d5b1a7e0c42",
+    "code": "BUSY",
+    "message": "Speech service is busy. Try again shortly."
+  },
+  {
+    "type": "dictation:error",
+    "id": "d3a85b10-7c2f-4e69-b1d4-0f9e6a2c8b57",
+    "code": "NOT_FOUND",
+    "message": "No dictation is running"
+  }
+]

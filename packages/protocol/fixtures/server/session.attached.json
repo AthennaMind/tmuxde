@@ -1,0 +1,11 @@
+[
+  {
+    "type": "session:attached",
+    "name": "dev",
+    "attachId": "a3"
+  },
+  {
+    "type": "session:attached",
+    "name": "dev"
+  }
+]

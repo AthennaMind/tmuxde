@@ -1,0 +1,10 @@
+[
+  {
+    "type": "command:send",
+    "command": "git status"
+  },
+  {
+    "type": "command:send",
+    "command": "claude --continue"
+  }
+]
