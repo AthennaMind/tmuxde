@@ -43,4 +43,8 @@ if stt is not None:
     assert stt.get('network_mode') == 'none', 'stt must have no network'
     targets = sorted(m['target'] for m in stt['volumes'] if m['type'] == 'bind' and m['target'].startswith('/run/tmuxde'))
     assert targets == ['/run/tmuxde/stt'], f'stt run dir mounts: {targets}'
-    print('stt has no network and writes only its socket subdir')
+    assert stt.get('read_only') is True, 'stt must have a read only root'
+    assert stt.get('cap_drop') == ['ALL'], 'stt must drop every capability'
+    assert 'no-new-privileges:true' in stt.get('security_opt', []), 'stt must set no-new-privileges'
+    assert not stt.get('ports'), 'stt must publish no port'
+    print('stt has no network, no port, a read only root and writes only its socket subdir')

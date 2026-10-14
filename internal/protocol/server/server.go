@@ -1,5 +1,5 @@
 // Package server holds the messages the server sends, one struct per wire
-// type. They mirror packages/protocol/src/server-messages.ts and
+// type. They mirror src/ui/src/protocol/server-messages.ts and
 // RepoResponse in repository.ts. See package protocol for the rules.
 package server
 

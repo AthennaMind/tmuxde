@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Repository payloads, ported from packages/protocol/src/repository.ts.
+// Repository payloads, ported from src/ui/src/protocol/repository.ts.
 // The repo:request and repo:result messages live in the client and server
 // packages. This file holds what they carry.
 

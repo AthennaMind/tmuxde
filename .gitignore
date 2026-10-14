@@ -11,9 +11,11 @@ out/
 # Tool caches
 .cache/
 
-# Vite dependency cache of the React app. Its build output ui/dist is
-# covered by dist/ above.
-ui/.vite/
+# Vite dependency cache of the React app in src/ui. Its build output
+# src/ui/dist is covered by dist/ above. No leading path, so the pattern
+# also matches in the dev containers, where src/ui is /workspace and Tailwind
+# reads this file to skip the cache.
+.vite/
 
 # Environment variables
 .env

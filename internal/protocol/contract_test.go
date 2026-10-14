@@ -79,7 +79,7 @@ func TestRegistryKeysMatchWireTypes(t *testing.T) {
 	}
 }
 
-// TestFixtures checks packages/protocol/fixtures against the registries.
+// TestFixtures checks src/ui/src/protocol/fixtures against the registries.
 // Every fixture file names a registered type, every registered type has a
 // fixture, and every sample decodes, validates and re-encodes to equal JSON.
 func TestFixtures(t *testing.T) {
@@ -171,7 +171,7 @@ func checkFixture(t *testing.T, s side, wireType string) {
 	t.Errorf("needs a later sample without the optional fields %v", optional)
 }
 
-// TestInvalidFixtures checks packages/protocol/fixtures/invalid. Each file
+// TestInvalidFixtures checks src/ui/src/protocol/fixtures/invalid. Each file
 // holds entries { field, message } for one wire type. Zod rejects every
 // message, so Decode must reject it too, and for the named field. This
 // catches a Validate that is looser than its Zod schema.
@@ -337,7 +337,7 @@ var (
 // repository.ts types go to the side whose union file imports their schema.
 func liveTypes(t *testing.T) map[string][]string {
 	t.Helper()
-	src := filepath.Join(sourceDir(t), "src")
+	src := sourceDir(t)
 	read := func(name string) string {
 		data, err := os.ReadFile(filepath.Join(src, name))
 		if err != nil {
