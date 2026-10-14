@@ -12,6 +12,12 @@ export const RepoRequest = z.object({
   scope: RepoScope.optional(),
   /** `log` only. Commits to pass over, for the next page. */
   skip: z.number().int().min(0).max(1_000_000).optional(),
+  /**
+   * `log` only. Walk every branch, tag and remote branch, not only `HEAD`.
+   * Same order as the `HEAD` walk, newest commit date first. Requires
+   * `repo:graph` in `auth:success.features`.
+   */
+  all: z.boolean().optional(),
   /** `show` only. Full or abbreviated commit hash. */
   commit: z
     .string()

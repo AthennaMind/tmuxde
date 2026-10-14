@@ -201,7 +201,7 @@ func (m *FileUpload) LogValue() slog.Value {
 // RepoRequest asks the repository viewer for one action on the pane ID.
 // The schema does not tie fields to actions. Which fields an action needs
 // is checked by the handler, which answers repo:result with kind error.
-// Skip is for log, Commit for show.
+// Skip and All are for log, Commit for show.
 type RepoRequest struct {
 	Type      string  `json:"type"`
 	RequestID string  `json:"requestId"`
@@ -212,6 +212,8 @@ type RepoRequest struct {
 	Scope     *string `json:"scope,omitempty"`
 	Skip      *int    `json:"skip,omitempty"`
 	Commit    *string `json:"commit,omitempty"`
+	// All asks log for every branch, tag and remote branch, not only HEAD.
+	All *bool `json:"all,omitempty"`
 }
 
 func (*RepoRequest) WireType() string { return "repo:request" }

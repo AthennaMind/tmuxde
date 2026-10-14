@@ -20,13 +20,18 @@ import {
   PlugZap,
   SlidersHorizontal,
   TextSearch,
+  GitGraph,
 } from "lucide-react";
 import { useCommandStore } from "@/stores/command-store";
 import { useUiStore } from "@/stores/ui-store";
 import { useMainTabsStore } from "@/stores/main-tabs-store";
 import { isMobileViewport } from "@/lib/mobile-query";
-import { getRelayClient } from "@/hooks/use-websocket";
+import { getRelayClient, useRelayClient } from "@/hooks/use-websocket";
 import { sendCommand } from "@/lib/send-command";
+import { useConnectionStore } from "@/stores/connection-store";
+import { usePaneStore } from "@/stores/pane-store";
+import { useRepositoryQuery } from "@/components/files/repository-preview";
+import type { RepositoryClient } from "@/components/files/repository-request";
 
 export function CommandPalette() {
   const { paletteOpen, setPaletteOpen, history, snippets } = useCommandStore();
@@ -152,6 +157,9 @@ export function CommandPalette() {
             <SlidersHorizontal className="h-4 w-4" />
             Settings
           </CommandItem>
+          {paletteOpen && (
+            <GraphCommand onDone={() => setPaletteOpen(false)} />
+          )}
           <CommandItem value="goto:/login" onSelect={handleSelect}>
             <PlugZap className="h-4 w-4" />
             Connect another machine
@@ -219,5 +227,48 @@ export function CommandPalette() {
         )}
       </CommandList>
     </CommandDialog>
+  );
+}
+
+/**
+ * "Open git graph" for the repository of the active pane. Shown on desktop
+ * only, and only once the pane folder turns out to be inside a repository.
+ */
+function GraphCommand({ onDone }: { onDone: () => void }) {
+  const client = useRelayClient();
+  const connected = useConnectionStore((s) => s.status === "connected");
+  const supported = useConnectionStore((s) => s.features.has("repo:graph"));
+  if (!client || !connected || !supported || isMobileViewport()) return null;
+  return <GraphCommandItem client={client} onDone={onDone} />;
+}
+
+function GraphCommandItem({
+  client,
+  onDone,
+}: {
+  client: RepositoryClient;
+  onDone: () => void;
+}) {
+  const paneId = usePaneStore((s) => s.activePaneId);
+  const query = useRepositoryQuery(
+    client,
+    paneId ? { id: paneId, action: "context" } : null,
+    0,
+  );
+  const root =
+    query.result?.kind === "context" ? query.result.root : null;
+  if (!paneId || !root) return null;
+  return (
+    <CommandItem
+      value="open:graph"
+      keywords={["git", "graph", "log", "branches", "history"]}
+      onSelect={() => {
+        onDone();
+        useMainTabsStore.getState().openGraph({ paneId, contextPath: root });
+      }}
+    >
+      <GitGraph className="h-4 w-4" />
+      Open git graph
+    </CommandItem>
   );
 }

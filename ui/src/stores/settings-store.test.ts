@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import {
+  mergeCommitFilter,
   mergeGestures,
   mergeToolbarKeys,
   defaultToolbarKeys,
@@ -125,5 +126,99 @@ describe("mergeGestures", () => {
     const snapshot = { ...current };
     mergeGestures({ dragToScroll: false }, current);
     expect(current).toEqual(snapshot);
+  });
+});
+
+describe("mergeCommitFilter", () => {
+  const current = { commitFilterPatterns: "", commitFilterMode: "hide" as const };
+
+  it("keeps a stored filter", () => {
+    expect(
+      mergeCommitFilter(
+        { commitFilterPatterns: "md, docs/**", commitFilterMode: "only" },
+        current,
+      ),
+    ).toEqual({ commitFilterPatterns: "md, docs/**", commitFilterMode: "only" });
+  });
+
+  it("gives the defaults to a blob from before the filter", () => {
+    expect(mergeCommitFilter({}, current)).toEqual(current);
+    expect(mergeCommitFilter(undefined, current)).toEqual(current);
+  });
+
+  it("ignores a mode or text of the wrong shape", () => {
+    expect(
+      mergeCommitFilter(
+        {
+          commitFilterPatterns: 3,
+          commitFilterMode: "show",
+        } as unknown as Parameters<typeof mergeCommitFilter>[0],
+        current,
+      ),
+    ).toEqual(current);
+  });
+});
+
+function memoryStorage(): Storage {
+  const map = new Map<string, string>();
+  return {
+    get length() {
+      return map.size;
+    },
+    clear: () => map.clear(),
+    getItem: (k: string) => map.get(k) ?? null,
+    key: (i: number) => Array.from(map.keys())[i] ?? null,
+    removeItem: (k: string) => void map.delete(k),
+    setItem: (k: string, v: string) => void map.set(k, v),
+  };
+}
+
+/**
+ * A fresh store module over the given storage, hydrated on import. `persist`
+ * reads `window.localStorage`, so both globals get the stub.
+ */
+async function loadStore(storage: Storage) {
+  vi.stubGlobal("localStorage", storage);
+  vi.stubGlobal("window", { localStorage: storage });
+  vi.resetModules();
+  return (await import("./settings-store")).useSettingsStore;
+}
+
+describe("commit filter settings", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("defaults to no patterns in hide mode", async () => {
+    const store = await loadStore(memoryStorage());
+    expect(store.getState().commitFilterPatterns).toBe("");
+    expect(store.getState().commitFilterMode).toBe("hide");
+  });
+
+  it("persists patterns and mode", async () => {
+    const storage = memoryStorage();
+    const store = await loadStore(storage);
+    store.getState().setCommitFilterPatterns("md, *.sh");
+    store.getState().setCommitFilterMode("only");
+    const saved = JSON.parse(storage.getItem("ccremote-settings") ?? "{}");
+    expect(saved.state.commitFilterPatterns).toBe("md, *.sh");
+    expect(saved.state.commitFilterMode).toBe("only");
+
+    // Next page load reads them back.
+    const reloaded = await loadStore(storage);
+    expect(reloaded.getState().commitFilterPatterns).toBe("md, *.sh");
+    expect(reloaded.getState().commitFilterMode).toBe("only");
+  });
+
+  it("keeps other settings when a stored blob predates the filter", async () => {
+    const storage = memoryStorage();
+    storage.setItem(
+      "ccremote-settings",
+      JSON.stringify({ state: { wrapLines: true }, version: 2 }),
+    );
+    const store = await loadStore(storage);
+    expect(store.getState().wrapLines).toBe(true);
+    expect(store.getState().commitFilterPatterns).toBe("");
+    expect(store.getState().commitFilterMode).toBe("hide");
   });
 });
