@@ -19,9 +19,14 @@ services:
   stt:
     <<: *contained
     profiles: [dictation]
+    # The Go binary tmuxde-stt. The development stack builds the same image.
+    image: tmuxde-stt:local
     build:
       context: ../..
       dockerfile: .docker/prod/stt.Dockerfile
+    # The binary installs its signal handler after the model load. init
+    # forwards SIGTERM to it as a child, so a stop during the load ends it.
+    init: true
     user: "${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}"
     cpus: ${STT_THREADS:-4}
     mem_limit: 3g

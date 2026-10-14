@@ -16,9 +16,10 @@ os.environ['DEV_UID'] = str(os.getuid())
 os.environ['DEV_GID'] = str(os.getgid())
 COMPOSE = ['docker', 'compose', '-f', '.docker/compose/tooling.yaml']
 STACK = ['docker', 'compose']
-MANIFESTS = [Path('package.json'), Path('pnpm-lock.yaml'), Path('pnpm-workspace.yaml')]
-MANIFESTS += [Path('ui/package.json'), Path('stt/package.json')]
-MANIFESTS += sorted(Path('packages').glob('*/package.json'))
+# The Node app lives in src/ui. The installer sees these files under
+# /manifests by name only, so an exported file maps back by its name.
+APP = Path('src/ui')
+MANIFESTS = [APP / 'package.json', APP / 'pnpm-lock.yaml', APP / 'pnpm-workspace.yaml']
 VOLUME = 'tmuxde-dev-dependencies-v2'
 
 
@@ -54,7 +55,7 @@ def sync(mutation=None, install_args=()):
     running = subprocess.check_output(['docker', 'ps', '--filter', 'label=com.docker.compose.project=tmuxde', '--filter', 'label=dev.tmuxde.mode=development', '--format', '{{.Label "com.docker.compose.service"}}'], text=True).split()
     # Services that mount the dependency volume. server-dev does not, and
     # stopping it would end its tmux sessions for nothing.
-    resume = [s for s in ('ui', 'stt') if s in running]
+    resume = [s for s in ('ui',) if s in running]
     if resume:
         run(STACK + ['stop', *resume])
     run(COMPOSE + ['run', '--rm', '-T', 'volume-init'])
@@ -67,18 +68,18 @@ def sync(mutation=None, install_args=()):
             run(COMPOSE + ['run', '--rm', '-T', '-v', f'{export}:/export', 'deps-manager', 'mutate', *mutation])
             staging = Path(export)
             policy = staging / 'pnpm-workspace.yaml'
-            if policy.is_symlink() or policy.read_bytes() != (ROOT / 'pnpm-workspace.yaml').read_bytes():
+            if policy.is_symlink() or policy.read_bytes() != (ROOT / APP / 'pnpm-workspace.yaml').read_bytes():
                 raise RuntimeError('Dependency command changed security policy. Review pnpm-workspace.yaml explicitly.')
             # Only known manifests may return to host. Never copy package code or executable files.
-            for relative in MANIFESTS:
-                source = staging / relative
+            for manifest in MANIFESTS:
+                source = staging / manifest.name
                 if source.is_symlink() or not source.is_file():
-                    raise RuntimeError(f'Invalid exported manifest: {relative}')
-                if relative.suffix == '.json':
+                    raise RuntimeError(f'Invalid exported manifest: {manifest.name}')
+                if manifest.suffix == '.json':
                     json.loads(source.read_text())
-            for relative in MANIFESTS:
-                if relative.name != 'pnpm-workspace.yaml':
-                    shutil.copyfile(staging / relative, ROOT / relative)
+            for manifest in MANIFESTS:
+                if manifest.name != 'pnpm-workspace.yaml':
+                    shutil.copyfile(staging / manifest.name, ROOT / manifest)
     else:
         run(COMPOSE + ['run', '--rm', '-T', 'deps-manager', 'download', *install_args])
     run(COMPOSE + ['run', '--rm', '-T', 'deps-build', 'build'])

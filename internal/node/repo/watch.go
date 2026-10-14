@@ -373,8 +373,8 @@ type Watcher struct {
 	newDirs []string
 
 	// The batch being coalesced.
-	pending   map[string]bool
-	git       bool
+	pending map[string]bool
+	git     bool
 	// refs is set when HEAD or a ref changed. It implies git.
 	refs      bool
 	truncated bool
