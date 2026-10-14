@@ -24,7 +24,7 @@ git log -10 --format='%s%n%n%b---'
 
 ### 2. Group changes
 
-One commit per topic. A feature travels with its tests, its `packages/protocol/PROTOCOL.md` update and its plan, backlog and review under `.agents/`. `pnpm-lock.yaml` goes with the `package.json` change behind it.
+One commit per topic. A feature travels with its tests and its `src/ui/src/protocol/PROTOCOL.md` update. Plans, backlogs and reviews under `.agents/` are gitignored and never committed. `pnpm-lock.yaml` goes with the `package.json` change behind it.
 
 Unrelated work in the tree gets separate commits. Example: markdown preview next to new app icons. When there is more than one group, show the proposed split before committing.
 
@@ -64,7 +64,7 @@ All of these are gitignored. If one shows up in `git status`, stop and tell the 
 | `crypto`, `ui`, `logger` | matching `packages/*` |
 | `infra` | `.docker`, Caddyfile, compose files |
 | `scripts` | `scripts/setup.sh` and helpers |
-| `agents` | `.agents` skills, plans and reviews |
+| `agents` | `.agents` skills |
 | `deps` | dependency bumps only |
 
 Leave scope out when change spans several areas, for example a feature across relay, protocol and web. Older history uses upstream scopes `cli`, `site`, `api` and `ci`. Those parts are gone. Do not reuse them.
@@ -97,7 +97,6 @@ chore(agents): add commit and pr skills
 - Single topic: one or two paragraphs.
 - Several parts: `- ` bullets. Large changes group bullets under bare header lines such as `Sidebar`, `Main area`, `Keys`.
 - Say `Documented in PROTOCOL.md.` when protocol changed.
-- Last line points to plan, backlog or review when one exists.
 
 Bullet body:
 
@@ -111,8 +110,6 @@ feat: git history view, tab context menu and quieter pane switches
 - repo:request gains log and show actions behind the repo:history
   feature. History reads disable signature checks, mailmap and notes, so
   repository config never runs a GPG program. Documented in PROTOCOL.md.
-
-Plan and progress in .agents/plans/git-history.md and its backlog.
 ```
 
 Paragraph body:
