@@ -45,7 +45,7 @@ Token login is the only sign-in path. Pairing, device approval, the sealed tunne
 - `src/ui/src/components/ui`, `hooks`, `providers`, `lib`: shared UI components, theme and helpers. Tokens and Tailwind theme live in `src/ui/src/globals.css`. Imports use the `@/` alias for `src/ui/src`.
 - `.docker`: Compose files (`compose/dev.yaml`, `prod.yaml`, `tooling.yaml`, `workspace.yaml`), dev images, prod `tmuxde.Dockerfile` and `stt.Dockerfile`, host unit template, Caddyfile and `README.md`.
 - `scripts/setup.sh`: writes `.env`, token and run directory. `--host-service` installs the binary as user unit.
-- `.agents`: plans, backlogs, reviews and UI review skills (`better-*`, `interface-review`).
+- `.agents`: UI review skills (`better-*`, `interface-review`), tracked. Plans, backlogs and reviews also live here but are gitignored.
 
 ## Commands
 
@@ -96,7 +96,7 @@ Use semantic color classes. Follow local import conventions. Dev tools (TypeScri
 
 ## Plans, Backlogs and Reviews
 
-All plans and backlogs MUST be saved to `.agents/plans/`. Use kebab-case filenames.
+All plans and backlogs MUST be saved to `.agents/plans/`. Use kebab-case filenames. `.agents/plans/` and `.agents/reviews/` are gitignored. They stay local and never go into commits.
 
 **Plans** are pre-implementation blueprints. Created once, read during execution.
 
@@ -113,7 +113,7 @@ Create a backlog in `.agents/plans/backlogs/{name}-backlog.md` when the work spa
 
 ### Backlog rules
 
-- Update the backlog after every meaningful change. Commit it alongside the work.
+- Update the backlog after every meaningful change.
 - Mark tasks `[x]` as you complete them, `[~]` when in progress, `[!]` when blocked (with reason).
 - When the user says to resume work on a feature, check `.agents/plans/backlogs/` for an existing backlog first.
 - When executing a multi-phase plan, create a companion backlog in `.agents/plans/backlogs/` if one does not exist.

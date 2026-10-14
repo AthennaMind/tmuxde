@@ -86,3 +86,8 @@ __pycache__/
 .claude/settings.local.json
 AGENTS.local.md
 CLAUDE.local.md
+
+# Agent plans, backlogs and reviews. Local working notes, never committed.
+# Skills under .agents/skills stay tracked.
+.agents/plans/
+.agents/reviews/
