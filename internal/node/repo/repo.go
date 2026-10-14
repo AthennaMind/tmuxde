@@ -82,6 +82,8 @@ type Options struct {
 	MaxEntries int
 	// PageSize is the number of commits in one log page. Default 100.
 	PageSize int
+	// Watch configures repository watchers. Zero values pick the defaults.
+	Watch WatchOptions
 	// Logger gets one record per failed request. Default slog.Default().
 	Logger *slog.Logger
 }
@@ -123,6 +125,7 @@ func New(g Guard, opts Options) *Service {
 	if opts.Logger == nil {
 		opts.Logger = slog.Default()
 	}
+	opts.Watch = opts.Watch.withDefaults()
 	return &Service{guard: g, opts: opts, log: opts.Logger, bin: "git", env: gitEnv(os.Environ())}
 }
 

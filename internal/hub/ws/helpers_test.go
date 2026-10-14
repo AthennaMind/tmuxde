@@ -36,7 +36,7 @@ const (
 var (
 	wantAuthSuccess = `{"type":"auth:success","serverVersion":"1.0.0",` +
 		`"capabilities":{"readOnly":false,"files":"write","scope":"all"},` +
-		`"features":["repo:request","repo:history","file:upload:ack","window:step","pane:step"]}`
+		`"features":["repo:request","repo:history","file:upload:ack","window:step","pane:step","repo:watch"]}`
 	wantServerInfo = `{"type":"server:info","hostname":"testhost","platform":"` + runtime.GOOS +
 		`","uptime":1234.5,"defaultPath":"/srv/work"}`
 )
