@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { CommitFilterMode } from "@/components/files/commit-file-filter";
 
 /**
  * A key the toolbar can send, and where it belongs in the sheet.
@@ -277,6 +278,10 @@ interface SettingsStore {
   wrapLines: boolean;
   /** Show Markdown files rendered. Off shows their source. */
   markdownPreview: boolean;
+  /** File filter text of the commit view, as typed. Applies to every commit. */
+  commitFilterPatterns: string;
+  /** Whether commit filter patterns hide files or keep only them. */
+  commitFilterMode: CommitFilterMode;
   setToolbarKeys: (keys: ToolbarKey[]) => void;
   toggleToolbarKey: (id: string) => void;
   resetToolbarKeys: () => void;
@@ -288,6 +293,8 @@ interface SettingsStore {
   setAutoZoom: (enabled: boolean) => void;
   setWrapLines: (enabled: boolean) => void;
   setMarkdownPreview: (enabled: boolean) => void;
+  setCommitFilterPatterns: (patterns: string) => void;
+  setCommitFilterMode: (mode: CommitFilterMode) => void;
 }
 
 /**
@@ -343,6 +350,29 @@ export function mergeGestures(
   return merged;
 }
 
+type CommitFilterSettings = Pick<
+  SettingsStore,
+  "commitFilterPatterns" | "commitFilterMode"
+>;
+
+/**
+ * Keep the stored commit filter only when it has the right shape. A blob
+ * from before the filter, or a hand edit, falls back to the defaults.
+ */
+export function mergeCommitFilter(
+  stored: Partial<CommitFilterSettings> | undefined,
+  current: CommitFilterSettings,
+): CommitFilterSettings {
+  const patterns = stored?.commitFilterPatterns;
+  const mode = stored?.commitFilterMode;
+  return {
+    commitFilterPatterns:
+      typeof patterns === "string" ? patterns : current.commitFilterPatterns,
+    commitFilterMode:
+      mode === "hide" || mode === "only" ? mode : current.commitFilterMode,
+  };
+}
+
 export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set) => ({
@@ -358,6 +388,8 @@ export const useSettingsStore = create<SettingsStore>()(
       autoZoom: true,
       wrapLines: false,
       markdownPreview: true,
+      commitFilterPatterns: "",
+      commitFilterMode: "hide",
       setToolbarKeys: (toolbarKeys) => set({ toolbarKeys }),
       toggleToolbarKey: (id) =>
         set((s) => ({
@@ -372,6 +404,9 @@ export const useSettingsStore = create<SettingsStore>()(
       setAutoZoom: (autoZoom) => set({ autoZoom }),
       setWrapLines: (wrapLines) => set({ wrapLines }),
       setMarkdownPreview: (markdownPreview) => set({ markdownPreview }),
+      setCommitFilterPatterns: (commitFilterPatterns) =>
+        set({ commitFilterPatterns }),
+      setCommitFilterMode: (commitFilterMode) => set({ commitFilterMode }),
     }),
     {
       name: "ccremote-settings",
@@ -393,6 +428,7 @@ export const useSettingsStore = create<SettingsStore>()(
           ...state,
           gestures: mergeGestures(state?.gestures, current.gestures),
           toolbarKeys: mergeToolbarKeys(state?.toolbarKeys),
+          ...mergeCommitFilter(state, current),
         };
       },
     },

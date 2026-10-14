@@ -51,6 +51,16 @@ func TestRepositoryHistory(t *testing.T) {
 		git.run(root, "commit", "-q", "--allow-empty", "-m", "empty "+strconv.Itoa(i))
 	}
 	git.run(root, "tag", "v1")
+	// A branch not merged into main, plus commits only a remote branch and
+	// a tag reach. Only the all walk sees them.
+	git.run(root, "switch", "-q", "-c", "topic", hashes["rename"])
+	commit("topic", "--allow-empty")
+	git.run(root, "switch", "-q", "main")
+	tree := strings.TrimSpace(git.run(root, "rev-parse", hashes["root"]+"^{tree}"))
+	hashes["remote"] = strings.TrimSpace(git.run(root, "commit-tree", tree, "-p", hashes["root"], "-m", "remote"))
+	git.run(root, "update-ref", "refs/remotes/origin/gone", hashes["remote"])
+	hashes["tagged"] = strings.TrimSpace(git.run(root, "commit-tree", tree, "-m", "tagged"))
+	git.run(root, "tag", "loose", hashes["tagged"])
 
 	// File policy denies the server's own config folder. It points inside
 	// the repository so one committed file there must stay out of view.
@@ -97,6 +107,65 @@ func TestRepositoryHistory(t *testing.T) {
 		}
 	})
 
+	t.Run("pages every branch, tag and remote with all", func(t *testing.T) {
+		head := as[*protocol.RepoLog](t, request(t, s, root, client.RepoRequest{Action: "log", Skip: ptr(100)}))
+		for _, c := range head.Commits {
+			if c.Subject == "topic" || c.Subject == "remote" || c.Subject == "tagged" {
+				t.Fatalf("HEAD page has %q", c.Subject)
+			}
+		}
+		first := as[*protocol.RepoLog](t, request(t, s, root, client.RepoRequest{Action: "log", All: ptr(true)}))
+		if len(first.Commits) != 100 || !first.More || deref(first.Branch) != "main" {
+			t.Fatalf("first page = %d commits, more %v, branch %v", len(first.Commits), first.More, first.Branch)
+		}
+		second := as[*protocol.RepoLog](t, request(t, s, root, client.RepoRequest{Action: "log", All: ptr(true), Skip: ptr(100)}))
+		if second.Skip != 100 || second.More {
+			t.Fatalf("second page = skip %v more %v", second.Skip, second.More)
+		}
+		commits := append(slices.Clone(first.Commits), second.Commits...)
+		if len(commits) != 108 {
+			t.Fatalf("all pages have %d commits, want 108", len(commits))
+		}
+		// Paging continues the order of one long walk, Git's default order
+		// by commit date. Every reachable commit comes once.
+		var got []string
+		seen := map[string]bool{}
+		for _, c := range commits {
+			if seen[c.Hash] {
+				t.Errorf("%q comes twice", c.Subject)
+			}
+			seen[c.Hash] = true
+			got = append(got, c.Hash)
+		}
+		want := strings.Fields(git.run(root, "log", "--branches", "--tags", "--remotes", "--format=%H", "HEAD"))
+		if !slices.Equal(got, want) {
+			t.Fatalf("all order differs from git log --branches --tags --remotes HEAD")
+		}
+		reachable := strings.Fields(git.run(root, "rev-list", "--branches", "--tags", "--remotes", "HEAD"))
+		if len(reachable) != len(commits) {
+			t.Fatalf("rev-list has %d commits, pages %d", len(reachable), len(commits))
+		}
+		for _, h := range reachable {
+			if !seen[h] {
+				t.Errorf("commit %s is missing", h[:7])
+			}
+		}
+		refs := map[string][]string{}
+		for _, c := range commits {
+			refs[c.Subject] = c.Refs
+		}
+		for subject, want := range map[string][]string{
+			"topic":    {"topic"},
+			"remote":   {"origin/gone"},
+			"tagged":   {"tag: loose"},
+			"empty 99": {"HEAD -> main", "tag: v1"},
+		} {
+			if !slices.Equal(refs[subject], want) {
+				t.Errorf("refs of %q = %q, want %q", subject, refs[subject], want)
+			}
+		}
+	})
+
 	t.Run("answers an empty history before the first commit and outside Git", func(t *testing.T) {
 		fresh := filepath.Join(base, "fresh")
 		mustMkdir(t, fresh)
@@ -105,6 +174,9 @@ func TestRepositoryHistory(t *testing.T) {
 		want := &protocol.RepoLog{Kind: "log", Root: &fresh, Branch: ptr("main"), Skip: 0, Commits: []protocol.RepoCommit{}, More: false}
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("log = %+v, want %+v", got, want)
+		}
+		if all := as[*protocol.RepoLog](t, request(t, s, fresh, client.RepoRequest{Action: "log", All: ptr(true)})); !reflect.DeepEqual(all, want) {
+			t.Fatalf("log all = %+v, want %+v", all, want)
 		}
 		plain := filepath.Join(base, "plain")
 		mustMkdir(t, plain)

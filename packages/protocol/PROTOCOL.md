@@ -138,6 +138,7 @@ inside attached session. Each request receives `repo:result` with matching
   file?: string;
   scope?: "unstaged" | "staged" | "untracked";
   skip?: number; // log: commits to pass over. Integer, 0 to 1,000,000.
+  all?: boolean; // log: every branch, tag and remote branch, not only HEAD.
   commit?: string; // show: 7 to 64 lowercase hex characters.
 }
 ```
@@ -149,8 +150,14 @@ in `path` so changing pane directory does not silently switch repositories.
 
 `log` and `show` require `repo:history` in `auth:success.features`. `log`
 pages history from `HEAD`, 100 commits per page, starting after `skip`
-commits. `show` requires `commit` and answers its metadata and whole patch.
-A merge is compared with its first parent. A root commit is compared with an
+commits. With `all: true`, which requires `repo:graph` in
+`auth:success.features`, `log` walks every local branch, tag and remote
+branch as well as `HEAD`. Both walks use Git's default order, newest commit
+date first, so the first page streams without a walk of the whole history.
+When commit dates disagree a parent can come before one of its children, so
+a client that draws lanes orders the loaded commits itself. Pages continue
+the same order. Other actions ignore `all`. `show`
+requires `commit` and answers its metadata and whole patch. A merge is compared with its first parent. A root commit is compared with an
 empty tree. Files whose path file policy denies are left out and counted in
 `hidden`. History reads also disable signature verification, mailmap and
 notes, so a repository setting never runs a GPG program.

@@ -45,6 +45,9 @@ const CommitTabView = lazyComponent(() =>
   import("@/components/files/commit-tab-view").then((m) => m.CommitTabView),
 );
 
+const GraphTabView = lazyComponent(() =>
+  import("@/components/files/graph-tab-view").then((m) => m.GraphTabView),
+);
 const FileViewer = lazyComponent(() =>
   import("@/components/files/file-viewer").then((m) => m.FileViewer),
 );
@@ -320,6 +323,21 @@ export function TerminalWorkspace() {
               tab={activeTab}
               className="absolute inset-0"
             />
+          )}
+          {/* Graphs stay mounted while hidden, so loaded pages, scroll and
+              the last opened commit survive a trip to a commit tab. */}
+          {mainTabs.map((tab) =>
+            tab.kind === "graph" ? (
+              <GraphTabView
+                key={tab.id}
+                tab={tab}
+                active={activeTab?.id === tab.id}
+                className={cn(
+                  "absolute inset-0",
+                  activeTab?.id !== tab.id && "hidden",
+                )}
+              />
+            ) : null,
           )}
           {activeTab?.kind === "settings" && (
             <SettingsPanel touch={false} className="absolute inset-0" />
