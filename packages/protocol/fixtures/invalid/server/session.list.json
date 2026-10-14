@@ -1,0 +1,58 @@
+[
+  {
+    "field": "sessions[0].windows",
+    "message": {
+      "type": "session:list",
+      "sessions": [
+        {
+          "name": "dev",
+          "id": "$0",
+          "windows": 1.5,
+          "attached": true,
+          "created": "2026-10-12T08:14:03.000Z",
+          "activity": "2026-10-12T09:41:27.000Z",
+          "dimensions": {
+            "cols": 200,
+            "rows": 50
+          }
+        },
+        {
+          "name": "agents",
+          "id": "$3",
+          "windows": 1,
+          "attached": false,
+          "created": "2026-10-11T17:02:45.000Z",
+          "activity": "2026-10-12T07:55:10.000Z"
+        }
+      ]
+    }
+  },
+  {
+    "field": "sessions[0].dimensions.cols",
+    "message": {
+      "type": "session:list",
+      "sessions": [
+        {
+          "name": "dev",
+          "id": "$0",
+          "windows": 2,
+          "attached": true,
+          "created": "2026-10-12T08:14:03.000Z",
+          "activity": "2026-10-12T09:41:27.000Z",
+          "dimensions": {
+            "cols": 0,
+            "rows": 50
+          }
+        },
+        {
+          "name": "agents",
+          "id": "$3",
+          "windows": 1,
+          "attached": false,
+          "created": "2026-10-11T17:02:45.000Z",
+          "activity": "2026-10-12T07:55:10.000Z"
+        }
+      ]
+    }
+  }
+]

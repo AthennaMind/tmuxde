@@ -1,0 +1,13 @@
+[
+  {
+    "field": "op",
+    "message": {
+      "type": "file:op:result",
+      "op": "copy",
+      "path": "/home/dev/uploads/screenshot.png",
+      "success": false,
+      "error": "File too large",
+      "final": true
+    }
+  }
+]

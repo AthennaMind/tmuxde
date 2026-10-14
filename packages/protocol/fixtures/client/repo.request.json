@@ -1,0 +1,51 @@
+[
+  {
+    "type": "repo:request",
+    "requestId": "repo-mgl3k8x2-14",
+    "id": "%3",
+    "action": "diff",
+    "path": "/home/dev/projects/tmuxde",
+    "file": "apps/server/internal/protocol/repo.go",
+    "scope": "unstaged",
+    "skip": 0,
+    "commit": "aba3127"
+  },
+  {
+    "type": "repo:request",
+    "requestId": "repo-mgl3k8x2-1",
+    "id": "%3",
+    "action": "context"
+  },
+  {
+    "type": "repo:request",
+    "requestId": "repo-mgl3k8x2-2",
+    "id": "%3",
+    "action": "status",
+    "path": "/home/dev/projects/tmuxde"
+  },
+  {
+    "type": "repo:request",
+    "requestId": "repo-mgl3k8x2-3",
+    "id": "%3",
+    "action": "diff",
+    "path": "/home/dev/projects/tmuxde",
+    "file": "apps/web/src/lib/ws-client.ts",
+    "scope": "staged"
+  },
+  {
+    "type": "repo:request",
+    "requestId": "repo-mgl3k8x2-4",
+    "id": "%3",
+    "action": "log",
+    "path": "/home/dev/projects/tmuxde",
+    "skip": 100
+  },
+  {
+    "type": "repo:request",
+    "requestId": "repo-mgl3k8x2-5",
+    "id": "%3",
+    "action": "show",
+    "path": "/home/dev/projects/tmuxde",
+    "commit": "aba3127f0c2d9e8b1a4c6e5d7f9b0a1c2d3e4f5a"
+  }
+]

@@ -7,10 +7,9 @@ export default defineConfig({
   test: {
     maxWorkers: 4,
     projects: [
-      "apps/relay",
-      "apps/stt",
-      "apps/web/vitest.config.ts",
-      "apps/web/vitest.config.idb.ts",
+      "stt",
+      "ui/vitest.config.ts",
+      "ui/vitest.config.idb.ts",
       "packages/crypto",
       "packages/protocol",
     ],

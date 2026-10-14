@@ -1,0 +1,10 @@
+[
+  {
+    "type": "tmux:scroll",
+    "lines": 3
+  },
+  {
+    "type": "tmux:scroll",
+    "lines": -500
+  }
+]

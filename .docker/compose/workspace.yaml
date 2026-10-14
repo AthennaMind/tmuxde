@@ -18,7 +18,6 @@ services:
       - "/tmp:rw,noexec,nosuid,nodev,mode=1777,size=1g"
     working_dir: "/workspace"
     environment:
-      NEXT_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
       LANG: "C.UTF-8"
       LC_ALL: "C.UTF-8"
@@ -63,8 +62,8 @@ services:
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps"
-        target: "/workspace/apps"
+        source: "../../stt"
+        target: "/workspace/stt"
         read_only: true
         bind:
           create_host_path: false
@@ -89,25 +88,18 @@ services:
           subpath: "root"
       - type: "volume"
         source: "dependencies"
-        target: "/workspace/apps/relay/node_modules"
+        target: "/workspace/stt/node_modules"
         read_only: true
         volume:
           nocopy: true
-          subpath: "apps-relay"
+          subpath: "stt"
       - type: "volume"
         source: "dependencies"
-        target: "/workspace/apps/stt/node_modules"
+        target: "/workspace/ui/node_modules"
         read_only: true
         volume:
           nocopy: true
-          subpath: "apps-stt"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/apps/web/node_modules"
-        read_only: true
-        volume:
-          nocopy: true
-          subpath: "apps-web"
+          subpath: "ui"
       - type: "volume"
         source: "dependencies"
         target: "/workspace/packages/crypto/node_modules"
@@ -117,13 +109,6 @@ services:
           subpath: "packages-crypto"
       - type: "volume"
         source: "dependencies"
-        target: "/workspace/packages/logger/node_modules"
-        read_only: true
-        volume:
-          nocopy: true
-          subpath: "packages-logger"
-      - type: "volume"
-        source: "dependencies"
         target: "/workspace/packages/protocol/node_modules"
         read_only: true
         volume:
@@ -131,11 +116,11 @@ services:
           subpath: "packages-protocol"
       - type: "volume"
         source: "dependencies"
-        target: "/workspace/packages/ui/node_modules"
+        target: "/workspace/packages/ui-kit/node_modules"
         read_only: true
         volume:
           nocopy: true
-          subpath: "packages-ui"
+          subpath: "packages-ui-kit"
       - type: "volume"
         source: "pnpm-store"
         target: "/pnpm/store"
@@ -143,56 +128,62 @@ services:
         volume:
           nocopy: true
       - type: "bind"
-        source: "../../apps/web/components.json"
-        target: "/workspace/apps/web/components.json"
+        source: "../../ui/components.json"
+        target: "/workspace/ui/components.json"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps/web/next.config.ts"
-        target: "/workspace/apps/web/next.config.ts"
+        source: "../../ui/index.html"
+        target: "/workspace/ui/index.html"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps/web/package.json"
-        target: "/workspace/apps/web/package.json"
+        source: "../../ui/package.json"
+        target: "/workspace/ui/package.json"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps/web/postcss.config.mjs"
-        target: "/workspace/apps/web/postcss.config.mjs"
+        source: "../../ui/postcss.config.mjs"
+        target: "/workspace/ui/postcss.config.mjs"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps/web/public"
-        target: "/workspace/apps/web/public"
+        source: "../../ui/public"
+        target: "/workspace/ui/public"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps/web/src"
-        target: "/workspace/apps/web/src"
+        source: "../../ui/src"
+        target: "/workspace/ui/src"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps/web/tsconfig.json"
-        target: "/workspace/apps/web/tsconfig.json"
+        source: "../../ui/tsconfig.json"
+        target: "/workspace/ui/tsconfig.json"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps/web/vitest.config.idb.ts"
-        target: "/workspace/apps/web/vitest.config.idb.ts"
+        source: "../../ui/vite.config.ts"
+        target: "/workspace/ui/vite.config.ts"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps/web/vitest.config.ts"
-        target: "/workspace/apps/web/vitest.config.ts"
+        source: "../../ui/vitest.config.idb.ts"
+        target: "/workspace/ui/vitest.config.idb.ts"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../ui/vitest.config.ts"
+        target: "/workspace/ui/vitest.config.ts"
         read_only: true
         bind:
           create_host_path: false
@@ -211,39 +202,18 @@ services:
           subpath: "workspace-cache"
       - type: "volume"
         source: "cache"
-        target: "/workspace/apps/web"
+        target: "/workspace/ui"
         volume:
           nocopy: true
-          subpath: "web-tooling-metadata"
+          subpath: "ui-tooling-metadata"
       - type: "volume"
         source: "cache"
-        target: "/workspace/apps/web/.next-dev"
+        target: "/workspace/ui/.vite"
         read_only: false
         volume:
           nocopy: true
-          subpath: "web-dev"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/apps/web/.next-build"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "web-build"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/apps/web/.next"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "web-dist"
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/apps/relay/dist"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "relay-dist"
-  web-workspace:
+          subpath: "ui-vite"
+  ui-workspace:
     extends:
       service: runtime
     environment:
@@ -251,28 +221,17 @@ services:
     volumes:
       - type: "volume"
         source: "cache"
-        target: "/workspace/apps/web"
+        target: "/workspace/ui"
         volume:
           nocopy: true
-          subpath: "web-dev-metadata"
+          subpath: "ui-dev-metadata"
       - type: "volume"
         source: "cache"
-        target: "/workspace/apps/web/.next-dev"
+        target: "/workspace/ui/.vite"
         read_only: false
         volume:
           nocopy: true
-          subpath: "web-dev"
-  relay-workspace:
-    extends:
-      service: runtime
-    volumes:
-      - type: "volume"
-        source: "cache"
-        target: "/workspace/apps/relay/dist"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "relay-dist"
+          subpath: "ui-vite"
   installer:
     image: "tmuxde-dev:local"
     build:
@@ -291,16 +250,13 @@ services:
     tmpfs:
       - "/tmp:rw,noexec,nosuid,nodev,mode=1777,size=1g"
       - "/workspace:rw,noexec,nosuid,nodev,mode=1777,size=256m"
-      - '/workspace/apps/relay:rw,noexec,nosuid,nodev,mode=1777,size=8m'
-      - '/workspace/apps/stt:rw,noexec,nosuid,nodev,mode=1777,size=8m'
-      - '/workspace/apps/web:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/stt:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/ui:rw,noexec,nosuid,nodev,mode=1777,size=8m'
       - '/workspace/packages/crypto:rw,noexec,nosuid,nodev,mode=1777,size=8m'
-      - '/workspace/packages/logger:rw,noexec,nosuid,nodev,mode=1777,size=8m'
       - '/workspace/packages/protocol:rw,noexec,nosuid,nodev,mode=1777,size=8m'
-      - '/workspace/packages/ui:rw,noexec,nosuid,nodev,mode=1777,size=8m'
+      - '/workspace/packages/ui-kit:rw,noexec,nosuid,nodev,mode=1777,size=8m'
     working_dir: "/workspace"
     environment:
-      NEXT_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
       HOME: "/tmp/tmuxde-dev"
       LANG: "C.UTF-8"
@@ -331,20 +287,14 @@ services:
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps/relay/package.json"
-        target: "/manifests/apps/relay/package.json"
+        source: "../../stt/package.json"
+        target: "/manifests/stt/package.json"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../apps/stt/package.json"
-        target: "/manifests/apps/stt/package.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../apps/web/package.json"
-        target: "/manifests/apps/web/package.json"
+        source: "../../ui/package.json"
+        target: "/manifests/ui/package.json"
         read_only: true
         bind:
           create_host_path: false
@@ -355,20 +305,14 @@ services:
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../packages/logger/package.json"
-        target: "/manifests/packages/logger/package.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
         source: "../../packages/protocol/package.json"
         target: "/manifests/packages/protocol/package.json"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../packages/ui/package.json"
-        target: "/manifests/packages/ui/package.json"
+        source: "../../packages/ui-kit/package.json"
+        target: "/manifests/packages/ui-kit/package.json"
         read_only: true
         bind:
           create_host_path: false
@@ -387,25 +331,18 @@ services:
           subpath: "root"
       - type: "volume"
         source: "dependencies"
-        target: "/workspace/apps/relay/node_modules"
+        target: "/workspace/stt/node_modules"
         read_only: false
         volume:
           nocopy: true
-          subpath: "apps-relay"
+          subpath: "stt"
       - type: "volume"
         source: "dependencies"
-        target: "/workspace/apps/stt/node_modules"
+        target: "/workspace/ui/node_modules"
         read_only: false
         volume:
           nocopy: true
-          subpath: "apps-stt"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/apps/web/node_modules"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "apps-web"
+          subpath: "ui"
       - type: "volume"
         source: "dependencies"
         target: "/workspace/packages/crypto/node_modules"
@@ -415,13 +352,6 @@ services:
           subpath: "packages-crypto"
       - type: "volume"
         source: "dependencies"
-        target: "/workspace/packages/logger/node_modules"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "packages-logger"
-      - type: "volume"
-        source: "dependencies"
         target: "/workspace/packages/protocol/node_modules"
         read_only: false
         volume:
@@ -429,11 +359,11 @@ services:
           subpath: "packages-protocol"
       - type: "volume"
         source: "dependencies"
-        target: "/workspace/packages/ui/node_modules"
+        target: "/workspace/packages/ui-kit/node_modules"
         read_only: false
         volume:
           nocopy: true
-          subpath: "packages-ui"
+          subpath: "packages-ui-kit"
       - type: "volume"
         source: "pnpm-store"
         target: "/pnpm/store"

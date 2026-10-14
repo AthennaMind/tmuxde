@@ -19,7 +19,6 @@ services:
       - "/tmp:rw,noexec,nosuid,nodev,mode=1777,size=1g"
     working_dir: "/workspace"
     environment:
-      NEXT_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
       HOME: "/tmp/tmuxde-dev"
       LANG: "C.UTF-8"
@@ -80,6 +79,198 @@ services:
       file: "workspace.yaml"
       service: "workspace"
     network_mode: "none"
+  # Go toolchain for the module at the repository root. Offline, builds
+  # from vendor/.
+  # /tmp allows exec because go test runs test binaries from GOTMPDIR.
+  gotools:
+    image: "tmuxde-gotools:local"
+    build:
+      context: "../dev"
+      dockerfile: "go.Dockerfile"
+    init: true
+    user: "${DEV_UID:-1000}:${DEV_GID:-1000}"
+    read_only: true
+    cap_drop:
+      - "ALL"
+    security_opt:
+      - "no-new-privileges:true"
+    pids_limit: 512
+    mem_limit: "4g"
+    cpus: 4
+    tmpfs:
+      - "/tmp:rw,exec,nosuid,nodev,mode=1777,size=1g"
+    working_dir: "/workspace"
+    environment:
+      HOME: "/tmp/tmuxde-dev"
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
+    network_mode: "none"
+    volumes:
+      # Go module at the repository root. One bind per part, so the
+      # container never sees .env, the token or the Node workspaces.
+      - type: "bind"
+        source: "../../cmd"
+        target: "/workspace/cmd"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../internal"
+        target: "/workspace/internal"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../web"
+        target: "/workspace/web"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../vendor"
+        target: "/workspace/vendor"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../go.mod"
+        target: "/workspace/go.mod"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../go.sum"
+        target: "/workspace/go.sum"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../.air.toml"
+        target: "/workspace/.air.toml"
+        read_only: true
+        bind:
+          create_host_path: false
+      # Protocol fixtures for the Go contract tests.
+      - type: "bind"
+        source: "../../packages/protocol"
+        target: "/workspace/packages/protocol"
+        read_only: true
+        bind:
+          create_host_path: false
+      # Tracked through .gitkeep. Docker would create a missing dir as root,
+      # and uid 1000 could not write it.
+      - type: "bind"
+        source: "../bin"
+        target: "/out"
+        read_only: false
+        bind:
+          create_host_path: false
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/.cache/go-build"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "go-build"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/.cache/go-mod"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "go-mod"
+  # Networked. Refreshes go.sum and vendor/ after go.mod changes and checks
+  # the five day release delay. See .docker/dev/go-vendor.sh.
+  go-vendor:
+    image: "tmuxde-gotools:local"
+    build:
+      context: "../dev"
+      dockerfile: "go.Dockerfile"
+    init: true
+    user: "${DEV_UID:-1000}:${DEV_GID:-1000}"
+    read_only: true
+    cap_drop:
+      - "ALL"
+    security_opt:
+      - "no-new-privileges:true"
+    pids_limit: 512
+    mem_limit: "4g"
+    cpus: 4
+    tmpfs:
+      - "/tmp:rw,noexec,nosuid,nodev,mode=1777,size=1g"
+    working_dir: "/workspace"
+    environment:
+      HOME: "/tmp/tmuxde-dev"
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
+      GOPROXY: "https://proxy.golang.org,direct"
+      GOFLAGS: "-mod=mod"
+      GOSUMDB: "sum.golang.org"
+      # Checksum database cache lives under GOPATH. Image GOPATH is read-only.
+      GOPATH: "/tmp/tmuxde-dev/go"
+    entrypoint:
+      - "/bin/bash"
+      - "/usr/local/bin/go-vendor"
+    volumes:
+      - type: "bind"
+        source: "../dev/go-vendor.sh"
+        target: "/usr/local/bin/go-vendor"
+        read_only: true
+        bind:
+          create_host_path: false
+      # Sources read only. go.mod, go.sum and vendor/ are what the script
+      # writes. go-vendor.sh builds vendor/ in /tmp and copies it in, since
+      # go mod vendor cannot remove a mount point.
+      - type: "bind"
+        source: "../../cmd"
+        target: "/workspace/cmd"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../internal"
+        target: "/workspace/internal"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../web"
+        target: "/workspace/web"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../vendor"
+        target: "/workspace/vendor"
+        read_only: false
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../go.mod"
+        target: "/workspace/go.mod"
+        read_only: false
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../go.sum"
+        target: "/workspace/go.sum"
+        read_only: false
+        bind:
+          create_host_path: false
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/.cache/go-build"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "go-build"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/.cache/go-mod"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "go-mod"
 volumes:
   dependencies:
     external: true

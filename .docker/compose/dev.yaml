@@ -2,35 +2,31 @@ name: tmuxde
 networks:
   edge:
     name: tmuxde_edge
-  offline:
-    internal: true
-    name: tmuxde_offline
-  # Relay and speech service only. Web and Caddy cannot reach it.
-  speech:
-    internal: true
-    name: tmuxde_speech
 services:
+  # Caddy proxies to the tmuxde binary on the host over http.sock in the
+  # run directory.
   caddy:
     cap_add:
       - NET_BIND_SERVICE
     cap_drop:
       - ALL
-    depends_on:
-      relay:
-        condition: service_healthy
-        required: true
-      web:
-        condition: service_healthy
-        required: true
     environment:
       LOCAL_DOMAIN: ${LOCAL_DOMAIN:-localhost}
+    # Caddy runs as root without DAC_OVERRIDE. The host user group lets it
+    # enter the 0750 run directory and connect to http.sock and
+    # dev/http-dev.sock, which must be group writable. stt/stt.sock has no
+    # group write, so Caddy cannot reach it.
+    group_add:
+      - ${LOCAL_GID:?Run scripts/setup.sh}
     image: caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    # Caddy reaches ui on this network for the 18443 site.
     networks:
       edge: null
-      offline: null
     pids_limit: 512
     ports:
       - ${LOCAL_BIND_IP:-127.0.0.1}:443:443
+      # Development instance, see the 18443 site in the Caddyfile.
+      - ${LOCAL_BIND_IP:-127.0.0.1}:18443:18443
     read_only: true
     restart: unless-stopped
     security_opt:
@@ -52,80 +48,14 @@ services:
         target: /config
         type: volume
         volume: {}
-  relay:
-    extends:
-      file: workspace.yaml
-      service: relay-workspace
-    command:
-      - pnpm
-      - --filter
-      - "@app/relay"
-      - dev
-    healthcheck:
-      interval: 10s
-      start_period: 15s
-      test:
-        - CMD
-        - node
-        - -e
-        - fetch('http://127.0.0.1:24300/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
-      timeout: 5s
-    labels:
-      dev.tmuxde.mode: development
-    networks:
-      offline: null
-      speech: null
-    restart: unless-stopped
-    user: ${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}
-    depends_on:
-      deps-build:
-        condition: service_completed_successfully
-      # Browsers learn about dictation once, at login. Waiting for the model
-      # keeps phones that reconnect during a restart from losing the mic.
-      # Ignored when profile `dictation` is off.
-      stt:
-        condition: service_healthy
-        required: false
-    environment:
-      RELAY_HOST: 0.0.0.0
-      RELAY_PORT: "24300"
-      TMUX_SOCKET: /host-tmux/${LOCAL_TMUX_SOCKET:?Run scripts/setup.sh}
-      AUTH_TOKEN: ${AUTH_TOKEN:?Run scripts/setup.sh}
-      CORS_ORIGINS: https://${LOCAL_DOMAIN:-localhost}
-      ALLOWED_PATHS: ${LOCAL_UPLOAD_DIR:?Run
-        scripts/setup.sh},${LOCAL_HOST_HOME:?Run scripts/setup.sh}
-      HOME: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
-      TMUXDE_CONFIG_DIR: /tmp/tmuxde-state
-      # Empty unless setup enabled dictation. Relay then offers no mic.
-      STT_URL: ${STT_URL:-}
-    volumes:
-      - bind:
-          create_host_path: false
-        source: ${LOCAL_TMUX_DIR:?Run scripts/setup.sh}
-        target: /host-tmux
-        type: bind
+      # Run directory. Holds http.sock of the host tmuxde binary,
+      # dev/http-dev.sock of server-dev and stt/stt.sock. Written by
+      # scripts/setup.sh. Owned by the host user, mode 0750.
       - bind:
           create_host_path: false
         read_only: true
-        source: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
-        target: ${LOCAL_HOST_HOME:?Run scripts/setup.sh}
-        type: bind
-      - bind:
-          create_host_path: true
-        read_only: true
-        source: ../host-tmux
-        target: /opt/host-tmux
-        type: bind
-      - bind:
-          create_host_path: true
-        read_only: true
-        source: ../tmux-client
-        target: /usr/local/bin/tmux
-        type: bind
-      - bind:
-          create_host_path: false
-        source: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh}
-        target: ${LOCAL_UPLOAD_DIR:?Run scripts/setup.sh}
+        source: ${LOCAL_STT_SOCKET_DIR:?Run scripts/setup.sh}
+        target: /run/tmuxde
         type: bind
   # Optional speech to text. Starts only with profile `dictation`, which
   # `scripts/setup.sh --dictation` writes to `.env` as COMPOSE_PROFILES.
@@ -138,9 +68,10 @@ services:
     command:
       - node
       - --watch
-      - apps/stt/src/index.ts
+      - stt/src/index.ts
     cpus: ${STT_THREADS:-4}
     mem_limit: 3g
+    # GET /health over the unix socket. There is no TCP listener.
     healthcheck:
       interval: 10s
       start_period: 30s
@@ -148,20 +79,19 @@ services:
         - CMD
         - node
         - -e
-        - fetch('http://127.0.0.1:24400/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+        - process.getBuiltinModule('node:http').get({socketPath:process.env.STT_SOCKET,path:'/health'},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))
       timeout: 5s
     labels:
       dev.tmuxde.mode: development
-    networks:
-      speech: null
+    # No network. The tmuxde servers reach it over stt.sock.
+    network_mode: none
     restart: unless-stopped
     user: ${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}
     depends_on:
       deps-build:
         condition: service_completed_successfully
     environment:
-      STT_HOST: 0.0.0.0
-      STT_PORT: "24400"
+      STT_SOCKET: /run/tmuxde/stt/stt.sock
       STT_MODEL_DIR: /models/parakeet-tdt-0.6b-v3-int8
       STT_VAD_MODEL: /models/silero-vad/silero_vad.onnx
       STT_THREADS: ${STT_THREADS:-4}
@@ -172,18 +102,30 @@ services:
         source: ${LOCAL_STT_MODELS:-/nonexistent}
         target: /models
         type: bind
-  web:
+      # Its own subdir of the run directory, the only one it can write.
+      # Written by scripts/setup.sh. Owned by the host user, mode 0750.
+      - bind:
+          create_host_path: false
+        source: ${LOCAL_STT_SOCKET_DIR:?Run scripts/setup.sh}/stt
+        target: /run/tmuxde/stt
+        type: bind
+  # Vite dev server of the React app in ui/, for the 18443 site. A host
+  # tmuxde binary run by hand proxies it too, see TMUXDE_DEV_WEB_URL.
+  ui:
     extends:
       file: workspace.yaml
-      service: web-workspace
+      service: ui-workspace
+    # Vite dev server. The native config loader reads vite.config.ts in
+    # place. The default loader bundles it to a temp file first.
     command:
       - pnpm
       - --filter
-      - "@app/web"
+      - "@app/ui"
       - exec
-      - next
-      - dev
-      - --hostname
+      - vite
+      - --configLoader
+      - native
+      - --host
       - 0.0.0.0
       - --port
       - "24100"
@@ -198,18 +140,192 @@ services:
       timeout: 10s
     labels:
       dev.tmuxde.mode: development
+    # Caddy reaches ui here for the 18443 site. A host tmuxde binary run by
+    # hand can proxy pages and HMR on the published port. Loopback only.
     networks:
-      offline: null
+      edge: null
+    ports:
+      - 127.0.0.1:24100:24100
     restart: unless-stopped
     user: ${LOCAL_UID:?Run scripts/setup.sh}:${LOCAL_GID:?Run scripts/setup.sh}
     depends_on:
       deps-build:
         condition: service_completed_successfully
     environment:
-      HOSTNAME: 0.0.0.0
-      NEXT_DIST_DIR: .next-dev
-      NEXT_PUBLIC_RELAY_URL: ""
+      # Empty means the server is same origin.
+      VITE_RELAY_URL: ""
       LOCAL_DOMAIN: ${LOCAL_DOMAIN:-localhost}
+  # Development instance of the Go server behind https://LOCAL_DOMAIN:18443.
+  # air rebuilds and restarts the binary on every Go change. The container
+  # runs its own tmux server, with no host tmux and no home mount. Its
+  # sessions die with the container. Caddy reaches it over http-dev.sock in
+  # the dev subdir of the run dir. It reaches stt over stt.sock in the stt
+  # subdir. It never mounts the run dir itself, so it cannot reach the
+  # production http.sock. Hardened like gotools. The Go settings (GOFLAGS,
+  # GOPROXY=off, caches) come from the image.
+  server-dev:
+    image: tmuxde-gotools:local
+    build:
+      context: ../dev
+      dockerfile: go.Dockerfile
+    init: true
+    # setup writes DEV_UID and LOCAL_UID from the same host user. That user
+    # owns the run dir and the checkout, so the socket and git work.
+    user: ${DEV_UID:-1000}:${DEV_GID:-1000}
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    mem_limit: 4g
+    cpus: 4
+    # air, the dev binary, HOME, the scratch dir, the state dir and the tmux
+    # socket live here. exec is needed to run the built binary.
+    tmpfs:
+      - /tmp:rw,exec,nosuid,nodev,mode=1777,size=1g
+    working_dir: /workspace
+    network_mode: none
+    labels:
+      dev.tmuxde.mode: development
+    restart: unless-stopped
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+    # umask 0002 makes http-dev.sock group writable for Caddy, as UMask=0002
+    # does for the production unit. ALLOWED_PATHS and HOME must exist before
+    # the binary starts. A stale http-dev.sock after a hard stop is removed
+    # by the binary itself when nothing answers on it.
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        umask 0002
+        mkdir -p /tmp/tmuxde-dev/scratch /tmp/tmuxde-dev/state /tmp/tmuxde-dev/bin
+        exec "$$@"
+      - server-dev
+    command:
+      - air
+      - -c
+      - /workspace/.air.toml
+    healthcheck:
+      interval: 10s
+      start_period: 60s
+      timeout: 5s
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - -o
+        - /dev/null
+        - --unix-socket
+        - /run/tmuxde/dev/http-dev.sock
+        - http://tmuxde/health
+    environment:
+      AUTH_TOKEN: ${AUTH_TOKEN:?Run scripts/setup.sh}
+      ALLOWED_PATHS: /repo,/tmp/tmuxde-dev/scratch
+      HOME: /tmp/tmuxde-dev
+      TMUX_SOCKET: /tmp/tmuxde-dev/tmux.sock
+      TMUX_DEFAULT_SHELL: /bin/bash
+      TMUXDE_CONFIG_DIR: /tmp/tmuxde-dev/state
+      TMUXDE_LISTEN: unix:/run/tmuxde/dev/http-dev.sock
+      CORS_ORIGINS: https://${LOCAL_DOMAIN:-localhost}:18443
+      STT_SOCKET: /run/tmuxde/stt/stt.sock
+      # No systemd in the container. The tmux server is a child of the
+      # container init and outlives every rebuild of the binary.
+      TMUXDE_TMUX_LAUNCHER: none
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+    volumes:
+      # Go module at the repository root, read only. One bind per part, as
+      # in gotools.
+      - bind:
+          create_host_path: false
+        read_only: true
+        source: ../../cmd
+        target: /workspace/cmd
+        type: bind
+      - bind:
+          create_host_path: false
+        read_only: true
+        source: ../../internal
+        target: /workspace/internal
+        type: bind
+      - bind:
+          create_host_path: false
+        read_only: true
+        source: ../../web
+        target: /workspace/web
+        type: bind
+      - bind:
+          create_host_path: false
+        read_only: true
+        source: ../../vendor
+        target: /workspace/vendor
+        type: bind
+      - bind:
+          create_host_path: false
+        read_only: true
+        source: ../../go.mod
+        target: /workspace/go.mod
+        type: bind
+      - bind:
+          create_host_path: false
+        read_only: true
+        source: ../../go.sum
+        target: /workspace/go.sum
+        type: bind
+      - bind:
+          create_host_path: false
+        read_only: true
+        source: ../../.air.toml
+        target: /workspace/.air.toml
+        type: bind
+      - bind:
+          create_host_path: false
+        read_only: true
+        source: ../../packages/protocol
+        target: /workspace/packages/protocol
+        type: bind
+      - source: cache
+        target: /workspace/.cache/go-build
+        type: volume
+        volume:
+          nocopy: true
+          subpath: go-build
+      - source: cache
+        target: /workspace/.cache/go-mod
+        type: volume
+        volume:
+          nocopy: true
+          subpath: go-mod
+      # This checkout, for the dev Files, Changes and History views. It
+      # exposes gitignored local files such as .env and .docker/.env.token
+      # to the dev file browser. Only a token holder on the private network
+      # sees them. Accepted for development.
+      - bind:
+          create_host_path: false
+        read_only: true
+        source: ../..
+        target: /repo
+        type: bind
+      # stt subdir of the run dir, read only. Dictation connects to
+      # stt.sock, and nothing in a dev pane can remove or replace it. Written
+      # by scripts/setup.sh. Owned by the host user, mode 0750.
+      - bind:
+          create_host_path: false
+        read_only: true
+        source: ${LOCAL_STT_SOCKET_DIR:?Run scripts/setup.sh}/stt
+        target: /run/tmuxde/stt
+        type: bind
+      # dev subdir of the run dir, its only writable mount there. The binary
+      # creates http-dev.sock here, and Caddy reaches it through its own run
+      # dir mount. Written by scripts/setup.sh, mode 0750.
+      - bind:
+          create_host_path: false
+        source: ${LOCAL_STT_SOCKET_DIR:?Run scripts/setup.sh}/dev
+        target: /run/tmuxde/dev
+        type: bind
   volume-init:
     extends:
       file: tooling.yaml
@@ -236,6 +352,24 @@ services:
       - tools
     depends_on:
       deps-build:
+        condition: service_completed_successfully
+  gotools:
+    extends:
+      file: tooling.yaml
+      service: gotools
+    profiles:
+      - tools
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+  go-vendor:
+    extends:
+      file: tooling.yaml
+      service: go-vendor
+    profiles:
+      - tools
+    depends_on:
+      volume-init:
         condition: service_completed_successfully
 volumes:
   cache:

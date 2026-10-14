@@ -1,25 +1,19 @@
 # Protocol Reference
 
-Every message type in @repo/protocol — the relay protocol and the pairing/tunnel protocol.
+Every message between the browser and the tmuxde server, as defined in
+`@repo/protocol`.
 
-`packages/protocol` defines **two** separate pairs of Zod discriminated unions,
-deliberately not merged:
-
-- **Relay protocol** — `client-messages.ts` / `server-messages.ts`. Travels over
-  the tmux relay socket. **56** client types, **33** server types.
-- **Pairing and tunnel protocol** — `pairing-messages.ts`. Travels between the
-  browser or CLI and the pairing broker, never over the relay socket.
-
-Folding them together would imply the relay understands pairing (it does not)
-and that the broker understands terminals (it must not).
-
-Everything is JSON-serialised and validated on both ends by `codec.ts`.
+`client-messages.ts` and `server-messages.ts` hold Zod discriminated unions,
+one JSON object per WebSocket message on `/_relay`. `codec.ts` validates both
+directions. **55** client types and **30** server types, `repo:request` and
+`repo:result` from `repository.ts` included. The Go server has a hand written
+type for each one in `internal/protocol/client` and `internal/protocol/server`.
+`fixtures/` holds a sample of every type plus invalid cases, and both the
+Vitest fixture test and the Go contract test check them.
 
 ---
 
-## Relay protocol
-
-## Client → relay
+## Client → server
 
 ### Authentication and keep-alive
 
@@ -32,17 +26,17 @@ Everything is JSON-serialised and validated on both ends by `codec.ts`.
 
 | Type | Fields | Description |
 | --- | --- | --- |
-| `session:list` | — | List all tmux sessions |
+| `session:list` | None | List all tmux sessions |
 | `session:create` | `name?`, `cwd?`, `command?` | Create a session |
 | `session:attach` | `name`, `size?`, `capture?`, `attachId?` | Attach to a session |
-| `session:detach` | — | Detach from the current session |
+| `session:detach` | None | Detach from the current session |
 | `session:kill` | `name` | Kill a session |
 | `session:rename` | `oldName`, `newName` | Rename a session |
 | `session:windows` | `name` | Windows and panes for a session |
 
 `attachId` is an attach epoch, echoed back on `session:attached` so a client can
 reject the acknowledgement of a superseded attach instead of letting a stale one
-corrupt its state machine. Optional, so older clients and relays stay compatible.
+corrupt its state machine. Optional, so older clients stay compatible.
 
 ### Terminal I/O
 
@@ -51,16 +45,17 @@ corrupt its state machine. Optional, so older clients and relays stay compatible
 | `terminal:input` | `data: string` | Keystrokes to the PTY |
 | `terminal:resize` | `size: { cols, rows }` | Resize the terminal |
 
-`cols` is 1–1000, `rows` 1–500.
+`cols` is 1 to 1000, `rows` 1 to 500.
 
 ### Panes
 
 | Type | Fields | Description |
 | --- | --- | --- |
-| `pane:list` | — | Panes in the active window |
+| `pane:list` | None | Panes in the active window |
 | `pane:split` | `direction: "h" \| "v"` | Split the active pane. New pane starts in its folder |
 | `pane:select` | `id` | Focus a pane and show its window |
-| `pane:zoom` | — | Toggle zoom on the active pane |
+| `pane:step` | `delta: integer` | Focus the next pane of the current window, or the previous one when `delta` is negative |
+| `pane:zoom` | `id?`, `zoomed?` | Zoom a pane, the active one without `id`. Without `zoomed` it toggles |
 | `pane:resize` | `id`, `direction: "U"\|"D"\|"L"\|"R"`, `amount` | Resize a pane |
 | `pane:swap` | `id`, `direction` | Swap a pane with its neighbour |
 | `pane:kill` | `id` | Kill a pane |
@@ -70,13 +65,14 @@ corrupt its state machine. Optional, so older clients and relays stay compatible
 
 | Type | Fields | Description |
 | --- | --- | --- |
-| `window:list` | — | Windows in the active session |
+| `window:list` | None | Windows in the active session |
 | `window:create` | `name?` | Create a window |
 | `window:select` | `id` | Focus a window |
+| `window:step` | `delta: integer` | Next window, or the previous one when `delta` is negative. Wraps |
 | `window:rename` | `id`, `name` | Rename a window |
 | `window:kill` | `id` | Kill a window |
 | `window:layout` | `preset` | Apply a tmux layout |
-| `layout:rotate` | — | Rotate the current layout |
+| `layout:rotate` | None | Rotate the current layout |
 
 `preset` is one of `even-horizontal`, `even-vertical`, `main-horizontal`,
 `main-vertical`, `tiled`.
@@ -85,8 +81,8 @@ corrupt its state machine. Optional, so older clients and relays stay compatible
 
 | Type | Fields | Description |
 | --- | --- | --- |
-| `tmux:prefix` | — | Send the tmux prefix key |
-| `tmux:copy-mode` | — | Enter copy mode |
+| `tmux:prefix` | None | Send the tmux prefix key |
+| `tmux:copy-mode` | None | Enter copy mode |
 | `tmux:scroll` | `lines: number` | Scroll active pane up for positive values, down for negative values. Range: -500 to 500 |
 | `tmux:scroll-to` | `position: number` | Jump to position in tmux history, measured in lines above live output |
 | `tmux:scroll-state` | No fields | Request current history position and copy-mode state |
@@ -103,10 +99,10 @@ app handles scrolling, so shell history rail stays hidden during TUI use.
 | Type | Fields | Description |
 | --- | --- | --- |
 | `command:send` | `command: string` | Send a command, appending Enter |
-| `command:interrupt` | — | Ctrl+C |
-| `command:eof` | — | Ctrl+D |
-| `command:clear` | — | Clear the screen |
-| `command:suspend` | — | Ctrl+Z |
+| `command:interrupt` | None | Ctrl+C |
+| `command:eof` | None | Ctrl+D |
+| `command:clear` | None | Clear the screen |
+| `command:suspend` | None | Ctrl+Z |
 
 ### Files
 
@@ -159,7 +155,7 @@ empty tree. Files whose path file policy denies are left out and counted in
 `hidden`. History reads also disable signature verification, mailmap and
 notes, so a repository setting never runs a GPG program.
 
-All paths pass relay file policy. Git roots, worktree metadata, and common Git
+All paths pass server file policy. Git roots, worktree metadata, and common Git
 directories must remain inside allowed paths. Git configuration includes,
 configured filters, object alternates, and metadata symlinks are refused. Git
 reads disable hooks, external diffs, text conversion, filesystem monitors,
@@ -170,7 +166,7 @@ flagged. Repository actions never stage, commit, restore, or write files.
 
 ### Dictation
 
-Requires `dictation` in `auth:success.features`, which the relay sends only
+Requires `dictation` in `auth:success.features`, which the server sends only
 while the optional speech service answers its health check. Starting and
 feeding audio need write access. Stop and cancel only end what this
 connection started.
@@ -184,12 +180,12 @@ connection started.
 
 `id` is 1 to 64 characters, chosen by the client, so a late reply for a
 cancelled dictation can be ignored. Frames of 100 to 250 ms work well. The
-client holds audio until `dictation:ready`. The relay queues at most 1 MiB
+client holds audio until `dictation:ready`. The server queues at most 1 MiB
 toward the speech service before answering `OVERLOADED`, and ends any
 session after 15 minutes. The service stops taking audio at 10 minutes.
 None of these messages are queued across a reconnect.
 
-## Relay → client
+## Server → client
 
 ### Authentication, keep-alive, errors
 
@@ -205,11 +201,11 @@ None of these messages are queued across a reconnect.
 
 | Type | Fields | Description |
 | --- | --- | --- |
-| `session:list` | `sessions: SessionInfo[]` | Full session list |
+| `session:list` | `sessions: SessionInfo[]` | Full session list. Answers `session:list`, follows a rename, and the Go server also pushes it unasked when its session poll sees a name, id, window count or attached flag change. Clients match sessions by `id`, so a rename arrives as the same id under a new name |
 | `session:created` | `session: SessionInfo` | A session was created |
 | `session:killed` | `name` | A session was killed |
 | `session:activity` | `name`, `activity` | Activity timestamp updated |
-| `session:exited` | `name`, `exitCode?` | The session's process exited |
+| `session:exited` | `name`, `exitCode?` | The session's process exited, or the attached tmux client ended. The web drops the active session on it |
 | `session:attached` | `name`, `attachId?` | Attach acknowledged |
 | `session:windows` | `name`, `windows[]`, `panes[]` | Response to `session:windows` |
 
@@ -292,7 +288,7 @@ or `FAILED`. `message` is safe to show.
 ## Shared schemas
 
 ```typescript
-type TerminalSize = { cols: number; rows: number };  // 1–1000 × 1–500
+type TerminalSize = { cols: number; rows: number };  // cols 1 to 1000, rows 1 to 500
 
 type SessionInfo = {
   name: string;
@@ -346,11 +342,11 @@ type FileStat = FileEntry & {
 
 ## Speech service (internal)
 
-Relay to optional `apps/stt` service, over Docker network `speech`. Browsers
-never reach it. One WebSocket per dictation on `/v1/stream`, plus
+Server to optional `stt` service, over unix socket `stt/stt.sock` in the run
+directory. The service has no TCP listener. Browsers never reach it. One WebSocket per dictation on `/v1/stream`, plus
 `GET /health` answering `{ ok, model, sessions }`.
 
-Relay sends binary frames of 16 kHz mono PCM16 little endian, and one text
+Server sends binary frames of 16 kHz mono PCM16 little endian, and one text
 frame `{"type":"stop"}`. Service sends JSON text frames:
 
 | Type | Fields | Description |
@@ -360,125 +356,16 @@ frame `{"type":"stop"}`. Service sends JSON text frames:
 | `done` | | All audio decoded. Socket closes with 1000 |
 | `error` | `code`, `message` | `BAD_AUDIO`, `BAD_MESSAGE`, `DECODE_FAILED` or `IDLE`. Socket closes with 1011 |
 
-A service at its session limit closes with 1013, which the relay reports as
-`BUSY`. The relay validates every service message before anything reaches a
+A service at its session limit closes with 1013, which the server reports as
+`BUSY`. The server validates every service message before anything reaches a
 browser.
-
-## Pairing and tunnel protocol
-
-Defined in `packages/protocol/src/pairing-messages.ts`. Everything the broker
-sees here is either routing metadata or an opaque blob. Nothing in it lets the
-broker read a keystroke.
-
-## HTTP
-
-| Endpoint | Request | Response |
-| --- | --- | --- |
-| `POST /v1/pair/new` | — | `{ mailboxId, slot, expiresAt }` |
-| `POST /v1/pair/claim` | `{ slot, share, ad, sid }` | `{ offered, claimId }` |
-| `GET /v1/discover` | — | `{ ip }` |
-
-`share` is 32 hex-encoded bytes (a ristretto255 element), `sid` 16, `slot` two
-digits. `offered` is how many live mailboxes the claim reached — never *which*.
-
-## Pairing messages
-
-These are deliberately **direction-neutral**. Pairing has two roles — the
-mailbox holder who parks a slot and waits, and the claimant who quotes it — and
-either can be the browser or the CLI. Nothing in the schema names which end runs
-a terminal.
-
-### Either end → broker
-
-Over `WS /v1/pair/:mailboxId` or `WS /v1/claim/:claimId`.
-
-| Type | Fields | Description |
-| --- | --- | --- |
-| `pair:share` | `peer`, `share` (32B hex), `ad` | This side's CPace share |
-| `pair:confirm` | `peer`, `tag` (32B hex) | Key confirmation |
-| `pair:establish` | `peer`, `sealedDescriptor` | The sealed connection descriptor. Always sent by the CLI. |
-| `pair:close` | `peer?`, `reason?` | Give up on one peer |
-
-`peer` is an opaque handle minted per attempt. A slot is shared by many
-simultaneous pairings, so a claim is fanned out and may hear back from several;
-the handle keeps those conversations apart, and means nothing outside the
-attempt.
-
-A close after a claim always destroys the mailbox. That is what makes a wrong
-guess cost the attacker the whole code.
-
-### Broker → either end
-
-| Type | Fields | Description |
-| --- | --- | --- |
-| `pair:ready` | `mailboxId`, `slot`, `expiresAt` | The mailbox socket is live. Mailbox holder only. |
-| `pair:peer-share` | `peer`, `share`, `ad`, `sid` | The other side's share. `sid` is always the claimant's. |
-| `pair:peer-confirm` | `peer`, `tag` | The peer's confirmation tag |
-| `pair:established` | `peer`, `sealedDescriptor` | Pairing succeeded |
-| `pair:failed` | `peer?`, `reason`, `message?` | Terminal failure — destroys the mailbox |
-
-`reason` is one of `expired`, `already-claimed`, `confirmation-failed`,
-`peer-gone`, `rate-limited`, `server-error`.
-
-Receiving `pair:peer-share` is **not** evidence that the peer knows the secret,
-because the claim was fanned out to every mailbox on the slot. Only a valid
-`pair:peer-confirm` is.
-
-## Tunnel messages
-
-Over `WS /v1/agent` for the CLI and `WS /v1/tunnel/:id` for the browser.
-
-### CLI → broker
-
-| Type | Fields | Description |
-| --- | --- | --- |
-| `tunnel:register` | `deviceId` (8B hex), `publicKey` (32B), `challenge` (32B), `signature` (64B) | Register this device's tunnel |
-| `stream:close` | `streamId`, `reason?` | Close one stream |
-| `stream:frame` | `streamId`, `data` (base64url) | One sealed application frame |
-
-### Broker → either side
-
-| Type | Fields | Description |
-| --- | --- | --- |
-| `tunnel:challenge` | `challenge` (32B hex) | First message on `/v1/agent`. Server-issued, so a captured registration cannot be replayed. |
-| `tunnel:ready` | `tunnelId` | Registration accepted |
-| `stream:open` | `streamId` | A browser wants a stream |
-| `stream:close` | `streamId`, `reason?` | One stream is closing |
-| `stream:frame` | `streamId`, `data` | Forwarded verbatim — the broker holds no key that could open it |
-| `tunnel:closed` | `reason` | The whole tunnel is going away |
-
-`tunnel:closed.reason` is one of `agent-gone`, `quota-exceeded`, `expired`,
-`revoked`, `server-error`.
-
-A sealed frame carries at most **1 MiB** of plaintext.
-
-## The sealed descriptor
-
-The payload the CLI seals under the pairing key. The broker only ever sees its
-ciphertext, so publishing the shape is safe and keeps both ends honest about it.
-
-```typescript
-type SealedDescriptor = {
-  candidates: string[];   // direct URLs to race, best first, max 8
-  tunnelId: string;       // fall back to this when every candidate fails
-  deviceId: string;       // 8 bytes hex — pin it for reconnects
-  publicKey: string;      // 32 bytes hex
-  label: string;          // e.g. "gagan@thinkpad"
-};
-```
-
-It is sealed fresh at counter 0 with a `FrameSealer` on the CLI → browser
-direction. See [The sealed tunnel](/docs/sealed-tunnel).
 
 ## Adding a message
 
 1. Add the Zod schema to the right file in `packages/protocol/src/`.
 2. Add it to the discriminated union.
-3. Handle client messages in `apps/relay/src/message-router.ts`.
-4. Handle server messages in `apps/web/src/hooks/use-websocket.ts`.
-
-## Next steps
-
-- [Relay server](/docs/relay) — the server that speaks the relay half
-- [The sealed tunnel](/docs/sealed-tunnel) — what wraps the pairing half
-- [Architecture](/docs/architecture) — how the two protocols stay separate
+3. Add the Go type and its registry entry in `internal/protocol/client` or
+   `internal/protocol/server`.
+4. Add a fixture in `packages/protocol/fixtures`, plus invalid cases.
+5. Handle client messages in `internal/node/local/router.go`.
+6. Handle server messages in `ui/src/hooks/use-websocket.ts`.

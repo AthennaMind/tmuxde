@@ -1,0 +1,9 @@
+[
+  {
+    "field": "delta",
+    "message": {
+      "type": "window:step",
+      "delta": 1.5
+    }
+  }
+]
