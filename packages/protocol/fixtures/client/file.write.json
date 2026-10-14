@@ -1,0 +1,12 @@
+[
+  {
+    "type": "file:write",
+    "path": "/home/dev/projects/tmuxde/notes.md",
+    "content": "# Notes\n\n- Check pane focus after reconnect.\n"
+  },
+  {
+    "type": "file:write",
+    "path": "/home/dev/projects/tmuxde/.gitkeep",
+    "content": ""
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "type": "tmux:scroll-to",
+    "position": 1200
+  },
+  {
+    "type": "tmux:scroll-to",
+    "position": 0
+  }
+]

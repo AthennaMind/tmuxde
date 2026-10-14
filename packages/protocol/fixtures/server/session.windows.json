@@ -1,0 +1,120 @@
+[
+  {
+    "type": "session:windows",
+    "name": "dev",
+    "windows": [
+      {
+        "id": "@1",
+        "index": 0,
+        "name": "editor",
+        "active": true,
+        "paneCount": 2,
+        "layout": "c4d5,200x50,0,0{100x50,0,0,1,99x50,101,0,2}",
+        "activity": false,
+        "zoomed": false,
+        "dimensions": {
+          "cols": 200,
+          "rows": 50
+        }
+      },
+      {
+        "id": "@2",
+        "index": 1,
+        "name": "claude",
+        "active": false,
+        "paneCount": 1,
+        "layout": "b7de,200x50,0,0,3",
+        "activity": true,
+        "zoomed": false,
+        "dimensions": {
+          "cols": 200,
+          "rows": 50
+        }
+      }
+    ],
+    "panes": [
+      {
+        "id": "%1",
+        "index": 0,
+        "windowId": "@1",
+        "active": true,
+        "zoomed": false,
+        "dimensions": {
+          "cols": 100,
+          "rows": 50
+        },
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "command": "nvim",
+        "path": "/home/dev/src/tmuxde"
+      },
+      {
+        "id": "%2",
+        "index": 1,
+        "windowId": "@1",
+        "active": false,
+        "zoomed": false,
+        "dimensions": {
+          "cols": 99,
+          "rows": 50
+        },
+        "position": {
+          "x": 101,
+          "y": 0
+        },
+        "command": "bash",
+        "path": "/home/dev/src/tmuxde/apps/server"
+      },
+      {
+        "id": "%3",
+        "index": 0,
+        "windowId": "@2",
+        "active": true,
+        "zoomed": false,
+        "dimensions": {
+          "cols": 200,
+          "rows": 50
+        },
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "command": "claude",
+        "path": "/home/dev/src/tmuxde"
+      }
+    ]
+  },
+  {
+    "type": "session:windows",
+    "name": "agents",
+    "windows": [
+      {
+        "id": "@5",
+        "index": 0,
+        "name": "bash",
+        "active": true,
+        "paneCount": 1,
+        "layout": "a1f0,120x40,0,0,7"
+      }
+    ],
+    "panes": [
+      {
+        "id": "%7",
+        "index": 0,
+        "windowId": "@5",
+        "active": true,
+        "zoomed": false,
+        "dimensions": {
+          "cols": 120,
+          "rows": 40
+        },
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    ]
+  }
+]

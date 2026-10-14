@@ -1,0 +1,11 @@
+[
+  {
+    "type": "file:create",
+    "path": "/home/dev/projects/tmuxde/scripts/check.sh",
+    "content": "#!/bin/sh\nset -eu\n"
+  },
+  {
+    "type": "file:create",
+    "path": "/home/dev/projects/tmuxde/TODO.md"
+  }
+]

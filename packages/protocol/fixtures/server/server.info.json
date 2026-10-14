@@ -1,0 +1,15 @@
+[
+  {
+    "type": "server:info",
+    "hostname": "workstation",
+    "platform": "linux",
+    "uptime": 86400,
+    "defaultPath": "/home/dev"
+  },
+  {
+    "type": "server:info",
+    "hostname": "workstation",
+    "platform": "linux",
+    "uptime": 312
+  }
+]

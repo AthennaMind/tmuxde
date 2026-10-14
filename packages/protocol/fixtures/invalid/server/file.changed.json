@@ -1,0 +1,10 @@
+[
+  {
+    "field": "event",
+    "message": {
+      "type": "file:changed",
+      "path": "/home/dev/projects/tmuxde/apps/web/src/lib/ws-client.ts",
+      "event": "move"
+    }
+  }
+]

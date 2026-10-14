@@ -1,0 +1,16 @@
+[
+  {
+    "type": "tmux:scroll-state",
+    "position": 120,
+    "historySize": 4821,
+    "paneHeight": 40,
+    "inMode": true
+  },
+  {
+    "type": "tmux:scroll-state",
+    "position": 0,
+    "historySize": 0,
+    "paneHeight": 40,
+    "inMode": false
+  }
+]

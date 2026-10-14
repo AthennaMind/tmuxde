@@ -1,0 +1,14 @@
+[
+  {
+    "type": "pane:resize",
+    "id": "%3",
+    "direction": "L",
+    "amount": 5
+  },
+  {
+    "type": "pane:resize",
+    "id": "%5",
+    "direction": "D",
+    "amount": 1
+  }
+]

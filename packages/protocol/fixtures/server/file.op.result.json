@@ -1,0 +1,23 @@
+[
+  {
+    "type": "file:op:result",
+    "op": "upload",
+    "path": "/home/dev/uploads/screenshot.png",
+    "success": false,
+    "error": "File too large",
+    "final": true
+  },
+  {
+    "type": "file:op:result",
+    "op": "upload",
+    "path": "/home/dev/uploads/build.log",
+    "success": true,
+    "final": false
+  },
+  {
+    "type": "file:op:result",
+    "op": "rename",
+    "path": "/home/dev/projects/tmuxde/docs/notes.md",
+    "success": true
+  }
+]

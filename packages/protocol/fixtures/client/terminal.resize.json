@@ -1,0 +1,16 @@
+[
+  {
+    "type": "terminal:resize",
+    "size": {
+      "cols": 120,
+      "rows": 40
+    }
+  },
+  {
+    "type": "terminal:resize",
+    "size": {
+      "cols": 48,
+      "rows": 24
+    }
+  }
+]
