@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { RepoResponse } from "./repository";
+import {
+  RepoChangedMessage,
+  RepoResponse,
+  RepoWatchResultMessage,
+} from "./repository";
 import {
   SessionInfoSchema,
   FileEntrySchema,
@@ -267,6 +271,8 @@ export const DictationErrorMessage = z.object({
 
 export const ServerMessage = z.discriminatedUnion("type", [
   RepoResponse,
+  RepoWatchResultMessage,
+  RepoChangedMessage,
   AuthSuccessMessage,
   AuthFailureMessage,
   PongMessage,

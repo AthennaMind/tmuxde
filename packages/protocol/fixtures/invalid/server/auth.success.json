@@ -15,6 +15,7 @@
         "file:upload:ack",
         "window:step",
         "pane:step",
+        "repo:watch",
         "dictation"
       ]
     }

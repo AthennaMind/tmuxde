@@ -1,0 +1,34 @@
+[
+  {
+    "type": "repo:changed",
+    "root": "/home/dev/projects/tmuxde",
+    "git": false,
+    "refs": false,
+    "paths": ["README.md", "ui/src/main.tsx"],
+    "truncated": false
+  },
+  {
+    "type": "repo:changed",
+    "root": "/home/dev/projects/tmuxde",
+    "git": true,
+    "refs": false,
+    "paths": [],
+    "truncated": false
+  },
+  {
+    "type": "repo:changed",
+    "root": "/home/dev/projects/tmuxde",
+    "git": true,
+    "refs": true,
+    "paths": [],
+    "truncated": false
+  },
+  {
+    "type": "repo:changed",
+    "root": "/home/dev/projects/tmuxde",
+    "git": true,
+    "refs": true,
+    "paths": ["build/out.txt"],
+    "truncated": true
+  }
+]
