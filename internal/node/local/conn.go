@@ -8,6 +8,7 @@ import (
 
 	"tmuxde/internal/node"
 	"tmuxde/internal/node/files"
+	"tmuxde/internal/node/repo"
 	"tmuxde/internal/protocol"
 	"tmuxde/internal/protocol/server"
 )
@@ -50,6 +51,8 @@ type conn struct {
 	// watchers maps the path of each file:watch, as the browser sent it,
 	// to its watcher.
 	watchers map[string]*files.Watcher
+	// repoWatchers maps the root of each repo:watch to its watch.
+	repoWatchers map[string]repo.WatchHandle
 }
 
 // attachment is one pty bridge and its output pump.
@@ -254,6 +257,25 @@ func (c *conn) takeWatchersLocked() []*files.Watcher {
 	}
 	c.watchers = nil
 	return list
+}
+
+// takeRepoWatchersLocked empties the repository watch map and returns its
+// watches in root order. The caller holds c.mu and closes them after
+// unlocking.
+func (c *conn) takeRepoWatchersLocked() []repo.WatchHandle {
+	list := make([]repo.WatchHandle, 0, len(c.repoWatchers))
+	for _, root := range slices.Sorted(maps.Keys(c.repoWatchers)) {
+		list = append(list, c.repoWatchers[root])
+	}
+	c.repoWatchers = nil
+	return list
+}
+
+// closeRepoWatchers closes each watch and waits for its goroutine.
+func closeRepoWatchers(list []repo.WatchHandle) {
+	for _, w := range list {
+		_ = w.Close()
+	}
 }
 
 // closeWatchers closes each watcher and waits for its goroutine, so the

@@ -20,6 +20,8 @@ import { useMainTabsStore } from "@/stores/main-tabs-store";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
 import { RepositoryFileIcon } from "@/components/files/repository-file-icon";
 import { useRepositoryQuery } from "@/components/files/repository-preview";
+import { changeTouchesFolder } from "@/lib/repo-change";
+import { useRepoChangeCount } from "@/stores/repo-watch-store";
 import type { RepositoryClient } from "@/components/files/repository-request";
 import { PanelHeader, PanelIconButton } from "./panel-header";
 import {
@@ -340,12 +342,17 @@ function FolderChildren({
   parentKey: string | null;
   state: TreeState;
 }) {
+  // A push that touches this folder lists it again, quietly. Both counts
+  // only grow, so their sum changes whenever either does.
+  const pushed = useRepoChangeCount((change) =>
+    changeTouchesFolder(change, path),
+  );
   // Another pane or a refresh asks again for the same folder. The old rows
   // stay until the answer lands instead of collapsing to "Loading".
   const listing = useRepositoryQuery(
     state.client,
     { id: state.paneId, action: "list", path },
-    state.refreshKey,
+    state.refreshKey + pushed,
     { keepPrevious: true },
   );
   const indent = 4 + depth * 14 + 22;

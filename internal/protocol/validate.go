@@ -124,6 +124,14 @@ func RequiredSlice[T any](field string, items []T) error {
 	return nil
 }
 
+// MaxItems mirrors z.array().max(n).
+func MaxItems[T any](field string, items []T, n int) error {
+	if len(items) > n {
+		return &FieldError{field, fmt.Sprintf("must have at most %d items", n)}
+	}
+	return nil
+}
+
 // Validator is a nested value with its own Validate.
 type Validator interface {
 	Validate() error

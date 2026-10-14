@@ -1,0 +1,11 @@
+[
+  {
+    "type": "repo:watch",
+    "id": "%3",
+    "path": "/home/dev/projects/tmuxde"
+  },
+  {
+    "type": "repo:watch",
+    "id": "%3"
+  }
+]

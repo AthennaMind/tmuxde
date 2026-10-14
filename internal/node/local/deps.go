@@ -77,11 +77,19 @@ type Bridge interface {
 	Close() error
 }
 
-// Repo answers repo:request from a pane directory. *repo.Service
-// satisfies it. The result is never nil, and failures come back as kind
-// error.
+// Repo answers repo:request from a pane directory and runs repository
+// watches. *repo.Service satisfies it. The result of Request is never nil,
+// and failures come back as kind error.
 type Repo interface {
 	Request(ctx context.Context, cwd string, req *client.RepoRequest) *server.RepoResult
+	// WatchRoot finds the repository root a watch from pane folder cwd
+	// covers. path is the captured context folder, when the browser sent
+	// one.
+	WatchRoot(ctx context.Context, cwd string, path *string) (string, error)
+	// Watch starts a watch of root. repo:changed, and repo:watch:result
+	// when the watch turns partial later, go to send until Close or until
+	// ctx ends.
+	Watch(ctx context.Context, root string, send func(server.Message)) (repo.WatchHandle, error)
 }
 
 var (

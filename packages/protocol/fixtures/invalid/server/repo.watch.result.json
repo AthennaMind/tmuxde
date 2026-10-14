@@ -1,0 +1,10 @@
+[
+  {
+    "field": "partial",
+    "message": {
+      "type": "repo:watch:result",
+      "root": "/home/dev/projects/tmuxde",
+      "ok": true
+    }
+  }
+]

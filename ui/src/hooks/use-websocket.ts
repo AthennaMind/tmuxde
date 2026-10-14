@@ -19,6 +19,7 @@ import * as registry from "@/lib/relay-registry";
 import { isMobileViewport } from "@/lib/mobile-query";
 import { noteSessionAttached, noteSessionDetached } from "@/lib/session-target";
 import { useSessionTreeStore } from "@/stores/session-tree-store";
+import { useRepoWatchStore } from "@/stores/repo-watch-store";
 import { handleDictationMessage } from "@/lib/dictation";
 import {
   applySessionList,
@@ -210,6 +211,13 @@ export function useWebSocket(url: string, token: string) {
         case "repo:result":
           // Repository browser correlates replies to its active request.
           break;
+        case "repo:watch:result":
+          // A refusal is quiet. The views keep polling without the watch.
+          useRepoWatchStore.getState().applyResult(msg);
+          break;
+        case "repo:changed":
+          useRepoWatchStore.getState().applyChange(msg);
+          break;
         case "file:write:result":
           // Handled in file-editor component via onMessage subscription
           break;
@@ -291,6 +299,10 @@ export function useWebSocket(url: string, token: string) {
            * with the attach then answer `NOT_ATTACHED`, which is no news.
            */
           if (isAttachFallout(msg.code)) break;
+          // The editor watches the folder of its file to notice outside
+          // changes. Without the watch it still opens and saves, so a
+          // failed watch is no news either.
+          if (msg.code === "WATCH_FAILED") break;
           if (
             msg.code === "SESSION_NOT_FOUND" &&
             sessionStore.activeSessionId !== null &&
@@ -320,7 +332,11 @@ export function useWebSocket(url: string, token: string) {
           },
           onStatusChange: (status) => {
             useConnectionStore.getState().setStatus(status);
-            if (status !== "connected") noteSessionDetached();
+            if (status !== "connected") {
+              noteSessionDetached();
+              // The server drops watches with the socket.
+              useRepoWatchStore.getState().reset();
+            }
             if (status === "reconnecting") {
               useConnectionStore.getState().incrementReconnect();
             }

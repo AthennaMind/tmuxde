@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { RepoResult } from "@repo/protocol";
 import { useRelayClient } from "@/hooks/use-websocket";
+import { useVisibleInterval } from "@/hooks/use-visible-interval";
+import { sameRoot } from "@/lib/repo-change";
+import {
+  useRepoWatch,
+  useRepoWatchStore,
+  watchHealthy,
+} from "@/stores/repo-watch-store";
 import { usePaneStore } from "@/stores/pane-store";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
 import { useSessionTreeStore } from "@/stores/session-tree-store";
@@ -33,14 +40,21 @@ export interface RepositoryState {
   refreshStatus: () => void;
 }
 
+/** Status poll while no server watch covers the repository. */
 const STATUS_INTERVAL_MS = 15_000;
+/** Safety poll while the server watch pushes changes. */
+const WATCHED_INTERVAL_MS = 120_000;
+/** Pushes closer than this share one status request. */
+const PUSH_DEBOUNCE_MS = 200;
 
 /**
  * Directory, branch and changes of the active pane.
  *
  * Lives at the sidebar root so the rail badge, Files and Changes share one
- * set of requests. `watching` turns on the timer while Files or Changes is
- * on screen.
+ * set of requests. A server watch on the repository pushes changes, and
+ * each push asks for status again. The watch stays while the sidebar is
+ * collapsed, so the rail badge stays fresh. `watching` turns on the safety
+ * poll while Files, Changes or History is on screen.
  */
 export function useRepositoryState(watching: boolean): RepositoryState {
   const client = useRelayClient();
@@ -131,35 +145,82 @@ export function useRepositoryState(watching: boolean): RepositoryState {
       ? `${contextPath}:${refreshKey}:${statusKey}:`
       : "";
   const statusRequestKey = statusBase ? `${statusBase}${pollKey}` : "";
+  // A status request in flight, and a push that came in meanwhile. Pushes
+  // never start a second request. One more runs after the answer instead.
+  const statusBusy = useRef(false);
+  const statusAgain = useRef(false);
   useEffect(() => {
     // An absolute path, so `repositoryRequest` sends it through the active pane.
     const paneId = usePaneStore.getState().activePaneId ?? contextPane;
     if (!statusRequestKey || !client || !paneId || !contextPath) return;
     const controller = new AbortController();
+    statusBusy.current = true;
+    const settle = () => {
+      statusBusy.current = false;
+      if (statusAgain.current) {
+        statusAgain.current = false;
+        setPollKey((n) => n + 1);
+      }
+    };
     repositoryRequest(
       client,
       { id: paneId, action: "status", path: contextPath },
       controller.signal,
     )
       .then((result) => {
-        if (!controller.signal.aborted && result.kind === "status")
+        if (controller.signal.aborted) return;
+        if (result.kind === "status")
           setStatus({
             key: statusRequestKey,
             path: contextPath,
             value: result,
           });
+        settle();
       })
       .catch((error: unknown) => {
-        if (!controller.signal.aborted)
-          setStatus({
-            key: statusRequestKey,
-            path: contextPath,
-            error:
-              error instanceof Error ? error.message : "Could not load changes.",
-          });
+        if (controller.signal.aborted) return;
+        setStatus({
+          key: statusRequestKey,
+          path: contextPath,
+          error:
+            error instanceof Error ? error.message : "Could not load changes.",
+        });
+        settle();
       });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      statusBusy.current = false;
+    };
   }, [client, contextPath, statusRequestKey]);
+
+  // The server watch of the repository. Kept while the sidebar is collapsed.
+  const root = ready ? currentContext?.value?.root : undefined;
+  const watch = useRepoWatch(ready ? client : null, root, {
+    paneId: contextPane ?? null,
+    path: contextPath,
+  });
+  const healthy = watchHealthy(watch);
+
+  // Each push for this repository asks for status again, quietly. Git
+  // changes come this way too, and History follows the new status.
+  useEffect(() => {
+    if (!root) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = useRepoWatchStore.subscribe((s, prev) => {
+      const change = s.lastChange;
+      if (!change || change === prev.lastChange || !sameRoot(change, root))
+        return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (statusBusy.current) statusAgain.current = true;
+        else setPollKey((n) => n + 1);
+      }, PUSH_DEBOUNCE_MS);
+    });
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [root]);
 
   const currentStatus =
     status && status.path === contextPath ? status : undefined;
@@ -168,18 +229,16 @@ export function useRepositoryState(watching: boolean): RepositoryState {
   const refreshStatus = useCallback(() => setStatusKey((n) => n + 1), []);
 
   // Timer refreshes skip the spinner. Only a request someone asked for spins.
-  useEffect(() => {
-    if (!watching || !ready) return;
-    const tick = () => {
-      if (document.visibilityState === "visible") setPollKey((n) => n + 1);
-    };
-    const interval = setInterval(tick, STATUS_INTERVAL_MS);
-    window.addEventListener("focus", tick);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("focus", tick);
-    };
-  }, [watching, ready]);
+  // The poll is the safety net under the watch: slow while the watch covers
+  // the whole work tree, the old pace without it. Focus and a tab coming back
+  // to view ask at once.
+  useVisibleInterval(
+    () => {
+      if (!statusBusy.current) setPollKey((n) => n + 1);
+    },
+    healthy ? WATCHED_INTERVAL_MS : STATUS_INTERVAL_MS,
+    { enabled: watching && !!ready, debounceMs: 1_000 },
+  );
 
   const attaching = available && !attached;
   const contextPending = !!ready && context?.key !== contextKey;
