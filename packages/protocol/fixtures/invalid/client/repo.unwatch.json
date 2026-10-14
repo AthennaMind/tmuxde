@@ -1,0 +1,9 @@
+[
+  {
+    "field": "root",
+    "message": {
+      "type": "repo:unwatch",
+      "root": ""
+    }
+  }
+]

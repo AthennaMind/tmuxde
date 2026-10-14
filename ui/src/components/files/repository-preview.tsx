@@ -32,12 +32,19 @@ type Result = RepositoryResult;
  * `keepPrevious` leaves the last answer on screen while the next one loads.
  * Only for callers whose query names the same thing across changes, such as
  * one folder of the sidebar tree asked again for another pane.
+ *
+ * `keepOnRefresh` does that only when the query is the same and just
+ * `refresh` moved, as a quiet reload after a change on disk does. A new
+ * query still starts empty.
  */
 export function useRepositoryQuery(
   client: RepositoryClient,
   query: RepositoryQuery | null,
   refresh: number,
-  { keepPrevious = false }: { keepPrevious?: boolean } = {},
+  {
+    keepPrevious = false,
+    keepOnRefresh = false,
+  }: { keepPrevious?: boolean; keepOnRefresh?: boolean } = {},
 ) {
   // An absolute path answers the same through any pane, so the pane stays out
   // of the key. Moving between panes then asks nothing again.
@@ -80,7 +87,11 @@ export function useRepositoryQuery(
   }, [attached, client, key, refresh]);
   const current =
     state?.key === key && state.refresh === refresh ? state : undefined;
-  const shown = current ?? (keepPrevious && query !== null ? state : undefined);
+  const shown =
+    current ??
+    (query !== null && (keepPrevious || (keepOnRefresh && state?.key === key))
+      ? state
+      : undefined);
   return {
     result: shown?.result,
     error: shown?.error,

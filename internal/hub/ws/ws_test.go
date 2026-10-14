@@ -169,7 +169,7 @@ func TestAuthSuccess(t *testing.T) {
 		h := newHarness(t, func(o *Options) { o.DictationAvailable = func() bool { return true } })
 		c := h.dial(t, nil)
 		c.authWith(testToken)
-		c.expect(strings.Replace(wantAuthSuccess, `"pane:step"]`, `"pane:step","dictation"]`, 1))
+		c.expect(strings.Replace(wantAuthSuccess, `"repo:watch"]`, `"repo:watch","dictation"]`, 1))
 		c.expect(wantServerInfo)
 	})
 

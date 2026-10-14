@@ -28,6 +28,17 @@ import { getRelayClient } from "@/hooks/use-websocket";
 import { sendCommand } from "@/lib/send-command";
 import { useConnectionStore } from "@/stores/connection-store";
 
+/** How long after a save the editor ignores changes to its own file. */
+const SAVE_ECHO_MS = 1_500;
+
+function baseName(path: string): string {
+  return path.slice(path.lastIndexOf("/") + 1);
+}
+
+function parentFolder(path: string): string {
+  return path.slice(0, path.lastIndexOf("/")) || "/";
+}
+
 export function FileEditor() {
   const { editorFile, editorTruncated, isSaving, closeEditor, setIsSaving } =
     useFileStore();
@@ -56,6 +67,16 @@ export function FileEditor() {
     currentContent !== null &&
     savedContent !== currentContent;
 
+  // The message handler below lives as long as the file is open. It reads
+  // the edit state through refs, so it never sees the state of the render
+  // that subscribed it.
+  const modifiedRef = useRef(isModified);
+  modifiedRef.current = isModified;
+  // The content of the save in flight, which becomes the saved content.
+  const savingRef = useRef<string | null>(null);
+  // Our own save also changes the file on disk. Its event is no news.
+  const quietUntilRef = useRef(0);
+
   // Load file on mount
   useEffect(() => {
     if (!editorFile) return;
@@ -70,6 +91,8 @@ export function FileEditor() {
     setFileStat(null);
     setExternalChange(false);
     setLoadError(null);
+    savingRef.current = null;
+    quietUntilRef.current = 0;
 
     // Timeout if file:content never arrives
     loadTimeoutRef.current = setTimeout(() => {
@@ -104,23 +127,30 @@ export function FileEditor() {
       }
       if (msg.type === "file:write:result" && msg.path === editorFile) {
         setIsSaving(false);
+        const written = savingRef.current;
+        savingRef.current = null;
         if (msg.success) {
-          setSavedContent(currentContent);
+          if (written !== null) setSavedContent(written);
+          quietUntilRef.current = Date.now() + SAVE_ECHO_MS;
           useAlertStore.getState().push("success", "File saved");
         } else {
           useAlertStore.getState().push("error", msg.error ?? "Save failed");
         }
       }
+      // The watch is on the folder, and the server names files by their
+      // real path. The name picks out this file. An editor that saves
+      // through a temp file and a rename shows up as add.
       if (
         msg.type === "file:changed" &&
-        msg.path === editorFile &&
-        msg.event === "change"
+        baseName(msg.path) === baseName(editorFile) &&
+        (msg.event === "change" || msg.event === "add") &&
+        savingRef.current === null &&
+        Date.now() > quietUntilRef.current
       ) {
-        // File changed externally
-        if (isModified) {
+        if (modifiedRef.current) {
+          // Keep the edits. The banner offers a reload.
           setExternalChange(true);
         } else {
-          // Auto-reload if no local changes
           client.send({ type: "file:read", path: editorFile });
         }
       }
@@ -148,23 +178,32 @@ export function FileEditor() {
     if (connectionStatus !== "connected") return;
     const client = getRelayClient();
     if (!client) return;
-    client.send({ type: "file:watch", path: editorFile });
+    // The server watches folders only. Watch the one that holds the file.
+    const folder = parentFolder(editorFile);
+    client.send({ type: "file:watch", path: folder });
     return () => {
-      getRelayClient()?.send({ type: "file:unwatch", path: editorFile });
+      getRelayClient()?.send({ type: "file:unwatch", path: folder });
     };
   }, [editorFile, connectionStatus]);
 
+  // Monaco binds Ctrl+S once, when it mounts, so the handler it holds is
+  // the first one. It reads the file and the text through refs. Reading
+  // them from its closure saved the text the file had when it opened.
+  const saveTarget = useRef({ editorFile, currentContent, isReadOnly });
+  saveTarget.current = { editorFile, currentContent, isReadOnly };
   const handleSave = useCallback(() => {
+    const { editorFile, currentContent, isReadOnly } = saveTarget.current;
     if (!editorFile || currentContent === null || isReadOnly) return;
     const client = getRelayClient();
     if (!client) return;
     setIsSaving(true);
+    savingRef.current = currentContent;
     client.send({
       type: "file:write",
       path: editorFile,
       content: currentContent,
     });
-  }, [editorFile, currentContent, isReadOnly, setIsSaving]);
+  }, [setIsSaving]);
 
   const handleClose = useCallback(() => {
     if (isModified) {

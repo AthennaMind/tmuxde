@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { RepoRequest } from "./repository";
+import {
+  RepoRequest,
+  RepoUnwatchMessage,
+  RepoWatchMessage,
+} from "./repository";
 import { TerminalSizeSchema } from "./types";
 
 export const AuthMessage = z.object({
@@ -369,6 +373,8 @@ export const DictationCancelMessage = z.object({
 
 export const ClientMessage = z.discriminatedUnion("type", [
   RepoRequest,
+  RepoWatchMessage,
+  RepoUnwatchMessage,
   AuthMessage,
   PingMessage,
   TerminalInputMessage,

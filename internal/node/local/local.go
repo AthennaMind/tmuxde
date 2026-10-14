@@ -4,8 +4,8 @@
 // It is the Go port of the relay's message-router.ts and the monitor
 // wiring of wire-connections.ts. Every message the hub passes on is handled
 // here: sessions, windows, panes, scroll and copy mode, command keys, the
-// pty attach, the file messages and repo:request. The node also opens
-// files for GET /file, as node.FileOpener.
+// pty attach, the file messages, repo:request and repository watches. The
+// node also opens files for GET /file, as node.FileOpener.
 //
 // The node never talks to tmux or a pty directly. It goes through the Tmux,
 // Attacher and Monitor dependencies. Files and repositories go through the
@@ -72,6 +72,8 @@ type Node struct {
 	log        *slog.Logger
 	// maxWatchers caps the watchers of one connection.
 	maxWatchers int
+	// maxRepoWatchers caps the repository watches of one connection.
+	maxRepoWatchers int
 	// setupErr is why New could not build the path guard. Start returns
 	// it, so serve refuses to run without file access rules.
 	setupErr error
@@ -160,6 +162,8 @@ func NewWithDeps(cfg config.Config, deps Deps) *Node {
 		log:         deps.Logger,
 		maxWatchers: defaultMaxWatchers,
 		conns:       map[node.ConnID]*conn{},
+
+		maxRepoWatchers: defaultMaxRepoWatchers,
 	}
 	if n.attacher == nil {
 		n.attacher = PtyAttach
@@ -258,8 +262,8 @@ func (n *Node) Open(ctx context.Context, id node.ConnID, out node.Sink) error {
 }
 
 // Close ends connection id in the relay's removeConnection order: the pty
-// first, marked detaching so its end stays silent, then the directory
-// watchers, then the temp files of unfinished uploads, then the record.
+// first, marked detaching so its end stays silent, then the directory and
+// repository watchers, then the temp files of unfinished uploads, then the record.
 // The targets of those uploads stay as they were. The tmux session stays
 // alive. Closing a connection that is not open does nothing.
 func (n *Node) Close(id node.ConnID) {
@@ -277,6 +281,7 @@ func (n *Node) Close(id node.ConnID) {
 	c.closed = true
 	a := c.takeLocked()
 	watchers := c.takeWatchersLocked()
+	repoWatchers := c.takeRepoWatchersLocked()
 	c.mu.Unlock()
 
 	if a != nil {
@@ -289,6 +294,7 @@ func (n *Node) Close(id node.ConnID) {
 	c.cancel()
 	release(a)
 	closeWatchers(watchers)
+	closeRepoWatchers(repoWatchers)
 	if c.uploads != nil {
 		c.uploads.Cleanup()
 	}
