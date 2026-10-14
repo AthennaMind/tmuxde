@@ -49,17 +49,32 @@ export interface CommitTab {
   contextPath: string;
 }
 
+/**
+ * Commit graph of every branch, tag and remote branch of one repository.
+ *
+ * Opened from History or the palette. `contextPath` pins the repository like
+ * a commit tab, so the graph stays on it when the active pane moves. One tab
+ * per repository.
+ */
+export interface GraphTab {
+  kind: "graph";
+  id: string;
+  paneId: string;
+  /** Absolute folder the log request is resolved against. */
+  contextPath: string;
+}
+
 /** The settings page. At most one, opened from the rail or the palette. */
 export interface SettingsTab {
   kind: "settings";
   id: typeof SETTINGS_TAB;
 }
 
-export type MainTab = FileTab | CommitTab | SettingsTab;
+export type MainTab = FileTab | CommitTab | GraphTab | SettingsTab;
 
 /**
- * What a bulk close takes. `all` includes settings, `diffs` includes commits.
- * The terminal stays.
+ * What a bulk close takes. `all` includes settings and graphs, `diffs`
+ * includes commits. The terminal stays.
  */
 export type CloseGroup = "all" | "diffs" | "files";
 
@@ -75,6 +90,10 @@ export function commitTabId(hash: string): string {
   return `commit:${hash}`;
 }
 
+export function graphTabId(contextPath: string): string {
+  return `graph:${contextPath}`;
+}
+
 interface MainTabsStore {
   tabs: MainTab[];
   /** `TERMINAL_TAB` or a tab id. */
@@ -83,6 +102,7 @@ interface MainTabsStore {
   openCommit: (tab: Omit<CommitTab, "id" | "kind">) => void;
   /** Fill in a subject the opener did not know. Never activates. */
   nameCommit: (hash: string, subject: string) => void;
+  openGraph: (tab: Omit<GraphTab, "id" | "kind">) => void;
   openSettings: () => void;
   closeTab: (id: string) => void;
   closeTabs: (group: CloseGroup) => void;
@@ -90,10 +110,35 @@ interface MainTabsStore {
   showTerminal: () => void;
 }
 
-/** Replace a tab in place, or append it. Oldest goes once the strip is full. */
-function upsert(tabs: MainTab[], tab: MainTab): MainTab[] {
+/**
+ * Cut the strip down to `MAX_TABS`. The oldest file or commit goes first.
+ * Graphs hold loaded pages and are where commits are opened from, and
+ * settings is a single tab, so those go only when nothing else can. A tab
+ * in `keep` never goes.
+ */
+export function trimTabs(
+  tabs: MainTab[],
+  keep: ReadonlySet<string>,
+): MainTab[] {
+  if (tabs.length <= MAX_TABS) return tabs;
+  const next = [...tabs];
+  while (next.length > MAX_TABS) {
+    let index = next.findIndex(
+      (t) => (t.kind === "file" || t.kind === "commit") && !keep.has(t.id),
+    );
+    if (index < 0) index = next.findIndex((t) => !keep.has(t.id));
+    next.splice(Math.max(index, 0), 1);
+  }
+  return next;
+}
+
+/**
+ * Replace a tab in place, or append it. A full strip drops a tab as
+ * `trimTabs` picks it, never the new tab or the one in front.
+ */
+function upsert(tabs: MainTab[], tab: MainTab, active: string): MainTab[] {
   const existing = tabs.findIndex((t) => t.id === tab.id);
-  if (existing < 0) return [...tabs, tab].slice(-MAX_TABS);
+  if (existing < 0) return trimTabs([...tabs, tab], new Set([tab.id, active]));
   const next = [...tabs];
   next[existing] = tab;
   return next;
@@ -110,9 +155,17 @@ function isMainTab(value: unknown): value is MainTab {
   const tab = value as
     | Partial<FileTab>
     | Partial<CommitTab>
+    | Partial<GraphTab>
     | Partial<SettingsTab>
     | null;
   if (tab?.kind === "settings") return tab.id === SETTINGS_TAB;
+  if (tab?.kind === "graph")
+    return (
+      typeof tab.paneId === "string" &&
+      typeof tab.contextPath === "string" &&
+      tab.contextPath.startsWith("/") &&
+      tab.id === graphTabId(tab.contextPath)
+    );
   if (tab?.kind === "commit")
     return (
       typeof tab.paneId === "string" &&
@@ -135,8 +188,9 @@ export function restoreTabs(
   persisted: unknown,
 ): Pick<MainTabsStore, "tabs" | "active"> {
   const state = persisted as Partial<MainTabsStore> | undefined;
+  const keep = new Set(typeof state?.active === "string" ? [state.active] : []);
   const tabs = Array.isArray(state?.tabs)
-    ? state.tabs.filter(isMainTab).slice(-MAX_TABS)
+    ? trimTabs(state.tabs.filter(isMainTab), keep)
     : [];
   const active = tabs.find((t) => t.id === state?.active)?.id ?? TERMINAL_TAB;
   return { tabs, active };
@@ -193,7 +247,7 @@ export const useMainTabsStore = create<MainTabsStore>()(
           // Same file again: refresh what it points at, keep its place.
           const id = fileTabId(input);
           return {
-            tabs: upsert(s.tabs, { ...input, kind: "file", id }),
+            tabs: upsert(s.tabs, { ...input, kind: "file", id }, s.active),
             active: id,
           };
         }),
@@ -206,7 +260,11 @@ export const useMainTabsStore = create<MainTabsStore>()(
             input.subject ||
             (known?.kind === "commit" ? known.subject : "");
           return {
-            tabs: upsert(s.tabs, { ...input, subject, kind: "commit", id }),
+            tabs: upsert(
+              s.tabs,
+              { ...input, subject, kind: "commit", id },
+              s.active,
+            ),
             active: id,
           };
         }),
@@ -220,9 +278,21 @@ export const useMainTabsStore = create<MainTabsStore>()(
           tabs[index] = { ...tab, subject };
           return { tabs };
         }),
+      openGraph: (input) =>
+        set((s) => {
+          const id = graphTabId(input.contextPath);
+          return {
+            tabs: upsert(s.tabs, { ...input, kind: "graph", id }, s.active),
+            active: id,
+          };
+        }),
       openSettings: () =>
         set((s) => ({
-          tabs: upsert(s.tabs, { kind: "settings", id: SETTINGS_TAB }),
+          tabs: upsert(
+            s.tabs,
+            { kind: "settings", id: SETTINGS_TAB },
+            s.active,
+          ),
           active: SETTINGS_TAB,
         })),
       closeTab: (id) =>
