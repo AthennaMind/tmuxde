@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="ui/public/icon-512.png" width="112" alt="tmuxde icon">
+  <img src="src/ui/public/icon-512.png" width="112" alt="tmuxde icon">
 </p>
 
 <h1 align="center">tmuxde</h1>
@@ -67,10 +67,10 @@ Then trust the local CA and sign in with the token from `.docker/.env.token`. Th
 | Path | What |
 | --- | --- |
 | `cmd/tmuxde`, `internal`, `web` | Go server. Module `tmuxde`, `go.mod` and `vendor/` at the root |
-| `ui` | React web client, Vite and React Router |
-| `stt` | Optional speech to text service |
-| `packages/protocol` | Message schemas, wire fixtures and [PROTOCOL.md](packages/protocol/PROTOCOL.md) |
-| `packages/crypto`, `packages/ui-kit` | Device lock crypto and shared UI components |
+| `cmd/tmuxde-stt`, `internal/stt` | Optional speech to text service, Go binary `tmuxde-stt`. See its [README](internal/stt/README.md) |
+| `src/ui` | React web client, Vite and React Router. One pnpm package with its lockfile |
+| `src/ui/src/protocol` | Message schemas, wire fixtures and [PROTOCOL.md](src/ui/src/protocol/PROTOCOL.md) |
+| `src/ui/src/crypto` | Device lock crypto |
 | `.docker` | Compose files, images, Caddyfile and the host unit template |
 | `scripts/setup.sh` | Setup and host service install |
 

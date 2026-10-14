@@ -1,10 +1,10 @@
 // Package protocol holds what client and server messages share: the info
-// structs from packages/protocol/src/types.ts, decoding, field checks,
+// structs from src/ui/src/protocol/types.ts, decoding, field checks,
 // validation helpers and the fixture locations.
 //
 // Wire types live in two packages. tmuxde/internal/protocol/client has the
 // messages a browser sends. tmuxde/internal/protocol/server has the messages
-// the server sends. Both mirror the Zod schemas in packages/protocol/src.
+// the server sends. Both mirror the Zod schemas in src/ui/src/protocol.
 //
 // Rules for a wire type:
 //
@@ -21,9 +21,9 @@
 //   - A nullable field that is not optional is a pointer without omitempty.
 //     It is the only kind of field that accepts null.
 //
-// Every wire type has a fixture in packages/protocol/fixtures. The contract
+// Every wire type has a fixture in src/ui/src/protocol/fixtures. The contract
 // tests in this directory check fixtures, registries and the type list
 // against the TypeScript sources. Constrained fields also have samples in
-// packages/protocol/fixtures/invalid. Zod and Decode must both refuse each
+// src/ui/src/protocol/fixtures/invalid. Zod and Decode must both refuse each
 // one for the field it names. Add one there for every new constraint.
 package protocol

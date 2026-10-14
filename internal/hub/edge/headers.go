@@ -114,7 +114,7 @@ func requestScheme(r *http.Request) string {
 // Pages, index.html and every app route, keep the headers.
 //
 // The list follows the Vite build: /assets/ holds the hashed bundles, and
-// the files of ui/public sit at the root, with the fonts below
+// the files of src/ui/public sit at the root, with the fonts below
 // /fonts/.
 //
 // Every asset name has a file extension. A path without one is never an

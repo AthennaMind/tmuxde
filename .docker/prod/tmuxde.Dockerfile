@@ -1,4 +1,4 @@
-# tmuxde single binary. The web stage builds the React app in ui/, the go
+# tmuxde single binary. The web stage builds the React app in src/ui, the go
 # stage embeds it and compiles a static binary, and binary holds only that
 # file.
 #
@@ -12,19 +12,14 @@ RUN npm install -g npm@12.2.0 && npm install -g --allow-scripts=pnpm pnpm@12.11.
 ENV DO_NOT_TRACK=1
 WORKDIR /app
 
-# Copy manifests only, so dependency layers survive source edits.
-FROM web-base AS manifests
-COPY . .
-RUN mkdir /manifests && cp package.json pnpm-lock.yaml pnpm-workspace.yaml /manifests/ \
-  && for manifest in ui/package.json stt/package.json packages/*/package.json; do install -D -m 644 "$manifest" "/manifests/$manifest"; done
-
-# Install ui dependencies plus root tooling, then build ui/dist.
+# Install the dependencies of the React app in src/ui, then build its dist.
+# Manifests come first, so dependency layers survive source edits.
 FROM web-base AS web
-COPY --from=manifests /manifests/ .
-RUN pnpm install --frozen-lockfile --ignore-scripts --filter "@app/ui..." --filter .
-RUN --network=none npm_config_nodedir=/usr/local pnpm --config.trustLockfile=true --filter "@app/ui..." --filter . rebuild --pending
-COPY . .
-RUN --network=none pnpm --filter @app/ui build
+COPY src/ui/package.json src/ui/pnpm-lock.yaml src/ui/pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN --network=none npm_config_nodedir=/usr/local pnpm --config.trustLockfile=true rebuild --pending
+COPY src/ui .
+RUN --network=none pnpm build
 
 # Same toolchain as .docker/dev/go.Dockerfile. Builds offline from vendor/.
 FROM golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS go
@@ -38,7 +33,7 @@ COPY internal ./internal
 COPY web ./web
 # .dockerignore keeps every dist out of the context, so this is the only
 # web build the embed sees.
-COPY --from=web /app/ui/dist ./web/dist
+COPY --from=web /app/dist ./web/dist
 # A build without index.html would serve 503 on every page. Fail here.
 RUN test -f web/dist/index.html
 ARG VERSION=dev

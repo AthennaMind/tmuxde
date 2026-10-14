@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/dependencies/root
-install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/dependencies/stt
-install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/dependencies/ui
-install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/dependencies/packages-crypto
-install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/dependencies/packages-protocol
-install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/dependencies/packages-ui-kit
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/workspace-cache
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/ui-vite
 install -d -o "$DEV_UID" -g "$DEV_GID" /volumes/cache/ui-tooling-metadata
