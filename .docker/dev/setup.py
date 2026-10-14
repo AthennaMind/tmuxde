@@ -155,11 +155,6 @@ def dictation_settings(enabled):
     }
 
 
-def workspace_mountpoints(root):
-    """Empty dirs where dependency volumes mount over the read-only source bind."""
-    for manifest in [*root.glob("ui/package.json"), *root.glob("stt/package.json"), *root.glob("packages/*/package.json")]:
-        (manifest.parent / "node_modules").mkdir(exist_ok=True)
-
 
 # Host service. The tmuxde Go server runs on the host as a systemd user unit
 # and listens on http.sock in the socket directory, where Caddy reaches it.
@@ -633,7 +628,6 @@ def main():
     if dictation is None:
         dictation = "dictation" in previous.get("COMPOSE_PROFILES", "").split(",")
     values.update(dictation_settings(dictation))
-    workspace_mountpoints(local.parent)
     env_path.touch(mode=0o600)
     env_path.chmod(0o600)
     with env_path.open("w") as env:

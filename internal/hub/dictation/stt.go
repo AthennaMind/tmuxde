@@ -8,7 +8,7 @@ import (
 	"tmuxde/internal/protocol"
 )
 
-// Types of service messages. They mirror stt/src/session.ts.
+// Types of service messages. They mirror internal/stt/session.go.
 const (
 	sttReady = "ready"
 	sttText  = "text"

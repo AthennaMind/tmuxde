@@ -1,0 +1,1050 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ==========================================================================
+   tmuxde design system
+
+   Ported from apps/site so the app and the site it is linked from stop
+   reading as two different products. Every colour in the app is defined here
+   and nowhere else; components use semantic tokens and never literal values.
+
+     Layer 1  :root / .dark   raw token values, per colour scheme
+     Layer 2  @theme inline   token -> Tailwind utility mapping
+
+   ## What differs from the site, and why
+
+   The site ships dark-only. The app does not — it has a theme toggle and
+   people use it on a bright phone outdoors — so every token is defined twice
+   and the brand needed real work rather than a copy. See `--brand` below.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Layer 1a: light scheme
+
+   A green-tinted near-white mirroring the dark scheme's green-tinted
+   charcoal, so the two are recognisably the same product rather than an
+   inversion.
+   -------------------------------------------------------------------------- */
+:root {
+  --surface-base: oklch(0.99 0.0035 140);
+  --surface-raised: oklch(1 0 0);
+  --surface-panel: oklch(0.965 0.005 140);
+  --surface-sunken: oklch(0.945 0.006 140);
+  --surface-inverse: oklch(0.1479 0.0027 145.44);
+
+  --line-subtle: oklch(0.92 0.008 138);
+  --line: oklch(0.875 0.011 136);
+  --line-strong: oklch(0.79 0.016 134);
+
+  --text-strong: oklch(0.22 0.012 145);
+  --text: oklch(0.3 0.011 143);
+  --text-muted: oklch(0.46 0.014 138);
+  --text-subtle: oklch(0.52 0.015 136);
+  --text-faint: oklch(0.59 0.015 134);
+  --text-inverse: oklch(0.98 0.006 140);
+
+  /*
+   * The one real hazard in this port.
+   *
+   * The site's brand is oklch(0.8627 0.1721 132.3) — L = 0.86. As text, a
+   * border or a focus ring on a white surface that is **1.39:1**, which is not
+   * "a bit low", it is invisible. The site never hits this because it is
+   * dark-only; the app would hit it on every light-mode page.
+   *
+   * So `--brand` is the *readable* green per scheme — dark enough to be text
+   * in light mode, the original bright green in dark mode — and the bright
+   * value survives in light mode as `--brand-fill` and `--brand-glow`, which
+   * are only ever backgrounds. `--brand-contrast` is whatever text goes on
+   * `--brand`, which is near-white here and near-black in the dark scheme.
+   *
+   * Every pair below is asserted in `theme-contrast.test.ts`. Do not eyeball a
+   * change to these; run the test.
+   */
+  --brand: oklch(0.5 0.14 132);
+  --brand-hover: oklch(0.44 0.11 132);
+  --brand-contrast: oklch(0.98 0.006 140);
+  --brand-subtle: oklch(0.93 0.05 135);
+  --brand-fill: oklch(0.8627 0.1721 132.3);
+  --brand-glow: oklch(0.8627 0.1721 132.3 / 0.18);
+
+  --signal-done: oklch(0.48 0.13 150);
+  --signal-blocked: oklch(0.5 0.105 75);
+  --signal-stalled: oklch(0.5 0.085 205);
+  --signal-failed: oklch(0.51 0.2 27);
+  --signal-agent: oklch(0.5 0.16 299);
+
+  --signal-done-surface: oklch(0.95 0.03 150);
+  --signal-blocked-surface: oklch(0.955 0.03 78);
+  --signal-stalled-surface: oklch(0.955 0.025 210);
+  --signal-failed-surface: oklch(0.955 0.02 25);
+  --signal-agent-surface: oklch(0.955 0.02 299);
+
+  --term-prompt: var(--brand);
+  --term-path: oklch(0.5 0.085 205);
+  --term-value: oklch(0.48 0.13 150);
+  --term-comment: oklch(0.59 0.015 134);
+  --term-keyword: oklch(0.5 0.16 299);
+  --term-flag: oklch(0.5 0.085 205);
+  --term-added: oklch(0.48 0.13 150);
+  --term-removed: oklch(0.51 0.2 27);
+
+  --shadow-ambient:
+    0 1px 2px oklch(0 0 0 / 0.06), 0 8px 24px -12px oklch(0 0 0 / 0.12);
+  --shadow-float:
+    0 2px 4px oklch(0 0 0 / 0.06), 0 24px 60px -24px oklch(0 0 0 / 0.18);
+
+  --radius: 0.625rem;
+
+  color-scheme: light;
+}
+
+/* --------------------------------------------------------------------------
+   Layer 1b: dark scheme — the canonical tmuxde look, taken verbatim from the
+   site so the two are the same colours and not merely similar ones.
+   -------------------------------------------------------------------------- */
+.dark {
+  --surface-base: oklch(0.1479 0.0027 145.44);
+  --surface-raised: oklch(0.1606 0.0053 145.32);
+  --surface-panel: oklch(0.1791 0.0051 145.36);
+  --surface-sunken: oklch(0.138 0.003 145.41);
+  --surface-inverse: oklch(0.961 0.0083 91.48);
+
+  --line-subtle: oklch(0.2286 0.0128 135.12);
+  --line: oklch(0.2687 0.0178 131.28);
+  --line-strong: oklch(0.3207 0.0265 132.02);
+
+  --text-strong: oklch(0.961 0.0083 91.48);
+  --text: oklch(0.9278 0.0125 91.52);
+  --text-muted: oklch(0.7436 0.0288 120.69);
+  --text-subtle: oklch(0.6974 0.0309 122.21);
+  --text-faint: oklch(0.5949 0.0307 123.03);
+  --text-inverse: oklch(0.1479 0.0027 145.44);
+
+  --brand: oklch(0.8627 0.1721 132.3);
+  --brand-hover: oklch(0.9002 0.1474 130.76);
+  --brand-contrast: oklch(0.1479 0.0027 145.44);
+  --brand-subtle: oklch(0.2687 0.0178 131.28);
+  --brand-fill: oklch(0.8627 0.1721 132.3);
+  --brand-glow: oklch(0.8627 0.1721 132.3 / 0.14);
+
+  --signal-done: oklch(0.8627 0.1721 132.3);
+  --signal-blocked: oklch(0.8123 0.1263 76.28);
+  --signal-stalled: oklch(0.8052 0.0821 205.56);
+  --signal-failed: oklch(0.6994 0.1572 21.96);
+  --signal-agent: oklch(0.746 0.1148 299.32);
+
+  --signal-done-surface: oklch(0.2687 0.0178 131.28);
+  --signal-blocked-surface: oklch(0.2624 0.0289 78.4);
+  --signal-stalled-surface: oklch(0.2591 0.0234 213.2);
+  --signal-failed-surface: oklch(0.2603 0.0312 24.6);
+  --signal-agent-surface: oklch(0.2688 0.0327 298.7);
+
+  --term-prompt: var(--brand);
+  --term-path: oklch(0.8052 0.0821 205.56);
+  --term-value: oklch(0.8627 0.1721 132.3);
+  --term-comment: oklch(0.5949 0.0307 123.03);
+  --term-keyword: oklch(0.746 0.1148 299.32);
+  --term-flag: oklch(0.8052 0.0821 205.56);
+  --term-added: oklch(0.8627 0.1721 132.3);
+  --term-removed: oklch(0.6994 0.1572 21.96);
+
+  --shadow-ambient:
+    0 1px 2px oklch(0 0 0 / 0.4), 0 8px 24px -12px oklch(0 0 0 / 0.6);
+  --shadow-float:
+    0 2px 4px oklch(0 0 0 / 0.4), 0 24px 60px -24px oklch(0 0 0 / 0.9);
+
+  color-scheme: dark;
+}
+
+/* --------------------------------------------------------------------------
+   The shadcn/ui contract.
+
+   Every shadcn component in this package is written against
+   --background/--primary/etc. Aliasing them onto the tokens above rather than
+   giving them values of their own is what stops the two systems drifting into
+   two palettes that nearly match.
+
+   The aliases are scheme-independent — the tokens they point at already flip —
+   with one exception noted inline.
+   -------------------------------------------------------------------------- */
+:root,
+.dark {
+  --background: var(--surface-base);
+  --foreground: var(--text);
+  --card: var(--surface-raised);
+  --card-foreground: var(--text);
+  --popover: var(--surface-panel);
+  --popover-foreground: var(--text);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-contrast);
+  --secondary: var(--surface-panel);
+  --secondary-foreground: var(--text-strong);
+  --muted: var(--surface-panel);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--surface-panel);
+  --accent-foreground: var(--text-strong);
+  --destructive: var(--signal-failed);
+  /* `--text-inverse`, and the comment that used to be here was wrong about
+     why not.
+
+     It claimed near-black on the dark scheme's mid-red was 2.4:1. It is not:
+     the dark fill is L = 0.6994, and `--text-inverse` on it is **6.86:1**. The
+     near-white it pinned instead was the failing pair — **2.72:1** in dark
+     mode, under both the 4.5 and the 3.0 floor, on the button that deletes
+     things. Light mode is unaffected, because `--text-inverse` there *is* that
+     near-white and stays at 6.03:1.
+
+     The general rule holds and is worth stating: destructive is mid-lightness
+     in both schemes, so its text has to flip with the scheme rather than being
+     pinned to one end. Asserted per scheme in `theme-contrast.test.ts`. */
+  --destructive-foreground: var(--text-inverse);
+  /* Known-failing and deliberately unchanged: `--line` against the surfaces is
+     1.41:1 light / 1.31:1 dark, below the 3:1 WCAG 1.4.11 floor for a control
+     boundary. Raising `--line` would darken every divider and card edge in the
+     app, and the fix is a separate stronger token for *control* borders —
+     `--line-strong` exists but is not what shadcn's `--border` maps to. That is
+     a design decision, not a bug fix, so it is recorded rather than smuggled in
+     here. `theme-contrast.test.ts` documents the same thing. */
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--brand);
+
+  --chart-1: var(--signal-done);
+  --chart-2: var(--signal-stalled);
+  --chart-3: var(--signal-blocked);
+  --chart-4: var(--signal-agent);
+  --chart-5: var(--signal-failed);
+
+  --sidebar: var(--surface-raised);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: var(--brand-contrast);
+  --sidebar-accent: var(--surface-panel);
+  --sidebar-accent-foreground: var(--text-strong);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--brand);
+
+  /* Kept from the app's own palette, which the site has no equivalent for.
+     The contract is the shadcn one: `--x` is a solid fill whose text is
+     `--x-foreground`, and a `/15` wash of `--x` takes `--x` itself as text. */
+  --info: var(--signal-stalled);
+  --info-foreground: var(--surface-base);
+  --success: var(--signal-done);
+  --success-foreground: var(--surface-base);
+  --warning: var(--signal-blocked);
+  --warning-foreground: var(--surface-base);
+}
+
+/* Z-index scale. Every stacked layer picks a step from here — ad-hoc numbers
+   are how the FAB ended up painting over the command bar's send button.
+   Full-screen panels sit *below* --z-modal on purpose: Radix portals (dropdown,
+   dialog, tooltip) mount on <body>, so a panel above them would bury its own
+   menus.
+
+   Kept out of the port deliberately: the site has nothing like it, because the
+   site has no floating terminal chrome to get wrong. */
+:root {
+  --z-banner: 20; /* status strips pinned inside a pane */
+  --z-fab: 30; /* floating controls inside a pane */
+  --z-panel: 40; /* full-screen app panels (file viewer/editor, copy mode) */
+  --z-popover: 45; /* hand-rolled popovers / context menus */
+  --z-modal: 50; /* Radix portals: dialog, sheet, dropdown, tooltip */
+  --z-transient: 60; /* transient full-screen modes layered over everything */
+}
+
+/* ==========================================================================
+   Layer 2 — expose tokens as Tailwind utilities
+   ========================================================================== */
+
+@theme inline {
+  /* Typography. The families themselves are injected by next/font in the app's
+     root layout; these are the fallback chains and the semantic names. The app
+     defined no font tokens at all before this. */
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    var(--font-cascadia-code), var(--font-plex-mono), ui-monospace,
+    SFMono-Regular, monospace;
+  --font-display:
+    var(--font-martian-mono), var(--font-plex-mono), ui-monospace, monospace;
+  --font-heading: var(--font-display);
+
+  /* Surfaces */
+  --color-surface-base: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-inverse: var(--surface-inverse);
+
+  /* Lines */
+  --color-line-subtle: var(--line-subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  /* Text */
+  --color-text-strong: var(--text-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+  --color-text-faint: var(--text-faint);
+  --color-text-inverse: var(--text-inverse);
+
+  /* Brand */
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-contrast: var(--brand-contrast);
+  --color-brand-subtle: var(--brand-subtle);
+  --color-brand-fill: var(--brand-fill);
+
+  /* Signals */
+  --color-signal-done: var(--signal-done);
+  --color-signal-blocked: var(--signal-blocked);
+  --color-signal-stalled: var(--signal-stalled);
+  --color-signal-failed: var(--signal-failed);
+  --color-signal-agent: var(--signal-agent);
+  --color-signal-done-surface: var(--signal-done-surface);
+  --color-signal-blocked-surface: var(--signal-blocked-surface);
+  --color-signal-stalled-surface: var(--signal-stalled-surface);
+  --color-signal-failed-surface: var(--signal-failed-surface);
+  --color-signal-agent-surface: var(--signal-agent-surface);
+
+  /* Terminal syntax roles */
+  --color-term-prompt: var(--term-prompt);
+  --color-term-path: var(--term-path);
+  --color-term-value: var(--term-value);
+  --color-term-comment: var(--term-comment);
+  --color-term-keyword: var(--term-keyword);
+  --color-term-flag: var(--term-flag);
+  --color-term-added: var(--term-added);
+  --color-term-removed: var(--term-removed);
+
+  /* shadcn aliases */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  /* Radii */
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.7);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.9);
+  --radius-3xl: calc(var(--radius) * 2.6);
+
+  /* Elevation */
+  --shadow-ambient: var(--shadow-ambient);
+  --shadow-float: var(--shadow-float);
+
+  /* Layout rhythm */
+  --spacing-gutter: clamp(1.25rem, 5vw, 2.5rem);
+  --spacing-section: clamp(3.5rem, 8vw, 6.5rem);
+  --container-content: 72rem;
+  --container-prose: 46rem;
+
+  /* Motion */
+  --animate-blink: blink 1.1s step-end infinite;
+  --animate-rise-in: rise-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-pulse-ring: pulse-ring 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-scanline: scanline 7s linear infinite;
+  --animate-marquee: marquee 42s linear infinite;
+  --animate-pulse-fast: pulse-fast 800ms cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  @keyframes blink {
+    0%,
+    49% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0;
+    }
+  }
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes pulse-ring {
+    0% {
+      box-shadow: 0 0 0 0 var(--brand-glow);
+    }
+    70% {
+      box-shadow: 0 0 0 12px transparent;
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+  @keyframes scanline {
+    from {
+      transform: translateY(-100%);
+    }
+    to {
+      transform: translateY(900%);
+    }
+  }
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  /* Kept from the app: the connection indicator's "something is happening
+     right now" pulse, which is faster than anything the site needed. */
+  @keyframes pulse-fast {
+    50% {
+      opacity: 0.6;
+    }
+  }
+}
+
+/* ==========================================================================
+   Base layer
+
+   Almost all of this is new to the app, which had four lines here: a border
+   colour and a body background. The focus ring in particular is not a
+   flourish — without it the app was relying on browser defaults, which
+   several of the dark surfaces render nearly invisible.
+   ========================================================================== */
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /*
+   * The app had no reduced-motion handling at all, on a surface with a
+   * blinking cursor, a spinning reconnect indicator and a pulsing status dot.
+   * This is the single highest-value line in the port.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    background-color: var(--color-surface-base);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+    letter-spacing: -0.003em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.045em;
+    color: var(--color-text-strong);
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-mono);
+    font-feature-settings: "zero", "ss01";
+  }
+
+  ::selection {
+    background-color: var(--color-brand);
+    color: var(--color-brand-contrast);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  /*
+   * Scrollbars follow the theme instead of the OS.
+   *
+   * Excluded from the terminal itself: xterm draws its own viewport scrollbar
+   * and sizes its render layers against the measured width, so restyling it
+   * mid-flight causes a reflow it does not expect.
+   */
+  *:not(.xterm-viewport) {
+    scrollbar-color: var(--color-line-strong) transparent;
+    scrollbar-width: thin;
+  }
+  /*
+   * The same exclusion as above, and for the same reason.
+   *
+   * It was missing here, so the WebKit rules restyled xterm's viewport to a
+   * 10px bar anyway — exactly the reflow the comment above says to avoid, on
+   * the one element it names.
+   */
+  *:not(.xterm-viewport)::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *:not(.xterm-viewport)::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *:not(.xterm-viewport)::-webkit-scrollbar-thumb {
+    background-color: var(--color-line-strong);
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+  }
+  *:not(.xterm-viewport)::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-text-faint);
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+
+@utility container-content {
+  margin-inline: auto;
+  width: 100%;
+  max-width: var(--container-content);
+  padding-inline: var(--spacing-gutter);
+}
+
+@utility container-prose {
+  margin-inline: auto;
+  width: 100%;
+  max-width: var(--container-prose);
+  padding-inline: var(--spacing-gutter);
+}
+
+/* The "// section" eyebrow used throughout the site. */
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Radial brand wash behind hero and CTA sections. */
+@utility glow-brand {
+  background-image: radial-gradient(
+    ellipse at center,
+    var(--brand-glow),
+    transparent 70%
+  );
+}
+
+/* Faint grid used as a backdrop. */
+@utility bg-grid {
+  background-image:
+    linear-gradient(to right, var(--color-line-subtle) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-line-subtle) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+/* Text that should never be selected or copied (shell prompts, glyphs). */
+@utility select-none-prompt {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/*
+ * Suppress iOS Safari's long-press callout.
+ *
+ * A `contextmenu` listener is enough on Android, where the menu is a real
+ * cancellable event. iOS raises its callout — "Copy / Look Up / Share", or the
+ * link sheet — without dispatching one, so there is nothing to `preventDefault`
+ * and the only way to refuse it is this property, declared before the press
+ * happens. It is separate from `select-none-prompt` because the terminal
+ * surface wants exactly one of the two: the callout gone, and selection still
+ * possible so that copying out of xterm keeps working.
+ */
+@utility touch-callout-none {
+  -webkit-touch-callout: none;
+}
+
+/*
+ * Hide the native scrollbar on a scroller that has its own affordance.
+ *
+ * Three horizontal strips have asked for this class since they were written —
+ * the mobile keyboard toolbar, the window tabs and the file breadcrumbs — and
+ * it did not exist: not a Tailwind builtin, not a plugin, no `@utility`. It
+ * quietly resolved to nothing and the strips inherited `scrollbar-width: thin`
+ * from the base layer above, which is a visible bar under a row of buttons.
+ */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Preserve column alignment in hand-authored terminal output. */
+@utility terminal-lines {
+  white-space: pre;
+  font-variant-ligatures: none;
+  tab-size: 2;
+}
+
+/* Local font assets keep terminal and UI font names stable. */
+@font-face {
+  font-family: "Martian Mono";
+  src: url("/fonts/martian-mono-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Martian Mono";
+  src: url("/fonts/martian-mono-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Martian Mono";
+  src: url("/fonts/martian-mono-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/ibm-plex-sans-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/ibm-plex-sans-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/ibm-plex-sans-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/ibm-plex-mono-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/ibm-plex-mono-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/ibm-plex-mono-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Code face for terminal, file, diff and editor. Variable, weights 200 to 700. */
+@font-face {
+  font-family: "Cascadia Code";
+  src: url("/fonts/cascadia-code-v2407.24.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Cascadia Code";
+  src: url("/fonts/cascadia-code-italic-v2407.24.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  --font-cascadia-code: "Cascadia Code";
+  --font-martian-mono: "Martian Mono";
+  --font-plex-sans: "IBM Plex Sans";
+  --font-plex-mono: "IBM Plex Mono";
+}
+
+/*
+ * Code in the repository viewer. Defaults are the phone sizes: 12px holds up on
+ * a dense screen held close. Desktop file tabs raise the variables, because
+ * the same size reads thin at desk distance. `--code-weight` and
+ * `--code-zoom` follow the File and diff text weight and size settings, both
+ * synced onto the root by the terminal layout. Leading is unitless so it
+ * scales with the zoom. Monospace keeps zero tracking so body tracking does
+ * not leak into code.
+ */
+@utility text-code {
+  font-size: calc(var(--code-size, 0.75rem) * var(--code-zoom, 1));
+  line-height: var(--code-leading, 1.667);
+  font-weight: var(--code-weight, 400);
+  letter-spacing: 0;
+}
+
+/*
+ * Desktop sidebar, its menus and the main tab strip. Names of sessions,
+ * windows, panes and files read in the code face, as they do in the terminal.
+ * Ligatures off, so `a--b` or `x->y` show the characters typed. Zero tracking
+ * for the same reason as `text-code`.
+ */
+@utility font-chrome {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+}
+
+@utility text-code-meta {
+  font-size: calc(var(--code-meta-size, 0.6875rem) * var(--code-zoom, 1));
+  letter-spacing: 0;
+}
+
+@font-face {
+  font-family: "Symbols Nerd Font Mono";
+  src: url("/fonts/symbols-nerd-font-mono-v3.4.0.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
+ * Blur the page while the tab is hidden.
+ *
+ * On by default and independent of the device lock, because the leak it closes
+ * needs no attacker: iOS and Android both screenshot the app when you switch
+ * away, and that screenshot is your shell. Thirty lines of CSS, no state, and
+ * nothing to configure.
+ *
+ * `visibility: hidden` would be stronger but forces a full relayout of xterm on
+ * every app switch; a blur filter is composited and costs nothing.
+ */
+.tmuxde-hidden body {
+  filter: blur(18px);
+}
+
+/*
+ * Give the footer back while the soft keyboard is up.
+ *
+ * A phone keyboard takes about half the screen, and under it sat a command bar
+ * that grew to four rows, a key toolbar, and a nav bar — around 190px of chrome
+ * over a terminal that had a couple of hundred pixels left. The nav is the one
+ * of the three that is useless while typing: `KeyboardToolbar` is the only
+ * source of Esc, Tab, arrows and `|`, which are needed precisely then.
+ *
+ * CSS rather than a React conditional, deliberately. Re-rendering the terminal
+ * layout to hide a nav bar re-renders xterm underneath it, and this codebase
+ * has comments about how expensive that is. `data-keyboard` is stamped on the
+ * root by `VisualViewportSync`; nothing here re-renders.
+ */
+html[data-keyboard="open"] .tmuxde-hide-when-keyboard {
+  display: none;
+}
+
+/* One row while typing. More reveals remaining controls at full touch size. */
+html[data-keyboard="open"]
+  .tmuxde-keyboard[data-expanded="false"]
+  [data-extra-control] {
+  display: none;
+}
+
+html[data-keyboard="open"] .tmuxde-terminal-shell {
+  padding-bottom: 0;
+}
+
+/*
+ * Rendered Markdown in the Files surface. Body text is the sans face sized
+ * from the code zoom, so Ctrl with -, = and 0 scale it with the rest of the
+ * viewer. Code inside keeps `text-code`. Colors are semantic tokens only. In
+ * the components layer so utilities on the same elements still win.
+ *
+ * The column is narrower than `container-prose`: 40rem lands near 75
+ * characters a line at this size. Code and tables scroll inside their own box.
+ */
+@layer components {
+  .markdown-body {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 40rem;
+    padding-inline: var(--spacing-gutter);
+    font-size: calc(0.9375rem * var(--code-zoom, 1));
+    line-height: 1.65;
+    color: var(--color-foreground);
+    overflow-wrap: anywhere;
+  }
+  .markdown-body > :first-child {
+    margin-top: 0;
+  }
+  .markdown-body > :last-child {
+    margin-bottom: 0;
+  }
+  .markdown-body p,
+  .markdown-body ul,
+  .markdown-body ol,
+  .markdown-body dl,
+  .markdown-body blockquote,
+  .markdown-body pre,
+  .markdown-body details,
+  .markdown-body figure,
+  .markdown-body .markdown-table {
+    margin-block: 0 1em;
+  }
+  .markdown-body h1,
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body h4,
+  .markdown-body h5,
+  .markdown-body h6 {
+    margin-block: 1.6em 0.6em;
+    line-height: 1.25;
+    scroll-margin-top: 0.75rem;
+  }
+  .markdown-body h1 {
+    font-size: 1.75em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .markdown-body h2 {
+    font-size: 1.4em;
+    padding-bottom: 0.25em;
+    border-bottom: 1px solid var(--color-line-subtle);
+  }
+  .markdown-body h3 {
+    font-size: 1.2em;
+  }
+  .markdown-body h4 {
+    font-size: 1.05em;
+  }
+  /* The base layer styles h1 to h4 this way. Keep h5 and h6 in the family. */
+  .markdown-body h5,
+  .markdown-body h6 {
+    font-family: var(--font-display);
+    font-size: 1em;
+    font-weight: 500;
+    letter-spacing: -0.045em;
+    color: var(--color-text-strong);
+  }
+  .markdown-body h6 {
+    color: var(--color-muted-foreground);
+  }
+  .markdown-body a,
+  .markdown-body .markdown-file-link {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    text-decoration-color: color-mix(
+      in oklab,
+      var(--color-primary) 40%,
+      transparent
+    );
+  }
+  .markdown-body a:hover,
+  .markdown-body .markdown-file-link:hover {
+    text-decoration-color: currentColor;
+  }
+  .markdown-body .markdown-file-link {
+    font: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-align: inherit;
+  }
+  .markdown-body ul,
+  .markdown-body ol {
+    padding-inline-start: 1.6em;
+  }
+  .markdown-body ul {
+    list-style: disc;
+  }
+  .markdown-body ol {
+    list-style: decimal;
+  }
+  .markdown-body ul ul,
+  .markdown-body ol ul {
+    list-style: circle;
+  }
+  .markdown-body li + li {
+    margin-top: 0.25em;
+  }
+  .markdown-body li > p {
+    margin-bottom: 0.5em;
+  }
+  .markdown-body ul.contains-task-list {
+    list-style: none;
+    padding-inline-start: 0.4em;
+  }
+  .markdown-body input[type="checkbox"] {
+    margin: 0;
+    margin-inline-end: 0.5em;
+    vertical-align: -0.1em;
+    accent-color: var(--color-primary);
+  }
+  .markdown-body blockquote {
+    border-inline-start: 3px solid var(--color-line-strong);
+    padding-inline-start: 1em;
+    color: var(--color-muted-foreground);
+  }
+  .markdown-body hr {
+    border: 0;
+    border-top: 1px solid var(--color-line);
+    margin-block: 2em;
+  }
+  .markdown-body code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+  }
+  .markdown-body .markdown-inline-code {
+    background: var(--color-muted);
+    border-radius: 0.3em;
+    padding: 0.1em 0.35em;
+  }
+  .markdown-body .markdown-code code {
+    font-size: inherit;
+  }
+  .markdown-body .markdown-table {
+    overflow-x: auto;
+  }
+  .markdown-body table {
+    border-collapse: collapse;
+    font-size: 0.95em;
+  }
+  .markdown-body th,
+  .markdown-body td {
+    border: 1px solid var(--color-line);
+    padding: 0.4em 0.75em;
+    text-align: start;
+    vertical-align: top;
+  }
+  .markdown-body th {
+    background: var(--color-surface-sunken);
+    font-weight: 600;
+    color: var(--color-text-strong);
+  }
+  .markdown-body tbody tr:nth-child(even) {
+    background: color-mix(in oklab, var(--color-muted) 40%, transparent);
+  }
+  .markdown-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.375rem;
+  }
+  .markdown-body .markdown-image-note {
+    display: inline-block;
+    border: 1px dashed var(--color-line);
+    border-radius: 0.375rem;
+    padding: 0.25em 0.6em;
+    color: var(--color-muted-foreground);
+    font-size: 0.875em;
+  }
+  .markdown-body kbd {
+    border: 1px solid var(--color-line-strong);
+    border-bottom-width: 2px;
+    border-radius: 0.3em;
+    padding: 0.05em 0.4em;
+    font-size: 0.85em;
+    background: var(--color-surface-raised);
+  }
+  .markdown-body del {
+    color: var(--color-muted-foreground);
+  }
+  .markdown-body .markdown-front-matter > summary {
+    cursor: pointer;
+    color: var(--color-muted-foreground);
+    font-size: 0.875em;
+    margin-bottom: 0.5em;
+  }
+  .markdown-body .footnotes {
+    margin-top: 2em;
+    padding-top: 1em;
+    border-top: 1px solid var(--color-line);
+    font-size: 0.875em;
+    color: var(--color-muted-foreground);
+  }
+  .markdown-body sup a {
+    text-decoration: none;
+  }
+}

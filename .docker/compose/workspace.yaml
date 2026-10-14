@@ -26,56 +26,74 @@ services:
       CI: "${CI:-}"
     volumes:
       - type: "bind"
-        source: "../../package.json"
+        source: "../../src/ui/package.json"
         target: "/workspace/package.json"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../pnpm-lock.yaml"
+        source: "../../src/ui/pnpm-lock.yaml"
         target: "/workspace/pnpm-lock.yaml"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../pnpm-workspace.yaml"
+        source: "../../src/ui/pnpm-workspace.yaml"
         target: "/workspace/pnpm-workspace.yaml"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../src/ui/tsconfig.json"
+        target: "/workspace/tsconfig.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../src/ui/vite.config.ts"
+        target: "/workspace/vite.config.ts"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../src/ui/vitest.config.ts"
+        target: "/workspace/vitest.config.ts"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../src/ui/postcss.config.mjs"
+        target: "/workspace/postcss.config.mjs"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../src/ui/components.json"
+        target: "/workspace/components.json"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../src/ui/index.html"
+        target: "/workspace/index.html"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../src/ui/public"
+        target: "/workspace/public"
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: "bind"
+        source: "../../src/ui/src"
+        target: "/workspace/src"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
         source: "../../.gitignore"
         target: "/workspace/.gitignore"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../tsconfig.base.json"
-        target: "/workspace/tsconfig.base.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../vitest.config.ts"
-        target: "/workspace/vitest.config.ts"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../stt"
-        target: "/workspace/stt"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../packages"
-        target: "/workspace/packages"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../scripts"
-        target: "/workspace/scripts"
         read_only: true
         bind:
           create_host_path: false
@@ -87,106 +105,11 @@ services:
           nocopy: true
           subpath: "root"
       - type: "volume"
-        source: "dependencies"
-        target: "/workspace/stt/node_modules"
-        read_only: true
-        volume:
-          nocopy: true
-          subpath: "stt"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/ui/node_modules"
-        read_only: true
-        volume:
-          nocopy: true
-          subpath: "ui"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/packages/crypto/node_modules"
-        read_only: true
-        volume:
-          nocopy: true
-          subpath: "packages-crypto"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/packages/protocol/node_modules"
-        read_only: true
-        volume:
-          nocopy: true
-          subpath: "packages-protocol"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/packages/ui-kit/node_modules"
-        read_only: true
-        volume:
-          nocopy: true
-          subpath: "packages-ui-kit"
-      - type: "volume"
         source: "pnpm-store"
         target: "/pnpm/store"
         read_only: true
         volume:
           nocopy: true
-      - type: "bind"
-        source: "../../ui/components.json"
-        target: "/workspace/ui/components.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../ui/index.html"
-        target: "/workspace/ui/index.html"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../ui/package.json"
-        target: "/workspace/ui/package.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../ui/postcss.config.mjs"
-        target: "/workspace/ui/postcss.config.mjs"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../ui/public"
-        target: "/workspace/ui/public"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../ui/src"
-        target: "/workspace/ui/src"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../ui/tsconfig.json"
-        target: "/workspace/ui/tsconfig.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../ui/vite.config.ts"
-        target: "/workspace/ui/vite.config.ts"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../ui/vitest.config.idb.ts"
-        target: "/workspace/ui/vitest.config.idb.ts"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../ui/vitest.config.ts"
-        target: "/workspace/ui/vitest.config.ts"
-        read_only: true
-        bind:
-          create_host_path: false
   workspace:
     extends:
       service: runtime
@@ -202,13 +125,13 @@ services:
           subpath: "workspace-cache"
       - type: "volume"
         source: "cache"
-        target: "/workspace/ui"
+        target: "/workspace"
         volume:
           nocopy: true
           subpath: "ui-tooling-metadata"
       - type: "volume"
         source: "cache"
-        target: "/workspace/ui/.vite"
+        target: "/workspace/.vite"
         read_only: false
         volume:
           nocopy: true
@@ -221,13 +144,13 @@ services:
     volumes:
       - type: "volume"
         source: "cache"
-        target: "/workspace/ui"
+        target: "/workspace"
         volume:
           nocopy: true
           subpath: "ui-dev-metadata"
       - type: "volume"
         source: "cache"
-        target: "/workspace/ui/.vite"
+        target: "/workspace/.vite"
         read_only: false
         volume:
           nocopy: true
@@ -250,11 +173,6 @@ services:
     tmpfs:
       - "/tmp:rw,noexec,nosuid,nodev,mode=1777,size=1g"
       - "/workspace:rw,noexec,nosuid,nodev,mode=1777,size=256m"
-      - '/workspace/stt:rw,noexec,nosuid,nodev,mode=1777,size=8m'
-      - '/workspace/ui:rw,noexec,nosuid,nodev,mode=1777,size=8m'
-      - '/workspace/packages/crypto:rw,noexec,nosuid,nodev,mode=1777,size=8m'
-      - '/workspace/packages/protocol:rw,noexec,nosuid,nodev,mode=1777,size=8m'
-      - '/workspace/packages/ui-kit:rw,noexec,nosuid,nodev,mode=1777,size=8m'
     working_dir: "/workspace"
     environment:
       DO_NOT_TRACK: "1"
@@ -269,50 +187,20 @@ services:
       - "/usr/local/bin/deps-manager"
     volumes:
       - type: "bind"
-        source: "../../package.json"
+        source: "../../src/ui/package.json"
         target: "/manifests/package.json"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../pnpm-lock.yaml"
+        source: "../../src/ui/pnpm-lock.yaml"
         target: "/manifests/pnpm-lock.yaml"
         read_only: true
         bind:
           create_host_path: false
       - type: "bind"
-        source: "../../pnpm-workspace.yaml"
+        source: "../../src/ui/pnpm-workspace.yaml"
         target: "/manifests/pnpm-workspace.yaml"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../stt/package.json"
-        target: "/manifests/stt/package.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../ui/package.json"
-        target: "/manifests/ui/package.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../packages/crypto/package.json"
-        target: "/manifests/packages/crypto/package.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../packages/protocol/package.json"
-        target: "/manifests/packages/protocol/package.json"
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: "bind"
-        source: "../../packages/ui-kit/package.json"
-        target: "/manifests/packages/ui-kit/package.json"
         read_only: true
         bind:
           create_host_path: false
@@ -329,41 +217,6 @@ services:
         volume:
           nocopy: true
           subpath: "root"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/stt/node_modules"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "stt"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/ui/node_modules"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "ui"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/packages/crypto/node_modules"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "packages-crypto"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/packages/protocol/node_modules"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "packages-protocol"
-      - type: "volume"
-        source: "dependencies"
-        target: "/workspace/packages/ui-kit/node_modules"
-        read_only: false
-        volume:
-          nocopy: true
-          subpath: "packages-ui-kit"
       - type: "volume"
         source: "pnpm-store"
         target: "/pnpm/store"

@@ -152,8 +152,8 @@ services:
           create_host_path: false
       # Protocol fixtures for the Go contract tests.
       - type: "bind"
-        source: "../../packages/protocol"
-        target: "/workspace/packages/protocol"
+        source: "../../src/ui/src/protocol"
+        target: "/workspace/src/ui/src/protocol"
         read_only: true
         bind:
           create_host_path: false

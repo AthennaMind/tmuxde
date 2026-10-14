@@ -1,0 +1,16 @@
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true
+
+shamefullyHoist: false
+strictPeerDependencies: true
+autoInstallPeers: true
+updateNotifier: false
+storeDir: /pnpm/store
+minimumReleaseAge: 7200
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
+blockExoticSubdeps: true
+strictDepBuilds: true
+
+verifyDepsBeforeRun: error

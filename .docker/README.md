@@ -45,7 +45,6 @@ Setup writes:
 - `~/.local/share/tmuxde/uploads`, mode 0700. Photo uploads land here.
 - The run directory, by default `~/.local/state/tmuxde/run`, with its `dev`
   and `stt` subdirs. All mode 0750.
-- Empty `node_modules` mount points for the dependency volume.
 
 `LOCAL_BIND_IP` and `LOCAL_DOMAIN` default to `127.0.0.1` and `localhost`,
 which only reach the host itself. For phones, set `LOCAL_BIND_IP` to the host
@@ -276,7 +275,7 @@ server, files and state are separate.
 ### ui
 
 `ui` runs `vite --configLoader native` on port 24100 in the Node dev image.
-Edits under `ui/src` update the page through HMR. It also publishes
+Edits under `src/ui/src` update the page through HMR. It also publishes
 `127.0.0.1:24100`, so a binary run by hand with
 `TMUXDE_DEV_WEB_URL=http://127.0.0.1:24100` proxies pages and HMR there.
 
@@ -287,7 +286,7 @@ All Node and Go tooling runs in Docker. Never install host `node_modules`.
 ```sh
 docker compose run --rm tools pnpm typecheck
 docker compose run --rm tools pnpm test
-docker compose run --rm tools pnpm --filter @app/ui build
+docker compose run --rm tools pnpm build
 docker compose run --rm gotools go vet ./...
 docker compose run --rm -e CGO_ENABLED=1 gotools go test -race ./...
 docker compose config --quiet
@@ -298,17 +297,20 @@ python3 .docker/tests/runtime.py          # host ids, server-dev and stt isolati
 
 ### Dependencies
 
-Node packages change only through the helper. It exports only validated
-manifests and the lockfile, stops `ui` and `stt` while it writes the
-dependency volume and starts them again afterwards:
+All Node code is one package in `src/ui`. Its `package.json`,
+`pnpm-lock.yaml` and `pnpm-workspace.yaml` (pnpm settings only, no workspace
+packages) sit there. Node packages change only through the helper. It
+exports only validated manifests and the lockfile, stops `ui` while it
+writes the dependency volume and starts it again afterwards. `stt` has no
+Node packages and keeps running:
 
 ```sh
-python3 .docker/dev/dependencies.py mutate --filter @app/ui add <pkg>
+python3 .docker/dev/dependencies.py mutate add <pkg>
 python3 .docker/dev/dependencies.py       # resync after a manifest or image change
 ```
 
-After a failed run the services stay stopped. Start them with
-`docker compose up -d --no-build --wait ui stt`.
+After a failed run `ui` stays stopped. Start it with
+`docker compose up -d --no-build --wait ui`.
 
 Go modules are vendored in `vendor/`. After a `go.mod` change run
 `docker compose run --rm go-vendor`. It is the only networked Go service and
@@ -321,7 +323,10 @@ offline.
 ## Dictation
 
 Talk, and the words appear where you type. Speech to text runs on this
-machine in the `stt` container. Audio never leaves the host.
+machine in the `stt` container. Audio never leaves the host. The service is
+the Go binary `tmuxde-stt` from `cmd/tmuxde-stt` and `internal/stt`. It
+decodes through a cgo binding to the sherpa-onnx C API. Development and
+production both build it from `.docker/prod/stt.Dockerfile`.
 
 ```sh
 scripts/setup.sh --dictation
@@ -337,9 +342,26 @@ between utterances. Setup writes `COMPOSE_PROFILES=dictation`,
 `LOCAL_STT_MODELS` and `STT_THREADS` to `.env` and keeps the choice on later
 runs. `scripts/setup.sh --no-dictation` turns it off and keeps the models.
 
+`stt` has no hot reload. After a change in `internal/stt` or
+`cmd/tmuxde-stt`, the first command rebuilds the image and restarts the
+service. The second only builds the image:
+
+```sh
+docker compose up -d --build stt
+docker build -f .docker/prod/stt.Dockerfile -t tmuxde-stt:local .
+```
+
+The build downloads the pinned sherpa-onnx release, checks its SHA-256 and
+compiles with `CGO_ENABLED=1 -tags sherpa`. The runtime image holds the
+binary and two shared libraries. A restart reloads the model in about 7 s.
+x86_64 only.
+
 `stt` listens only on `run/stt/stt.sock`. It has no network at all and no
-published port. Its health check uses the socket too. Production and
-`server-dev` both dial it, and offer the mic only while their probe passes.
+published port. Its health check runs `tmuxde-stt health`, a `GET /health`
+over the same socket. `docker compose ps stt` shows the result, and
+`docker compose exec stt tmuxde-stt health` exits 0 while the service
+answers. Production and `server-dev` both dial it, and offer the mic only
+while their probe passes.
 `journalctl --user -u tmuxde` and `docker compose logs server-dev` show
 `dictation configured` with the socket path and
 `Speech service availability changed`.
@@ -350,7 +372,7 @@ the words at its caret. Otherwise they are pasted into the selected pane
 without Enter. Text appears after each pause. Stop keeps what was said, the
 cross discards it. Locking the device, switching app or losing the
 connection ends dictation. Details and measurements are in
-[stt/README.md](../stt/README.md).
+[internal/stt/README.md](../internal/stt/README.md).
 
 ## Using it
 
@@ -387,6 +409,7 @@ checked. Docker images and package manifests pin them.
 | :--- | :--- |
 | Go (checked 2026-10-12) | 1.27.2 |
 | air (checked 2026-10-12) | 1.67.4 |
+| sherpa-onnx (checked 2026-10-14) | 1.13.8 |
 | Node.js | 26.11.1 |
 | npm bootstrap | 12.2.0 |
 | pnpm | 12.11.2 |
