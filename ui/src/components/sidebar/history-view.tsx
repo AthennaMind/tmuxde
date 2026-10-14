@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { History, RefreshCw } from "lucide-react";
+import { GitGraph, History, RefreshCw } from "lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import { CommitList, useCommitLog } from "@/components/files/commit-log";
 import { useConnectionStore } from "@/stores/connection-store";
@@ -12,6 +12,7 @@ import type { RepositoryState } from "./use-repository-state";
 export function HistoryView({ repo }: { repo: RepositoryState }) {
   const [refresh, setRefresh] = useState(0);
   const supported = useConnectionStore((s) => s.features.has("repo:history"));
+  const graph = useConnectionStore((s) => s.features.has("repo:graph"));
   const { context, paneId } = repo;
   const log = useCommitLog({
     client: supported ? repo.client : null,
@@ -30,6 +31,20 @@ export function HistoryView({ repo }: { repo: RepositoryState }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PanelHeader title="History">
+        {graph && (
+          <PanelIconButton
+            label="Open graph"
+            icon={GitGraph}
+            onClick={() => {
+              if (!paneId || !context?.root) return;
+              // Keyed by root, so every folder of a repository shares one graph.
+              useMainTabsStore
+                .getState()
+                .openGraph({ paneId, contextPath: context.root });
+            }}
+            disabled={!repo.client || !paneId || !context?.root}
+          />
+        )}
         <PanelIconButton
           label="Refresh history"
           icon={RefreshCw}

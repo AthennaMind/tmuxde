@@ -4,6 +4,7 @@ import {
   SETTINGS_TAB,
   TERMINAL_TAB,
   commitTabId,
+  graphTabId,
   restoreTabs,
   useMainTabsStore,
 } from "./main-tabs-store";
@@ -137,13 +138,106 @@ describe("main tabs", () => {
     });
   });
 
-  it("drops the oldest tab past twelve", () => {
+  it("opens one graph per repository and refreshes its pane", () => {
+    const tabs = useMainTabsStore.getState();
+    tabs.openGraph({ paneId: "%1", contextPath: "/repo" });
+    tabs.openFile(file("/a.ts"));
+    tabs.openGraph({ paneId: "%2", contextPath: "/repo" });
+    tabs.openGraph({ paneId: "%2", contextPath: "/other" });
+    const s = useMainTabsStore.getState();
+    expect(s.tabs.map((t) => t.id)).toEqual([
+      graphTabId("/repo"),
+      "file:/a.ts",
+      graphTabId("/other"),
+    ]);
+    expect(s.tabs[0]).toEqual({
+      kind: "graph",
+      id: "graph:/repo",
+      paneId: "%2",
+      contextPath: "/repo",
+    });
+    expect(s.active).toBe(graphTabId("/other"));
+  });
+
+  it("closes graphs with all only", () => {
+    const tabs = useMainTabsStore.getState();
+    tabs.openGraph({ paneId: "%1", contextPath: "/repo" });
+    tabs.openCommit(commit());
+    tabs.openFile(file("/a.ts"));
+    tabs.closeTabs("diffs");
+    tabs.closeTabs("files");
+    expect(useMainTabsStore.getState()).toMatchObject({
+      tabs: [{ id: graphTabId("/repo") }],
+      active: graphTabId("/repo"),
+    });
+    tabs.closeTabs("all");
+    expect(useMainTabsStore.getState()).toMatchObject({
+      tabs: [],
+      active: TERMINAL_TAB,
+    });
+  });
+
+  it("drops the oldest file past twelve and keeps settings", () => {
     const tabs = useMainTabsStore.getState();
     tabs.openSettings();
     for (let i = 0; i < 12; i++) tabs.openFile(file(`/${i}`));
     const ids = useMainTabsStore.getState().tabs.map((t) => t.id);
     expect(ids).toHaveLength(12);
-    expect(ids).not.toContain(SETTINGS_TAB);
+    expect(ids[0]).toBe(SETTINGS_TAB);
+    expect(ids).not.toContain("file:/0");
+    expect(ids).toContain("file:/11");
+  });
+
+  it("keeps a graph while commits opened from it fill the strip", () => {
+    const tabs = useMainTabsStore.getState();
+    tabs.openGraph({ paneId: "%1", contextPath: "/repo" });
+    for (let i = 0; i < 12; i++) {
+      // Back to the graph, then open the next commit from it.
+      tabs.activate(graphTabId("/repo"));
+      tabs.openCommit(commit(`c${i}`, i.toString(16).padStart(40, "0")));
+    }
+    const s = useMainTabsStore.getState();
+    expect(s.tabs).toHaveLength(12);
+    expect(s.tabs[0]!.id).toBe(graphTabId("/repo"));
+    expect(s.tabs.map((t) => t.id)).not.toContain(commitTabId("0".repeat(40)));
+    expect(s.active).toBe(commitTabId("b".padStart(40, "0")));
+  });
+
+  it("keeps three graphs while commits opened from one fill the strip", () => {
+    const tabs = useMainTabsStore.getState();
+    for (const root of ["/a", "/b", "/c"])
+      tabs.openGraph({ paneId: "%1", contextPath: root });
+    for (let i = 0; i < 10; i++) {
+      tabs.activate(graphTabId("/a"));
+      tabs.openCommit(commit(`c${i}`, i.toString(16).padStart(40, "0")));
+    }
+    const ids = useMainTabsStore.getState().tabs.map((t) => t.id);
+    expect(ids).toHaveLength(12);
+    expect(ids.slice(0, 3)).toEqual(["/a", "/b", "/c"].map(graphTabId));
+    expect(ids).not.toContain(commitTabId("0".repeat(40)));
+  });
+
+  it("keeps the tab in front even when it is the oldest", () => {
+    const tabs = useMainTabsStore.getState();
+    tabs.openFile(file("/front.ts"));
+    for (let i = 0; i < 11; i++) tabs.openFile(file(`/${i}`));
+    tabs.activate("file:/front.ts");
+    tabs.openCommit(commit());
+    const ids = useMainTabsStore.getState().tabs.map((t) => t.id);
+    expect(ids).toHaveLength(12);
+    expect(ids[0]).toBe("file:/front.ts");
+    expect(ids).not.toContain("file:/0");
+    expect(ids.at(-1)).toBe(commitTabId(HASH));
+  });
+
+  it("drops a graph only when nothing else can go", () => {
+    const tabs = useMainTabsStore.getState();
+    for (let i = 0; i < 13; i++)
+      tabs.openGraph({ paneId: "%1", contextPath: `/r${i}` });
+    const ids = useMainTabsStore.getState().tabs.map((t) => t.id);
+    expect(ids).toHaveLength(12);
+    expect(ids).not.toContain(graphTabId("/r0"));
+    expect(ids.at(-1)).toBe(graphTabId("/r12"));
   });
 });
 
@@ -186,6 +280,51 @@ describe("restoreTabs", () => {
     });
     expect(restored.tabs.map((t) => t.id)).toEqual([tab.id]);
     expect(restored.active).toBe(tab.id);
+  });
+
+  it("restores graph tabs with an absolute folder and a matching id", () => {
+    const tab = {
+      kind: "graph",
+      id: graphTabId("/repo"),
+      paneId: "%1",
+      contextPath: "/repo",
+    };
+    const restored = restoreTabs({
+      tabs: [
+        tab,
+        { ...tab, id: "graph:/elsewhere" },
+        { ...tab, id: graphTabId("repo"), contextPath: "repo" },
+        { ...tab, id: graphTabId("/x"), contextPath: "/x", paneId: 3 },
+      ],
+      active: tab.id,
+    });
+    expect(restored.tabs.map((t) => t.id)).toEqual([tab.id]);
+    expect(restored.active).toBe(tab.id);
+  });
+
+  it("trims a long stored strip the way opening a tab does", () => {
+    const graph = {
+      kind: "graph",
+      id: graphTabId("/repo"),
+      paneId: "%1",
+      contextPath: "/repo",
+    };
+    const files = Array.from({ length: 13 }, (_, i) => ({
+      kind: "file",
+      id: `file:/${i}`,
+      paneId: "%1",
+      path: `/${i}`,
+    }));
+    const restored = restoreTabs({
+      tabs: [graph, ...files],
+      active: "file:/0",
+    });
+    expect(restored.tabs.map((t) => t.id)).toEqual([
+      graph.id,
+      "file:/0",
+      ...files.slice(3).map((f) => f.id),
+    ]);
+    expect(restored.active).toBe("file:/0");
   });
 
   it("survives nothing stored", () => {

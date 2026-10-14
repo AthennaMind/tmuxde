@@ -16,6 +16,7 @@
         "window:step",
         "pane:step",
         "repo:watch",
+        "repo:graph",
         "dictation"
       ]
     }
