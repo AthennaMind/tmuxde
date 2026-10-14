@@ -244,6 +244,10 @@ func (n *Node) route(ctx context.Context, c *conn, msg client.Message) error {
 
 	case *client.RepoRequest:
 		return n.repoRequest(ctx, c, m)
+	case *client.RepoWatch:
+		return n.repoWatch(ctx, c, m)
+	case *client.RepoUnwatch:
+		return n.repoUnwatch(c, m)
 
 	case *client.TmuxPrefix:
 		return n.withSession(ctx, c, func(s string) error {

@@ -5,8 +5,8 @@ Every message between the browser and the tmuxde server, as defined in
 
 `client-messages.ts` and `server-messages.ts` hold Zod discriminated unions,
 one JSON object per WebSocket message on `/_relay`. `codec.ts` validates both
-directions. **55** client types and **30** server types, `repo:request` and
-`repo:result` from `repository.ts` included. The Go server has a hand written
+directions. **57** client types and **32** server types, the `repo:*` types
+from `repository.ts` included. The Go server has a hand written
 type for each one in `internal/protocol/client` and `internal/protocol/server`.
 `fixtures/` holds a sample of every type plus invalid cases, and both the
 Vitest fixture test and the Go contract test check them.
@@ -164,6 +164,34 @@ timeout and a 512 KiB output limit. Text reads stop at 100 KiB. Directory and
 status results stop at 2,000 entries and report truncation. Binary content is
 flagged. Repository actions never stage, commit, restore, or write files.
 
+### Repository watch
+
+Requires `repo:watch` in `auth:success.features`. The server pushes
+`repo:changed` while the repository of a pane changes, so the client does not
+have to poll.
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `repo:watch` | `id`, `path?` | Watch the repository of pane `id`. Answered by `repo:watch:result` |
+| `repo:unwatch` | `root` | Stop the watch of `root`, as `repo:watch:result` named it. No reply |
+
+`id` follows the ownership rule of `repo:request`: the pane must belong to the
+attached session, and its folder comes from tmux. `path` is the captured
+context folder, absolute, checked against allowed paths. An empty or relative
+`path` is refused. A second watch of a watched root answers `ok` again and
+changes nothing. A connection holds at most 4 repository watches. All end when
+the connection closes, so a client sends `repo:watch` again after it
+reconnects.
+
+The server watches the Git directory, and the common directory of a linked
+work tree, for `HEAD`, `ORIG_HEAD`, `MERGE_HEAD`, `CHERRY_PICK_HEAD`,
+`REBASE_HEAD`, `REVERT_HEAD`, `index`, `packed-refs` and everything under
+`refs`. Lock files are ignored. It watches the work tree one directory at a
+time, at most 4,096 directories and 5 seconds of walking. It never follows
+symlinks, skips `.git` entries, paths the file policy denies and directories
+Git ignores, and drops editor temp files. Events are coalesced: a batch goes
+out 250 ms after the last event, and at most 1 second after the first.
+
 ### Dictation
 
 Requires `dictation` in `auth:success.features`, which the server sends only
@@ -269,6 +297,34 @@ Git porcelain status characters, including spaces and `?` for untracked files.
 Renames include `originalPath`. Outside Git repositories, context and status
 return null root and branch. Detached HEAD returns null branch. Staged diffs
 also work before first commit.
+
+### Repository watch events
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `repo:watch:result` | `root: string \| null`, `ok`, `partial`, `message?` | Answer to `repo:watch`. Sent again when the watch turns partial |
+| `repo:changed` | `root`, `git`, `refs`, `paths: string[]`, `truncated` | Something changed in a watched repository |
+
+`ok` false means no events come. `message` says why: not attached, pane not
+found, not a repository, access denied, too many repository watchers, or a
+watch that failed to start. Refusals never come as `error`, so a client falls
+back to polling without a toast. `root` is null when no repository was found.
+`partial` is true when the directory or time cap stopped the first walk, so
+part of the work tree is not watched and the client keeps its regular poll.
+Folders made later, and folders a changed ignore rule uncovers, are walked
+too. When such a walk hits a cap, the server sends `repo:watch:result` for
+the watched root once more, with `ok` and `partial` true.
+
+`paths` are work tree paths relative to `root` with forward slashes, deduped
+and sorted, at most 64. Ignored paths never appear, and a batch of only
+ignored paths sends nothing. `truncated` is true when more paths changed,
+events were lost or a `.gitignore` or `info/exclude` changed, and the client
+should treat everything as changed. `git` is true when HEAD, the index or
+refs changed. `refs` is true when `HEAD`, `packed-refs` or anything under
+`refs` changed, so history and the commit graph may differ. An index only
+change, such as `git add` or the index refresh of `git status`, sets `git`
+without `refs`. Lost events set both. Git directory paths never appear in
+`paths`.
 
 ### Dictation
 

@@ -121,3 +121,58 @@ export const RepoResponse = z.object({
   requestId: z.string(),
   result: RepoResult,
 });
+
+/**
+ * Watch the repository of a pane for changes. `id` is the pane, under the
+ * same ownership rule as `repo:request`. `path` is the captured context
+ * folder, absolute. Without it the server starts from the pane folder.
+ * Requires `repo:watch` in `auth:success.features`.
+ */
+export const RepoWatchMessage = z.object({
+  type: z.literal("repo:watch"),
+  id: z.string().min(1),
+  path: z.string().optional(),
+});
+export type RepoWatchMessage = z.infer<typeof RepoWatchMessage>;
+
+/** Stop watching the repository at `root`, as `repo:watch:result` named it. */
+export const RepoUnwatchMessage = z.object({
+  type: z.literal("repo:unwatch"),
+  root: z.string().min(1),
+});
+export type RepoUnwatchMessage = z.infer<typeof RepoUnwatchMessage>;
+
+/**
+ * Answer to `repo:watch`. `ok` false carries a short `message` and means no
+ * events come, so the client keeps polling. `partial` means the server
+ * watches only part of the work tree. The server sends it once more, with
+ * `partial` true, when a walk after the start hits a cap.
+ */
+export const RepoWatchResultMessage = z.object({
+  type: z.literal("repo:watch:result"),
+  root: z.string().nullable(),
+  ok: z.boolean(),
+  partial: z.boolean(),
+  message: z.string().optional(),
+});
+export type RepoWatchResultMessage = z.infer<typeof RepoWatchResultMessage>;
+
+/** Most paths one `repo:changed` lists. More set `truncated`. */
+export const REPO_CHANGED_MAX_PATHS = 64;
+
+/**
+ * Something changed in a watched repository. `paths` are work tree paths
+ * relative to `root`, sorted, at most 64. `git` is true when HEAD, the
+ * index or refs changed. `refs` is true when HEAD, `packed-refs` or a ref
+ * changed, so history may differ. An index only change, such as `git add`
+ * or the index refresh of `git status`, sets `git` without `refs`.
+ */
+export const RepoChangedMessage = z.object({
+  type: z.literal("repo:changed"),
+  root: z.string(),
+  git: z.boolean(),
+  refs: z.boolean(),
+  paths: z.array(z.string()).max(REPO_CHANGED_MAX_PATHS),
+  truncated: z.boolean(),
+});
+export type RepoChangedMessage = z.infer<typeof RepoChangedMessage>;

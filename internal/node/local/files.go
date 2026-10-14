@@ -31,6 +31,13 @@ const (
 // a per user limit of the machine, often 128.
 const defaultMaxWatchers = 32
 
+// defaultMaxRepoWatchers caps the repository watches of one connection.
+// Each holds one inotify instance and a watch per work tree directory.
+const defaultMaxRepoWatchers = 4
+
+// textTooManyRepoWatchers is the repo:watch:result message at the cap.
+const textTooManyRepoWatchers = "Too many repository watchers"
+
 // Texts for a failed operation whose error has no text of its own. The
 // relay used them for a thrown value that was not an Error.
 const (
@@ -241,6 +248,87 @@ func (n *Node) repoRequest(ctx context.Context, c *conn, m *client.RepoRequest) 
 		return c.send(ctx, repo.ErrorResult(m.RequestID, textNoPaneDirectory))
 	}
 	return c.send(ctx, n.repo.Request(ctx, *dir, m))
+}
+
+// repoWatch answers repo:watch. The pane must belong to the attached
+// session, as for repo:request, and the watch starts from its folder as
+// tmux reports it, or from the captured context path. Every refusal is a
+// repo:watch:result with ok false, never an error message, so the browser
+// falls back to polling without a toast. A second watch of the same root
+// answers ok and changes nothing.
+func (n *Node) repoWatch(ctx context.Context, c *conn, m *client.RepoWatch) error {
+	if n.repo == nil {
+		return &notWiredError{wireType: m.WireType(), missing: ErrFilesNotWired}
+	}
+	refuse := func(root *string, text string) error {
+		return c.send(ctx, &server.RepoWatchResult{Type: "repo:watch:result", Root: root, Message: &text})
+	}
+	s := c.attachedSession()
+	if s == "" {
+		return refuse(nil, textNotAttached)
+	}
+	panes, err := n.tmux.ListPanes(ctx, s, "")
+	if err != nil {
+		n.log.Warn("ownership lookup failed", "conn", c.id, "session", s, "error", err)
+		return refuse(nil, paneNotFound(m.ID))
+	}
+	i := slices.IndexFunc(panes, func(p protocol.PaneInfo) bool { return p.ID == m.ID })
+	if i < 0 {
+		return refuse(nil, paneNotFound(m.ID))
+	}
+	dir := panes[i].Path
+	if dir == nil || *dir == "" {
+		return refuse(nil, textNoPaneDirectory)
+	}
+	root, err := n.repo.WatchRoot(ctx, *dir, m.Path)
+	if err != nil {
+		return refuse(nil, repo.Message(err))
+	}
+	c.mu.Lock()
+	existing, dup := c.repoWatchers[root]
+	full := len(c.repoWatchers) >= n.maxRepoWatchers
+	c.mu.Unlock()
+	switch {
+	case dup:
+		return c.send(ctx, &server.RepoWatchResult{Type: "repo:watch:result", Root: &root, OK: true, Partial: existing.Partial()})
+	case full:
+		return refuse(&root, textTooManyRepoWatchers)
+	}
+	// Under the connection context, as file:watch: the watch lives until
+	// repo:unwatch or Close.
+	w, err := n.repo.Watch(c.ctx, root, func(msg server.Message) {
+		if err := c.sink.Send(c.ctx, msg); err != nil && c.ctx.Err() == nil {
+			n.log.Debug("repository change not sent", "conn", c.id, "error", err)
+		}
+	})
+	if err != nil {
+		return refuse(&root, repo.Message(err))
+	}
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		_ = w.Close()
+		return nil
+	}
+	if c.repoWatchers == nil {
+		c.repoWatchers = map[string]repo.WatchHandle{}
+	}
+	c.repoWatchers[root] = w
+	c.mu.Unlock()
+	return c.send(ctx, &server.RepoWatchResult{Type: "repo:watch:result", Root: &root, OK: true, Partial: w.Partial()})
+}
+
+// repoUnwatch stops the watch of a root. It only looks up a watch that
+// passed every check when it started, and sends nothing.
+func (n *Node) repoUnwatch(c *conn, m *client.RepoUnwatch) error {
+	c.mu.Lock()
+	w := c.repoWatchers[m.Root]
+	delete(c.repoWatchers, m.Root)
+	c.mu.Unlock()
+	if w != nil {
+		_ = w.Close()
+	}
+	return nil
 }
 
 // opResult builds file:op:result. err nil is success.

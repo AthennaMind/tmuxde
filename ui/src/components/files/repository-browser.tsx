@@ -26,6 +26,13 @@ import { RepositoryFileIcon } from "./repository-file-icon";
 import { FilePreview, Notice, useRepositoryQuery } from "./repository-preview";
 import { formatFileSize } from "@/lib/file-utils";
 import { isMarkdownPath } from "@/lib/markdown";
+import {
+  changeTouchesDiff,
+  changeTouchesFile,
+  changeTouchesFolder,
+  sameRoot,
+} from "@/lib/repo-change";
+import { useRepoChangeCount, useRepoWatch } from "@/stores/repo-watch-store";
 import { usePaneStore } from "@/stores/pane-store";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -147,15 +154,30 @@ function BrowserContents({
     ? ["files", "changes", "history"]
     : ["files", "changes"];
   const [refresh, setRefresh] = useState(0);
+  // Spins from a Refresh click until every answer lands. Quiet reloads after
+  // a change on disk never spin.
+  const [refreshing, setRefreshing] = useState(false);
   const wrap = useSettingsStore((s) => s.wrapLines);
   const setWrap = useSettingsStore((s) => s.setWrapLines);
   const rendered = useSettingsStore((s) => s.markdownPreview);
   const setRendered = useSettingsStore((s) => s.setMarkdownPreview);
   const id = useId();
+  // A `cd` in the pane moves its folder. Asking for the context again then
+  // follows it, as the desktop sidebar does.
+  const folder = usePaneStore(
+    (state) => state.panes.find((p) => p.id === paneId)?.path ?? "",
+  );
+  const [seenFolder, setSeenFolder] = useState(folder);
+  const [folderMoves, setFolderMoves] = useState(0);
+  if (folder !== seenFolder) {
+    setSeenFolder(folder);
+    setFolderMoves((n) => n + 1);
+  }
   const contextQuery = useRepositoryQuery(
     client,
     { id: paneId, action: "context" },
-    refresh,
+    refresh + folderMoves,
+    { keepOnRefresh: true },
   );
   const context =
     contextQuery.result?.kind === "context" ? contextQuery.result : undefined;
@@ -164,18 +186,50 @@ function BrowserContents({
       replace({ ...view, directory: context.path });
     }
   }, [context, directory, view, replace]);
+  // The listing follows a new pane folder unless someone browsed away.
+  const lastContextPath = useRef(context?.path);
+  useEffect(() => {
+    const before = lastContextPath.current;
+    lastContextPath.current = context?.path;
+    if (!context || !before || before === context.path) return;
+    if (directory === before) replace({ ...view, directory: context.path });
+  }, [context, directory, view, replace]);
+  // The server watch of the repository, and quiet reloads on its pushes.
+  const root = context?.root ?? undefined;
+  useRepoWatch(client, root, { paneId, path: context?.path });
   const path = directory ?? context?.path;
+  const listingPushes = useRepoChangeCount((change) =>
+    path ? changeTouchesFolder(change, path) : false,
+  );
+  const statusPushes = useRepoChangeCount((change) =>
+    root ? sameRoot(change, root) : false,
+  );
+  const previewPushes = useRepoChangeCount((change) =>
+    !preview
+      ? false
+      : preview.scope
+        ? !!root &&
+          changeTouchesDiff(
+            change,
+            root,
+            preview.path,
+            preview.scope !== "untracked",
+          )
+        : changeTouchesFile(change, preview.path),
+  );
   const listing = useRepositoryQuery(
     client,
     context && path && !preview && !commit && tab === "files"
       ? { id: paneId, action: "list", path }
       : null,
-    refresh,
+    refresh + listingPushes,
+    { keepOnRefresh: true },
   );
   const statusQuery = useRepositoryQuery(
     client,
     context ? { id: paneId, action: "status", path: context.path } : null,
-    refresh,
+    refresh + statusPushes,
+    { keepOnRefresh: true },
   );
   const status =
     statusQuery.result?.kind === "status" ? statusQuery.result : undefined;
@@ -192,7 +246,8 @@ function BrowserContents({
           }
         : { id: paneId, action: "read", path: preview.path }
       : null,
-    refresh,
+    refresh + previewPushes,
+    { keepOnRefresh: true },
   );
   const content =
     fileQuery.result?.kind === "read" || fileQuery.result?.kind === "diff"
@@ -216,6 +271,26 @@ function BrowserContents({
   );
   const commitResult =
     commitQuery.result?.kind === "show" ? commitQuery.result : undefined;
+  // A query with nothing to show yet. Reloads keep their last answer.
+  const empty = (query: { loading: boolean; result?: unknown; error?: string }) =>
+    query.loading && !query.result && !query.error;
+  const anyLoading =
+    contextQuery.loading ||
+    listing.loading ||
+    statusQuery.loading ||
+    fileQuery.loading ||
+    commitQuery.loading ||
+    log.refreshing;
+  useEffect(() => {
+    if (refreshing && !anyLoading) setRefreshing(false);
+  }, [refreshing, anyLoading]);
+  const spinning =
+    refreshing ||
+    empty(contextQuery) ||
+    empty(listing) ||
+    empty(statusQuery) ||
+    empty(fileQuery) ||
+    empty(commitQuery);
   const openCommit = (hash: string, subject: string) =>
     navigate({ ...view, preview: null, commit: { hash, subject } });
   const entries = listing.result?.kind === "list" ? listing.result.entries : [];
@@ -309,20 +384,17 @@ function BrowserContents({
             variant="ghost"
             size="icon"
             className="h-11 w-11"
-            onClick={() => setRefresh((value) => value + 1)}
+            onClick={() => {
+              setRefresh((value) => value + 1);
+              setRefreshing(true);
+            }}
             aria-label="Refresh"
             title="Refresh"
           >
             <RefreshCw
               className={cn(
                 "h-4 w-4",
-                (contextQuery.loading ||
-                  listing.loading ||
-                  statusQuery.loading ||
-                  fileQuery.loading ||
-                  commitQuery.loading ||
-                  log.refreshing) &&
-                  "animate-spin motion-reduce:animate-none",
+                spinning && "animate-spin motion-reduce:animate-none",
               )}
             />
           </Button>
@@ -337,7 +409,7 @@ function BrowserContents({
       >
         {contextQuery.error ? (
           <Notice error>{contextQuery.error}</Notice>
-        ) : contextQuery.loading ? (
+        ) : empty(contextQuery) ? (
           <Notice>Finding pane directory...</Notice>
         ) : !context ? (
           <Notice>Pane directory unavailable. Refresh to try again.</Notice>
@@ -406,7 +478,7 @@ function BrowserContents({
                 </div>
                 {fileQuery.error ? (
                   <Notice error>{fileQuery.error}</Notice>
-                ) : fileQuery.loading ? (
+                ) : empty(fileQuery) ? (
                   <Notice>Loading preview...</Notice>
                 ) : content ? (
                   <FilePreview
@@ -497,7 +569,7 @@ function BrowserContents({
                 <div className="min-h-0 flex-1 overflow-auto">
                   {listing.error ? (
                     <Notice error>{listing.error}</Notice>
-                  ) : listing.loading ? (
+                  ) : empty(listing) ? (
                     <Notice>Loading files...</Notice>
                   ) : filtered.length ? (
                     <ul className="py-1">
@@ -554,7 +626,7 @@ function BrowserContents({
                 <div className="min-h-0 flex-1 overflow-auto">
                   {statusQuery.error ? (
                     <Notice error>{statusQuery.error}</Notice>
-                  ) : statusQuery.loading ? (
+                  ) : empty(statusQuery) ? (
                     <Notice>Loading current changes...</Notice>
                   ) : !status?.root ? (
                     <Notice>

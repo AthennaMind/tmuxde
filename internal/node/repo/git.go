@@ -115,6 +115,13 @@ func (e *gitFailure) Unwrap() error { return e.err }
 // not read repository". A timeout is "Git request timed out", never a
 // success.
 func (s *Service) git(ctx context.Context, repo repository, args []string, accepted ...int) (gitOutput, error) {
+	return s.gitWith(ctx, repo, args, "", nil, accepted...)
+}
+
+// gitWith is git with input on stdin and env added to the environment.
+// An env entry overrides the setting of the same name. Empty input leaves
+// stdin closed.
+func (s *Service) gitWith(ctx context.Context, repo repository, args []string, input string, env []string, accepted ...int) (gitOutput, error) {
 	if len(accepted) == 0 {
 		accepted = []int{0}
 	}
@@ -130,8 +137,15 @@ func (s *Service) git(ctx context.Context, repo repository, args []string, accep
 	cmd := exec.CommandContext(ctx, s.bin, argv...)
 	cmd.Dir = repo.root
 	cmd.Env = s.env
+	if len(env) > 0 {
+		// exec keeps the last value of a name that shows up twice.
+		cmd.Env = append(slices.Clip(s.env), env...)
+	}
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
+	if input != "" {
+		cmd.Stdin = strings.NewReader(input)
+	}
 	// Own process group, so a timeout also ends what Git started.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error { return killGroup(cmd.Process) }
