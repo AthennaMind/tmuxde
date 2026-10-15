@@ -124,7 +124,7 @@ func (e *Edge) health(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
-	w.Write(body)
+	_, _ = w.Write(body)
 }
 
 // fallback takes every request no other route claims.
@@ -146,7 +146,7 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request) {
 func notFound(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
-	io.WriteString(w, "Not found")
+	_, _ = io.WriteString(w, "Not found")
 }
 
 // hubPaths are served by the hub only. A request for one of them, or for a

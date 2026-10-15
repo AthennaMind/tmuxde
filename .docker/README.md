@@ -287,6 +287,7 @@ All Node and Go tooling runs in Docker. Never install host `node_modules`.
 docker compose run --rm tools pnpm typecheck
 docker compose run --rm tools pnpm test
 docker compose run --rm tools pnpm build
+make check                                # go vet, golangci-lint, go test
 docker compose run --rm gotools go vet ./...
 docker compose run --rm -e CGO_ENABLED=1 gotools go test -race ./...
 docker compose config --quiet
@@ -409,6 +410,7 @@ checked. Docker images and package manifests pin them.
 | :--- | :--- |
 | Go (checked 2026-10-12) | 1.27.2 |
 | air (checked 2026-10-12) | 1.67.4 |
+| golangci-lint (checked 2026-10-14) | 2.14.0 |
 | sherpa-onnx (checked 2026-10-14) | 1.13.8 |
 | Node.js | 26.11.1 |
 | npm bootstrap | 12.2.0 |
@@ -420,4 +422,6 @@ checked. Docker images and package manifests pin them.
 | Vitest | 5.0.3 |
 | Tailwind CSS | 4.3.3 |
 
-There is no linter or formatter. Planned replacement is oxlint and oxfmt.
+Go lint is golangci-lint, built into the `gotools` image with its Go, config in
+`.golangci.yml`, run by `make lint`. UI has no linter or formatter. Planned
+replacement is oxlint and oxfmt.

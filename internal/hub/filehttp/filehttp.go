@@ -217,5 +217,5 @@ func (h *handler) openFailed(w http.ResponseWriter, filePath string, err error) 
 func writeText(w http.ResponseWriter, status int, body string) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(status)
-	io.WriteString(w, body)
+	_, _ = io.WriteString(w, body)
 }

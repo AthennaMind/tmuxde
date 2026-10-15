@@ -146,7 +146,7 @@ func startFake(t *testing.T, o fakeOptions) *fakeSTT {
 	f.srv = &http.Server{Handler: mux, ErrorLog: log.New(io.Discard, "", 0)}
 	go func() {
 		defer close(f.served)
-		f.srv.Serve(ln)
+		_ = f.srv.Serve(ln)
 	}()
 	t.Cleanup(f.stop)
 	return f
@@ -297,7 +297,7 @@ func (fs *fakeSession) frames() ([][]byte, []string) {
 func (fs *fakeSession) sendText(s string) {
 	ctx, cancel := context.WithTimeout(context.Background(), waitLimit)
 	defer cancel()
-	fs.conn.Write(ctx, websocket.MessageText, []byte(s))
+	_ = fs.conn.Write(ctx, websocket.MessageText, []byte(s))
 }
 
 // recorder stands in for the browser side of one connection. Every
@@ -328,7 +328,7 @@ func (r *recorder) send(msg server.Message) error {
 // reply sends what Audio or Stop returned, as the ws layer does.
 func (r *recorder) reply(msg server.Message) {
 	if msg != nil {
-		r.send(msg)
+		_ = r.send(msg)
 	}
 }
 
@@ -434,13 +434,4 @@ func running(s *Session) string {
 		return ""
 	}
 	return s.cur.id
-}
-
-func errorOf(t *testing.T, m server.Message) *server.DictationError {
-	t.Helper()
-	e, ok := m.(*server.DictationError)
-	if !ok {
-		t.Fatalf("got %T, want *server.DictationError", m)
-	}
-	return e
 }

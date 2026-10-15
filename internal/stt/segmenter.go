@@ -136,7 +136,7 @@ func NewVADSegmenter(vad VAD) *VADSegmenter {
 // at startup, not on someone's first word.
 func LoadVADSegmenter(modelPath string, open func(modelPath string) (VAD, error)) (func() (Segmenter, error), error) {
 	if _, err := os.Stat(modelPath); err != nil {
-		return nil, fmt.Errorf("VAD model missing at %s. Run scripts/setup.sh --dictation.", modelPath)
+		return nil, fmt.Errorf("VAD model missing at %s, run scripts/setup.sh --dictation", modelPath)
 	}
 	vad, err := open(modelPath)
 	if err != nil {

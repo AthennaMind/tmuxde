@@ -520,7 +520,7 @@ func TestForwardedAddress(t *testing.T) {
 		t.Cleanup(func() {
 			ctx, cancel := context.WithTimeout(context.Background(), waitLimit)
 			defer cancel()
-			srv.Shutdown(ctx)
+			_ = srv.Shutdown(ctx)
 			hs.Close()
 		})
 		httpClient := &http.Client{Transport: &http.Transport{

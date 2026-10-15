@@ -150,6 +150,12 @@ services:
         read_only: true
         bind:
           create_host_path: false
+      - type: "bind"
+        source: "../../.golangci.yml"
+        target: "/workspace/.golangci.yml"
+        read_only: true
+        bind:
+          create_host_path: false
       # Protocol fixtures for the Go contract tests.
       - type: "bind"
         source: "../../src/ui/src/protocol"
@@ -179,6 +185,13 @@ services:
         volume:
           nocopy: true
           subpath: "go-mod"
+      - type: "volume"
+        source: "cache"
+        target: "/workspace/.cache/golangci-lint"
+        read_only: false
+        volume:
+          nocopy: true
+          subpath: "golangci-lint"
   # Networked. Refreshes go.sum and vendor/ after go.mod changes and checks
   # the five day release delay. See .docker/dev/go-vendor.sh.
   go-vendor:

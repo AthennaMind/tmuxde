@@ -359,7 +359,7 @@ func TestStreamEnds(t *testing.T) {
 		f := startFake(t, fakeOptions{onSession: func(fs *fakeSession) {
 			ctx, cancel := context.WithTimeout(context.Background(), waitLimit)
 			defer cancel()
-			fs.conn.Write(ctx, websocket.MessageBinary, []byte("{}"))
+			_ = fs.conn.Write(ctx, websocket.MessageBinary, []byte("{}"))
 			sendReady(fs)
 		}})
 		b := newBridge(t, Options{SocketPath: f.path})

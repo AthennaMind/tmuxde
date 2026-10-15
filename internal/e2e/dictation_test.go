@@ -75,7 +75,7 @@ func newFakeSTT(t *testing.T, health int) *fakeSTT {
 	f.srv = &http.Server{Handler: mux, ErrorLog: log.New(io.Discard, "", 0)}
 	go func() {
 		defer close(f.served)
-		f.srv.Serve(ln)
+		_ = f.srv.Serve(ln)
 	}()
 	t.Cleanup(f.stop)
 	return f

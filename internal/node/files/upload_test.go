@@ -179,7 +179,7 @@ func TestUploadFailureAbortsTheRest(t *testing.T) {
 				if err := os.Chmod(f.sub, 0o555); err != nil {
 					t.Fatal(err)
 				}
-				t.Cleanup(func() { os.Chmod(f.sub, 0o755) })
+				t.Cleanup(func() { _ = os.Chmod(f.sub, 0o755) })
 				err := u.Chunk(context.Background(), p, []byte("one"), false)
 				if err := os.Chmod(f.sub, 0o755); err != nil {
 					t.Fatal(err)

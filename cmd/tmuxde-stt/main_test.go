@@ -109,7 +109,7 @@ func TestServeNamesMissingModelFiles(t *testing.T) {
 		t.Fatalf("exit %d, want 1", code)
 	}
 	lines := logLines(t, stdout.String())
-	want := "Model files missing in /nonexistent: encoder.int8.onnx, decoder.int8.onnx, joiner.int8.onnx, tokens.txt. Run scripts/setup.sh --dictation."
+	want := "model files missing in /nonexistent: encoder.int8.onnx, decoder.int8.onnx, joiner.int8.onnx, tokens.txt, run scripts/setup.sh --dictation"
 	if len(lines) != 1 || lines[0]["msg"] != "Startup failed" || lines[0]["error"] != want {
 		t.Fatalf("log %v", lines)
 	}
@@ -214,7 +214,7 @@ func TestHealthCommandNeedsStatus200(t *testing.T) {
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	})}
-	go srv.Serve(ln)
+	go func() { _ = srv.Serve(ln) }()
 	defer srv.Close()
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"health"}, lookup(map[string]string{"STT_SOCKET": path}), &stdout, &stderr); code != 1 {

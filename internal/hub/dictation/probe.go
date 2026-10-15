@@ -119,6 +119,6 @@ func (b *Bridge) healthy(ctx context.Context) bool {
 		return false
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
 	return resp.StatusCode >= 200 && resp.StatusCode < 300
 }
