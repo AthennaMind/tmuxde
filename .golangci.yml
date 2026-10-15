@@ -1,0 +1,36 @@
+# golangci-lint v2 config for the Go module at the repository root. Runs in
+# the gotools service through make lint. Version pin lives in
+# .docker/dev/go.Dockerfile.
+version: "2"
+
+run:
+  # Offline. Packages come from vendor/.
+  modules-download-mode: vendor
+
+linters:
+  # errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  settings:
+    errcheck:
+      exclude-functions:
+        # Best effort close, same as Close in the std-error-handling preset.
+        - (*github.com/coder/websocket.Conn).CloseNow
+  exclusions:
+    presets:
+      # Unchecked Close, Flush, print and os.Remove.
+      - std-error-handling
+    rules:
+      # Only sherpa.go uses these settings. It builds with the sherpa and cgo
+      # tags and needs the sherpa-onnx C headers, so lint never sees it.
+      - path: internal/stt/sherpa/config\.go
+        linters:
+          - unused
+
+issues:
+  # Report every finding, not the first 50 per linter or 3 per message.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt

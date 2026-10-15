@@ -158,11 +158,11 @@ func TestNotFoundWithoutWeb(t *testing.T) {
 
 func TestHandleMountsBeforeTheWebApp(t *testing.T) {
 	web := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "web")
+		_, _ = io.WriteString(w, "web")
 	})
 	mounted := func(name string) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			io.WriteString(w, name)
+			_, _ = io.WriteString(w, name)
 		})
 	}
 	e := New(quietOptions(Options{Static: web}))
@@ -206,7 +206,7 @@ func TestHandleMountsBeforeTheWebApp(t *testing.T) {
 
 func TestStaticGetsAssetExclusions(t *testing.T) {
 	static := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "static "+r.URL.Path)
+		_, _ = io.WriteString(w, "static "+r.URL.Path)
 	})
 	h := Handler(quietOptions(Options{Static: static}))
 
@@ -287,7 +287,7 @@ func TestStaticIndexKeepsHeaders(t *testing.T) {
 
 func TestDevWebURLWinsOverStatic(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "dev")
+		_, _ = io.WriteString(w, "dev")
 	}))
 	t.Cleanup(upstream.Close)
 	target, err := url.Parse(upstream.URL)
@@ -295,7 +295,7 @@ func TestDevWebURLWinsOverStatic(t *testing.T) {
 		t.Fatal(err)
 	}
 	static := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "static")
+		_, _ = io.WriteString(w, "static")
 	})
 	h := Handler(quietOptions(Options{DevWebURL: target, Static: static}))
 	if body := record(h, "GET", "/login").Body.String(); body != "dev" {

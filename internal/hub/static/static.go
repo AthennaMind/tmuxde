@@ -226,5 +226,5 @@ func text(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
-	io.WriteString(w, msg)
+	_, _ = io.WriteString(w, msg)
 }

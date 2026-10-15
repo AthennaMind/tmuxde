@@ -97,6 +97,6 @@ func proxyErrorHandler(logger *slog.Logger) func(http.ResponseWriter, *http.Requ
 		setSecurityHeaders(w.Header(), socket)
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusBadGateway)
-		io.WriteString(w, "Bad gateway")
+		_, _ = io.WriteString(w, "Bad gateway")
 	}
 }

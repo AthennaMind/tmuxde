@@ -41,7 +41,7 @@ func RemoveStaleSocket(path string) error {
 		return err
 	}
 	if live {
-		return fmt.Errorf("Something already listens on %s", path)
+		return fmt.Errorf("something already listens on %s", path)
 	}
 	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err

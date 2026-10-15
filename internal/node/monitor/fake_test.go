@@ -473,7 +473,7 @@ func window() protocol.WindowInfo {
 // pane is the relay test pane helper.
 func pane(id string, active bool, path string) protocol.PaneInfo {
 	var index int
-	fmt.Sscanf(id[1:], "%d", &index)
+	_, _ = fmt.Sscanf(id[1:], "%d", &index)
 	return protocol.PaneInfo{
 		ID:         id,
 		Index:      index,

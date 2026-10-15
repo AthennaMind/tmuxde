@@ -98,7 +98,9 @@ func TestWatchEvents(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fh.WriteString(" more")
+		if _, err := fh.WriteString(" more"); err != nil {
+			t.Fatal(err)
+		}
 		fh.Close()
 		expectEvents(t, ch, fsEvent{p, "change"})
 	})
@@ -239,7 +241,9 @@ func TestWatchThrottlesChanges(t *testing.T) {
 	}
 	start := time.Now()
 	for range 20 {
-		fh.WriteString("line\n")
+		if _, err := fh.WriteString("line\n"); err != nil {
+			t.Fatal(err)
+		}
 	}
 	burst := time.Since(start)
 	fh.Close()

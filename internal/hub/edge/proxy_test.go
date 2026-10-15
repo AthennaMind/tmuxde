@@ -43,7 +43,7 @@ func newUpstream(t *testing.T) *upstream {
 		h.Set("Content-Type", "text/javascript")
 		h.Set("Cache-Control", "public, max-age=31536000, immutable")
 		h.Set("X-Frame-Options", "SAMEORIGIN")
-		io.WriteString(w, "console.log(1)")
+		_, _ = io.WriteString(w, "console.log(1)")
 	})
 	mux.HandleFunc("/stream/events", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -65,7 +65,7 @@ func newUpstream(t *testing.T) *upstream {
 		h.Set("X-Seen-Forwarded-For", strings.Join(r.Header.Values("X-Forwarded-For"), "|"))
 		h.Set("X-Seen-Forwarded-Host", r.Header.Get("X-Forwarded-Host"))
 		h.Set("X-Seen-Forwarded-Proto", r.Header.Get("X-Forwarded-Proto"))
-		io.WriteString(w, "<!doctype html><title>tmuxde</title>")
+		_, _ = io.WriteString(w, "<!doctype html><title>tmuxde</title>")
 	})
 	u.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u.mu.Lock()
@@ -78,7 +78,7 @@ func newUpstream(t *testing.T) *upstream {
 }
 
 func (u *upstream) writeInTwoParts(w http.ResponseWriter, r *http.Request, first, rest string) {
-	io.WriteString(w, first)
+	_, _ = io.WriteString(w, first)
 	if err := http.NewResponseController(w).Flush(); err != nil {
 		return
 	}
@@ -87,7 +87,7 @@ func (u *upstream) writeInTwoParts(w http.ResponseWriter, r *http.Request, first
 	case <-r.Context().Done():
 		return
 	}
-	io.WriteString(w, rest)
+	_, _ = io.WriteString(w, rest)
 }
 
 func (u *upstream) seen() []string {

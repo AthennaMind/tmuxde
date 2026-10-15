@@ -96,7 +96,7 @@ func serveOn(t *testing.T, srv *Server, path string) error {
 	if err != nil {
 		return err
 	}
-	go srv.Serve(ln)
+	go func() { _ = srv.Serve(ln) }()
 	return nil
 }
 
@@ -420,7 +420,7 @@ func TestRejectsAnOversizedFrame(t *testing.T) {
 	c.waitReady(t)
 	ctx, cancel := context.WithTimeout(context.Background(), waitLimit)
 	defer cancel()
-	c.conn.Write(ctx, websocket.MessageBinary, make([]byte, maxFrameBytes+2))
+	_ = c.conn.Write(ctx, websocket.MessageBinary, make([]byte, maxFrameBytes+2))
 	if code, _ := c.closed(t); code != websocket.StatusMessageTooBig {
 		t.Fatalf("close code %d, want 1009", code)
 	}

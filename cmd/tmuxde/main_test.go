@@ -624,7 +624,7 @@ func TestServeWithoutWebBuild(t *testing.T) {
 // when a build is embedded. The log says which one serves.
 func TestServeDevWebURLWinsOverSite(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "dev "+r.URL.Path)
+		_, _ = io.WriteString(w, "dev "+r.URL.Path)
 	}))
 	t.Cleanup(upstream.Close)
 	cfg := testConfig(t)
@@ -1035,10 +1035,10 @@ func TestRunAppDictation(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"ok":true,"model":"test","sessions":0}`)
+		_, _ = io.WriteString(w, `{"ok":true,"model":"test","sessions":0}`)
 	})
 	stt := &http.Server{Handler: mux}
-	go stt.Serve(ln)
+	go func() { _ = stt.Serve(ln) }()
 	t.Cleanup(func() { stt.Close() })
 
 	cfg := runAppConfig(t, tm)
