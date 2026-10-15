@@ -902,7 +902,7 @@ func (f *fixture) testApplicationScrolling(t *testing.T) {
 		must(c.scrollHistory(bg, pane, 1))(t)
 		poll(t, "six bytes", 10*time.Second, 20*time.Millisecond, func() (bool, string) {
 			got := readReceived(received)
-			return len(got) == 6, fmt.Sprint(got)
+			return len(got) == 6, fmt.Sprintf("%v", got)
 		})
 		if got := readReceived(received)[:4]; !bytes.Equal(got, []byte{27, 91, 77, 96}) {
 			t.Fatalf("event starts %v, want [27 91 77 96]", got)

@@ -190,7 +190,7 @@ func TestResolveReturnsOtherErrno(t *testing.T) {
 		if err := os.Chmod(locked, 0); err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() { os.Chmod(locked, 0o755) })
+		t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
 		_, err := f.guard.Resolve(filepath.Join(locked, "x"))
 		if !errors.Is(err, syscall.EACCES) {
 			t.Errorf("Resolve in locked dir: error = %v, want EACCES", err)

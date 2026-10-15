@@ -112,7 +112,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.stream(w, r)
 	case r.RequestURI == HealthPath && r.Method == http.MethodGet && !isUpgrade(r):
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(struct {
+		_ = json.NewEncoder(w).Encode(struct {
 			OK       bool   `json:"ok"`
 			Model    string `json:"model"`
 			Sessions int    `json:"sessions"`
@@ -174,7 +174,7 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 		s.log.Error("Segmenter failed", "error", err.Error())
 		msg, _ := json.Marshal(Message{Type: "error", Code: "DECODE_FAILED", Message: "Speech could not be transcribed"})
 		ctx, cancel := context.WithTimeout(s.ctx, writeTimeout)
-		conn.Write(ctx, websocket.MessageText, msg)
+		_ = conn.Write(ctx, websocket.MessageText, msg)
 		cancel()
 		conn.Close(websocket.StatusInternalError, "DECODE_FAILED")
 		return

@@ -46,7 +46,7 @@ func TestSerializeRunsOneDecodeAtATimeInArrivalOrder(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tr.Transcribe(make([]float32, n))
+			_, _ = tr.Transcribe(make([]float32, n))
 		}()
 		for tail() == before {
 			time.Sleep(time.Millisecond)
@@ -91,7 +91,7 @@ func TestCheckModelFiles(t *testing.T) {
 		}
 	}
 	err := CheckModelFiles(dir)
-	want := fmt.Sprintf("Model files missing in %s: decoder.int8.onnx, joiner.int8.onnx. Run scripts/setup.sh --dictation.", dir)
+	want := fmt.Sprintf("model files missing in %s: decoder.int8.onnx, joiner.int8.onnx, run scripts/setup.sh --dictation", dir)
 	if err == nil || err.Error() != want {
 		t.Fatalf("err = %v, want %q", err, want)
 	}

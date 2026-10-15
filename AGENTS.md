@@ -43,6 +43,7 @@ Token login is the only sign-in path. Pairing, device approval, the sealed tunne
 - `src/ui/src/protocol`: validated client/server messages, shared types, wire fixtures and `PROTOCOL.md`, the maintained reference for every message type.
 - `src/ui/src/crypto`: envelope sealing and PIN key derivation for the device lock.
 - `src/ui/src/components/ui`, `hooks`, `providers`, `lib`: shared UI components, theme and helpers. Tokens and Tailwind theme live in `src/ui/src/globals.css`. Imports use the `@/` alias for `src/ui/src`.
+- `Makefile`, `.golangci.yml`: Go checks (`vet`, `lint`, `test`, `race`, `check`) through `gotools`, and golangci-lint config.
 - `.docker`: Compose files (`compose/dev.yaml`, `prod.yaml`, `tooling.yaml`, `workspace.yaml`), dev images, prod `tmuxde.Dockerfile` and `stt.Dockerfile`, host unit template, Caddyfile and `README.md`.
 - `scripts/setup.sh`: writes `.env`, token and run directory. `--host-service` installs the binary as user unit.
 - `.agents`: UI review skills (`better-*`, `interface-review`), tracked. Plans, backlogs and reviews also live here but are gitignored.
@@ -67,6 +68,8 @@ docker compose run --rm tools pnpm test           # all Vitest projects
 docker compose run --rm tools pnpm test src/lib/relay-url.test.ts   # single file, path relative to src/ui
 docker compose run --rm tools pnpm typecheck
 docker compose run --rm tools pnpm build
+make check                                        # go vet, golangci-lint and go test in gotools. make lists targets
+make lint                                         # golangci-lint only, config in .golangci.yml
 docker compose run --rm gotools go vet ./...      # gotools works in /workspace, the module root
 docker compose run --rm gotools go test ./...
 docker compose run --rm -e CGO_ENABLED=1 gotools go test -race ./...   # race detector needs CGO
@@ -92,7 +95,7 @@ Browser assets must be local. No analytics exporters, hosted accounts, cloud dic
 
 Protocol changes require Zod schemas, Go types with their registry entry in `internal/protocol/client` or `internal/protocol/server`, fixtures in `src/ui/src/protocol/fixtures` (invalid cases too), both handlers, tests and updates to `src/ui/src/protocol/PROTOCOL.md`. Both handlers means Go router in `internal/node/local` and UI `src/ui/src/hooks/use-websocket.ts`. File access must use path guards in `internal/node/files`. Session operations go through `internal/node/tmux`. Preserve authentication, origin checks and local lock behavior.
 
-Use semantic color classes. Follow local import conventions. Dev tools (TypeScript, Vitest, @types/node) live in `src/ui/package.json` next to the app dependencies. `src/ui/tsconfig.json` is the only tsconfig. No task runner, linter or formatter. Validate environment variables with Zod in TypeScript and in Go in `internal/config` for `tmuxde` and `internal/stt/config.go` for `tmuxde-stt`. Use conventional commits.
+Use semantic color classes. Follow local import conventions. Dev tools (TypeScript, Vitest, @types/node) live in `src/ui/package.json` next to the app dependencies. `src/ui/tsconfig.json` is the only tsconfig. Root `Makefile` runs Go checks only, each target in `gotools`. Go lint is golangci-lint with `.golangci.yml`, gofmt included. UI has no linter or formatter. Validate environment variables with Zod in TypeScript and in Go in `internal/config` for `tmuxde` and `internal/stt/config.go` for `tmuxde-stt`. Use conventional commits.
 
 ## Plans, Backlogs and Reviews
 
@@ -129,7 +132,7 @@ Run checks appropriate to changes. Browser checks use playwright-cli against the
 
 ## Docker development
 
-Run Node and Go tooling only in Docker. Setup: `scripts/setup.sh`. Start hot reload: `docker compose up -d --build --wait`. Checks: `docker compose run --rm tools pnpm test`, `typecheck` or `build`, and `docker compose run --rm gotools go test ./...` or `go vet ./...`. Never install host node_modules. Nothing in Docker uses the host tmux.
+Run Node and Go tooling only in Docker. Setup: `scripts/setup.sh`. Start hot reload: `docker compose up -d --build --wait`. Checks: `docker compose run --rm tools pnpm test`, `typecheck` or `build`, and `make check` for Go vet, lint and test. Never install host node_modules. Nothing in Docker uses the host tmux.
 
 Docker assets live under .docker. Root docker-compose.yml includes the development config. Production config lives under .docker/compose. Dependency manager downloads with scripts disabled. Approved native builds run offline. Three development volumes hold dependencies, caches and pnpm store. Keep five-day dependency release delay without exclusions.
 

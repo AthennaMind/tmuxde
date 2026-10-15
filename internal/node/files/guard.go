@@ -131,7 +131,7 @@ func (g *Guard) paths(path string) (lexical, real string, err error) {
 		}
 		return "", "", err
 	}
-	if !(g.permits(roots, lexical) || g.isRootName(lexical)) || !g.permits(roots, real) {
+	if (!g.permits(roots, lexical) && !g.isRootName(lexical)) || !g.permits(roots, real) {
 		return "", "", node.ErrDenied
 	}
 	return lexical, real, nil

@@ -343,7 +343,7 @@ func TestUploadInterrupted(t *testing.T) {
 	if err := a.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
 		t.Logf("close handshake: %v", err)
 	}
-	a.closed()
+	_ = a.closed()
 	s.tmux.waitTmux("open node connections", "0", func() string {
 		if s.node.OpenCount() == 0 {
 			return "0"

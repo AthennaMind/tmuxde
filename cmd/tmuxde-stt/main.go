@@ -277,7 +277,7 @@ func runHealth(lookup func(string) (string, bool), stderr io.Writer) int {
 		return 1
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 	if resp.StatusCode != http.StatusOK {
 		fmt.Fprintf(stderr, "tmuxde-stt health: status %d\n", resp.StatusCode)
 		return 1
