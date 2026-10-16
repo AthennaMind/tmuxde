@@ -11,6 +11,26 @@ import {
   PaneInfoSchema,
   WindowInfoSchema,
 } from "./types";
+import { TerminalSearchMatch } from "./terminal-search";
+
+import { PreviewFrame } from "./terminal-preview";
+
+export const TerminalPreviewFrameMessage = z.object({
+  type: z.literal("terminal:preview:frame"),
+  requestId: z.string().min(1).max(128),
+  frames: z.array(PreviewFrame).max(32),
+});
+export type TerminalPreviewFrameMessage = z.infer<typeof TerminalPreviewFrameMessage>;
+
+export const TerminalSearchResultMessage = z.object({
+  type: z.literal("terminal:search:result"),
+  requestId: z.string().min(1).max(128),
+  matches: z.array(TerminalSearchMatch).max(100),
+  searchedPanes: z.number().int().min(0),
+  skippedPanes: z.number().int().min(0),
+  partial: z.boolean(),
+  error: z.string().optional(),
+});
 
 export const AuthSuccessMessage = z.object({
   type: z.literal("auth:success"),
@@ -270,6 +290,8 @@ export const DictationErrorMessage = z.object({
 });
 
 export const ServerMessage = z.discriminatedUnion("type", [
+  TerminalSearchResultMessage,
+  TerminalPreviewFrameMessage,
   RepoResponse,
   RepoWatchResultMessage,
   RepoChangedMessage,
@@ -334,3 +356,5 @@ export type DictationReadyMessage = z.infer<typeof DictationReadyMessage>;
 export type DictationTextMessage = z.infer<typeof DictationTextMessage>;
 export type DictationDoneMessage = z.infer<typeof DictationDoneMessage>;
 export type DictationErrorMessage = z.infer<typeof DictationErrorMessage>;
+
+export type TerminalSearchResultMessage = z.infer<typeof TerminalSearchResultMessage>;

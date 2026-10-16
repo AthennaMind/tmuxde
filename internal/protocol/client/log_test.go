@@ -16,6 +16,7 @@ func TestLogRedactsPayload(t *testing.T) {
 		msg  Message
 		size string // key of the size attribute, "" when there is none
 	}{
+		{&TerminalSearch{Type: "terminal:search", Query: secret}, "queryLength"},
 		{&Auth{Type: "auth", Token: secret}, ""},
 		{&TerminalInput{Type: "terminal:input", Data: secret}, "dataLength"},
 		{&CommandSend{Type: "command:send", Command: secret}, "commandLength"},

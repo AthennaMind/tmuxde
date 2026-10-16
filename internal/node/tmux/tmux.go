@@ -307,10 +307,14 @@ func (c *Client) exec(ctx context.Context, argv []string) (string, bool, error) 
 // launcher, which then is bin. tmuxArgs is the tmux argv a failure
 // reports, so the error names the tmux command either way.
 func (c *Client) execProgram(ctx context.Context, bin string, argv, tmuxArgs []string) (string, bool, error) {
+	return c.execProgramLimit(ctx, bin, argv, tmuxArgs, c.opts.MaxOutput)
+}
+
+func (c *Client) execProgramLimit(ctx context.Context, bin string, argv, tmuxArgs []string, limit int) (string, bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.opts.Timeout)
 	defer cancel()
 
-	stdout := &capWriter{max: c.opts.MaxOutput}
+	stdout := &capWriter{max: limit}
 	stderr := &capWriter{max: stderrCap}
 	cmd := exec.CommandContext(ctx, bin, argv...)
 	cmd.Dir = c.opts.Dir
@@ -332,7 +336,7 @@ func (c *Client) execProgram(ctx context.Context, bin string, argv, tmuxArgs []s
 		return "", false, newCommandError(tmuxArgs, err, stderr.String())
 	}
 	if stdout.cut {
-		c.log.Warn("tmux output cut", "command", subcommand(tmuxArgs), "limit", c.opts.MaxOutput)
+		c.log.Warn("tmux output cut", "command", subcommand(tmuxArgs), "limit", limit)
 	}
 	return stdout.String(), stdout.cut, nil
 }

@@ -118,8 +118,15 @@ export function setMasterKey(mk: Uint8Array): void {
   announce();
 }
 
+const keyListeners = new Set<(serverId: string) => void>();
+export function subscribeKeys(listener: (serverId: string) => void): () => void {
+  keyListeners.add(listener);
+  return () => { keyListeners.delete(listener); };
+}
+
 export function cacheKeys(serverId: string, unlocked: UnlockedKeys): void {
   keys.set(serverId, unlocked);
+  for (const listener of keyListeners) listener(serverId);
 }
 
 export function setLocalToken(token: string | null): void {

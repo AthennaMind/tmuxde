@@ -11,6 +11,7 @@ tmuxde (Tmux Development Environment) is a self-hosted DE built on top of tmux. 
 ## Features
 
 - Your full tmux workflow, themes and configuration in the browser and mobile.
+- Search retained terminal history across all connected machines.
 - Rich file previews.
 - Files and git integration at the current focused pane / window / split.
 - Clipboard image paste.

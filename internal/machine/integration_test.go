@@ -344,6 +344,49 @@ func TestTwoAgentsAndReconnect(t *testing.T) {
 
 }
 
+// Separate tmux servers reuse pane IDs. Search must return each machine's
+// own history over its inventory stream, without attaching either terminal.
+func TestRemoteTerminalSearch(t *testing.T) {
+	hub := NewHub(t.TempDir(), strings.Repeat("b", 32))
+	site := httptest.NewTLSServer(hub)
+	t.Cleanup(site.Close)
+	t.Cleanup(hub.Close)
+	for _, name := range []string{"alpha", "beta"} {
+		n, root := realNode(t)
+		script := filepath.Join(root, "output.sh")
+		if err := os.WriteFile(script, []byte("printf 'search-marker-"+name+"\\n'\nexec sleep 3600\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		socket := filepath.Join(root, "tmux.sock")
+		if out, err := exec.Command("tmux", "-S", socket, "new-session", "-d", "-s", "same", "sh "+script).CombinedOutput(); err != nil {
+			t.Fatalf("fixture: %s, %v", out, err)
+		}
+		waitFor(t, func() bool {
+			out, err := exec.Command("tmux", "-S", socket, "capture-pane", "-p", "-t", "same").Output()
+			return err == nil && strings.Contains(string(out), "search-marker-")
+		})
+		record, _, _ := startAgent(t, hub, site, n, name)
+		remote, _, _, _, err := hub.Resolve(record.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sink := make(messageSink, 16)
+		if err := remote.Open(t.Context(), 1, sink); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { remote.Close(1) })
+		if err := remote.Handle(t.Context(), 1, &client.TerminalSearch{
+			Type: "terminal:search", RequestID: "same-request", Query: "search-marker-", ExcludeSessions: []string{},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		reply := receive(t, sink, "terminal:search:result").(*server.TerminalSearchResult)
+		if reply.Error != nil || reply.Partial || len(reply.Matches) != 1 || reply.Matches[0].PaneID != "%0" || reply.Matches[0].Text != "search-marker-"+name {
+			t.Fatalf("%s search crossed machine boundary: %+v", name, reply)
+		}
+	}
+}
+
 func TestRegistryAndAuthentication(t *testing.T) {
 	hub := NewHub(t.TempDir(), strings.Repeat("b", 32))
 	record, token, err := Edit(hub.Dir, "add", "machine")

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Search,
   FolderTree,
   GitCompareArrows,
   History,
@@ -32,6 +33,7 @@ import { ChangesView } from "./changes-view";
 import { HistoryView } from "./history-view";
 import { PhotosView } from "./photos-view";
 import { useRepositoryState } from "./use-repository-state";
+import { useTerminalSearchStore } from "@/stores/terminal-search-store";
 
 const PREFS_KEY = "tmuxde-sidebar";
 const VIEWS: SidebarView[] = [
@@ -132,6 +134,7 @@ export function WorkspaceSidebar({
           active={open("sessions")}
           onClick={() => toggleView("sessions")}
         />
+        <RailButton label="Search all terminals" icon={Search} active={false} onClick={() => useTerminalSearchStore.setState({ open: true })} />
         {!noFiles && (
           <>
             <RailButton

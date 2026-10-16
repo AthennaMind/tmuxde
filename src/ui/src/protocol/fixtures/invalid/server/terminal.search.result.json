@@ -1,0 +1,59 @@
+[
+  {
+    "field": "searchedPanes",
+    "message": {
+      "type": "terminal:search:result",
+      "requestId": "search-1",
+      "matches": [
+        {
+          "sessionName": "work",
+          "windowId": "@1",
+          "paneId": "%2",
+          "command": "sh",
+          "path": "/repo",
+          "line": 12,
+          "text": "Build failed",
+          "before": "Running tests",
+          "after": "exit 1"
+        }
+      ],
+      "searchedPanes": -1,
+      "skippedPanes": 0,
+      "partial": false
+    }
+  },
+  {
+    "field": "matches[0].line",
+    "message": {
+      "type": "terminal:search:result",
+      "requestId": "search-1",
+      "matches": [
+        {
+          "sessionName": "work",
+          "windowId": "@1",
+          "paneId": "%2",
+          "command": "sh",
+          "path": "/repo",
+          "line": 0,
+          "text": "Build failed",
+          "before": "Running tests",
+          "after": "exit 1"
+        }
+      ],
+      "searchedPanes": 3,
+      "skippedPanes": 0,
+      "partial": false
+    }
+  },
+  {
+    "field": "matches",
+    "message": {
+      "type": "terminal:search:result",
+      "requestId": "search-1",
+      "matches": null,
+      "searchedPanes": 3,
+      "skippedPanes": 0,
+      "partial": false
+    }
+  }
+]

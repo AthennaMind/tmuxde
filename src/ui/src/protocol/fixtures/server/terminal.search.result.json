@@ -1,0 +1,31 @@
+[
+  {
+    "type": "terminal:search:result",
+    "requestId": "search-1",
+    "matches": [
+      {
+        "sessionName": "work",
+        "windowId": "@1",
+        "paneId": "%2",
+        "command": "sh",
+        "path": "/repo",
+        "line": 12,
+        "text": "Build failed",
+        "before": "Running tests",
+        "after": "exit 1"
+      }
+    ],
+    "searchedPanes": 3,
+    "skippedPanes": 0,
+    "partial": false
+  },
+  {
+    "type": "terminal:search:result",
+    "requestId": "search-1",
+    "matches": [],
+    "searchedPanes": 3,
+    "skippedPanes": 0,
+    "partial": true,
+    "error": "Could not read terminal history. Try again."
+  }
+]

@@ -1,9 +1,10 @@
-import { LayoutGrid } from "lucide-react";
+import { LayoutGrid, Search } from "lucide-react";
 import { useMachineStore } from "@/stores/machine-store";
 import { openWorkspace } from "@/lib/workspace-target";
 import { OVERVIEW_TAB, TERMINAL_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
 import { SessionTree } from "./session-tree";
 import { PanelHeader, PanelIconButton } from "./panel-header";
+import { useTerminalSearchStore } from "@/stores/terminal-search-store";
 
 /**
  * Every machine's session tree. `visible` is false while the trees stay
@@ -24,6 +25,7 @@ export function MachinesTree({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PanelHeader title="Sessions">
+        <PanelIconButton label="Search all terminals" icon={Search} onClick={() => useTerminalSearchStore.setState({ open: true })} />
         <PanelIconButton
           label="Overview (Ctrl+O)"
           icon={LayoutGrid}

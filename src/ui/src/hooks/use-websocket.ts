@@ -1,3 +1,4 @@
+import { receiveTerminalPreview } from "@/stores/terminal-preview-store";
 import { useEffect, useRef, useCallback } from "react";
 import type { DependencyList } from "react";
 import type { ClientMessage, ServerMessage } from "@/protocol";
@@ -33,6 +34,7 @@ import {
   noteSessionCreated,
   sessionNotFoundText,
 } from "@/lib/session-lifecycle";
+import { receiveTerminalSearch } from "@/stores/terminal-search-store";
 
 /**
  * Sessions whose end was already reported, for ten seconds.
@@ -270,6 +272,12 @@ export function useWebSocket(url: string, token: string) {
             paneHeight: msg.paneHeight,
             inMode: msg.inMode,
           });
+          break;
+        case "terminal:preview:frame":
+          receiveTerminalPreview(serverId, msg);
+          break;
+        case "terminal:search:result":
+          receiveTerminalSearch(serverId, msg);
           break;
         case "pane:captured": {
           const capture = useMachineStore.getState().capture;
