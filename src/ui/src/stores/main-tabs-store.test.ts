@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setEnrolled } from "@/lib/unlocked";
+import { setMachineId } from "@/lib/machine-context";
+import { useSessionStore } from "./session-store";
 import {
+  OVERVIEW_TAB,
   SETTINGS_TAB,
   TERMINAL_TAB,
   commitTabId,
   graphTabId,
+  isMachineTab,
   restoreTabs,
   useMainTabsStore,
 } from "./main-tabs-store";
@@ -19,10 +23,60 @@ const commit = (subject = "Fix it", hash = HASH) => ({
 });
 
 beforeEach(() => {
+  setMachineId(null);
+  useSessionStore.setState({ activeSessionId: null });
   useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB });
 });
 
+afterEach(() => {
+  setMachineId(null);
+  useSessionStore.setState({ activeSessionId: null });
+});
+
 describe("main tabs", () => {
+  it("keeps files, diffs and graphs from different machines in one strip", () => {
+    const store = useMainTabsStore.getState();
+    for (const machine of ["alpha", "beta"]) {
+      setMachineId(machine);
+      useSessionStore.getState().setActiveSession("dev");
+      store.openFile(file("/workspace/machine.txt"));
+      store.openFile({ ...file("machine.txt"), scope: "unstaged", contextPath: "/workspace" });
+      store.openGraph({ paneId: "%1", contextPath: "/workspace" });
+    }
+    const opened = useMainTabsStore.getState().tabs;
+    expect(opened).toHaveLength(6);
+    expect(new Set(opened.map((tab) => tab.id)).size).toBe(6);
+    expect(opened[0]).toMatchObject({ machineId: "alpha", sessionName: "dev", paneId: "%1" });
+    setMachineId("local");
+    useSessionStore.getState().setActiveSession("other");
+    store.showTerminal();
+    expect(useMainTabsStore.getState().tabs).toEqual(opened);
+    expect(restoreTabs({ tabs: opened }).tabs).toEqual(opened);
+  });
+
+  it("keeps matching commit hashes separate and names only their origin tab", () => {
+    const store = useMainTabsStore.getState();
+    store.openCommit({ ...commit(""), machineId: "alpha", sessionName: "dev" });
+    store.openCommit({ ...commit(""), machineId: "beta", sessionName: "dev" });
+    store.nameCommit(commitTabId(HASH, "alpha"), "Alpha commit");
+    expect(useMainTabsStore.getState().tabs).toMatchObject([
+      { machineId: "alpha", subject: "Alpha commit" },
+      { machineId: "beta", subject: "" },
+    ]);
+  });
+  it("names a local commit tab after another machine is selected", () => {
+    // Opened on the local machine with no session, so the tab has no
+    // machine id. The subject lands after the user moved to `beta`.
+    const store = useMainTabsStore.getState();
+    store.openCommit(commit(""));
+    const [tab] = useMainTabsStore.getState().tabs;
+    expect(tab).toMatchObject({ kind: "commit", id: commitTabId(HASH) });
+    expect(tab).not.toHaveProperty("machineId");
+    setMachineId("beta");
+    store.nameCommit(tab!.id, "Local subject");
+    expect(useMainTabsStore.getState().tabs[0]).toMatchObject({ subject: "Local subject" });
+  });
+
   it("opens settings once and brings it to front", () => {
     const tabs = useMainTabsStore.getState();
     tabs.openSettings();
@@ -31,6 +85,47 @@ describe("main tabs", () => {
     const s = useMainTabsStore.getState();
     expect(s.active).toBe(SETTINGS_TAB);
     expect(s.tabs.map((t) => t.id)).toEqual([SETTINGS_TAB, "file:/a.ts"]);
+  });
+
+  it("opens the overview once beside settings and brings it to front", () => {
+    const tabs = useMainTabsStore.getState();
+    tabs.openOverview();
+    tabs.openSettings();
+    tabs.openFile(file("/a.ts"));
+    tabs.openOverview();
+    const s = useMainTabsStore.getState();
+    expect(s.active).toBe(OVERVIEW_TAB);
+    expect(s.tabs.map((t) => t.id)).toEqual([OVERVIEW_TAB, SETTINGS_TAB, "file:/a.ts"]);
+    expect(s.tabs[0]).toEqual({ kind: "overview", id: OVERVIEW_TAB });
+  });
+
+  it("gives the overview no origin, even when opened on another machine", () => {
+    setMachineId("beta");
+    useSessionStore.getState().setActiveSession("dev");
+    const tabs = useMainTabsStore.getState();
+    tabs.openOverview();
+    tabs.openFile(file("/a.ts"));
+    const [overview, opened] = useMainTabsStore.getState().tabs;
+    expect(overview).toEqual({ kind: "overview", id: OVERVIEW_TAB });
+    expect(isMachineTab(overview!)).toBe(false);
+    expect(isMachineTab(opened!)).toBe(true);
+    expect(isMachineTab({ kind: "settings", id: SETTINGS_TAB })).toBe(false);
+  });
+
+  it("closes the overview with all only and lands on the terminal", () => {
+    const tabs = useMainTabsStore.getState();
+    tabs.openOverview();
+    tabs.closeTabs("diffs");
+    tabs.closeTabs("files");
+    expect(useMainTabsStore.getState()).toMatchObject({
+      tabs: [{ id: OVERVIEW_TAB }],
+      active: OVERVIEW_TAB,
+    });
+    tabs.closeTab(OVERVIEW_TAB);
+    expect(useMainTabsStore.getState()).toMatchObject({
+      tabs: [],
+      active: TERMINAL_TAB,
+    });
   });
 
   it("keeps a reopened file in its place", () => {
@@ -115,8 +210,8 @@ describe("main tabs", () => {
     const tabs = useMainTabsStore.getState();
     tabs.openCommit(commit(""));
     tabs.openFile(file("/a.ts"));
-    tabs.nameCommit(HASH, "Loaded subject");
-    tabs.nameCommit("b".repeat(40), "Not open");
+    tabs.nameCommit(commitTabId(HASH), "Loaded subject");
+    tabs.nameCommit(commitTabId("b".repeat(40)), "Not open");
     const s = useMainTabsStore.getState();
     expect(s.active).toBe("file:/a.ts");
     expect(s.tabs[0]).toMatchObject({ subject: "Loaded subject" });
@@ -177,14 +272,16 @@ describe("main tabs", () => {
     });
   });
 
-  it("drops the oldest file past twelve and keeps settings", () => {
+  it("drops the oldest file past twelve and keeps settings and the overview", () => {
     const tabs = useMainTabsStore.getState();
     tabs.openSettings();
+    tabs.openOverview();
     for (let i = 0; i < 12; i++) tabs.openFile(file(`/${i}`));
     const ids = useMainTabsStore.getState().tabs.map((t) => t.id);
     expect(ids).toHaveLength(12);
-    expect(ids[0]).toBe(SETTINGS_TAB);
+    expect(ids.slice(0, 2)).toEqual([SETTINGS_TAB, OVERVIEW_TAB]);
     expect(ids).not.toContain("file:/0");
+    expect(ids).not.toContain("file:/1");
     expect(ids).toContain("file:/11");
   });
 
@@ -213,7 +310,7 @@ describe("main tabs", () => {
     }
     const ids = useMainTabsStore.getState().tabs.map((t) => t.id);
     expect(ids).toHaveLength(12);
-    expect(ids.slice(0, 3)).toEqual(["/a", "/b", "/c"].map(graphTabId));
+    expect(ids.slice(0, 3)).toEqual(["/a", "/b", "/c"].map((path) => graphTabId(path)));
     expect(ids).not.toContain(commitTabId("0".repeat(40)));
   });
 
@@ -252,6 +349,19 @@ describe("restoreTabs", () => {
     });
     expect(restored.tabs.map((t) => t.id)).toEqual(["file:/a.ts", SETTINGS_TAB]);
     expect(restored.active).toBe("file:/a.ts");
+  });
+
+  it("keeps the overview and drops one with another id", () => {
+    const restored = restoreTabs({
+      tabs: [
+        { kind: "overview", id: OVERVIEW_TAB },
+        { kind: "overview", id: "overview:beta" },
+        { kind: "overview" },
+      ],
+      active: OVERVIEW_TAB,
+    });
+    expect(restored.tabs).toEqual([{ kind: "overview", id: OVERVIEW_TAB }]);
+    expect(restored.active).toBe(OVERVIEW_TAB);
   });
 
   it("drops malformed tabs and an active id that names none", () => {
@@ -346,6 +456,17 @@ describe("tab persistence", () => {
   afterEach(() => {
     setEnrolled(false);
     vi.unstubAllGlobals();
+  });
+
+  it("brings the overview back after a reload", async () => {
+    useMainTabsStore.getState().openOverview();
+    const saved = local.getItem(KEY);
+    useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB });
+    local.setItem(KEY, saved!);
+    await useMainTabsStore.persist.rehydrate();
+    const s = useMainTabsStore.getState();
+    expect(s.tabs).toEqual([{ kind: "overview", id: OVERVIEW_TAB }]);
+    expect(s.active).toBe(OVERVIEW_TAB);
   });
 
   it("comes back after a reload", async () => {

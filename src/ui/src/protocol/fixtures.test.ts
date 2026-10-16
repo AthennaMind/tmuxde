@@ -16,7 +16,9 @@ const invalidDir = path.join(fixturesDir, "invalid");
 const fixtureFileName = (type: string) => `${type.replaceAll(":", ".")}.json`;
 
 // Union members come from the schemas, never from a hand written list.
-const clientTypes = ClientMessage.options.map(
+// ClientMessage wraps its union in a refinement for rules across fields.
+const clientUnion = ClientMessage.innerType();
+const clientTypes = clientUnion.options.map(
   (option) => option.shape.type.value,
 );
 const serverTypes = ServerMessage.options.map(
@@ -24,7 +26,7 @@ const serverTypes = ServerMessage.options.map(
 );
 
 // Top level keys of every union member, in union order.
-const clientKeys = ClientMessage.options.map((option) =>
+const clientKeys = clientUnion.options.map((option) =>
   Object.keys(option.shape).sort(),
 );
 const serverKeys = ServerMessage.options.map((option) =>
@@ -120,13 +122,20 @@ describe.each(sides)("$side fixtures", ({ side, schema, types, keys }) => {
       }
     });
 
-    // Sample 0 sets every top level key. A new Zod field then fails here
-    // until the fixture and the Go struct both have it.
-    const first = samples[0];
-    expect(isRecord(first), `${side}/${name}[0] is not an object`).toBe(true);
+    // Together the samples set every top level key, sample 0 all it can.
+    // A new Zod field then fails here until a fixture and the Go struct both
+    // have it. Keys that exclude each other, such as pane:swap direction and
+    // target, cannot share one sample.
+    const seen = new Set<string>();
+    samples.forEach((sample, index) => {
+      expect(isRecord(sample), `${side}/${name}[${index}] is not an object`).toBe(
+        true,
+      );
+      Object.keys(sample as object).forEach((key) => seen.add(key));
+    });
     expect(
-      Object.keys(first as object).sort(),
-      `${side}/${name}[0] must set every schema key`,
+      [...seen].sort(),
+      `${side}/${name} must set every schema key in some sample`,
     ).toEqual(keysByType.get(expectedType ?? ""));
   });
 });

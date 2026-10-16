@@ -244,8 +244,8 @@ func TestAdd(t *testing.T) {
 }
 
 func TestCaps(t *testing.T) {
-	// fill opens MaxConns connections, MaxConnsPerAddr from each of ten
-	// addresses 10.0.0.0 to 10.0.0.9.
+	// fill opens MaxConns connections, MaxConnsPerAddr from each of
+	// MaxConns/MaxConnsPerAddr addresses, 10.0.0.0 upwards.
 	fill := func(t *testing.T, e *testEnv) {
 		t.Helper()
 		for i := range MaxConns {
@@ -258,10 +258,10 @@ func TestCaps(t *testing.T) {
 		addr  string
 		want  error
 	}{
-		{"refuses the 101st connection as server full", fill, "10.0.1.1", ErrServerFull},
+		{"refuses the connection past MaxConns as server full", fill, "10.0.1.1", ErrServerFull},
 		{"checks the global cap before the address cap", fill, "10.0.0.0", ErrServerFull},
 		{
-			"refuses the 11th connection from one address",
+			"refuses the connection past MaxConnsPerAddr from one address",
 			func(t *testing.T, e *testEnv) {
 				for range MaxConnsPerAddr {
 					e.add(t, "10.0.0.1")
@@ -348,8 +348,8 @@ func TestCaps(t *testing.T) {
 			t.Fatalf("CountByAddr = %d, want %d", n, MaxConnsPerAddr-1)
 		}
 		c, _ := e.add(t, "10.0.0.0")
-		if c.ID() != "conn-101" {
-			t.Fatalf("next id = %q, want conn-101", c.ID())
+		if want := fmt.Sprintf("conn-%d", MaxConns+1); c.ID() != want {
+			t.Fatalf("next id = %q, want %s", c.ID(), want)
 		}
 	})
 

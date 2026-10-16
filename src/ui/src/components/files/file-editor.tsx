@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { X, Save, WrapText, Terminal, AlertTriangle, Lock } from "lucide-react";
+import { DownloadButton } from "./transfer-controls";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -205,6 +206,26 @@ export function FileEditor() {
     });
   }, [setIsSaving]);
 
+  // Keep unsaved edits visible during navigation or a machine change.
+  useEffect(() => {
+    if (!isModified) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const beforeSwitch = (event: Event) => {
+      if (!window.confirm("Discard unsaved changes and open another machine?")) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", warn);
+    window.addEventListener("tmuxde:before-workspace-change", beforeSwitch);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      window.removeEventListener("tmuxde:before-workspace-change", beforeSwitch);
+    };
+  }, [isModified]);
+
   const handleClose = useCallback(() => {
     if (isModified) {
       setShowDiscardDialog(true);
@@ -268,6 +289,7 @@ export function FileEditor() {
           <Badge variant="secondary" className="text-[10px] shrink-0">
             {languageLabel}
           </Badge>
+          <DownloadButton path={editorFile} />
           {(isReadOnly || editorTruncated) && (
             <Badge variant="outline" className="text-[10px] shrink-0 gap-1">
               <Lock className="h-2.5 w-2.5" />

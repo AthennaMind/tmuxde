@@ -1,6 +1,9 @@
 import { useEffect, useRef, useCallback } from "react";
 import type { DependencyList } from "react";
 import type { ClientMessage, ServerMessage } from "@/protocol";
+import { useMachineStore } from "@/stores/machine-store";
+import { copyFailureReason, copyText } from "@/lib/clipboard";
+import { machineId } from "@/lib/machine-context";
 import { RelayClient } from "@/lib/ws-client";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
@@ -100,7 +103,8 @@ export function useWebSocket(url: string, token: string) {
   useEffect(() => {
     if (!url || !token) return;
 
-    const serverId = registry.LOCAL_SERVER_ID;
+    const serverId = machineId();
+    handledExits.clear();
     // Assigned by `acquire` below; the handler is only ever invoked by a
     // connected client, so it is never null by the time it is read.
     let client: RelayClient | null = null;
@@ -245,6 +249,13 @@ export function useWebSocket(url: string, token: string) {
           // Terminal view handles the stream. The session tree sends any
           // window or pane selection that waited on this attach.
           noteSessionAttached(msg.name);
+          const action = useMachineStore.getState().pendingAction;
+          if (action?.machineId === serverId && action.sessionName === msg.name) {
+            useMachineStore.setState({ pendingAction: null });
+            if (action.expires > Date.now()) {
+              for (const message of action.messages) client?.send(message);
+            }
+          }
           // The scroll rail asks shortly after the session changes, but on a
           // page load that is before the socket is connected and the ask is
           // dropped. This is the moment the relay can answer, and the answer
@@ -260,9 +271,22 @@ export function useWebSocket(url: string, token: string) {
             inMode: msg.inMode,
           });
           break;
-        case "pane:captured":
-          useUiStore.getState().setCapturedPane(msg.id, msg.content);
+        case "pane:captured": {
+          const capture = useMachineStore.getState().capture;
+          if (capture?.machineId === serverId && capture.paneId === msg.id &&
+            capture.expires > Date.now()) {
+            useMachineStore.setState({ capture: null });
+            void copyText(msg.content).then((ok) => {
+              useAlertStore.getState().push(
+                ok ? "success" : "error",
+                ok ? "Copied pane contents" : copyFailureReason(),
+              );
+            });
+          } else {
+            useUiStore.getState().setCapturedPane(msg.id, msg.content);
+          }
           break;
+        }
         case "session:windows":
           // Mobile SessionCard also listens directly for its own request.
           useSessionTreeStore.getState().setDetails(msg.name, {
@@ -332,6 +356,9 @@ export function useWebSocket(url: string, token: string) {
           },
           onStatusChange: (status) => {
             useConnectionStore.getState().setStatus(status);
+            if (status === "disconnected" || status === "reconnecting") {
+              useMachineStore.setState({ pendingAction: null });
+            }
             if (status !== "connected") {
               noteSessionDetached();
               // The server drops watches with the socket.

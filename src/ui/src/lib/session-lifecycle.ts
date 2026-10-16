@@ -194,8 +194,10 @@ export function isGone(name: string): boolean {
 }
 
 /** Test seam: module state outlives a test otherwise. */
-export function resetSessionLifecycleForTests(): void {
+export function resetSessionLifecycle(): void {
   renamed.clear();
   gone.clear();
   falloutUntil = 0;
 }
+
+export const resetSessionLifecycleForTests = resetSessionLifecycle;

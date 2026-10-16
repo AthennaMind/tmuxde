@@ -232,6 +232,8 @@ services:
       # No systemd in the container. The tmux server is a child of the
       # container init and outlives every rebuild of the binary.
       TMUXDE_TMUX_LAUNCHER: none
+      # The sidebar shows this name. The hostname is the container id.
+      MACHINE_NAME: server-dev
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
     volumes:

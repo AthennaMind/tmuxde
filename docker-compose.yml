@@ -2,3 +2,4 @@ name: tmuxde
 
 include:
   - .docker/compose/dev.yaml
+  - .docker/compose/agents.yaml

@@ -1,0 +1,35 @@
+[
+  {
+    "field": "direction",
+    "message": {
+      "type": "pane:join",
+      "id": "%3",
+      "windowId": "@2",
+      "direction": "U"
+    }
+  },
+  {
+    "field": "direction",
+    "message": {
+      "type": "pane:join",
+      "id": "%3",
+      "windowId": "@2"
+    }
+  },
+  {
+    "field": "windowId",
+    "message": {
+      "type": "pane:join",
+      "id": "%3",
+      "direction": "h"
+    }
+  },
+  {
+    "field": "id",
+    "message": {
+      "type": "pane:join",
+      "windowId": "@2",
+      "direction": "v"
+    }
+  }
+]

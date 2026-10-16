@@ -1,3 +1,4 @@
+import { machineId, machineStorageKey } from "./machine-context";
 import { localToken } from "./unlocked";
 
 /**
@@ -28,7 +29,9 @@ export const LAST_SESSION_KEY = "tmuxde-last-session";
 
 const LEGACY = {
   [TOKEN_KEY]: "ccremote-token",
-  [LAST_SESSION_KEY]: "ccremote-last-session",
+  ...(machineId() === "local"
+    ? { [LAST_SESSION_KEY]: "ccremote-last-session" }
+    : {}),
 } as const;
 
 /**
@@ -40,31 +43,33 @@ const LEGACY = {
 export function readStored(key: string): string | null {
   if (typeof window === "undefined") return null;
 
-  const current = localStorage.getItem(key);
+  const scoped = key === LAST_SESSION_KEY ? machineStorageKey(key) : key;
+  const current = localStorage.getItem(scoped);
   if (current !== null) return current;
 
-  const legacyKey = LEGACY[key as keyof typeof LEGACY];
+  const legacyKey = scoped === key ? LEGACY[key as keyof typeof LEGACY] : undefined;
   if (!legacyKey) return null;
 
   const legacy = localStorage.getItem(legacyKey);
   if (legacy === null) return null;
 
   // Promote once, then forget the old name.
-  localStorage.setItem(key, legacy);
+  localStorage.setItem(scoped, legacy);
   localStorage.removeItem(legacyKey);
   return legacy;
 }
 
 export function writeStored(key: string, value: string): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(key, value);
+  localStorage.setItem(key === LAST_SESSION_KEY ? machineStorageKey(key) : key, value);
 }
 
 /** Clears both spellings, so a sign-out cannot leave a legacy key behind. */
 export function clearStored(key: string): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(key);
-  const legacyKey = LEGACY[key as keyof typeof LEGACY];
+  const scoped = key === LAST_SESSION_KEY ? machineStorageKey(key) : key;
+  localStorage.removeItem(scoped);
+  const legacyKey = scoped === key ? LEGACY[key as keyof typeof LEGACY] : undefined;
   if (legacyKey) localStorage.removeItem(legacyKey);
 }
 

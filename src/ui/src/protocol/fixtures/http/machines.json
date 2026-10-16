@@ -1,0 +1,22 @@
+[
+  {
+    "id": "local",
+    "name": "Central",
+    "online": true,
+    "hostname": "central",
+    "platform": "linux",
+    "defaultPath": "/home/user/projects",
+    "version": "dev",
+    "features": ["repo:watch"]
+  },
+  {
+    "id": "ab0123456789",
+    "name": "Workstation",
+    "online": false,
+    "hostname": "",
+    "platform": "",
+    "defaultPath": "",
+    "version": "",
+    "features": []
+  }
+]

@@ -102,6 +102,7 @@ export function SettingsPanel({
         <AppearanceSection />
         <TextSection touch={touch} />
         <TerminalSection touch={touch} />
+        <SessionsSection />
         {touch && <KeyboardToolbarSection />}
         {touch && <TouchSection />}
         <LockSettings />
@@ -391,6 +392,26 @@ function TerminalSection({ touch }: { touch: boolean }) {
           onChange={setGpuRendering}
         />
       )}
+    </SettingsSection>
+  );
+}
+
+/**
+ * Pane grids: the Sessions panel or tab, the overview and the phone's pane
+ * sheet. Every one of them reads this switch.
+ */
+function SessionsSection() {
+  const showPaneIndexes = useSettingsStore((s) => s.showPaneIndexes);
+  const setShowPaneIndexes = useSettingsStore((s) => s.setShowPaneIndexes);
+
+  return (
+    <SettingsSection title="Sessions">
+      <SwitchRow
+        label="Show pane indexes"
+        hint="The number tmux gives each pane, in the corner of its box."
+        checked={showPaneIndexes}
+        onChange={setShowPaneIndexes}
+      />
     </SettingsSection>
   );
 }

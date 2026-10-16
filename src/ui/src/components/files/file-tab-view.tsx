@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { BookOpen, RefreshCw, WrapText, X } from "lucide-react";
+import { DownloadButton } from "./transfer-controls";
 import { cn } from "@/lib/utils";
 import { useRelayClient } from "@/hooks/use-websocket";
 import { isMarkdownPath } from "@/lib/markdown";
@@ -80,6 +81,7 @@ export function FileTabView({
         >
           {shortenPath(fullPath)}
         </span>
+        {!tab.scope && <DownloadButton path={fullPath} target={tab.machineId} />}
         {markdown && (
           <HeaderButton
             label="Render Markdown"
@@ -125,7 +127,7 @@ export function FileTabView({
           wrap={wrap}
           fullPath={fullPath}
           rendered={showRendered}
-          onOpenPath={(path) => openFile({ paneId: tab.paneId, path })}
+          onOpenPath={(path) => openFile({ machineId: tab.machineId, sessionName: tab.sessionName, paneId: tab.paneId, path })}
         />
       ) : (
         <Notice>Connect to view this file.</Notice>

@@ -25,6 +25,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <TerminalPage /> },
           { path: "/s/:sessionId", element: <SessionPage /> },
+          { path: "/m/:machineId", element: <TerminalPage /> },
+          { path: "/m/:machineId/s/:sessionId", element: <SessionPage /> },
         ],
       },
       { path: "*", element: <NotFound /> },

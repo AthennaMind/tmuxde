@@ -35,8 +35,10 @@ export function LoginPage() {
         );
       }, 5000);
 
+      const loginUrl = new URL(resolveRelayWsUrl());
+      loginUrl.searchParams.set("machine", "hub");
       const client = new RelayClient({
-        url: resolveRelayWsUrl(),
+        url: loginUrl.toString(),
         token: trimmedToken,
         onMessage: (msg) => {
           if (msg.type === "auth:success") {

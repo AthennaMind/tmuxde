@@ -1,0 +1,14 @@
+[
+  {
+    "type": "pane:join",
+    "id": "%3",
+    "windowId": "@2",
+    "direction": "h"
+  },
+  {
+    "type": "pane:join",
+    "id": "%5",
+    "windowId": "@1",
+    "direction": "v"
+  }
+]

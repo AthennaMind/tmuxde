@@ -19,6 +19,8 @@ interface RelayClientOptions {
   /** Ignored when `transport` is supplied. */
   url?: string;
   token: string;
+  /** Transfers cannot resume on a new socket. Default true for workspaces. */
+  reconnect?: boolean;
   /**
    * How to reach the server. Defaults to a plain WebSocket at `url`. Tests
    * supply a fake.
@@ -33,50 +35,23 @@ const MIN_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
 const MAX_PENDING_MESSAGES = 50;
 
-/**
- * Messages that must NOT survive a disconnect.
- *
- * Everything used to be queued and replayed on reconnect, which meant keystrokes
- * typed against a dead socket were injected into the live shell minutes later
- * (and made ConnectionBanner's "input paused" copy a lie), and a stale
- * `session:attach` was flushed *before* the message handlers ran — racing the
- * fresh attach and respawning the PTY twice.
- *
- * Attach/detach are re-driven by TerminalView's status-dependent effect, and
- * resize is re-driven by the next fit, so dropping them loses nothing.
- */
-const DROP_WHEN_DISCONNECTED: ReadonlySet<ClientMessage["type"]> = new Set([
-  "terminal:input",
-  "file:upload",
-  "terminal:resize",
-  "command:send",
-  "tmux:prefix",
-  // A scroll is a movement of a live view. Replayed after a reconnect it drags
-  // a pane the user is now looking at somewhere they asked for minutes ago —
-  // the same argument as keystrokes, and the reason this set exists.
-  "tmux:scroll",
-  "tmux:scroll-to",
-  "tmux:exit-copy-mode",
-  "session:attach",
-  "session:detach",
-  // A dictation lives on one socket. The relay drops it with that socket, so
-  // replaying any of these on the next one could only ever be refused.
-  "dictation:start",
-  "dictation:audio",
-  "dictation:stop",
-  "dictation:cancel",
+/** Only context-free reads may wait for a connection. Mutations are dropped. */
+const QUEUE_WHEN_DISCONNECTED: ReadonlySet<ClientMessage["type"]> = new Set([
+  "session:list",
+  "file:list",
+  "file:read",
+  "file:stat",
 ]);
 
-/** Idempotent reads that are safe (and useful) to replay once connected. */
 function shouldQueue(msg: ClientMessage): boolean {
-  if (msg.type === "ping") return false;
-  return !DROP_WHEN_DISCONNECTED.has(msg.type);
+  return QUEUE_WHEN_DISCONNECTED.has(msg.type);
 }
 
 export class RelayClient {
   private transport: Transport | null = null;
   private readonly makeTransport: TransportFactory;
   private token: string;
+  private readonly reconnect: boolean;
   private messageHandlers: Set<MessageHandler> = new Set();
   private statusHandlers: Set<StatusHandler> = new Set();
   private reconnectDelay = MIN_RECONNECT_DELAY;
@@ -105,6 +80,7 @@ export class RelayClient {
     }
     this.makeTransport = options.transport ?? directTransport(options.url!);
     this.token = options.token;
+    this.reconnect = options.reconnect ?? true;
     if (options.onMessage) this.messageHandlers.add(options.onMessage);
     if (options.onStatusChange) this.statusHandlers.add(options.onStatusChange);
     if (options.onMessageDropped)
@@ -167,7 +143,7 @@ export class RelayClient {
       onClose: () => {
         this.connecting = false;
         this.stopPing();
-        if (!this.intentionalClose) {
+        if (!this.intentionalClose && this.reconnect) {
           this.setStatus("reconnecting");
           this.scheduleReconnect();
         } else {

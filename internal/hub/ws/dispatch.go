@@ -83,15 +83,53 @@ func (k *socket) authenticate(msg client.Message) {
 	k.welcome()
 }
 
-// welcome admits an authenticated socket, in the relay's order: mark it
-// authenticated, which notifies registry listeners, log the connect, send
-// auth:success and server:info, then start liveness. The node is opened
-// after the two replies are queued, so anything it sends comes after them.
+// welcome admits an authenticated socket. It binds the socket to its
+// machine first. A machine that does not resolve gets MACHINE_OFFLINE and
+// a close, and the socket fails as after a bad token: it never counts as
+// authenticated, the access log gets no line and later frames are dropped.
+// Then it follows the relay's order: mark it authenticated, which notifies
+// registry listeners, log the connect, send auth:success and server:info,
+// then start liveness. The node is opened after the two replies are
+// queued, so anything it sends comes after them.
 //
 // Close hooks run in the order they are added. Dictation is added before
 // the node, so a removed connection ends its dictation first, as the
 // relay's removeConnection did.
 func (k *socket) welcome() {
+	offerDictation := k.srv.opts.DictationAvailable()
+	info := server.ServerInfo{
+		Type:     "server:info",
+		Hostname: k.srv.opts.Hostname(),
+		Platform: runtime.GOOS,
+	}
+	if p := k.srv.opts.DefaultPath; p != "" {
+		info.DefaultPath = &p
+	}
+	features := Features(offerDictation)
+	if resolve := k.srv.opts.Resolve; resolve != nil {
+		target, err := resolve(k.machineID)
+		if err != nil {
+			// Failed before the reply is queued, so nothing read after
+			// this frame is routed.
+			k.setPhase(phaseFailed)
+			k.log.Info("machine not resolved", "machine", k.machineID, "error", err)
+			k.replyThenClose(errorMessage("MACHINE_OFFLINE", "Machine offline or unavailable"),
+				websocket.StatusTryAgainLater, "Machine offline")
+			return
+		}
+		k.node = target.Node
+		info = target.Info
+		features = append([]string{}, target.Features...)
+		if offerDictation {
+			features = append(features, FeatureDictation)
+		}
+	}
+	// The uptime is the hub's. A resolver only describes the machine, so
+	// a target that leaves it out gets it here.
+	if info.Uptime == 0 {
+		info.Uptime = k.srv.opts.Uptime()
+	}
+
 	label := useragent.Describe(k.ua)
 	if label == "" {
 		label = conns.FallbackLabel
@@ -116,36 +154,53 @@ func (k *socket) welcome() {
 	k.reply(&server.AuthSuccess{
 		Type:          "auth:success",
 		ServerVersion: ServerVersion,
-		// Advisory. The machine token always holds the full grant.
-		Capabilities: &server.Capabilities{ReadOnly: false, Files: "write", Scope: "all"},
-		Features:     Features(k.srv.opts.DictationAvailable()),
+		Capabilities:  &server.Capabilities{ReadOnly: false, Files: "write", Scope: "all"},
+		Features:      features,
 	})
-	info := &server.ServerInfo{
-		Type:     "server:info",
-		Hostname: k.srv.opts.Hostname(),
-		Platform: runtime.GOOS,
-		Uptime:   k.srv.opts.Uptime(),
-	}
-	if p := k.srv.opts.DefaultPath; p != "" {
-		info.DefaultPath = &p
-	}
-	k.reply(info)
+	k.reply(&info)
 
 	// A closed tab must not keep a speech service slot.
 	k.conn.OnClose(k.closeDictation)
 
+	if k.node == nil {
+		k.workers.Add(1)
+		go k.keepAlive()
+		return
+	}
 	id := k.nodeID()
-	if err := k.srv.opts.Node.Open(k.conn.Context(), id, sink{k}); err != nil {
+	if err := k.node.Open(k.conn.Context(), id, sink{k}); err != nil {
 		k.log.Error("node open failed", "error", err)
 		// Queued, so the close does not overtake the two replies.
 		k.setPhase(phaseFailed)
 		k.queueClose(websocket.StatusInternalError, reasonInternal)
 		return
 	}
-	k.conn.OnClose(func() { k.srv.opts.Node.Close(id) })
+	k.conn.OnClose(func() { k.node.Close(id) })
+	if remote, ok := k.node.(interface {
+		Done(node.ConnID) <-chan struct{}
+	}); ok {
+		k.workers.Add(1)
+		go k.watchMachine(remote.Done(id))
+	}
 
 	k.workers.Add(1)
 	go k.keepAlive()
+}
+
+// watchMachine closes the socket when the link to its machine ends. It is
+// a worker, so it must also return when writing stops. finish waits for
+// the workers before it removes the connection, and only the removal
+// cancels the connection context and closes the machine link. Waiting on
+// those two alone kept every closed browser socket of a remote machine
+// in the registry for good.
+func (k *socket) watchMachine(done <-chan struct{}) {
+	defer k.workers.Done()
+	select {
+	case <-done:
+		k.queueClose(websocket.StatusTryAgainLater, "Machine connection ended")
+	case <-k.done:
+	case <-k.conn.Context().Done():
+	}
 }
 
 func (k *socket) nodeID() node.ConnID {
@@ -172,7 +227,11 @@ func (k *socket) dispatch(ctx context.Context, msg client.Message) {
 	case *client.DictationStart, *client.DictationAudio, *client.DictationStop, *client.DictationCancel:
 		k.dictation(ctx, msg)
 	default:
-		err := k.srv.opts.Node.Handle(ctx, k.nodeID(), msg)
+		if k.node == nil {
+			k.answer(ctx, errorMessage("MACHINE_REQUIRED", "Select a machine"))
+			return
+		}
+		err := k.node.Handle(ctx, k.nodeID(), msg)
 		if err == nil {
 			return
 		}
