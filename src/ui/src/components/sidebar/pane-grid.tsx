@@ -117,12 +117,8 @@ export interface PaneGridProps {
   onDrag?: (event: PaneDragEvent) => void;
   /** Cell drawn as the drop target of a drag. */
   dropTargetId?: string | null;
-  /**
-   * Ask for the pane's text with `pane:capture`. Turns on peek: hover a cell
-   * for 500ms, long press it, or press P on it. Leave unset where capture
-   * cannot answer, which is anywhere but the attached session.
-   */
-  onPeek?: (pane: PaneInfo) => void;
+  /** Read-only previews work without attaching this session. */
+  preview?: { machineId: string; session: string };
   /** Delete key. The caller asks before it kills. */
   onKill?: (pane: PaneInfo) => void;
   /** Right click, the context menu key, Shift+F10 and the corner button. */
@@ -175,7 +171,7 @@ export function PaneGrid({
   liveResize = true,
   onDrag,
   dropTargetId,
-  onPeek,
+  preview,
   onKill,
   menu,
   size = "sidebar",
@@ -196,7 +192,7 @@ export function PaneGrid({
   const afterMenu = useRef<(() => void) | null>(null);
   // Cell a border was entered from, for Escape on the border.
   const borderOrigin = useRef<string | null>(null);
-  const peek = usePanePeek(onPeek);
+  const peek = usePanePeek(!!preview);
 
   const rects = useMemo(() => paneLayout(layout, panes), [layout, panes]);
   // The sidebar caps a sparse window lower, so panes side by side cost one
@@ -745,6 +741,7 @@ export function PaneGrid({
       {peek.enabled && (
         <PanePeek
           peek={peek.peek}
+          scope={preview!}
           onClose={peek.close}
           onPointerEnter={peek.keepOpen}
           onPointerLeave={peek.scheduleClose}

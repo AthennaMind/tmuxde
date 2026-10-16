@@ -50,6 +50,10 @@ func orEmpty[T any](s []T) []T {
 // route dispatches a terminal message by its type.
 func (n *Node) route(ctx context.Context, c *conn, msg client.Message) error {
 	switch m := msg.(type) {
+	case *client.TerminalPreview:
+		return n.terminalPreview(c, m)
+	case *client.TerminalSearch:
+		return n.terminalSearch(ctx, c, m)
 	case *client.SessionList:
 		return n.sessionList(ctx, c)
 	case *client.SessionCreate:

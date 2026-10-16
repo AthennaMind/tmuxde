@@ -6,6 +6,24 @@ import {
 } from "./repository";
 import { TerminalSizeSchema } from "./types";
 
+import { PreviewTarget } from "./terminal-preview";
+
+export const TerminalPreviewMessage = z.object({
+  type: z.literal("terminal:preview"),
+  requestId: z.string().min(1).max(128),
+  targets: z.array(PreviewTarget).max(32),
+  excludeSessions: z.array(z.string()).max(1024),
+  once: z.boolean(),
+});
+
+export const TerminalSearchMessage = z.object({
+  type: z.literal("terminal:search"),
+  requestId: z.string().min(1).max(128),
+  query: z.string().min(1).max(256).regex(/[^\s]/).regex(/^[^\r\n\x00]*$/),
+  caseSensitive: z.boolean(),
+  excludeSessions: z.array(z.string()).max(1024),
+});
+
 export const AuthMessage = z.object({
   type: z.literal("auth"),
   token: z.string(),
@@ -401,6 +419,8 @@ export const DictationCancelMessage = z.object({
 });
 
 const ClientMessageUnion = z.discriminatedUnion("type", [
+  TerminalSearchMessage,
+  TerminalPreviewMessage,
   RepoRequest,
   RepoWatchMessage,
   RepoUnwatchMessage,

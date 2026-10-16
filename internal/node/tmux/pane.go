@@ -330,6 +330,8 @@ func (c *Client) BreakPane(ctx context.Context, session, paneID string) error {
 
 // CaptureOptions bounds a capture.
 type CaptureOptions struct {
+	// ScreenOnly omits history for live previews.
+	ScreenOnly bool
 	// Lines of history above the visible pane. Zero or less means 2000.
 	Lines int
 	// Escapes keeps SGR sequences, so colours survive a replay into the
@@ -369,8 +371,18 @@ func (c *Client) capture(ctx context.Context, target string, opts CaptureOptions
 	if opts.Escapes {
 		args = append(args, "-e")
 	}
-	args = append(args, "-S", "-"+strconv.Itoa(n))
-	out, cut, err := c.exec(ctx, c.withSocket(args))
+	if !opts.ScreenOnly {
+		args = append(args, "-S", "-"+strconv.Itoa(n))
+	}
+	limit := c.opts.MaxOutput
+	if opts.ScreenOnly {
+		limit = min(limit, 131072)
+	}
+	argv := c.withSocket(args)
+	out, cut, err := c.execProgramLimit(ctx, c.bin, argv, argv, limit)
+	if cut && opts.ScreenOnly {
+		return "", fmt.Errorf("preview screen exceeds capture limit")
+	}
 	if err != nil {
 		return "", err
 	}

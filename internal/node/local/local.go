@@ -63,6 +63,7 @@ var (
 
 // Node is the local node. It is safe for concurrent use.
 type Node struct {
+	searchMu   sync.Mutex
 	cfg        config.Config
 	tmux       Tmux
 	attacher   Attacher
@@ -282,6 +283,8 @@ func (n *Node) Close(id node.ConnID) {
 	a := c.takeLocked()
 	watchers := c.takeWatchersLocked()
 	repoWatchers := c.takeRepoWatchersLocked()
+	preview := c.preview
+	c.preview = nil
 	c.mu.Unlock()
 
 	if a != nil {
@@ -292,6 +295,7 @@ func (n *Node) Close(id node.ConnID) {
 	// send that waits for room in the sink. A watcher event waiting there
 	// ends too, so the watcher closes below do not wait on the browser.
 	c.cancel()
+	preview.close()
 	release(a)
 	closeWatchers(watchers)
 	closeRepoWatchers(repoWatchers)

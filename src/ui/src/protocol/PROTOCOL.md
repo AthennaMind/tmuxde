@@ -507,3 +507,50 @@ pending/active streams. Write and stream establishment timeouts are 15 seconds.
 Agent reconnects with bounded backoff and jitter. Input and mutations are never
 replayed. Link failure closes all data streams and browser attachment sockets;
 UI reconnects with fresh session inventory and attachment.
+
+### Global terminal history search
+
+Feature `terminal:search` enables machine-wide, read-only history search without
+attaching a session. Browser fans requests out over authenticated inventory
+connections and keeps machine IDs separate when pane IDs overlap.
+
+Client `terminal:search` fields: `requestId` (1 to 128 characters), `query`
+(nonblank, single-line literal text, 1 to 256 characters, no NUL),
+`caseSensitive` (boolean), and `excludeSessions` (array of session names, at most
+1024). Query is literal, including regex punctuation. Case-insensitive matching
+uses Unicode simple case folding.
+
+Server `terminal:search:result` echoes `requestId` and includes `matches`,
+`searchedPanes`, `skippedPanes`, `partial`, and optional `error`. Each match has
+`sessionName`, `windowId`, `paneId`, `command`, `path`, `line`, `text`, `before`
+and `after`. `line` is one-based within captured logical lines. Soft wraps are
+joined. Excerpts are plain text. Results use session listing order and newest
+matching lines first within each pane. Linked panes are searched once.
+
+Search reads full history retained by tmux plus visible screen. Closed panes,
+hidden sessions and excluded sessions are omitted. Panes linked from an excluded
+session are excluded everywhere. Current output is a snapshot, not a durable
+archive. No history is written or persisted. Query text and excerpts are redacted
+from message logs. Browser clears results and pending requests on lock or sign-out.
+
+One search runs per node, with a 10-second deadline, up to 256 panes, 100 matching
+lines, and a 64 MiB capture budget checked before each pane. Each capture uses the
+tmux client's output cap (16 MiB by default), so budget may exceed 64 MiB by one
+capture. `partial` reports capture, result, pane or time limits and failed pane
+reads. Partial results must never be presented as a complete no-match result.
+Offline and older machines are reported separately by UI. Busy or failed requests
+return `error` with matching `requestId`. Searches are never queued for reconnect.
+
+Results open their source through existing machine/session/pane navigation.
+Opening a result selects its pane at current terminal position. Snippets preserve
+matched text even if output has since moved. No historical scroll offset is implied.
+
+### Live terminal previews
+
+Feature `terminal:preview` enables read-only visible-screen previews on inventory connections.
+
+- Client `terminal:preview`: `requestId` (1 to 128 characters), `targets` (up to 32 `{session, paneId}` pairs), `excludeSessions` (up to 1024 session names), `once` (boolean). Session names are 1 to 256 characters and pane IDs match `%` followed by digits. Replaces the connection's previous subscription. Empty targets stop it. `once: true` returns one snapshot. UI previews use continuous subscriptions with `once: false`.
+- Server `terminal:preview:frame`: matching `requestId`, `frames` (up to 32 `{paneId, cols, rows, content, unavailable}` records). Content contains ANSI SGR visible-screen output, no history. Dimensions use terminal limits (1 to 1000 columns, 1 to 500 rows). An unavailable pane has empty content. Only changed frames are sent.
+- Captures repeat after 150 ms. Each pass has a two-second timeout, a 128 KiB per-screen cap and a 1 MiB aggregate budget. Subscriptions expire after 35 seconds; visible live clients renew every 20 seconds. Disconnect, replacement or empty targets cancels capture and waits for the previous sender to stop.
+- Every pass verifies session membership and rejects hidden sessions, excluded sessions and their linked panes. Reads never attach a PTY, select a pane, resize tmux or send input. Preview content is omitted from logs.
+- UI continuously watches visible cards and open hover previews, including when reduced motion is enabled. Hidden documents and closed Overview tabs stop their subscriptions. Device lock and sign-out discard frames. Frames are memory-only and separate from copy captures. Sidebar hover previews share screen subscriptions with Overview. Each hover owner stops on close, keeps subscriptions alive independently of Overview, and receives live updates while open.

@@ -741,6 +741,9 @@ export function SessionTree({
         prefix: String(w.index),
         label: presentation.label,
         secondary,
+        peek: !locked && !multi && sole
+          ? { pane: sole, machineId: machine.id, session: name }
+          : undefined,
         title: [
           `${w.index}: ${w.name}`,
           presentation.processes,
@@ -1008,10 +1011,7 @@ export function SessionTree({
             paneDrag?.windowId === w.id && paneDrag.target?.kind === "swap"
               ? paneDrag.target.paneId
               : null,
-          // Capture answers for the attached session only.
-          onPeek: live
-            ? (pane) => sendClient()?.send({ type: "pane:capture", id: pane.id })
-            : undefined,
+          preview: !locked ? { machineId: machine.id, session: name } : undefined,
           menu: paneMenu,
         },
       });

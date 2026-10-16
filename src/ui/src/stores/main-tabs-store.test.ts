@@ -10,6 +10,8 @@ import {
   graphTabId,
   isMachineTab,
   restoreTabs,
+  reconcileTabOrder,
+  moveTabInOrder,
   useMainTabsStore,
 } from "./main-tabs-store";
 
@@ -25,7 +27,7 @@ const commit = (subject = "Fix it", hash = HASH) => ({
 beforeEach(() => {
   setMachineId(null);
   useSessionStore.setState({ activeSessionId: null });
-  useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB });
+  useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB, order: [] });
 });
 
 afterEach(() => {
@@ -374,7 +376,7 @@ describe("restoreTabs", () => {
       ],
       active: "file:/b.ts",
     });
-    expect(restored).toEqual({ tabs: [], active: TERMINAL_TAB });
+    expect(restored).toEqual({ tabs: [], active: TERMINAL_TAB, order: [] });
   });
 
   it("restores commit tabs with a full hash only", () => {
@@ -438,7 +440,52 @@ describe("restoreTabs", () => {
   });
 
   it("survives nothing stored", () => {
-    expect(restoreTabs(undefined)).toEqual({ tabs: [], active: TERMINAL_TAB });
+    expect(restoreTabs(undefined)).toEqual({ tabs: [], active: TERMINAL_TAB, order: [] });
+  });
+});
+
+describe("tab order", () => {
+  const terminalA = JSON.stringify(["terminal", "alpha", "dev"]);
+  const terminalB = JSON.stringify(["terminal", "beta", "dev"]);
+  const initial = [terminalA, terminalB, SETTINGS_TAB, "file:/a.ts"];
+
+  it("moves views across terminal and file boundaries in either direction", () => {
+    const moved = moveTabInOrder(initial, SETTINGS_TAB, terminalA, "before");
+    expect(moved).toEqual([SETTINGS_TAB, terminalA, terminalB, "file:/a.ts"]);
+    expect(moveTabInOrder(moved, terminalA, "file:/a.ts", "after"))
+      .toEqual([SETTINGS_TAB, terminalB, "file:/a.ts", terminalA]);
+    expect(initial).toEqual([terminalA, terminalB, SETTINGS_TAB, "file:/a.ts"]);
+  });
+
+  it("ignores stale targets and drops onto the source", () => {
+    expect(moveTabInOrder(initial, terminalA, "missing", "before")).toBe(initial);
+    expect(moveTabInOrder(initial, "missing", terminalA, "after")).toBe(initial);
+    expect(moveTabInOrder(initial, terminalA, terminalA, "after")).toBe(initial);
+  });
+
+  it("keeps saved order while removing closed tabs and appending new tabs", () => {
+    const moved = [SETTINGS_TAB, terminalB, terminalA, "file:/a.ts"];
+    const visible = [terminalA, SETTINGS_TAB, "file:/a.ts", OVERVIEW_TAB];
+    expect(reconcileTabOrder(moved, visible))
+      .toEqual([SETTINGS_TAB, terminalA, "file:/a.ts", OVERVIEW_TAB]);
+    expect(reconcileTabOrder([SETTINGS_TAB, SETTINGS_TAB], visible))
+      .toEqual([SETTINGS_TAB, terminalA, "file:/a.ts", OVERVIEW_TAB]);
+  });
+
+  it("validates saved order and supports existing storage without an order", () => {
+    expect(restoreTabs({ order: [SETTINGS_TAB, null, 3, SETTINGS_TAB, terminalA] }).order)
+      .toEqual([SETTINGS_TAB, terminalA]);
+    expect(restoreTabs({ order: "invalid" }).order).toEqual([]);
+  });
+
+  it("reorders without activating a view or changing tab eviction order", () => {
+    const store = useMainTabsStore.getState();
+    store.openSettings();
+    store.openOverview();
+    const tabs = useMainTabsStore.getState().tabs;
+    store.setOrder([OVERVIEW_TAB, terminalA, SETTINGS_TAB]);
+    expect(useMainTabsStore.getState().active).toBe(OVERVIEW_TAB);
+    expect(useMainTabsStore.getState().tabs).toBe(tabs);
   });
 });
 
@@ -458,10 +505,20 @@ describe("tab persistence", () => {
     vi.unstubAllGlobals();
   });
 
+  it("restores mixed tab order after a reload", async () => {
+    const order = [SETTINGS_TAB, JSON.stringify(["terminal", "local", "dev"]), OVERVIEW_TAB];
+    useMainTabsStore.getState().setOrder(order);
+    const saved = local.getItem(KEY);
+    useMainTabsStore.setState({ order: [] });
+    local.setItem(KEY, saved!);
+    await useMainTabsStore.persist.rehydrate();
+    expect(useMainTabsStore.getState().order).toEqual(order);
+  });
+
   it("brings the overview back after a reload", async () => {
     useMainTabsStore.getState().openOverview();
     const saved = local.getItem(KEY);
-    useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB });
+    useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB, order: [] });
     local.setItem(KEY, saved!);
     await useMainTabsStore.persist.rehydrate();
     const s = useMainTabsStore.getState();
@@ -473,7 +530,7 @@ describe("tab persistence", () => {
     useMainTabsStore.getState().openFile(file("/a.ts"));
     const saved = local.getItem(KEY);
     // A reload starts from empty memory and finds what was saved.
-    useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB });
+    useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB, order: [] });
     local.setItem(KEY, saved!);
     await useMainTabsStore.persist.rehydrate();
     const s = useMainTabsStore.getState();

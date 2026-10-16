@@ -24,8 +24,9 @@ RUN GOTOOLCHAIN=local CGO_ENABLED=0 GOBIN=/out \
 
 FROM golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61
 # curl runs the server-dev health check over the unix socket.
+# htop provides an interactive TUI for testing live terminal previews.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tmux git ca-certificates curl \
+    tmux htop git ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=air /out/air /usr/local/bin/air
 COPY --from=golangci-lint /out/golangci-lint /usr/local/bin/golangci-lint

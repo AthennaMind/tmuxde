@@ -6,6 +6,7 @@ import {
   activityLabel,
   buildMachine,
   filterOverview,
+  overviewPanes,
   liveWindowsOf,
   machineState,
   machineStatusLabel,
@@ -91,6 +92,17 @@ function beta(): MachineSessions {
 }
 
 describe("buildMachine", () => {
+  it("prefers refreshed inventory over cached details for unattached sessions", () => {
+    const fresh = beta();
+    const live: LiveState = {
+      machineId: "beta", status: "connected", sessions: fresh.sessions, sessionsLoaded: true,
+      activeSessionId: null, attachedSession: null, details: { dev: { windows: [window("@99", 0, "stale")], panes: [] } },
+      windows: [], panes: [], activeWindowId: null, activePaneId: null, zoomedPaneId: null, pendingKey: null,
+    };
+    const view = buildMachine(machine("beta"), fresh, live);
+    expect(view.sessions[0]!.windows.map((item) => item.window.id)).toEqual(["@1", "@2"]);
+  });
+
   it("lists sessions and windows from the inventory", () => {
     const view = buildMachine(machine("beta"), beta(), null);
     expect(view.state).toBe("ready");
@@ -360,5 +372,28 @@ describe("labels", () => {
   it("reads activity as a phrase", () => {
     expect(activityLabel(new Date().toISOString())).toBe("active now");
     expect(activityLabel(new Date(Date.now() - 5 * 60_000).toISOString())).toBe("active 5m ago");
+  });
+});
+
+
+describe("overviewPanes", () => {
+  it("flattens splits and sessions while retaining navigation context", () => {
+    const cards = overviewPanes([buildMachine(machine("beta"), beta(), null)]);
+    expect(cards.map((card) => [card.session.session.name, card.window.window.id, card.pane.id])).toEqual([
+      ["dev", "@1", "%1"], ["dev", "@1", "%2"], ["dev", "@2", "%3"], ["notes", "@3", "%4"],
+    ]);
+  });
+  it("matches only the pane process or path, while location matches keep its panes", () => {
+    const machines = [buildMachine(machine("beta"), beta(), null)];
+    expect(overviewPanes(machines, " CLAUDE ").map((card) => card.pane.id)).toEqual(["%1"]);
+    expect(overviewPanes(machines, "/web").map((card) => card.pane.id)).toEqual(["%2"]);
+    expect(overviewPanes(machines, "agents")).toHaveLength(2);
+    expect(overviewPanes(machines, "dev beta")).toHaveLength(4);
+    expect(overviewPanes(machines, "notes").map((card) => card.pane.id)).toEqual(["%4"]);
+  });
+  it("keeps identical pane IDs on different machines distinct", () => {
+    const cards = overviewPanes([buildMachine(machine("alpha"), beta(), null), buildMachine(machine("beta"), beta(), null)]);
+    expect(new Set(cards.map((card) => card.key)).size).toBe(8);
+    expect(cards[4]!.machine.machine.id).toBe("beta");
   });
 });

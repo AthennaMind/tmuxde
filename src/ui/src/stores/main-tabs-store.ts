@@ -132,6 +132,8 @@ export function graphTabId(contextPath: string, machine?: string): string {
 
 interface MainTabsStore {
   tabs: MainTab[];
+  order: string[];
+  setOrder: (order: string[]) => void;
   /** `TERMINAL_TAB` or a tab id. */
   active: string;
   openFile: (tab: Omit<FileTab, "id" | "kind">) => void;
@@ -236,14 +238,36 @@ function isMainTab(value: unknown): value is MainTab {
 /** Keep well formed tabs only, and an active id that still names one. */
 export function restoreTabs(
   persisted: unknown,
-): Pick<MainTabsStore, "tabs" | "active"> {
+): Pick<MainTabsStore, "tabs" | "active" | "order"> {
   const state = persisted as Partial<MainTabsStore> | undefined;
   const keep = new Set(typeof state?.active === "string" ? [state.active] : []);
   const tabs = Array.isArray(state?.tabs)
     ? trimTabs(state.tabs.filter(isMainTab), keep)
     : [];
   const active = tabs.find((t) => t.id === state?.active)?.id ?? TERMINAL_TAB;
-  return { tabs, active };
+  const order = Array.isArray(state?.order)
+    ? [...new Set(state.order.filter((id): id is string => typeof id === "string"))]
+    : [];
+  return { tabs, active, order };
+}
+
+/** Preserve saved positions, remove closed views and append new views. */
+export function reconcileTabOrder(order: string[], visible: string[]): string[] {
+  const remaining = new Set(visible);
+  const next = order.filter((id) => remaining.delete(id));
+  return [...next, ...remaining];
+}
+
+export function moveTabInOrder(
+  order: string[],
+  id: string,
+  target: string,
+  side: "before" | "after",
+): string[] {
+  if (id === target || !order.includes(id) || !order.includes(target)) return order;
+  const next = order.filter((item) => item !== id);
+  next.splice(next.indexOf(target) + (side === "after" ? 1 : 0), 0, id);
+  return next;
 }
 
 /**
@@ -291,6 +315,12 @@ export const useMainTabsStore = create<MainTabsStore>()(
   persist(
     (set) => ({
       tabs: [],
+      order: [],
+      setOrder: (order) => set((s) =>
+        order.length === s.order.length && order.every((id, index) => id === s.order[index])
+          ? s
+          : { order },
+      ),
       active: TERMINAL_TAB,
       openFile: (input) =>
         set((s) => {
@@ -387,7 +417,7 @@ export const useMainTabsStore = create<MainTabsStore>()(
       name: "tmuxde-main-tabs",
       version: 1,
       storage: createJSONStorage(() => tabStorage),
-      partialize: (state) => ({ tabs: state.tabs, active: state.active }),
+      partialize: (state) => ({ tabs: state.tabs, active: state.active, order: state.order }),
       merge: (persisted, current) => ({ ...current, ...restoreTabs(persisted) }),
     },
   ),

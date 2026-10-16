@@ -46,6 +46,7 @@ import {
   readSelfHostedToken,
   readStored,
 } from "@/lib/storage-keys";
+import { GlobalTerminalSearch } from "@/components/terminal/global-terminal-search";
 
 /**
  * The gate is outside the layout body on purpose.
@@ -306,6 +307,7 @@ function TerminalLayoutInner() {
       </ErrorBoundary>
       <TransferPanel />
       <CommandPalette />
+      <GlobalTerminalSearch />
       <CommandComposer />
       <KeyboardShortcutsDialog />
     </AppShell>

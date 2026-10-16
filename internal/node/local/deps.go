@@ -18,6 +18,7 @@ import (
 // match package tmux, so the real client satisfies it as is. Tests pass a
 // fake.
 type Tmux interface {
+	SearchHistory(ctx context.Context, query string, caseSensitive bool, exclude []string) (tmux.SearchResult, error)
 	// Version runs tmux -V. Start uses it to check that tmux runs at all.
 	Version(ctx context.Context) (string, error)
 	// NoStartFlag reports whether tmux takes -N. attach passes it on as
@@ -52,6 +53,7 @@ type Tmux interface {
 	JoinPane(ctx context.Context, paneID, windowID, direction string) error
 	BreakPane(ctx context.Context, session, paneID string) error
 
+	PreviewScreens(ctx context.Context, targets []protocol.PreviewTarget, exclude []string) []protocol.PreviewFrame
 	CapturePane(ctx context.Context, session string, opts tmux.CaptureOptions) (string, error)
 	CapturePaneByID(ctx context.Context, paneID string, opts tmux.CaptureOptions) (string, error)
 
