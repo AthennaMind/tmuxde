@@ -382,7 +382,7 @@ function TerminalSection({ touch }: { touch: boolean }) {
       />
       <SwitchRow
         label="Copy on select"
-        hint="Copy selected terminal text to clipboard on mouse release."
+        hint="Copy selected terminal text, including copies from tmux and terminal apps."
         checked={copyOnSelect}
         onChange={setCopyOnSelect}
       />

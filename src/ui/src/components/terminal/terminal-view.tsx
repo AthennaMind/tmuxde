@@ -18,6 +18,7 @@ import {
 import { useTheme } from "@/hooks/use-theme";
 import { createXterm } from "@/lib/xterm-factory";
 import { copyText, copyFailureReason } from "@/lib/clipboard";
+import { decodeOsc52 } from "@/lib/osc52";
 import { terminalFontFamily } from "@/lib/terminal-font.js";
 import { consumeTerminalInput } from "@/lib/terminal-input.js";
 import { clipboardImage } from "@/lib/photo-upload.js";
@@ -335,6 +336,23 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
       fitAddonRef.current = fitAddon;
       searchAddonRef.current = searchAddon;
 
+      const copyTerminalText = (text: string) => {
+        void copyText(text).then((copied) => {
+          if (!copied) {
+            useAlertStore.getState().push("error", copyFailureReason());
+          }
+        });
+      };
+      // Tmux and terminal apps copy through OSC 52 when they own selection.
+      // Consume queries without replying. Clipboard reads stay in browser.
+      const clipboardDisposable = terminal.parser.registerOscHandler(52, (data) => {
+        if (useTerminalStore.getState().copyOnSelect) {
+          const text = decodeOsc52(data);
+          if (text !== null) copyTerminalText(text);
+        }
+        return true;
+      });
+
       // Copy once on release, while clipboard access has user activation.
       // Selection-change events also include search hits and buffer updates.
       const terminalElement = terminal.element!;
@@ -351,11 +369,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
         if (!useTerminalStore.getState().copyOnSelect) return;
         const selection = terminal.getSelection();
         if (!selection) return;
-        void copyText(selection).then((copied) => {
-          if (!copied) {
-            useAlertStore.getState().push("error", copyFailureReason());
-          }
-        });
+        copyTerminalText(selection);
       };
       // Capture also sees Shift-drag when xterm stops mouse propagation.
       terminalElement.addEventListener("mousedown", startSelectionCopy, true);
@@ -618,6 +632,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
         );
         dataDisposable.dispose();
         resizeDisposable.dispose();
+        clipboardDisposable.dispose();
         terminalElement.removeEventListener("mousedown", startSelectionCopy, true);
         window.removeEventListener("mouseup", finishSelectionCopy);
         window.removeEventListener("blur", cancelSelectionCopy);
