@@ -53,6 +53,7 @@ interface TerminalStore {
   themeName: string;
   cursorStyle: "block" | "underline" | "bar";
   cursorBlink: boolean;
+  copyOnSelect: boolean;
   scrollback: number;
   /**
    * Use xterm's WebGL renderer on desktop. Faster with heavy output, but text
@@ -69,6 +70,7 @@ interface TerminalStore {
   setThemeName: (name: string) => void;
   setCursorStyle: (style: "block" | "underline" | "bar") => void;
   setCursorBlink: (blink: boolean) => void;
+  setCopyOnSelect: (enabled: boolean) => void;
   setScrollback: (lines: number) => void;
   setGpuRendering: (on: boolean) => void;
 }
@@ -111,6 +113,7 @@ export const useTerminalStore = create<TerminalStore>()(
       themeName: DEFAULT_TERMINAL_THEME,
       cursorStyle: "block",
       cursorBlink: true,
+      copyOnSelect: true,
       scrollback: 5000,
       gpuRendering: false,
       setFontSize: (fontSize) => set({ fontSize: clampFontSize(fontSize) }),
@@ -121,6 +124,7 @@ export const useTerminalStore = create<TerminalStore>()(
       setThemeName: (themeName) => set({ themeName }),
       setCursorStyle: (cursorStyle) => set({ cursorStyle }),
       setCursorBlink: (cursorBlink) => set({ cursorBlink }),
+      setCopyOnSelect: (copyOnSelect) => set({ copyOnSelect }),
       setScrollback: (scrollback) => set({ scrollback }),
       setGpuRendering: (gpuRendering) => set({ gpuRendering }),
     }),
