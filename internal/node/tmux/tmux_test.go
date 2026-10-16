@@ -159,6 +159,8 @@ func TestTmux(t *testing.T) {
 	t.Run("application scrolling", f.testApplicationScrolling)
 	t.Run("sessions", f.testSessions)
 	t.Run("layout and pane commands", f.testLayoutAndPaneCommands)
+	t.Run("pane moves", f.testPaneMoves)
+	t.Run("resize border owner", f.testResizeOwner)
 }
 
 func (f *fixture) testCapturePane(t *testing.T) {
@@ -1271,6 +1273,343 @@ func (f *fixture) testLayoutAndPaneCommands(t *testing.T) {
 	}
 	if err := c.KillPane(bg, first.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("KillPane(gone) = %v, want ErrNotFound", err)
+	}
+}
+
+// Not in the relay test file: pane:swap with a target, pane:join and
+// pane:break, the moves a drag in the sidebar grid sends. Each step checks
+// where the panes went, which pane tmux made active and which window the
+// session shows.
+func (f *fixture) testPaneMoves(t *testing.T) {
+	c := f.c
+	const s, other = "tmuxde-moves", "tmuxde-moves-other"
+	// -P prints the new pane id. The panes run sleep, so no shell differs
+	// between hosts.
+	newPane := func(t *testing.T, args ...string) string {
+		t.Helper()
+		return strings.TrimSpace(f.tmux(t, append(args, "-P", "-F", "#{pane_id}", "sleep 600")...))
+	}
+	a := newPane(t, "new-session", "-d", "-s", s, "-x", "200", "-y", "50")
+	t.Cleanup(func() { _, _ = f.try("kill-session", "-t", "="+s) })
+	b := newPane(t, "split-window", "-h", "-t", a)
+	c3 := newPane(t, "new-window", "-t", "="+s+":")
+	// Created last, so it is the session tmux would pick on its own.
+	f.tmux(t, "new-session", "-d", "-s", other, "sleep 600")
+	t.Cleanup(func() { _, _ = f.try("kill-session", "-t", "="+other) })
+	if err := c.SelectPane(bg, s, a); err != nil {
+		t.Fatal(err)
+	}
+
+	// ids lists the pane ids of a window in tmux order, the active one
+	// marked with a star.
+	ids := func(t *testing.T, windowID string) []string {
+		t.Helper()
+		var out []string
+		for _, p := range must(c.ListPanes(bg, s, windowID))(t) {
+			if p.Active {
+				out = append(out, p.ID+"*")
+			} else {
+				out = append(out, p.ID)
+			}
+		}
+		return out
+	}
+	windowOf := func(t *testing.T, paneID string) string {
+		t.Helper()
+		return strings.TrimSpace(f.tmux(t, "display-message", "-p", "-t", paneID, "#{window_id}"))
+	}
+	w0, w1 := windowOf(t, a), windowOf(t, c3)
+
+	t.Run("swaps two panes of one window and activates the target", func(t *testing.T) {
+		if err := c.SwapPanes(bg, a, b); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := ids(t, w0), []string{b + "*", a}; !slices.Equal(got, want) {
+			t.Fatalf("window %s panes %v, want %v", w0, got, want)
+		}
+	})
+
+	t.Run("swaps panes across windows and keeps the window on screen", func(t *testing.T) {
+		before := must(c.CurrentWindowID(bg, s))(t)
+		if err := c.SwapPanes(bg, a, c3); err != nil {
+			t.Fatal(err)
+		}
+		// Each window activates the pane it received.
+		if got, want := ids(t, w0), []string{b, c3 + "*"}; !slices.Equal(got, want) {
+			t.Fatalf("window %s panes %v, want %v", w0, got, want)
+		}
+		if got, want := ids(t, w1), []string{a + "*"}; !slices.Equal(got, want) {
+			t.Fatalf("window %s panes %v, want %v", w1, got, want)
+		}
+		if got := must(c.CurrentWindowID(bg, s))(t); got != before {
+			t.Fatalf("current window %s, was %s", got, before)
+		}
+	})
+
+	t.Run("joins a pane below the active pane and shows its new window", func(t *testing.T) {
+		if err := c.SelectWindow(bg, w1); err != nil {
+			t.Fatal(err)
+		}
+		if err := c.JoinPane(bg, a, w0, "v"); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := ids(t, w0), []string{b, c3, a + "*"}; !slices.Equal(got, want) {
+			t.Fatalf("window %s panes %v, want %v", w0, got, want)
+		}
+		panes := must(c.ListPanes(bg, s, w0))(t)
+		split, joined := panes[1], panes[2]
+		if joined.Position.X != split.Position.X || joined.Position.Y <= split.Position.Y {
+			t.Fatalf("joined %+v is not below %+v", joined.Position, split.Position)
+		}
+		if got := must(c.CurrentWindowID(bg, s))(t); got != w0 {
+			t.Fatalf("current window %s, want %s", got, w0)
+		}
+		// The window the pane left had no other pane and closed.
+		if windows := must(c.ListWindows(bg, s))(t); len(windows) != 1 || windows[0].ID != w0 {
+			t.Fatalf("windows %+v, want only %s", windows, w0)
+		}
+	})
+
+	t.Run("joins beside the active pane for h", func(t *testing.T) {
+		w := windowOf(t, newPane(t, "new-window", "-t", "="+s+":"))
+		if err := c.JoinPane(bg, b, w, "h"); err != nil {
+			t.Fatal(err)
+		}
+		panes := must(c.ListPanes(bg, s, w))(t)
+		if len(panes) != 2 || panes[1].ID != b || panes[1].Position.Y != panes[0].Position.Y ||
+			panes[1].Position.X <= panes[0].Position.X {
+			t.Fatalf("window %s panes %+v, want %s right of the first", w, panes, b)
+		}
+		if got := must(c.CurrentWindowID(bg, s))(t); got != w {
+			t.Fatalf("current window %s, want %s", got, w)
+		}
+	})
+
+	t.Run("breaks a pane out into a new window of its own session", func(t *testing.T) {
+		before := len(must(c.ListWindows(bg, s))(t))
+		otherBefore := len(must(c.ListWindows(bg, other))(t))
+		if err := c.BreakPane(bg, s, a); err != nil {
+			t.Fatal(err)
+		}
+		w := windowOf(t, a)
+		if w == w0 {
+			t.Fatalf("%s is still in window %s", a, w0)
+		}
+		if got := len(must(c.ListWindows(bg, s))(t)); got != before+1 {
+			t.Fatalf("%d windows, want %d", got, before+1)
+		}
+		if got := len(must(c.ListWindows(bg, other))(t)); got != otherBefore {
+			t.Fatalf("%s has %d windows, had %d", other, got, otherBefore)
+		}
+		if got, want := ids(t, w), []string{a + "*"}; !slices.Equal(got, want) {
+			t.Fatalf("window %s panes %v, want %v", w, got, want)
+		}
+		if got := must(c.CurrentWindowID(bg, s))(t); got != w {
+			t.Fatalf("current window %s, want %s", got, w)
+		}
+	})
+
+	t.Run("reports the tmux error for a join onto the pane itself", func(t *testing.T) {
+		// a is the only and so the active pane of its window.
+		if err := c.JoinPane(bg, a, windowOf(t, a), "h"); err == nil {
+			t.Fatal("join onto itself succeeded")
+		}
+	})
+}
+
+// layoutChecksum is tmux's layout_checksum, the four hex digits in front of
+// a window_layout. select-layout refuses a layout whose checksum is wrong.
+func layoutChecksum(layout string) string {
+	var sum uint16
+	for i := 0; i < len(layout); i++ {
+		sum = (sum >> 1) + ((sum & 1) << 15)
+		sum += uint16(layout[i])
+	}
+	return fmt.Sprintf("%04x", sum)
+}
+
+// Not in the relay test file: which pane a border drag in the sidebar grid
+// sends to resize-pane. The layouts and owners are the ones
+// sharedBorders in src/ui/src/lib/pane-grid-layout.test.ts predicts. Each
+// check applies its layout again, resizes one pane and reads back where the
+// panes on both sides of the border ended.
+func (f *fixture) testResizeOwner(t *testing.T) {
+	c := f.c
+	type check struct {
+		name string
+		// Pane to resize, a letter for the pane at that position in the
+		// layout: a is the first leaf, b the second.
+		pane      string
+		direction string
+		amount    int
+		// The border: vertical divides left from right. cell is the
+		// separator column or row. before and after are the panes that
+		// touch it.
+		vertical      bool
+		cell          int
+		before, after string
+		// moves is false for a pane that sharedBorders says does not own
+		// this border. resize-pane then moves another border.
+		moves bool
+	}
+	cases := []struct {
+		name   string
+		layout string
+		checks []check
+	}{
+		{
+			// 0 on the left at full height. 1 over 2 on the right.
+			name:   "pane left of a nested stack",
+			layout: "81x24,0,0{40x24,0,0,0,40x24,41,0[40x11,41,0,1,40x12,41,12,2]}",
+			checks: []check{
+				{name: "owner grows right", pane: "a", direction: "R", amount: 5, vertical: true, cell: 40, before: "a", after: "bc", moves: true},
+				{name: "owner moves it back", pane: "a", direction: "L", amount: 3, vertical: true, cell: 40, before: "a", after: "bc", moves: true},
+				{name: "stack border down", pane: "b", direction: "D", amount: 2, vertical: false, cell: 11, before: "b", after: "c", moves: true},
+				{name: "stack border up", pane: "b", direction: "U", amount: 4, vertical: false, cell: 11, before: "b", after: "c", moves: true},
+			},
+		},
+		{
+			// The plan mockup: 0 top left, 1 over 2 top right, 3 across the bottom.
+			name:   "row above a full width pane",
+			layout: "81x24,0,0[81x16,0,0{48x16,0,0,0,32x16,49,0[32x8,49,0,1,32x7,49,9,2]},81x7,0,17,3]",
+			checks: []check{
+				{name: "outer border down", pane: "a", direction: "D", amount: 2, vertical: false, cell: 16, before: "ac", after: "d", moves: true},
+				{name: "outer border up", pane: "a", direction: "U", amount: 3, vertical: false, cell: 16, before: "ac", after: "d", moves: true},
+				{name: "top row split right", pane: "a", direction: "R", amount: 4, vertical: true, cell: 48, before: "a", after: "bc", moves: true},
+				{name: "nested stack down", pane: "b", direction: "D", amount: 1, vertical: false, cell: 8, before: "b", after: "c", moves: true},
+			},
+		},
+		{
+			// Two rows of two. The vertical borders line up on screen and
+			// still move apart.
+			name:   "two rows of two",
+			layout: "81x25,0,0[81x12,0,0{40x12,0,0,0,40x12,41,0,1},81x12,0,13{40x12,0,13,2,40x12,41,13,3}]",
+			checks: []check{
+				{name: "row border from the top left pane", pane: "a", direction: "D", amount: 3, vertical: false, cell: 12, before: "ab", after: "cd", moves: true},
+				{name: "top row only", pane: "a", direction: "R", amount: 6, vertical: true, cell: 40, before: "a", after: "b", moves: true},
+				{name: "bottom row untouched by the top owner", pane: "a", direction: "R", amount: 6, vertical: true, cell: 40, before: "c", after: "d", moves: false},
+				{name: "bottom row from its own owner", pane: "c", direction: "L", amount: 2, vertical: true, cell: 40, before: "c", after: "d", moves: true},
+			},
+		},
+		{
+			// Left: a stack of two side by side pairs. Right: pane 4.
+			name:   "owner on the far side",
+			layout: "81x25,0,0{40x25,0,0[40x12,0,0{20x12,0,0,0,19x12,21,0,1},40x12,0,13{20x12,0,13,2,19x12,21,13,3}],40x25,41,0,4}",
+			checks: []check{
+				{name: "last cell moves the outer border left", pane: "e", direction: "L", amount: 4, vertical: true, cell: 40, before: "bd", after: "e", moves: true},
+				{name: "last cell moves the outer border right", pane: "e", direction: "R", amount: 2, vertical: true, cell: 40, before: "bd", after: "e", moves: true},
+				{name: "a pane in a pair stops at the pair", pane: "b", direction: "R", amount: 2, vertical: true, cell: 40, before: "bd", after: "e", moves: false},
+				{name: "pair border from its first pane", pane: "a", direction: "R", amount: 3, vertical: true, cell: 20, before: "a", after: "b", moves: true},
+			},
+		},
+		{
+			// The same stack with two panes on the right. No pane moves
+			// the border after the stack alone.
+			name:   "border without an owner",
+			layout: "122x25,0,0{40x25,0,0[40x12,0,0{20x12,0,0,0,19x12,21,0,1},40x12,0,13{20x12,0,13,2,19x12,21,13,3}],40x25,41,0,4,40x25,82,0,5}",
+			checks: []check{
+				{name: "pair pane a", pane: "a", direction: "R", amount: 2, vertical: true, cell: 40, before: "bd", after: "e", moves: false},
+				{name: "pair pane b", pane: "b", direction: "R", amount: 2, vertical: true, cell: 40, before: "bd", after: "e", moves: false},
+				{name: "pair pane c", pane: "c", direction: "R", amount: 2, vertical: true, cell: 40, before: "bd", after: "e", moves: false},
+				{name: "pair pane d", pane: "d", direction: "R", amount: 2, vertical: true, cell: 40, before: "bd", after: "e", moves: false},
+				{name: "middle pane", pane: "e", direction: "R", amount: 2, vertical: true, cell: 40, before: "bd", after: "e", moves: false},
+				{name: "last pane", pane: "f", direction: "R", amount: 2, vertical: true, cell: 40, before: "bd", after: "e", moves: false},
+				{name: "middle pane owns the next border", pane: "e", direction: "R", amount: 2, vertical: true, cell: 81, before: "e", after: "f", moves: true},
+			},
+		},
+	}
+
+	type edges struct{ left, top, right, bottom int }
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := regexp.MustCompile(`^(\d+)x(\d+),`).FindStringSubmatch(tc.layout)
+			leaves := len(regexp.MustCompile(`\d+x\d+,\d+,\d+,\d+`).FindAllString(tc.layout, -1))
+			s := fmt.Sprintf("tmuxde-resize-%d", i)
+			// sleep, not a shell, so no prompt or rc file differs between hosts.
+			first := strings.TrimSpace(f.tmux(t, "new-session", "-d", "-s", s, "-x", root[1], "-y", root[2],
+				"-P", "-F", "#{pane_id}", "sleep 600"))
+			t.Cleanup(func() { _, _ = f.try("kill-session", "-t", "="+s) })
+			ids := []string{first}
+			for len(ids) < leaves {
+				// A new pane goes after the active one, which is the last
+				// one made, so tmux order is creation order. tiled keeps
+				// room for the next split.
+				ids = append(ids, strings.TrimSpace(f.tmux(t, "split-window", "-t", ids[len(ids)-1],
+					"-P", "-F", "#{pane_id}", "sleep 600")))
+				f.tmux(t, "select-layout", "-t", "="+s+":", "tiled")
+			}
+			pane := func(letter byte) string { return ids[letter-'a'] }
+			read := func(t *testing.T) map[string]edges {
+				t.Helper()
+				out := map[string]edges{}
+				for _, line := range strings.Split(strings.TrimSpace(f.tmux(t, "list-panes", "-t", "="+s+":",
+					"-F", "#{pane_id} #{pane_left} #{pane_top} #{pane_right} #{pane_bottom}")), "\n") {
+					var id string
+					var e edges
+					if _, err := fmt.Sscan(line, &id, &e.left, &e.top, &e.right, &e.bottom); err != nil {
+						t.Fatalf("list-panes line %q: %v", line, err)
+					}
+					out[id] = e
+				}
+				return out
+			}
+			// Where the border is, read from the panes beside it: the last
+			// column or row before it and the first one after it.
+			border := func(t *testing.T, all map[string]edges, ch check) (before, after []int) {
+				t.Helper()
+				for _, l := range []byte(ch.before) {
+					if e := all[pane(l)]; ch.vertical {
+						before = append(before, e.right)
+					} else {
+						before = append(before, e.bottom)
+					}
+				}
+				for _, l := range []byte(ch.after) {
+					if e := all[pane(l)]; ch.vertical {
+						after = append(after, e.left)
+					} else {
+						after = append(after, e.top)
+					}
+				}
+				return before, after
+			}
+			same := func(list []int, want int) bool {
+				return !slices.ContainsFunc(list, func(v int) bool { return v != want })
+			}
+
+			for _, ch := range tc.checks {
+				t.Run(ch.name, func(t *testing.T) {
+					body := tc.layout
+					f.tmux(t, "select-layout", "-t", "="+s+":", layoutChecksum(body)+","+body)
+					got := strings.TrimSpace(f.tmux(t, "display-message", "-p", "-t", "="+s+":", "#{window_layout}"))
+					// The ids differ from the test layout. Sizes and offsets must not.
+					strip := regexp.MustCompile(`(\d+x\d+,\d+,\d+),\d+`)
+					if strip.ReplaceAllString(got[5:], "$1") != strip.ReplaceAllString(body, "$1") {
+						t.Fatalf("layout %q, want the shape of %q", got, body)
+					}
+					before, after := border(t, read(t), ch)
+					if !same(before, ch.cell-1) || !same(after, ch.cell+1) {
+						t.Fatalf("border at %d: before %v, after %v", ch.cell, before, after)
+					}
+					if err := c.ResizePane(bg, pane(ch.pane[0]), ch.direction, ch.amount); err != nil {
+						t.Fatal(err)
+					}
+					delta := ch.amount
+					if ch.direction == "L" || ch.direction == "U" {
+						delta = -delta
+					}
+					want := ch.cell
+					if ch.moves {
+						want += delta
+					}
+					before, after = border(t, read(t), ch)
+					if !same(before, want-1) || !same(after, want+1) {
+						t.Fatalf("resize-pane -%s %d on %s: border before %v, after %v, want %d and %d",
+							ch.direction, ch.amount, ch.pane, before, after, want-1, want+1)
+					}
+				})
+			}
+		})
 	}
 }
 

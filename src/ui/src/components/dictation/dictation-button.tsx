@@ -58,9 +58,10 @@ export function DictationButton({
         toggleDictation();
       }}
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-40",
+        "flex shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-40",
+        // The rail takes the global 2px focus outline, like its neighbours.
         variant === "toolbar"
-          ? "h-11 min-w-0 border border-border bg-background px-1 text-foreground active:bg-accent"
+          ? "h-11 min-w-0 border border-border bg-background px-1 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-accent"
           : "h-9 w-9 text-muted-foreground hover:bg-accent/60 hover:text-foreground",
         recording && "border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:text-destructive-foreground active:bg-destructive/90",
         className,

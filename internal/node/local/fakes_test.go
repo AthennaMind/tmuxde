@@ -244,6 +244,18 @@ func (f *fakeTmux) SwapPane(_ context.Context, id, direction string) error {
 	return f.record("SwapPane", id, direction)
 }
 
+func (f *fakeTmux) SwapPanes(_ context.Context, id, target string) error {
+	return f.record("SwapPanes", id, target)
+}
+
+func (f *fakeTmux) JoinPane(_ context.Context, id, windowID, direction string) error {
+	return f.record("JoinPane", id, windowID, direction)
+}
+
+func (f *fakeTmux) BreakPane(_ context.Context, s, id string) error {
+	return f.record("BreakPane", s, id)
+}
+
 func (f *fakeTmux) CapturePane(_ context.Context, s string, opts tmux.CaptureOptions) (string, error) {
 	_ = f.record("CapturePane", s)
 	f.mu.Lock()

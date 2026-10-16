@@ -1,0 +1,21 @@
+# Copy to ~/.config/systemd/user/tmuxde-agent.service on each agent machine.
+[Unit]
+Description=tmuxde remote machine agent
+After=default.target
+
+[Service]
+Type=exec
+ExecStart=%h/.local/bin/tmuxde agent
+EnvironmentFile=%h/.config/tmuxde/agent.env
+# A separate scope lets tmux outlive agent restarts. Refuse a plain child
+# process fallback when systemd cannot create that scope.
+Environment=TMUXDE_TMUX_LAUNCHER=systemd-run
+Restart=on-failure
+RestartSec=2
+KillSignal=SIGTERM
+TimeoutStopSec=15
+KillMode=control-group
+UMask=0077
+
+[Install]
+WantedBy=default.target

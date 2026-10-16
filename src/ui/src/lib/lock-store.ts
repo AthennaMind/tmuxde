@@ -1,3 +1,4 @@
+import { clearMachineStorage } from "./machine-context";
 import type { FactorRecord, SealedRecord } from "@/crypto";
 import {
   derivePinKey,
@@ -556,6 +557,7 @@ export async function eraseDevice(): Promise<void> {
   if (typeof window === "undefined") return;
   // A session name, and the one the terminal would open on the next visit.
   clearStored(LAST_SESSION_KEY);
+  clearMachineStorage();
   try {
     sessionStorage.clear();
   } catch {

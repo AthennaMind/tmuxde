@@ -44,6 +44,7 @@ import (
 	"tmuxde/internal/hub/conns"
 	"tmuxde/internal/hub/dictation"
 	"tmuxde/internal/node"
+	"tmuxde/internal/protocol/server"
 )
 
 // Path is the only path that upgrades.
@@ -77,7 +78,7 @@ const FeatureDictation = "dictation"
 // features are the message types this server understands beyond the
 // original protocol. A browser that does not see one falls back to the
 // older form.
-var features = []string{"repo:request", "repo:history", "file:upload:ack", "window:step", "pane:step", "repo:watch", "repo:graph"}
+var features = []string{"repo:request", "repo:history", "file:upload:ack", "file:upload:1gib", "window:step", "pane:step", "repo:watch", "repo:graph"}
 
 // Features returns the auth:success features list.
 func Features(dictation bool) []string {
@@ -112,6 +113,14 @@ const (
 // ErrClosed is returned by a sink once its connection is gone.
 var ErrClosed = errors.New("ws: connection closed")
 
+// Target binds one browser socket to one machine for its whole lifetime.
+// An Info without uptime gets the hub uptime, see Options.Uptime.
+type Target struct {
+	Node     node.Node
+	Info     server.ServerInfo
+	Features []string
+}
+
 // Options configure New. Token and Node are required. Other zero values
 // pick the defaults, except IdleTimeout, where zero disables the reaper.
 type Options struct {
@@ -125,6 +134,8 @@ type Options struct {
 	DefaultPath string
 	// Node gets every message the hub does not answer itself.
 	Node node.Node
+	// Resolve selects a machine after browser authentication.
+	Resolve func(string) (Target, error)
 	// AccessLog records connects and disconnects. Nil records nothing.
 	AccessLog *accesslog.Logger
 	// Throttle is the per address auth backoff. Nil means a new one.
@@ -172,7 +183,8 @@ type Options struct {
 	Now func() time.Time
 	// Hostname is server:info hostname. Nil means os.Hostname.
 	Hostname func() string
-	// Uptime is server:info uptime, the system uptime in seconds. Nil
+	// Uptime is server:info uptime, the system uptime of the hub in
+	// seconds. It goes to every target whose Info leaves it at zero. Nil
 	// means /proc/uptime.
 	Uptime func() float64
 }
@@ -199,7 +211,7 @@ func New(opts Options) (*Server, error) {
 	if opts.Token == "" {
 		return nil, errors.New("ws: token is required")
 	}
-	if opts.Node == nil {
+	if opts.Node == nil && opts.Resolve == nil {
 		return nil, errors.New("ws: node is required")
 	}
 	if opts.Logger == nil {
@@ -292,6 +304,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c.SetReadLimit(MaxFrame)
 
 	k := newSocket(s, c, hw.conn, clientAddr(r), r.UserAgent())
+	k.machineID = r.URL.Query().Get("machine")
 	if !s.track(k) {
 		k.closeSync(websocket.StatusGoingAway, reasonShutdown)
 		return

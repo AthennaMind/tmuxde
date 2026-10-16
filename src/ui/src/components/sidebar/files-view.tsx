@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ClipboardCopy,
+  Download,
+  Upload,
   FileText,
   GitBranch,
   ListCollapse,
@@ -9,6 +11,9 @@ import {
   Search,
   TextCursorInput,
 } from "lucide-react";
+import { UploadControl, type UploadPicker } from "@/components/files/transfer-controls";
+import { startDownload, useTransferStore } from "@/stores/transfer-store";
+import { machineId } from "@/lib/machine-context";
 import type { FileEntry } from "@/protocol";
 import { cn } from "@/lib/utils";
 import { copyFailureReason, copyText } from "@/lib/clipboard";
@@ -103,6 +108,8 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [menuKey, setMenuKey] = useState<string | null>(null);
   const tree = useTreeKeyboard();
+  const uploaded = useTransferStore((s) => s.revisions[machineId()] ?? 0);
+  const uploadPicker = useRef<UploadPicker>(null);
 
   // A new pane folder opens the tree down to it. In the same repository the
   // folders opened by hand stay open.
@@ -166,6 +173,8 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
   };
 
   const actionsFor = (entry: FileEntry): TreeAction[] => [
+    ...(entry.type === "file" ? [{ label: "Download", icon: Download, onSelect: () => startDownload(entry.path) }] : []),
+    ...(entry.type === "directory" && !readOnly && (!capabilities || capabilities.files === "write") ? [{ label: "Upload files here", icon: Upload, onSelect: () => uploadPicker.current?.choose(entry.path) }] : []),
     ...(entry.type === "directory"
       ? []
       : [
@@ -245,6 +254,7 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
           </span>
         }
       >
+        {contextPath && <UploadControl directory={contextPath} pickerRef={uploadPicker} />}
         <PanelIconButton
           label="Collapse folders"
           icon={ListCollapse}
@@ -303,7 +313,7 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
                 state={{
                   client,
                   paneId,
-                  refreshKey: repo.refreshKey,
+                  refreshKey: repo.refreshKey + uploaded,
                   filter: filter.trim().toLocaleLowerCase(),
                   expanded,
                   toggle,

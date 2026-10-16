@@ -64,6 +64,7 @@ export function noteDetachSent(): void {
 /** Called when the socket drops. A new socket starts unattached. */
 export function noteSessionDetached(): void {
   pending = null;
+  lastRequest.clear();
   useSessionTreeStore.getState().setAttachedSession(null);
 }
 

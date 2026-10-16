@@ -1,9 +1,4 @@
-import { TerminalWorkspace } from "@/components/terminal/terminal-workspace";
-
-/**
- * The terminal. Sign-in and the session list hand off to this route, so it
- * stays at `/`.
- */
+/** Workspace lives in TerminalLayout so route changes keep its sidebar mounted. */
 export function TerminalPage() {
-  return <TerminalWorkspace />;
+  return null;
 }

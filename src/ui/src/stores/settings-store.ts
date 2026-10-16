@@ -282,6 +282,8 @@ interface SettingsStore {
   commitFilterPatterns: string;
   /** Whether commit filter patterns hide files or keep only them. */
   commitFilterMode: CommitFilterMode;
+  /** tmux pane index in the corner of each pane grid cell. */
+  showPaneIndexes: boolean;
   setToolbarKeys: (keys: ToolbarKey[]) => void;
   toggleToolbarKey: (id: string) => void;
   resetToolbarKeys: () => void;
@@ -295,6 +297,7 @@ interface SettingsStore {
   setMarkdownPreview: (enabled: boolean) => void;
   setCommitFilterPatterns: (patterns: string) => void;
   setCommitFilterMode: (mode: CommitFilterMode) => void;
+  setShowPaneIndexes: (enabled: boolean) => void;
 }
 
 /**
@@ -390,6 +393,7 @@ export const useSettingsStore = create<SettingsStore>()(
       markdownPreview: true,
       commitFilterPatterns: "",
       commitFilterMode: "hide",
+      showPaneIndexes: true,
       setToolbarKeys: (toolbarKeys) => set({ toolbarKeys }),
       toggleToolbarKey: (id) =>
         set((s) => ({
@@ -407,6 +411,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setCommitFilterPatterns: (commitFilterPatterns) =>
         set({ commitFilterPatterns }),
       setCommitFilterMode: (commitFilterMode) => set({ commitFilterMode }),
+      setShowPaneIndexes: (showPaneIndexes) => set({ showPaneIndexes }),
     }),
     {
       name: "ccremote-settings",

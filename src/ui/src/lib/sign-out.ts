@@ -1,4 +1,5 @@
-import { getRelayClient } from "@/hooks/use-websocket";
+import { clearMachineStorage } from "./machine-context";
+import { disconnectAll } from "./relay-registry";
 import { useCommandStore } from "@/stores/command-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useFileStore } from "@/stores/file-store";
@@ -23,7 +24,7 @@ export async function disconnectDevice(): Promise<void> {
   // Drop the socket before anything else: an authenticated connection outliving
   // the credentials that opened it is a live capability with no owner.
   try {
-    getRelayClient()?.disconnect();
+    disconnectAll();
   } catch {
     // Already gone.
   }
@@ -43,6 +44,7 @@ export async function disconnectDevice(): Promise<void> {
   // old sign-out a no-op.
   clearStored(TOKEN_KEY);
   clearStored(LAST_SESSION_KEY);
+  clearMachineStorage();
   setLocalToken(null);
   // The third home, on a device with a lock. An unlock restores it.
   await forgetSealedLocalToken();

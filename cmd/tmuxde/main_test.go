@@ -1081,3 +1081,60 @@ func TestRunAppDictation(t *testing.T) {
 	// checked above, not its place.
 	r.checkOrder(t, "tmux found", "dictation configured", "listening", "shutting down", "stopped")
 }
+
+func TestHubOnlyLoginWithoutTmux(t *testing.T) {
+	cfg := testConfig(t)
+	cfg.DisableLocal = true
+	cfg.AllowedPaths = nil
+	a, err := newApp(cfg, nil, discardLogger(), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.node != nil {
+		t.Fatal("hub-only server created a local node")
+	}
+	if err := a.startNode(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	site := httptest.NewServer(a.handler)
+	defer site.Close()
+	defer a.machines.Close()
+	defer shutdownRelay(a.relay, discardLogger())
+
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	c, _, err := websocket.Dial(ctx, site.URL+"/_relay?machine=hub", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.CloseNow()
+	if err := c.Write(ctx, websocket.MessageText, []byte(`{"type":"auth","token":"`+testToken+`"}`)); err != nil {
+		t.Fatal(err)
+	}
+	_, data, err := c.Read(ctx)
+	if err != nil || !bytes.Contains(data, []byte(`"auth:success"`)) {
+		t.Fatalf("hub login: %s, %v", data, err)
+	}
+}
+
+// TestLocalMachineName checks that MACHINE_NAME names the local node and
+// that Hostname stays the real hostname. Unset falls back to the hostname.
+func TestLocalMachineName(t *testing.T) {
+	hostname, _ := os.Hostname()
+	for _, tt := range []struct{ configured, want string }{
+		{"server-dev", "server-dev"},
+		{"", hostname},
+	} {
+		cfg := testConfig(t)
+		cfg.MachineName = tt.configured
+		a, err := newApp(cfg, nil, discardLogger(), time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		a.machines.Close()
+		info := a.machines.LocalInfo
+		if info.Name != tt.want || info.Hostname != hostname {
+			t.Errorf("MachineName %q: name %q, hostname %q, want %q and %q", tt.configured, info.Name, info.Hostname, tt.want, hostname)
+		}
+	}
+}

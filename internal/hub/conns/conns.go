@@ -38,12 +38,16 @@ import (
 const (
 	// MaxConns is the default cap on open connections. Unauthenticated
 	// ones count too. Options.MaxConns overrides it.
-	MaxConns = 100
+	MaxConns = 256
 	// MaxConnsPerAddr is the default cap on open connections from one
 	// remote address. The key is the raw address string. An IPv4 mapped
 	// IPv6 address is not folded into its IPv4 form.
 	// Options.MaxConnsPerAddr overrides it.
-	MaxConnsPerAddr = 10
+	//
+	// One browser page holds a terminal socket plus an inventory socket
+	// per machine, and a reload keeps the old ones open for a moment. A
+	// cap of ten refused the second page of a three machine setup.
+	MaxConnsPerAddr = 32
 	// UnknownAddr stands in for an empty remote address. It is counted
 	// against the per address cap like any other address.
 	UnknownAddr = "unknown"

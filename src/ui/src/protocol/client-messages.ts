@@ -236,10 +236,39 @@ export const WindowKillMessage = z.object({
   id: z.string(),
 });
 
+/**
+ * Swap two panes. `direction` swaps with the neighbour that way, as the
+ * mobile controls do. `target` swaps with that pane, which may sit in another
+ * window of the attached session, for a drag in the sidebar grid. Exactly one
+ * of the two is set. The rule lives on `ClientMessage`, because a union member
+ * must stay a plain object schema.
+ */
 export const PaneSwapMessage = z.object({
   type: z.literal("pane:swap"),
   id: z.string(),
-  direction: z.enum(["U", "D", "L", "R"]),
+  direction: z.enum(["U", "D", "L", "R"]).optional(),
+  target: z.string().optional(),
+});
+
+/**
+ * Move a pane into another window of the attached session. tmux splits the
+ * active pane of `windowId`, beside it for `h` and below it for `v`. The moved
+ * pane becomes active and its window the current one.
+ */
+export const PaneJoinMessage = z.object({
+  type: z.literal("pane:join"),
+  id: z.string(),
+  windowId: z.string(),
+  direction: z.enum(["h", "v"]),
+});
+
+/**
+ * Move a pane out into a new window of the attached session. The new window
+ * becomes the current one.
+ */
+export const PaneBreakMessage = z.object({
+  type: z.literal("pane:break"),
+  id: z.string(),
 });
 
 export const WindowRenameMessage = z.object({
@@ -371,7 +400,7 @@ export const DictationCancelMessage = z.object({
   id: DictationId,
 });
 
-export const ClientMessage = z.discriminatedUnion("type", [
+const ClientMessageUnion = z.discriminatedUnion("type", [
   RepoRequest,
   RepoWatchMessage,
   RepoUnwatchMessage,
@@ -414,6 +443,8 @@ export const ClientMessage = z.discriminatedUnion("type", [
   WindowStepMessage,
   WindowKillMessage,
   PaneSwapMessage,
+  PaneJoinMessage,
+  PaneBreakMessage,
   WindowRenameMessage,
   WindowLayoutMessage,
   LayoutRotateMessage,
@@ -430,6 +461,23 @@ export const ClientMessage = z.discriminatedUnion("type", [
   DictationStopMessage,
   DictationCancelMessage,
 ]);
+
+/**
+ * Every client message. Rules that span fields of one member run here,
+ * after the member parsed. The Go `Validate` methods report the same fields.
+ */
+export const ClientMessage = ClientMessageUnion.superRefine((msg, ctx) => {
+  if (msg.type !== "pane:swap") return;
+  const hasDirection = msg.direction !== undefined;
+  const hasTarget = msg.target !== undefined;
+  if (hasDirection === hasTarget) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [hasTarget ? "target" : "direction"],
+      message: "Set exactly one of direction or target",
+    });
+  }
+});
 
 export type ClientMessage = z.infer<typeof ClientMessage>;
 export type AuthMessage = z.infer<typeof AuthMessage>;
@@ -471,6 +519,8 @@ export type WindowSelectMessage = z.infer<typeof WindowSelectMessage>;
 export type WindowStepMessage = z.infer<typeof WindowStepMessage>;
 export type WindowKillMessage = z.infer<typeof WindowKillMessage>;
 export type PaneSwapMessage = z.infer<typeof PaneSwapMessage>;
+export type PaneJoinMessage = z.infer<typeof PaneJoinMessage>;
+export type PaneBreakMessage = z.infer<typeof PaneBreakMessage>;
 export type WindowRenameMessage = z.infer<typeof WindowRenameMessage>;
 export type WindowLayoutMessage = z.infer<typeof WindowLayoutMessage>;
 export type LayoutRotateMessage = z.infer<typeof LayoutRotateMessage>;

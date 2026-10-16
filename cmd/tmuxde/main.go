@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -36,7 +37,10 @@ import (
 	"tmuxde/internal/hub/filehttp"
 	"tmuxde/internal/hub/static"
 	"tmuxde/internal/hub/ws"
+	"tmuxde/internal/machine"
+	"tmuxde/internal/node"
 	"tmuxde/internal/node/local"
+	"tmuxde/internal/protocol/server"
 	"tmuxde/web"
 )
 
@@ -47,6 +51,8 @@ const usage = `Usage: tmuxde <command>
 
 Commands:
   serve     run the server. Configured by environment variables.
+  agent     connect this machine to a central server.
+  machine   add, list, rotate or revoke machine credentials.
   version   print the version.
 `
 
@@ -55,9 +61,12 @@ const serveUsage = `Usage: tmuxde serve
 Environment:
   TMUXDE_LISTEN       host:port or unix:/path. Default 127.0.0.1:24200.
                       Host is a loopback or private IP, or localhost.
+  TMUXDE_LOCAL_NODE   false runs central server without local tmux. Default true.
   AUTH_TOKEN          shared secret, at least 16 characters. Required.
   ALLOWED_PATHS       comma separated absolute paths for file access. Required.
   CORS_ORIGINS        comma separated browser origins. Required.
+  MACHINE_NAME        name the sidebar shows for this machine, 1 to 64
+                      characters. Default is the hostname.
   TMUX_SOCKET         tmux socket path. Default is the tmux default.
   TMUX_DEFAULT_SHELL  absolute path of the command for new sessions and
                       windows. Default is the tmux default-command and
@@ -89,6 +98,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 	switch args[0] {
 	case "serve":
 		return runServe(args[1:], stderr)
+	case "agent":
+		return runAgent(args[1:], stderr)
+	case "machine":
+		return runMachine(args[1:], stdout, stderr)
 	case "version":
 		return runVersion(args[1:], stdout, stderr)
 	case "help", "-h", "-help", "--help":
@@ -175,7 +188,8 @@ func runApp(ctx context.Context, cfg config.Config, logger *slog.Logger, started
 		logger.Error("setup failed", "error", err)
 		return 1
 	}
-	if err := a.node.Start(ctx); err != nil {
+	defer a.machines.Close()
+	if err := a.startNode(ctx); err != nil {
 		if ctx.Err() != nil {
 			// A signal during the check. tmux -V was cut short, it did
 			// not fail.
@@ -199,7 +213,7 @@ func runApp(ctx context.Context, cfg config.Config, logger *slog.Logger, started
 
 	ln, err := listen(cfg.Listen)
 	if err != nil {
-		a.node.Stop()
+		a.stopNode()
 		logger.Error("listen failed", "listen", cfg.Listen.String(), "error", err)
 		return 1
 	}
@@ -210,7 +224,7 @@ func runApp(ctx context.Context, cfg config.Config, logger *slog.Logger, started
 	logger.Info("listening", attrs...)
 	err = serve(ctx, ln, a, logger)
 	// serve has closed every WebSocket, and with them every pty.
-	a.node.Stop()
+	a.stopNode()
 	if err != nil {
 		logger.Error("server failed", "error", err)
 		return 1
@@ -251,12 +265,22 @@ func logConfigError(logger *slog.Logger, err error) {
 	}
 }
 
+// localName is the name browsers show for the local node: MACHINE_NAME
+// when set, else the hostname. Info.Hostname stays the real hostname.
+func localName(configured, hostname string) string {
+	if configured != "" {
+		return configured
+	}
+	return hostname
+}
+
 // app is standalone mode: the HTTP side, the local node behind it and
 // the dictation bridge to the speech service.
 type app struct {
 	handler   http.Handler
 	relay     *ws.Server
 	node      *local.Node
+	machines  *machine.Hub
 	dictation *dictation.Bridge
 }
 
@@ -266,7 +290,24 @@ type app struct {
 // yet. The node starts with Node.Start, the speech service probe with
 // Bridge.StartProbe.
 func newApp(cfg config.Config, site fs.FS, logger *slog.Logger, started time.Time) (*app, error) {
-	n := local.New(nodeConfig(cfg), logger)
+	var n *local.Node
+	machines := machine.NewHub(cfg.ConfigDir, cfg.AuthToken)
+	if !cfg.DisableLocal {
+		n = local.New(nodeConfig(cfg), logger)
+		machines.Local = n
+		machines.LocalFiles = n
+		hostname, _ := os.Hostname()
+		machines.LocalInfo = machine.Info{
+			ID:          "local",
+			Name:        localName(cfg.MachineName, hostname),
+			Online:      true,
+			Hostname:    hostname,
+			Platform:    runtime.GOOS,
+			DefaultPath: ws.DefaultPath(cfg.AllowedPaths, cfg.Home),
+			Version:     version,
+			Features:    ws.Features(false),
+		}
+	}
 	// An empty socket gives a bridge that answers every start with
 	// UNAVAILABLE and is never offered.
 	dict := dictation.New(dictation.Options{SocketPath: cfg.STTSocket, Logger: logger})
@@ -274,7 +315,29 @@ func newApp(cfg config.Config, site fs.FS, logger *slog.Logger, started time.Tim
 		Token:       cfg.AuthToken,
 		Origins:     cfg.CORSOrigins,
 		DefaultPath: ws.DefaultPath(cfg.AllowedPaths, cfg.Home),
-		Node:        n,
+		Resolve: func(id string) (ws.Target, error) {
+			// Login authenticates against the hub even when all agents are offline.
+			if id == "hub" {
+				return ws.Target{
+					Info:     server.ServerInfo{Type: "server:info", Platform: runtime.GOOS},
+					Features: []string{},
+				}, nil
+			}
+			n, _, info, _, err := machines.Resolve(id)
+			if err != nil {
+				return ws.Target{}, err
+			}
+			return ws.Target{
+				Node: n,
+				Info: server.ServerInfo{
+					Type:        "server:info",
+					Hostname:    info.Hostname,
+					Platform:    info.Platform,
+					DefaultPath: &info.DefaultPath,
+				},
+				Features: info.Features,
+			}, nil
+		},
 		AccessLog:   accesslog.New(cfg.ConfigDir, logger),
 		Dictation:   dict,
 		IdleTimeout: cfg.IdleTimeout,
@@ -290,14 +353,33 @@ func newApp(cfg config.Config, site fs.FS, logger *slog.Logger, started time.Tim
 		Logger:    logger,
 	})
 	e.Handle(ws.Path, relay)
+	e.Handle(machine.AgentPath, machines)
+	e.Handle(machine.StreamPath, machines)
+	e.Handle(machine.MachinesPath, machines)
 	// The hub checks the token. The node checks the path and opens the
 	// file.
 	e.Handle(filehttp.Path, filehttp.New(filehttp.Options{
-		Token:  cfg.AuthToken,
-		Opener: n,
+		Token: cfg.AuthToken,
+		Resolve: func(id string) (node.FileOpener, error) {
+			_, opener, _, _, err := machines.Resolve(id)
+			return opener, err
+		},
 		Logger: logger,
 	}))
-	return &app{handler: e, relay: relay, node: n, dictation: dict}, nil
+	return &app{handler: e, relay: relay, node: n, machines: machines, dictation: dict}, nil
+}
+
+func (a *app) startNode(ctx context.Context) error {
+	if a.node == nil {
+		return nil
+	}
+	return a.node.Start(ctx)
+}
+
+func (a *app) stopNode() {
+	if a.node != nil {
+		a.node.Stop()
+	}
 }
 
 // webHandler picks what serves the requests no route claims, and logs the
@@ -410,6 +492,9 @@ func serve(ctx context.Context, ln net.Listener, a *app, logger *slog.Logger) er
 		logger.Warn("listener stopped with an error", "error", err)
 	}
 	shutdownRelay(a.relay, logger)
+	if a.machines != nil {
+		a.machines.Close()
+	}
 
 	// Serve has returned, so every accepted connection is tracked.
 	unused.closeAll()

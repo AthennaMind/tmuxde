@@ -116,6 +116,20 @@ describe("disconnect", () => {
 });
 
 describe("queue policy", () => {
+  it("never replays mutations after machine disconnect", () => {
+    const client = makeClient();
+    client.send({ type: "session:create", name: "dev" });
+    client.send({ type: "session:kill", name: "dev" });
+    client.send({ type: "file:write", path: "/work/file", content: "changed" });
+    client.send({ type: "file:delete", path: "/work/file" });
+    client.send({ type: "pane:swap", id: "%1", target: "%2" });
+    client.send({ type: "pane:join", id: "%1", windowId: "@2", direction: "h" });
+    client.send({ type: "pane:break", id: "%1" });
+    client.connect();
+    latest().authenticate();
+    expect(latest().typesSent()).toEqual(["auth"]);
+  });
+
   it("never replays input typed while disconnected", () => {
     const client = makeClient();
     client.connect();
@@ -205,5 +219,19 @@ describe("reconnect", () => {
     first.sent.length = 0;
     vi.advanceTimersByTime(10_000);
     expect(first.typesSent()).toEqual(["ping"]);
+  });
+});
+
+
+describe("transfer sockets", () => {
+  it("never reconnects after connection loss", () => {
+    const client = new RelayClient({ url: "ws://relay.test/_relay?machine=alpha", token: "test", reconnect: false });
+    client.connect();
+    latest().authenticate();
+    latest().close();
+    expect(client.status).toBe("disconnected");
+    vi.advanceTimersByTime(60_000);
+    expect(FakeSocket.instances).toHaveLength(1);
+    client.disconnect();
   });
 });

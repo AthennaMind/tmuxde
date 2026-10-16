@@ -126,6 +126,19 @@ export function heldServerIds(): string[] {
   return [...entries.keys()];
 }
 
+const disconnectHandlers = new Set<() => void>();
+
+export function onDisconnectAll(handler: () => void): () => void {
+  disconnectHandlers.add(handler);
+  return () => { disconnectHandlers.delete(handler); };
+}
+
+/** Lock and sign-out close inventory sockets as well as active terminal. */
+export function disconnectAll(): void {
+  for (const handler of disconnectHandlers) handler();
+  for (const entry of entries.values()) entry.client.disconnect();
+}
+
 /** Test seam. Drops every client without disconnecting anything. */
 export function resetRegistry(): void {
   entries.clear();

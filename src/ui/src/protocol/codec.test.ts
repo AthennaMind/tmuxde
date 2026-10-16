@@ -37,6 +37,10 @@ const clientMessages: ClientMessage[] = [
   },
   { type: "command:send", command: "npm test" },
   { type: "pane:resize", id: "%1", direction: "R", amount: 5 },
+  { type: "pane:swap", id: "%1", direction: "D" },
+  { type: "pane:swap", id: "%1", target: "%4" },
+  { type: "pane:join", id: "%1", windowId: "@2", direction: "v" },
+  { type: "pane:break", id: "%1" },
   { type: "window:layout", preset: "tiled" },
   { type: "dictation:start", id: "d1" },
   { type: "dictation:audio", id: "d1", pcm: "AAABAP//" },
@@ -100,7 +104,7 @@ const serverMessages: ServerMessage[] = [
 ];
 
 describe("codec round-trip", () => {
-  it.each(clientMessages.map((m) => [m.type, m] as const))(
+  it.each(clientMessages.map((m, i) => [`${m.type}#${i}`, m] as const))(
     "round-trips ClientMessage %s",
     (_type, msg) => {
       const wire = serialize(msg);
@@ -157,6 +161,17 @@ describe("deserialize rejects malformed input", () => {
     expect(() =>
       deserializeServerMessage(JSON.stringify({ type: "error", code: "X" })),
     ).toThrow();
+  });
+
+  it("takes exactly one of direction or target on pane:swap", () => {
+    const swap = (extra: object) =>
+      tryDeserializeClientMessage(
+        JSON.stringify({ type: "pane:swap", id: "%1", ...extra }),
+      ).ok;
+    expect(swap({ direction: "U" })).toBe(true);
+    expect(swap({ target: "%2" })).toBe(true);
+    expect(swap({})).toBe(false);
+    expect(swap({ direction: "U", target: "%2" })).toBe(false);
   });
 
   it("throws when a field has the wrong type", () => {
