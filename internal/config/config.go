@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 // DefaultListen is the listen address when TMUXDE_LISTEN is unset.
@@ -29,6 +31,9 @@ const minTokenLength = 16
 // DefaultIdleTimeout is the idle timeout when IDLE_TIMEOUT_MINUTES is
 // unset, as in the relay.
 const DefaultIdleTimeout = 30 * time.Minute
+
+// maxMachineName is the longest MACHINE_NAME accepted, in characters.
+const maxMachineName = 64
 
 // maxSocketPath is the longest unix socket path Linux takes. sun_path
 // holds 108 bytes, the last one for the closing NUL. stt checks the same.
@@ -52,6 +57,8 @@ func (l Listen) String() string {
 // Config is the validated server configuration.
 type Config struct {
 	Listen Listen
+	// DisableLocal permits a hub without tmux or filesystem access.
+	DisableLocal bool
 	// AuthToken is the shared secret browsers send in the auth message.
 	AuthToken string
 	// AllowedPaths are the roots that file and repository access may reach.
@@ -72,6 +79,10 @@ type Config struct {
 	// it. auto does that when tmuxde runs in a systemd unit. See
 	// node/tmux.Launcher.
 	TmuxLauncher string
+	// MachineName is the name browsers show for the local node. It comes
+	// from MACHINE_NAME. Empty means the hostname. Agents ignore it, as
+	// they take their name from the machine record.
+	MachineName string
 	// CORSOrigins are the browser origins allowed to open the WebSocket.
 	CORSOrigins []string
 	// DevWebURL is the web dev server to proxy pages to. Nil when unset.
@@ -103,6 +114,7 @@ func (e *Error) Error() string {
 var settings = []string{
 	"AUTH_TOKEN", "ALLOWED_PATHS", "CORS_ORIGINS", "STT_SOCKET",
 	"TMUX_SOCKET", "TMUX_DEFAULT_SHELL", "IDLE_TIMEOUT_MINUTES",
+	"MACHINE_NAME",
 }
 
 // IsSetting reports whether name is a tmuxde setting: any TMUXDE_
@@ -123,6 +135,10 @@ func FromEnv() (Config, error) {
 // Load reads and validates every setting through lookup. It reports all
 // invalid settings at once, joined.
 func Load(lookup func(string) (string, bool)) (Config, error) {
+	return load(lookup, false)
+}
+
+func load(lookup func(string) (string, bool), agent bool) (Config, error) {
 	get := func(name string) string {
 		v, _ := lookup(name)
 		return strings.TrimSpace(v)
@@ -131,6 +147,13 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	var errs []error
 	fail := func(name, reason string) {
 		errs = append(errs, &Error{name, reason})
+	}
+
+	if v := get("TMUXDE_LOCAL_NODE"); !agent && v != "" {
+		if v != "true" && v != "false" {
+			fail("TMUXDE_LOCAL_NODE", "must be true or false")
+		}
+		cfg.DisableLocal = v == "false"
 	}
 
 	cfg.Home = get("HOME")
@@ -143,119 +166,134 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		cfg.Home = filepath.Clean(cfg.Home)
 	}
 
-	listen := get("TMUXDE_LISTEN")
-	if listen == "" {
-		listen = DefaultListen
-	}
-	if l, err := parseListen(listen); err != nil {
-		fail("TMUXDE_LISTEN", err.Error())
-	} else {
-		cfg.Listen = l
-	}
-
-	// Not trimmed: a token is compared byte for byte.
-	token, _ := lookup("AUTH_TOKEN")
-	switch {
-	case token == "":
-		fail("AUTH_TOKEN", "is required. Generate one with: openssl rand -hex 32")
-	case token != strings.TrimSpace(token):
-		fail("AUTH_TOKEN", "must not start or end with whitespace")
-	case token == exampleToken:
-		fail("AUTH_TOKEN", "must not be the example value")
-	case len([]rune(token)) < minTokenLength:
-		fail("AUTH_TOKEN", fmt.Sprintf("must be at least %d characters", minTokenLength))
-	default:
-		cfg.AuthToken = token
-	}
-
-	paths := splitList(get("ALLOWED_PATHS"))
-	if len(paths) == 0 {
-		fail("ALLOWED_PATHS", "is required, a comma separated list of absolute paths")
-	}
-	for _, p := range paths {
-		if !filepath.IsAbs(p) {
-			fail("ALLOWED_PATHS", fmt.Sprintf("%q is not an absolute path", p))
-			continue
+	if !agent {
+		listen := get("TMUXDE_LISTEN")
+		if listen == "" {
+			listen = DefaultListen
 		}
-		cfg.AllowedPaths = append(cfg.AllowedPaths, filepath.Clean(p))
-	}
-
-	if v := get("TMUX_SOCKET"); v != "" {
-		if !filepath.IsAbs(v) {
-			fail("TMUX_SOCKET", "must be an absolute path")
+		if l, err := parseListen(listen); err != nil {
+			fail("TMUXDE_LISTEN", err.Error())
 		} else {
-			cfg.TmuxSocket = filepath.Clean(v)
+			cfg.Listen = l
 		}
-	}
 
-	// Unset means tmux decides. SHELL is no fallback, as tmux reads it
-	// itself when it picks default-shell. The value is not cleaned. tmux
-	// runs it as a shell command, so it may carry arguments.
-	if v := get("TMUX_DEFAULT_SHELL"); v != "" {
-		if !filepath.IsAbs(v) {
-			fail("TMUX_DEFAULT_SHELL", "must be an absolute path. Leave it unset to use the tmux default-command and default-shell")
-		} else {
-			cfg.TmuxDefaultShell = v
-		}
-	}
-
-	cfg.TmuxLauncher = "auto"
-	if v := get("TMUXDE_TMUX_LAUNCHER"); v != "" {
-		switch v {
-		case "auto", "systemd-run", "none":
-			cfg.TmuxLauncher = v
-		default:
-			fail("TMUXDE_TMUX_LAUNCHER", fmt.Sprintf("must be auto, systemd-run or none, got %q", v))
-		}
-	}
-
-	origins := splitList(get("CORS_ORIGINS"))
-	if len(origins) == 0 {
-		fail("CORS_ORIGINS", "is required, a comma separated list of origins such as https://tmuxde.example")
-	}
-	for _, o := range origins {
-		origin, err := parseOrigin(o)
-		if err != nil {
-			fail("CORS_ORIGINS", err.Error())
-			continue
-		}
-		cfg.CORSOrigins = append(cfg.CORSOrigins, origin)
-	}
-
-	if v := get("TMUXDE_DEV_WEB_URL"); v != "" {
-		u, err := parseDevWebURL(v)
-		if err != nil {
-			fail("TMUXDE_DEV_WEB_URL", err.Error())
-		} else {
-			cfg.DevWebURL = u
-		}
-	}
-
-	if v := get("STT_SOCKET"); v != "" {
-		switch p := filepath.Clean(v); {
-		case !filepath.IsAbs(v):
-			fail("STT_SOCKET", "must be an absolute path")
-		case len(p) > maxSocketPath:
-			fail("STT_SOCKET", fmt.Sprintf("must be at most %d bytes, got %d", maxSocketPath, len(p)))
-		default:
-			cfg.STTSocket = p
-		}
-	}
-
-	cfg.IdleTimeout = DefaultIdleTimeout
-	if v := get("IDLE_TIMEOUT_MINUTES"); v != "" {
-		// The relay took any number. Whole minutes are enough here.
-		n, err := strconv.Atoi(v)
+		// Not trimmed: a token is compared byte for byte.
+		token, _ := lookup("AUTH_TOKEN")
 		switch {
-		case err != nil || n < 0:
-			fail("IDLE_TIMEOUT_MINUTES", fmt.Sprintf("must be a whole number of minutes, 0 disables, got %q", v))
-		case int64(n) > int64(math.MaxInt64/time.Minute):
-			fail("IDLE_TIMEOUT_MINUTES", fmt.Sprintf("is too large, got %q", v))
+		case token == "":
+			fail("AUTH_TOKEN", "is required. Generate one with: openssl rand -hex 32")
+		case token != strings.TrimSpace(token):
+			fail("AUTH_TOKEN", "must not start or end with whitespace")
+		case token == exampleToken:
+			fail("AUTH_TOKEN", "must not be the example value")
+		case len([]rune(token)) < minTokenLength:
+			fail("AUTH_TOKEN", fmt.Sprintf("must be at least %d characters", minTokenLength))
 		default:
-			cfg.IdleTimeout = time.Duration(n) * time.Minute
+			cfg.AuthToken = token
 		}
 	}
 
+	if !cfg.DisableLocal {
+		paths := splitList(get("ALLOWED_PATHS"))
+		if len(paths) == 0 {
+			fail("ALLOWED_PATHS", "is required, a comma separated list of absolute paths")
+		}
+		for _, p := range paths {
+			if !filepath.IsAbs(p) {
+				fail("ALLOWED_PATHS", fmt.Sprintf("%q is not an absolute path", p))
+				continue
+			}
+			cfg.AllowedPaths = append(cfg.AllowedPaths, filepath.Clean(p))
+		}
+
+		if v := get("TMUX_SOCKET"); v != "" {
+			if !filepath.IsAbs(v) {
+				fail("TMUX_SOCKET", "must be an absolute path")
+			} else {
+				cfg.TmuxSocket = filepath.Clean(v)
+			}
+		}
+
+		// Unset means tmux decides. SHELL is no fallback, as tmux reads it
+		// itself when it picks default-shell. The value is not cleaned. tmux
+		// runs it as a shell command, so it may carry arguments.
+		if v := get("TMUX_DEFAULT_SHELL"); v != "" {
+			if !filepath.IsAbs(v) {
+				fail("TMUX_DEFAULT_SHELL", "must be an absolute path. Leave it unset to use the tmux default-command and default-shell")
+			} else {
+				cfg.TmuxDefaultShell = v
+			}
+		}
+
+		cfg.TmuxLauncher = "auto"
+		if v := get("TMUXDE_TMUX_LAUNCHER"); v != "" {
+			switch v {
+			case "auto", "systemd-run", "none":
+				cfg.TmuxLauncher = v
+			default:
+				fail("TMUXDE_TMUX_LAUNCHER", fmt.Sprintf("must be auto, systemd-run or none, got %q", v))
+			}
+		}
+
+		// Blank means the hostname. An agent never reads it.
+		if v := get("MACHINE_NAME"); !agent && v != "" {
+			if reason := checkMachineName(v); reason != "" {
+				fail("MACHINE_NAME", reason)
+			} else {
+				cfg.MachineName = v
+			}
+		}
+	}
+
+	if !agent {
+		origins := splitList(get("CORS_ORIGINS"))
+		if len(origins) == 0 {
+			fail("CORS_ORIGINS", "is required, a comma separated list of origins such as https://tmuxde.example")
+		}
+		for _, o := range origins {
+			origin, err := parseOrigin(o)
+			if err != nil {
+				fail("CORS_ORIGINS", err.Error())
+				continue
+			}
+			cfg.CORSOrigins = append(cfg.CORSOrigins, origin)
+		}
+
+		if v := get("TMUXDE_DEV_WEB_URL"); v != "" {
+			u, err := parseDevWebURL(v)
+			if err != nil {
+				fail("TMUXDE_DEV_WEB_URL", err.Error())
+			} else {
+				cfg.DevWebURL = u
+			}
+		}
+
+		if v := get("STT_SOCKET"); v != "" {
+			switch p := filepath.Clean(v); {
+			case !filepath.IsAbs(v):
+				fail("STT_SOCKET", "must be an absolute path")
+			case len(p) > maxSocketPath:
+				fail("STT_SOCKET", fmt.Sprintf("must be at most %d bytes, got %d", maxSocketPath, len(p)))
+			default:
+				cfg.STTSocket = p
+			}
+		}
+
+		cfg.IdleTimeout = DefaultIdleTimeout
+		if v := get("IDLE_TIMEOUT_MINUTES"); v != "" {
+			// The relay took any number. Whole minutes are enough here.
+			n, err := strconv.Atoi(v)
+			switch {
+			case err != nil || n < 0:
+				fail("IDLE_TIMEOUT_MINUTES", fmt.Sprintf("must be a whole number of minutes, 0 disables, got %q", v))
+			case int64(n) > int64(math.MaxInt64/time.Minute):
+				fail("IDLE_TIMEOUT_MINUTES", fmt.Sprintf("is too large, got %q", v))
+			default:
+				cfg.IdleTimeout = time.Duration(n) * time.Minute
+			}
+		}
+
+	}
 	cfg.ConfigDir = get("TMUXDE_CONFIG_DIR")
 	switch {
 	case cfg.ConfigDir == "" && cfg.Home != "" && filepath.IsAbs(cfg.Home):
@@ -272,6 +310,21 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		return Config{}, errors.Join(errs...)
 	}
 	return cfg, nil
+}
+
+// checkMachineName returns why v is not a valid machine name, or "" when it
+// is. v is already trimmed. Browsers show it as text, so control characters
+// are refused.
+func checkMachineName(v string) string {
+	switch n := utf8.RuneCountInString(v); {
+	case !utf8.ValidString(v):
+		return "must be valid UTF-8"
+	case n > maxMachineName:
+		return fmt.Sprintf("must be at most %d characters, got %d", maxMachineName, n)
+	case strings.ContainsFunc(v, unicode.IsControl):
+		return "must not contain control characters"
+	}
+	return ""
 }
 
 // parseListen accepts host:port with an IP or localhost, or unix:/path.

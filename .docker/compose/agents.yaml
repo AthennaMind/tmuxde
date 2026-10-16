@@ -1,0 +1,100 @@
+# Optional demo machines. Provision with python3 .docker/dev/agents.py.
+x-agent: &agent
+  image: tmuxde-gotools:local
+  init: true
+  profiles:
+    - agents
+  user: ${DEV_UID:-1000}:${DEV_GID:-1000}
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  pids_limit: 256
+  mem_limit: 512m
+  cpus: 1
+  tmpfs:
+    - /tmp:rw,exec,nosuid,nodev,mode=1777,size=128m
+  working_dir: /workspace
+  networks:
+    - edge
+  # Resolve certificate hostname to Caddy on Docker network, including when
+  # host only publishes localhost. No host network or production socket mount.
+  links:
+    - caddy:${LOCAL_DOMAIN:-localhost}
+  depends_on:
+    server-dev:
+      condition: service_healthy
+  environment: &agent-env
+    HOME: /tmp/agent
+    TMUXDE_CONFIG_DIR: /state
+    TMUXDE_AGENT_TOKEN_FILE: /state/agent-token
+    TMUXDE_SERVER_URL: https://${LOCAL_DOMAIN:-localhost}:18443
+    TMUXDE_CA_FILE: /state/root.crt
+    ALLOWED_PATHS: /workspace
+    TMUX_SOCKET: /tmp/agent/tmux.sock
+    TMUX_DEFAULT_SHELL: /bin/bash
+    TMUXDE_TMUX_LAUNCHER: none
+    LANG: C.UTF-8
+    LC_ALL: C.UTF-8
+  entrypoint:
+    - /bin/sh
+    - -ec
+    - |
+      mkdir -p /tmp/agent
+      if ! git -C /workspace rev-parse --git-dir >/dev/null 2>&1; then
+        git -C /workspace init -b main
+        git -C /workspace -c user.name=Demo -c user.email=demo@example.invalid add .
+        git -C /workspace -c user.name=Demo -c user.email=demo@example.invalid commit -m 'Initial demo workspace'
+      fi
+      if ! tmux -S /tmp/agent/tmux.sock has-session -t dev 2>/dev/null; then
+        tmux -S /tmp/agent/tmux.sock new-session -d -s dev -c /workspace /bin/bash
+      fi
+      exec /usr/local/bin/tmuxde-agent-demo agent
+  restart: unless-stopped
+
+services:
+  agent-alpha:
+    <<: *agent
+    hostname: dev-alpha
+    environment:
+      <<: *agent-env
+    volumes:
+      - type: bind
+        source: ../bin/tmuxde-agent-demo
+        target: /usr/local/bin/tmuxde-agent-demo
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ../bin/agents/alpha/state
+        target: /state
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ../bin/agents/alpha/workspace
+        target: /workspace
+        bind:
+          create_host_path: false
+  agent-beta:
+    <<: *agent
+    hostname: dev-beta
+    volumes:
+      - type: bind
+        source: ../bin/tmuxde-agent-demo
+        target: /usr/local/bin/tmuxde-agent-demo
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ../bin/agents/beta/state
+        target: /state
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ../bin/agents/beta/workspace
+        target: /workspace
+        bind:
+          create_host_path: false

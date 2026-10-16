@@ -1,3 +1,4 @@
+import { machineId, machineStorageKey } from "@/lib/machine-context";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { isEnrolled } from "@/lib/unlocked";
@@ -54,7 +55,7 @@ export const useCommandStore = create<CommandStore>()(
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
     }),
     {
-      name: "tmuxde-commands",
+      name: machineStorageKey("tmuxde-commands"),
       /**
        * Stop writing to `localStorage` once a device lock is enrolled.
        *
@@ -85,7 +86,7 @@ function guardedStorage() {
         // when the new one is empty keeps people's saved snippets across the
         // rename; nothing writes it back, so it ages out on its own.
         window.localStorage.getItem(key) ??
-        window.localStorage.getItem(LEGACY_KEY),
+        (machineId() === "local" ? window.localStorage.getItem(LEGACY_KEY) : null),
       setItem: (key: string, value: string) => {
         if (isEnrolled()) {
           // Also clear what an earlier, unlocked session already wrote.

@@ -1,0 +1,15 @@
+[
+  {
+    "field": "id",
+    "message": {
+      "type": "pane:break"
+    }
+  },
+  {
+    "field": "id",
+    "message": {
+      "type": "pane:break",
+      "id": 3
+    }
+  }
+]

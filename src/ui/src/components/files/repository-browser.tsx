@@ -13,6 +13,9 @@ import {
   WrapText,
   X,
 } from "lucide-react";
+import { DownloadButton, UploadControl } from "./transfer-controls";
+import { useTransferStore } from "@/stores/transfer-store";
+import { machineId } from "@/lib/machine-context";
 import type { FileEntry } from "@/protocol";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -154,6 +157,7 @@ function BrowserContents({
     ? ["files", "changes", "history"]
     : ["files", "changes"];
   const [refresh, setRefresh] = useState(0);
+  const uploaded = useTransferStore((s) => s.revisions[machineId()] ?? 0);
   // Spins from a Refresh click until every answer lands. Quiet reloads after
   // a change on disk never spin.
   const [refreshing, setRefreshing] = useState(false);
@@ -222,7 +226,7 @@ function BrowserContents({
     context && path && !preview && !commit && tab === "files"
       ? { id: paneId, action: "list", path }
       : null,
-    refresh + listingPushes,
+    refresh + listingPushes + uploaded,
     { keepOnRefresh: true },
   );
   const statusQuery = useRepositoryQuery(
@@ -435,6 +439,7 @@ function BrowserContents({
                   >
                     {preview.path.split("/").pop()}
                   </span>
+                  {!preview.scope && <DownloadButton path={preview.path} />}
                   {markdown && (
                     <Button
                       variant="ghost"
@@ -551,7 +556,7 @@ function BrowserContents({
               </>
             ) : tab === "files" ? (
               <>
-                <Breadcrumbs path={path ?? context.path} go={go} />
+                <div className="flex items-center border-b"><div className="min-w-0 flex-1"><Breadcrumbs path={path ?? context.path} go={go} /></div><UploadControl directory={path ?? context.path} /></div>
                 <div className="shrink-0 border-b px-3 py-2">
                   <label className="flex min-h-10 items-center gap-2 rounded-md border border-input bg-background px-2.5 focus-within:ring-1 focus-within:ring-ring">
                     <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -614,7 +619,6 @@ function BrowserContents({
                     {filtered.length}{" "}
                     {filtered.length === 1 ? "entry" : "entries"}
                   </span>
-                  <span>Read only</span>
                 </div>
               </>
             ) : tab === "changes" ? (
@@ -807,12 +811,12 @@ function Breadcrumbs({
 function FileRow({ entry, onOpen }: { entry: FileEntry; onOpen: () => void }) {
   const isDirectory = entry.type === "directory";
   return (
-    <li>
+    <li className="flex items-center">
       <button
         type="button"
         onClick={onOpen}
         title={entry.path}
-        className="flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left hover:bg-muted/60 focus-visible:bg-muted"
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-3 px-4 py-2 text-left hover:bg-muted/60 focus-visible:bg-muted"
       >
         <RepositoryFileIcon path={entry.path} type={entry.type} />
         <span className="min-w-0 flex-1 truncate text-sm">{entry.name}</span>
@@ -824,6 +828,7 @@ function FileRow({ entry, onOpen }: { entry: FileEntry; onOpen: () => void }) {
           </span>
         )}
       </button>
+      {entry.type === "file" && <DownloadButton path={entry.path} />}
     </li>
   );
 }

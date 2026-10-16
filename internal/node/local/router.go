@@ -207,12 +207,32 @@ func (n *Node) route(ctx context.Context, c *conn, msg client.Message) error {
 			return err
 		})
 	case *client.PaneSwap:
-		return n.withPane(ctx, c, m.ID, func(s string) error {
-			if err := n.tmux.SwapPane(ctx, m.ID, m.Direction); err != nil {
+		return n.paneSwap(ctx, c, m)
+	case *client.PaneJoin:
+		return n.owned(ctx, c, func(s string) error {
+			if err := n.tmux.JoinPane(ctx, m.ID, m.WindowID, m.Direction); err != nil {
 				return err
 			}
-			_, err := n.announceLayout(ctx, c, s)
-			return err
+			// tmux shows the window the pane went to.
+			wid, err := n.announceLayout(ctx, c, s)
+			if err != nil {
+				return err
+			}
+			c.setActiveWindow(wid)
+			return nil
+		}, paneRef(m.ID), windowRef(m.WindowID))
+	case *client.PaneBreak:
+		return n.withPane(ctx, c, m.ID, func(s string) error {
+			if err := n.tmux.BreakPane(ctx, s, m.ID); err != nil {
+				return err
+			}
+			// tmux shows the new window.
+			wid, err := n.announceLayout(ctx, c, s)
+			if err != nil {
+				return err
+			}
+			c.setActiveWindow(wid)
+			return nil
 		})
 	case *client.PaneCapture:
 		return n.withPane(ctx, c, m.ID, func(string) error {
@@ -326,50 +346,102 @@ func (n *Node) withSession(ctx context.Context, c *conn, fn func(session string)
 // withPane applies the ownership rule to a pane id, then runs fn with the
 // attached session.
 func (n *Node) withPane(ctx context.Context, c *conn, id string, fn func(session string) error) error {
-	return n.owned(ctx, c, id, true, fn)
+	return n.owned(ctx, c, fn, paneRef(id))
 }
 
 // withWindow applies the ownership rule to a window id, then runs fn with
 // the attached session.
 func (n *Node) withWindow(ctx context.Context, c *conn, id string, fn func(session string) error) error {
-	return n.owned(ctx, c, id, false, fn)
+	return n.owned(ctx, c, fn, windowRef(id))
 }
+
+// idRef is one pane or window id a message names.
+type idRef struct {
+	id   string
+	pane bool
+}
+
+func paneRef(id string) idRef   { return idRef{id: id, pane: true} }
+func windowRef(id string) idRef { return idRef{id: id} }
 
 // owned is the ownership rule of policy.ts. tmux resolves pane and window
 // ids server wide, so an id is refused unless it belongs to the attached
-// session. Checks in order: an attached session, then the id in the
-// session's unscoped pane list or its window list. A failed lookup refuses
-// too. A missing or non string id never gets here, as Decode refuses it.
-// An empty id is looked up like any other and is not found, as in the
-// relay.
-func (n *Node) owned(ctx context.Context, c *conn, id string, pane bool, fn func(session string) error) error {
+// session. Checks in order: an attached session, then each id in the
+// session's unscoped pane list or its window list. A message that names
+// several ids passes only when all of them belong to the session. The
+// session is read once, so every id is checked against the same one, and
+// each list is fetched at most once. The first id not found is refused. A
+// failed lookup refuses too. A missing or non string id never gets here, as
+// Decode refuses it. An empty id is looked up like any other and is not
+// found, as in the relay.
+func (n *Node) owned(ctx context.Context, c *conn, fn func(session string) error, refs ...idRef) error {
 	s := c.attachedSession()
 	if s == "" {
 		return c.send(ctx, notAttached())
 	}
-	var found bool
-	var err error
-	if pane {
-		var panes []protocol.PaneInfo
-		panes, err = n.tmux.ListPanes(ctx, s, "")
-		found = slices.ContainsFunc(panes, func(p protocol.PaneInfo) bool { return p.ID == id })
-	} else {
-		var windows []protocol.WindowInfo
-		windows, err = n.tmux.ListWindows(ctx, s)
-		found = slices.ContainsFunc(windows, func(w protocol.WindowInfo) bool { return w.ID == id })
+	var panes []protocol.PaneInfo
+	var windows []protocol.WindowInfo
+	var panesErr, windowsErr error
+	var panesListed, windowsListed bool
+	for _, ref := range refs {
+		var found bool
+		var err error
+		if ref.pane {
+			if !panesListed {
+				panes, panesErr = n.tmux.ListPanes(ctx, s, "")
+				panesListed = true
+			}
+			err = panesErr
+			found = slices.ContainsFunc(panes, func(p protocol.PaneInfo) bool { return p.ID == ref.id })
+		} else {
+			if !windowsListed {
+				windows, windowsErr = n.tmux.ListWindows(ctx, s)
+				windowsListed = true
+			}
+			err = windowsErr
+			found = slices.ContainsFunc(windows, func(w protocol.WindowInfo) bool { return w.ID == ref.id })
+		}
+		if err != nil {
+			n.log.Warn("ownership lookup failed", "conn", c.id, "session", s, "error", err)
+			found = false
+		}
+		switch {
+		case found:
+			continue
+		case ref.pane:
+			return c.send(ctx, errorMsg(CodePaneNotFound, paneNotFound(ref.id)))
+		default:
+			return c.send(ctx, errorMsg(CodeWindowNotFound, windowNotFound(ref.id)))
+		}
 	}
-	if err != nil {
-		n.log.Warn("ownership lookup failed", "conn", c.id, "session", s, "error", err)
-		found = false
+	return fn(s)
+}
+
+// paneSwap swaps by direction or with a target pane. Both pane ids pass
+// the ownership rule, so a swap never pulls in a pane of another session.
+func (n *Node) paneSwap(ctx context.Context, c *conn, m *client.PaneSwap) error {
+	refs := []idRef{paneRef(m.ID)}
+	if m.Target != nil {
+		refs = append(refs, paneRef(*m.Target))
 	}
-	switch {
-	case found:
-		return fn(s)
-	case pane:
-		return c.send(ctx, errorMsg(CodePaneNotFound, paneNotFound(id)))
-	default:
-		return c.send(ctx, errorMsg(CodeWindowNotFound, windowNotFound(id)))
-	}
+	return n.owned(ctx, c, func(s string) error {
+		var err error
+		switch {
+		case m.Target != nil:
+			err = n.tmux.SwapPanes(ctx, m.ID, *m.Target)
+		case m.Direction != nil:
+			err = n.tmux.SwapPane(ctx, m.ID, *m.Direction)
+		default:
+			// Decode refuses this. A caller that skips it gets an error,
+			// not a panic.
+			return fmt.Errorf("%w: pane:swap needs direction or target", protocol.ErrInvalid)
+		}
+		if err != nil {
+			return err
+		}
+		_, err = n.announceLayout(ctx, c, s)
+		return err
+	}, refs...)
 }
 
 // paneZoom zooms by pane id and wanted state. The relay had no ownership

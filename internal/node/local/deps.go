@@ -48,6 +48,9 @@ type Tmux interface {
 	ResizePane(ctx context.Context, paneID, direction string, amount int) error
 	KillPane(ctx context.Context, paneID string) error
 	SwapPane(ctx context.Context, paneID, direction string) error
+	SwapPanes(ctx context.Context, paneID, targetID string) error
+	JoinPane(ctx context.Context, paneID, windowID, direction string) error
+	BreakPane(ctx context.Context, session, paneID string) error
 
 	CapturePane(ctx context.Context, session string, opts tmux.CaptureOptions) (string, error)
 	CapturePaneByID(ctx context.Context, paneID string, opts tmux.CaptureOptions) (string, error)

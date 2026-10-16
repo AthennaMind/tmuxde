@@ -249,6 +249,19 @@ describe.each([
     ).toBeGreaterThanOrEqual(AA_NORMAL);
   });
 
+  it("shows the hover and focus fill on every surface, menus included", () => {
+    // `--accent` once pointed at `--surface-panel`, the value `--popover`
+    // has too. Keyboard focus in every menu measured 1.00:1 and vanished.
+    const { refs } = aliases();
+    const fill = tokens[refs["--accent"]!]!;
+    const menu = contrast(fill, tokens[refs["--popover"]!]!);
+    expect(menu, `--accent on --popover is ${menu.toFixed(2)}:1`).toBeGreaterThanOrEqual(1.2);
+    for (const surface of SURFACES) {
+      const ratio = contrast(fill, tokens[surface]!);
+      expect(ratio, `--accent on ${surface} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(1.1);
+    }
+  });
+
   it("stays inside the sRGB gamut", () => {
     // An out-of-gamut oklch value is silently clipped by the browser, which
     // changes both the hue and the contrast — so a ratio computed from the

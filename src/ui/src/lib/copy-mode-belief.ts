@@ -1,3 +1,5 @@
+import { machineId } from "./machine-context";
+
 /**
  * What we think tmux's copy mode is doing, per session.
  *
@@ -47,20 +49,20 @@ export function subscribeCopyModeBelief(listener: () => void): () => void {
 }
 
 export function noteEnteredCopyMode(session: string | null | undefined): void {
-  if (!session || sessionsInCopyMode.has(session)) return;
-  sessionsInCopyMode.add(session);
+  if (!session || sessionsInCopyMode.has(`${machineId()}:${session}`)) return;
+  sessionsInCopyMode.add(`${machineId()}:${session}`);
   emit();
 }
 
 export function noteLeftCopyMode(session: string | null | undefined): void {
-  if (!session || !sessionsInCopyMode.delete(session)) return;
+  if (!session || !sessionsInCopyMode.delete(`${machineId()}:${session}`)) return;
   emit();
 }
 
 export function believedInCopyMode(
   session: string | null | undefined,
 ): boolean {
-  return session ? sessionsInCopyMode.has(session) : false;
+  return session ? sessionsInCopyMode.has(`${machineId()}:${session}`) : false;
 }
 
 /** Test-only: the set is module state and outlives a test file otherwise. */

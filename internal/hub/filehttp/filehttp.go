@@ -65,27 +65,30 @@ type Options struct {
 	Token string
 	// Opener opens files behind the node path guards. It must not be nil.
 	Opener node.FileOpener
+	// Resolve chooses a machine after token validation.
+	Resolve func(string) (node.FileOpener, error)
 	// Logger gets the deprecated token warning and serve errors. Nil means
 	// slog.Default(). The token never reaches it.
 	Logger *slog.Logger
 }
 
 type handler struct {
-	token  string
-	opener node.FileOpener
-	log    *slog.Logger
+	token   string
+	opener  node.FileOpener
+	resolve func(string) (node.FileOpener, error)
+	log     *slog.Logger
 }
 
 // New returns the GET /file handler. It panics when opts.Opener is nil.
 func New(opts Options) http.Handler {
-	if opts.Opener == nil {
+	if opts.Opener == nil && opts.Resolve == nil {
 		panic("filehttp: Options.Opener is nil")
 	}
 	logger := opts.Logger
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &handler{token: opts.Token, opener: opts.Opener, log: logger}
+	return &handler{token: opts.Token, opener: opts.Opener, resolve: opts.Resolve, log: logger}
 }
 
 // ServeHTTP answers one request. See the package doc for the order.
@@ -138,7 +141,16 @@ func (h *handler) authorized(r *http.Request, queryToken string) bool {
 
 // serve opens filePath through the node and writes it, whole or one range.
 func (h *handler) serve(w http.ResponseWriter, r *http.Request, filePath string, download bool) {
-	f, err := h.opener.OpenFile(r.Context(), filePath)
+	opener := h.opener
+	if h.resolve != nil {
+		var err error
+		opener, err = h.resolve(r.URL.Query().Get("machine"))
+		if err != nil {
+			writeText(w, http.StatusServiceUnavailable, "Machine offline")
+			return
+		}
+	}
+	f, err := opener.OpenFile(r.Context(), filePath)
 	if err != nil {
 		h.openFailed(w, filePath, err)
 		return

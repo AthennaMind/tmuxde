@@ -61,7 +61,7 @@ export function GraphTabView({
   // Hash last opened from this graph, while its tab stays open.
   const [opened, setOpened] = useState<string>();
   const selected = useMainTabsStore((s) =>
-    opened && s.tabs.some((t) => t.id === commitTabId(opened))
+    opened && s.tabs.some((t) => t.id === commitTabId(opened, tab.machineId))
       ? opened
       : undefined,
   );
@@ -103,13 +103,15 @@ export function GraphTabView({
     (commit: RepoCommit) => {
       setOpened(commit.hash);
       useMainTabsStore.getState().openCommit({
+          machineId: tab.machineId,
+          sessionName: tab.sessionName,
         paneId: tab.paneId,
         hash: commit.hash,
         subject: commit.subject,
         contextPath: tab.contextPath,
       });
     },
-    [tab.paneId, tab.contextPath],
+    [tab.machineId, tab.sessionName, tab.paneId, tab.contextPath],
   );
   const retry = () => setRefresh((n) => n + 1);
   const folder = folderName(root ?? tab.contextPath);

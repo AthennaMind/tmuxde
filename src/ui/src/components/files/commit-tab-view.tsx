@@ -96,8 +96,8 @@ function CommitTabBody({
   const subject = result?.commit.subject;
   useEffect(() => {
     if (subject !== undefined)
-      useMainTabsStore.getState().nameCommit(tab.hash, subject);
-  }, [subject, tab.hash]);
+      useMainTabsStore.getState().nameCommit(tab.id, subject);
+  }, [subject, tab.id]);
 
   if (query.error)
     return (
@@ -121,6 +121,8 @@ function CommitTabBody({
       wrap={wrap}
       onOpenCommit={(hash) =>
         useMainTabsStore.getState().openCommit({
+          machineId: tab.machineId,
+          sessionName: tab.sessionName,
           paneId: tab.paneId,
           hash,
           subject: "",

@@ -18,6 +18,8 @@ var paneTypes = map[string]func() Message{
 	"pane:resize":         func() Message { return &PaneResize{} },
 	"pane:kill":           func() Message { return &PaneKill{} },
 	"pane:swap":           func() Message { return &PaneSwap{} },
+	"pane:join":           func() Message { return &PaneJoin{} },
+	"pane:break":          func() Message { return &PaneBreak{} },
 	"pane:capture":        func() Message { return &PaneCapture{} },
 	"tmux:prefix":         func() Message { return &TmuxPrefix{} },
 	"tmux:copy-mode":      func() Message { return &TmuxCopyMode{} },
@@ -32,8 +34,9 @@ var paneTypes = map[string]func() Message{
 	"command:suspend":     func() Message { return &CommandSuspend{} },
 }
 
-// SplitDirections are the values of PaneSplit.Direction. "h" puts the new
-// pane beside the old one, "v" below it.
+// SplitDirections are the values of PaneSplit.Direction and
+// PaneJoin.Direction. "h" puts the new pane beside the old one, "v" below
+// it.
 var SplitDirections = []string{"h", "v"}
 
 // PaneDirections are the values of PaneResize.Direction and
@@ -180,20 +183,64 @@ func (m *PaneKill) Validate() error {
 	return protocol.Literal("type", m.Type, "pane:kill")
 }
 
-// PaneSwap swaps a pane with its neighbour in Direction.
+// PaneSwap swaps two panes. With Direction the pane swaps with its
+// neighbour that way, as the mobile controls ask. With Target it swaps with
+// that pane, which may sit in another window. Exactly one of the two is
+// set.
 type PaneSwap struct {
-	Type      string `json:"type"`
-	ID        string `json:"id"`
-	Direction string `json:"direction"`
+	Type      string  `json:"type"`
+	ID        string  `json:"id"`
+	Direction *string `json:"direction,omitempty"`
+	Target    *string `json:"target,omitempty"`
 }
 
 func (*PaneSwap) WireType() string { return "pane:swap" }
 
 func (m *PaneSwap) Validate() error {
+	errs := []error{protocol.Literal("type", m.Type, "pane:swap")}
+	if m.Direction != nil {
+		errs = append(errs, protocol.OneOf("direction", *m.Direction, PaneDirections...))
+	}
+	// The same fields as the refinement on the Zod union.
+	switch {
+	case m.Direction == nil && m.Target == nil:
+		errs = append(errs, &protocol.FieldError{Field: "direction", Reason: "set exactly one of direction or target"})
+	case m.Direction != nil && m.Target != nil:
+		errs = append(errs, &protocol.FieldError{Field: "target", Reason: "set exactly one of direction or target"})
+	}
+	return errors.Join(errs...)
+}
+
+// PaneJoin moves a pane into another window. It splits the active pane of
+// WindowID, beside it for "h" and below it for "v". The moved pane becomes
+// the active pane and its window the current one, as tmux does by default.
+type PaneJoin struct {
+	Type      string `json:"type"`
+	ID        string `json:"id"`
+	WindowID  string `json:"windowId"`
+	Direction string `json:"direction"`
+}
+
+func (*PaneJoin) WireType() string { return "pane:join" }
+
+func (m *PaneJoin) Validate() error {
 	return errors.Join(
-		protocol.Literal("type", m.Type, "pane:swap"),
-		protocol.OneOf("direction", m.Direction, PaneDirections...),
+		protocol.Literal("type", m.Type, "pane:join"),
+		protocol.OneOf("direction", m.Direction, SplitDirections...),
 	)
+}
+
+// PaneBreak moves a pane out into a new window of its session. The new
+// window becomes the current one, as tmux does by default.
+type PaneBreak struct {
+	Type string `json:"type"`
+	ID   string `json:"id"`
+}
+
+func (*PaneBreak) WireType() string { return "pane:break" }
+
+func (m *PaneBreak) Validate() error {
+	return protocol.Literal("type", m.Type, "pane:break")
 }
 
 // PaneCapture asks for a pane's contents as text.

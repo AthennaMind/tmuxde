@@ -1,28 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
-import { TerminalWorkspace } from "@/components/terminal/terminal-workspace";
 import { useSessionStore } from "@/stores/session-store";
 import { LAST_SESSION_KEY, writeStored } from "@/lib/storage-keys";
 import { isGone, renamedTo } from "@/lib/session-lifecycle";
 
-/**
- * Deep-link straight to one tmux session.
- *
- * ## Why `/s/` and not `/<sessionId>`
- *
- * Unprefixed, this is a catch-all at the root of the terminal group, so every
- * new top-level route is one tmux session name away from being shadowed — or
- * from shadowing. A session called `start`, `pair` or `settings` is an entirely
- * ordinary thing to create, and any of them would have silently taken over a
- * real page. A one-character namespace removes the whole class.
- *
- * ## Why it renders the workspace
- *
- * It used to `return null` with a comment claiming the parent layout drew the
- * terminal. The layout draws `children`, and `children` was that null — so this
- * route rendered the app shell around an empty box. It was broken, not merely
- * unlinked.
- */
+/** Adopt session deep links while TerminalLayout keeps workspace mounted. */
 export function SessionPage() {
   // React Router decodes params. Decoding again would throw on a `%`.
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -65,5 +47,5 @@ export function SessionPage() {
     }
   }, [sessionId, activeSessionId, navigate]);
 
-  return <TerminalWorkspace />;
+  return null;
 }

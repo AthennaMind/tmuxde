@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FolderTree,
   GitCompareArrows,
@@ -7,6 +7,7 @@ import {
   Settings,
   SquareTerminal,
 } from "lucide-react";
+import { MachineContent } from "@/components/machine-workspace";
 import { cn } from "@/lib/utils";
 import type { ConnectionState } from "@/protocol";
 import { getRelayClient } from "@/hooks/use-websocket";
@@ -14,7 +15,10 @@ import { usePhotoHistory } from "@/hooks/use-photo-history";
 import { readStored, writeStored } from "@/lib/storage-keys";
 import { DictationButton } from "@/components/dictation/dictation-button";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
-import { SETTINGS_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
+import {
+  SETTINGS_TAB,
+  useMainTabsStore,
+} from "@/stores/main-tabs-store";
 import {
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH,
@@ -22,7 +26,7 @@ import {
   useUiStore,
   type SidebarView,
 } from "@/stores/ui-store";
-import { SessionTree } from "./session-tree";
+import { MachinesTree } from "./machines-tree";
 import { FilesView } from "./files-view";
 import { ChangesView } from "./changes-view";
 import { HistoryView } from "./history-view";
@@ -108,21 +112,12 @@ export function WorkspaceSidebar({
   const { paths } = usePhotoHistory();
   const settingsActive = useMainTabsStore((s) => s.active === SETTINGS_TAB);
 
-  const repoVisible = !collapsed && REPO_VIEWS.includes(view);
-  const repo = useRepositoryState(repoVisible);
-  const { refreshStatus } = repo;
-
-  // Opening a repository view asks again. The badge may be minutes old.
-  useEffect(() => {
-    if (repoVisible) refreshStatus();
-  }, [repoVisible, view, refreshStatus]);
-
+  const [changeCount, setChangeCount] = useState(0);
   // A share without file access has no repository views to show.
   useEffect(() => {
     if (noFiles && REPO_VIEWS.includes(view)) showView("sessions");
   }, [noFiles, view, showView]);
 
-  const changeCount = repo.status?.entries.length ?? 0;
   const open = (v: SidebarView) => !collapsed && view === v;
 
   return (
@@ -189,19 +184,52 @@ export function WorkspaceSidebar({
         </div>
       </nav>
 
-      {!collapsed && (
+      <div className={cn("min-h-0 flex", collapsed && "hidden")}>
         <SidebarPanel>
-          {view === "sessions" && (
-            <SessionTree onCreateSession={onCreateSession} />
-          )}
-          {view === "files" && !noFiles && <FilesView repo={repo} />}
-          {view === "changes" && !noFiles && <ChangesView repo={repo} />}
-          {view === "history" && !noFiles && <HistoryView repo={repo} />}
-          {view === "photos" && <PhotosView />}
+          <div className={cn("min-h-0 flex-1 flex-col", view === "sessions" ? "flex" : "hidden")}>
+            <MachinesTree
+              onCreateSession={onCreateSession}
+              visible={!collapsed && view === "sessions"}
+            />
+          </div>
+          <MachineContent>
+            <RepositoryViews
+              view={view}
+              noFiles={noFiles}
+              onChangeCount={setChangeCount}
+            />
+            {view === "photos" && <PhotosView />}
+          </MachineContent>
         </SidebarPanel>
-      )}
+      </div>
     </div>
   );
+}
+
+/** Pane-specific requests reset independently of sidebar tree and scroll. */
+function RepositoryViews({
+  view,
+  noFiles,
+  onChangeCount,
+}: {
+  view: SidebarView;
+  noFiles: boolean;
+  onChangeCount: (count: number) => void;
+}) {
+  const collapsed = useUiStore((s) => s.sidebarCollapsed);
+  const watching = !collapsed && REPO_VIEWS.includes(view);
+  const repo = useRepositoryState(watching);
+  const { refreshStatus } = repo;
+  const count = repo.status?.entries.length ?? 0;
+  useEffect(() => onChangeCount(count), [count, onChangeCount]);
+  useEffect(() => {
+    if (watching) refreshStatus();
+  }, [watching, view, refreshStatus]);
+  if (noFiles) return null;
+  if (view === "files") return <FilesView repo={repo} />;
+  if (view === "changes") return <ChangesView repo={repo} />;
+  if (view === "history") return <HistoryView repo={repo} />;
+  return null;
 }
 
 /**
@@ -241,7 +269,7 @@ function RailButton({
       title={label}
       onClick={onClick}
       className={cn(
-        "relative flex h-9 w-9 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+        "relative flex h-9 w-9 items-center justify-center rounded-md transition-colors",
         active
           ? "bg-accent text-foreground"
           : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
@@ -300,7 +328,7 @@ function RailConnection() {
         client.disconnect();
         client.connect();
       }}
-      className="flex h-9 w-9 items-center justify-center rounded-md enabled:hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      className="flex h-9 w-9 items-center justify-center rounded-md enabled:hover:bg-accent/60"
     >
       <span
         aria-hidden

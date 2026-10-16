@@ -15,7 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MiniScrollbar } from "@/components/ui/mini-scrollbar";
 import { useFileStore } from "@/stores/file-store";
-import { downloadFile, filesAvailable } from "@/lib/file-url";
+import { startDownload } from "@/stores/transfer-store";
+import { Slot } from "@radix-ui/react-slot";
 import { useFileObjectUrl } from "@/hooks/use-file-object-url";
 import {
   getFileViewMode,
@@ -35,43 +36,12 @@ const CATEGORY_ICONS: Record<string, typeof FileQuestion> = {
   binary: FileQuestion,
 };
 
-/**
- * A download link, or an explanation of why there isn't one.
- *
- * A tunnelled session has no HTTP route to the relay, so `/file` cannot be
- * fetched at all. Saying so beats rendering a link that silently 404s against
- * the web app's own origin.
- */
-function DownloadLink({
-  path,
-  fileName,
-  children,
-}: {
+function DownloadLink({ path, children }: {
   path: string;
   fileName: string;
   children: React.ReactNode;
 }) {
-  if (!filesAvailable()) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        Downloads need a direct connection to the machine — this session is
-        going through the relay.
-      </p>
-    );
-  }
-  // A button rather than an `<a href>`: the token authenticates the whole
-  // session, and a URL carrying it would be written to history and to every
-  // access log on the way. `downloadFile` sends it as a header instead.
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        void downloadFile(path, fileName).catch(() => {});
-      }}
-    >
-      {children}
-    </button>
-  );
+  return <Slot onClick={() => startDownload(path)}>{children}</Slot>;
 }
 
 function MediaError({ path, message }: { path: string; message: string }) {

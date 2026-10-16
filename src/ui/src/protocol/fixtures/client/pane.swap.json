@@ -8,5 +8,10 @@
     "type": "pane:swap",
     "id": "%5",
     "direction": "U"
+  },
+  {
+    "type": "pane:swap",
+    "id": "%3",
+    "target": "%7"
   }
 ]

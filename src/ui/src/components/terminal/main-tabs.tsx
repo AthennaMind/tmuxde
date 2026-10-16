@@ -1,6 +1,7 @@
 import {
   GitCommitHorizontal,
   GitGraph,
+  LayoutGrid,
   Settings,
   SquareTerminal,
   X,
@@ -19,7 +20,11 @@ import {
   TERMINAL_TAB,
   type CloseGroup,
   type FileTab,
+  type TabOrigin,
 } from "@/stores/main-tabs-store";
+import { useMachineStore } from "@/stores/machine-store";
+import { LAST_SESSION_KEY, clearStored } from "@/lib/storage-keys";
+import { activateView, openMachineSession } from "@/lib/workspace-target";
 import { useSessionStore } from "@/stores/session-store";
 
 const SCOPE_SHORT = { staged: "staged", unstaged: "diff", untracked: "new" };
@@ -29,22 +34,41 @@ function tabLabel(tab: FileTab) {
 }
 
 /**
- * Terminal plus every open file and settings, above the desktop main area.
+ * Terminal plus every open file, settings and the overview, above the
+ * desktop main area.
  *
- * Only drawn once another tab is open. With the terminal alone there is nothing
- * to switch between, and the row would cost the terminal 44px for nothing.
- *
- * Right click anywhere on the row offers bulk close. The terminal never closes.
+ * Session tabs are unique per machine and session. File and repository tabs
+ * retain their origin when another terminal becomes active.
  */
 export function MainTabs() {
   const tabs = useMainTabsStore((s) => s.tabs);
   const active = useMainTabsStore((s) => s.active);
-  const activate = useMainTabsStore((s) => s.activate);
+  const activate = activateView;
   const closeTab = useMainTabsStore((s) => s.closeTab);
   const closeTabs = useMainTabsStore((s) => s.closeTabs);
   const session = useSessionStore((s) => s.activeSessionId);
 
-  if (!tabs.length) return null;
+  const terminals = useMachineStore((s) => s.terminals);
+  const machines = useMachineStore((s) => s.machines);
+  const activeMachine = useMachineStore((s) => s.activeMachine);
+  const machineName = (id: string) => machines.find((machine) => machine.id === id)?.name ?? id;
+
+  const originName = (tab: TabOrigin) =>
+    machines.length > 1 ? machineName(tab.machineId ?? "local") : undefined;
+
+  const closeTerminal = (machine: string, name: string) => {
+    useMachineStore.getState().closeTerminal(machine, name);
+    if (machine !== activeMachine || name !== session) return;
+    const remaining = useMachineStore.getState().terminals;
+    const next = remaining.at(-1);
+    if (next) openMachineSession(next.machineId, next.sessionName);
+    else {
+      useSessionStore.getState().setActiveSession(null);
+      clearStored(LAST_SESSION_KEY);
+    }
+  };
+
+  if (!tabs.length && !terminals.length) return null;
 
   const has = (group: CloseGroup) => tabs.some((tab) => inGroup(tab, group));
 
@@ -55,19 +79,25 @@ export function MainTabs() {
           aria-label="Open views"
           className="flex min-h-11 shrink-0 items-end gap-0.5 overflow-x-auto border-b px-1.5 font-chrome scrollbar-none"
         >
-          <Tab
-            label={session ?? "Terminal"}
-            icon={<SquareTerminal className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-            active={active === TERMINAL_TAB}
-            onSelect={() => activate(TERMINAL_TAB)}
-          />
+          {terminals.map((terminal) => (
+            <Tab
+              key={`${terminal.machineId}:${terminal.sessionName}`}
+              label={terminal.sessionName}
+              detail={machineName(terminal.machineId)}
+              title={`${terminal.sessionName} on ${machineName(terminal.machineId)}`}
+              icon={<SquareTerminal className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+              active={active === TERMINAL_TAB && terminal.machineId === activeMachine && terminal.sessionName === session}
+              onSelect={() => openMachineSession(terminal.machineId, terminal.sessionName)}
+              onClose={() => closeTerminal(terminal.machineId, terminal.sessionName)}
+            />
+          ))}
           {tabs.map((tab) =>
             tab.kind === "commit" ? (
               <Tab
                 key={tab.id}
                 label={tab.subject || tab.hash.slice(0, 7)}
-                detail={tab.subject ? tab.hash.slice(0, 7) : undefined}
-                title={`${tab.hash.slice(0, 7)} ${tab.subject}`.trim()}
+                detail={[tab.subject ? tab.hash.slice(0, 7) : undefined, originName(tab)].filter(Boolean).join(" · ")}
+                title={`${tab.hash.slice(0, 7)} ${tab.subject} (${machineName(tab.machineId ?? "local")})`.trim()}
                 icon={
                   <GitCommitHorizontal
                     className="h-3.5 w-3.5 shrink-0"
@@ -76,21 +106,27 @@ export function MainTabs() {
                 }
                 active={active === tab.id}
                 onSelect={() => activate(tab.id)}
-                onClose={() => closeTab(tab.id)}
+                onClose={() => {
+                  closeTab(tab.id);
+                  activateView(useMainTabsStore.getState().active);
+                }}
               />
             ) : tab.kind === "graph" ? (
               <Tab
                 key={tab.id}
                 label="Graph"
                 detail={
-                  tab.contextPath.replace(/\/+$/, "").split("/").pop() ||
-                  tab.contextPath
+                  [tab.contextPath.replace(/\/+$/, "").split("/").pop() ||
+                    tab.contextPath, originName(tab)].filter(Boolean).join(" · ")
                 }
                 title={`Graph of ${tab.contextPath}`}
                 icon={<GitGraph className="h-3.5 w-3.5 shrink-0" aria-hidden />}
                 active={active === tab.id}
                 onSelect={() => activate(tab.id)}
-                onClose={() => closeTab(tab.id)}
+                onClose={() => {
+                  closeTab(tab.id);
+                  activateView(useMainTabsStore.getState().active);
+                }}
               />
             ) : tab.kind === "settings" ? (
               <Tab
@@ -99,20 +135,38 @@ export function MainTabs() {
                 icon={<Settings className="h-3.5 w-3.5 shrink-0" aria-hidden />}
                 active={active === tab.id}
                 onSelect={() => activate(tab.id)}
-                onClose={() => closeTab(tab.id)}
+                onClose={() => {
+                  closeTab(tab.id);
+                  activateView(useMainTabsStore.getState().active);
+                }}
+              />
+            ) : tab.kind === "overview" ? (
+              <Tab
+                key={tab.id}
+                label="Overview"
+                icon={<LayoutGrid className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                active={active === tab.id}
+                onSelect={() => activate(tab.id)}
+                onClose={() => {
+                  closeTab(tab.id);
+                  activateView(useMainTabsStore.getState().active);
+                }}
               />
             ) : (
               <Tab
                 key={tab.id}
                 label={tabLabel(tab)}
-                detail={tab.scope ? SCOPE_SHORT[tab.scope] : undefined}
+                detail={[tab.scope ? SCOPE_SHORT[tab.scope] : undefined, originName(tab)].filter(Boolean).join(" · ")}
                 title={tab.scope ? `${tab.path} (${tab.scope} changes)` : tab.path}
                 icon={
                   <RepositoryFileIcon path={tab.path} className="h-3.5 w-3.5" />
                 }
                 active={active === tab.id}
                 onSelect={() => activate(tab.id)}
-                onClose={() => closeTab(tab.id)}
+                onClose={() => {
+                  closeTab(tab.id);
+                  activateView(useMainTabsStore.getState().active);
+                }}
               />
             ),
           )}
@@ -179,7 +233,7 @@ function Tab({
         title={title ?? label}
         onClick={onSelect}
         className={cn(
-          "flex h-full min-w-0 items-center gap-1.5 rounded-t-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+          "flex h-full min-w-0 items-center gap-1.5 rounded-t-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
           onClose ? "ps-3 pe-1" : "px-3",
         )}
       >
@@ -196,7 +250,7 @@ function Tab({
           title="Close"
           onClick={onClose}
           className={cn(
-            "me-1 flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            "me-1 flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             !active && "opacity-0 group-hover:opacity-100",
           )}
         >

@@ -114,8 +114,9 @@ func TestUploadTooLarge(t *testing.T) {
 	p := filepath.Join(f.sub, "big.bin")
 	writeFile(t, p, "original")
 	u := f.svc.NewUploads()
-	err := u.Chunk(ctx, p, make([]byte, DefaultUploadLimit+1), true)
-	wantMessage(t, err, "Upload too large (10485761 bytes, max 10485760)")
+	f.svc.uploadLimit = 10
+	err := u.Chunk(ctx, p, make([]byte, 11), true)
+	wantMessage(t, err, "Upload too large (11 bytes, max 10)")
 	if got := readFile(t, p); got != "original" {
 		t.Errorf("target changed to %d bytes", len(got))
 	}
@@ -360,5 +361,34 @@ func mustChunk(t *testing.T, u *Uploads, path, data string, final bool) {
 	t.Helper()
 	if err := u.Chunk(context.Background(), path, []byte(data), final); err != nil {
 		t.Fatalf("Chunk(%q, final %v): %v", data, final, err)
+	}
+}
+
+func TestUploadAbovePhotoLimit(t *testing.T) {
+	f := newFixture(t)
+	u := f.svc.NewUploads()
+	defer u.Cleanup()
+	path := filepath.Join(f.sub, "large.bin")
+	chunk := make([]byte, 128*1024)
+	for i := range chunk {
+		chunk[i] = byte(i % 251)
+	}
+	const count = 88
+	for i := range count {
+		if err := u.Chunk(t.Context(), path, chunk, i == count-1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) != count*len(chunk) {
+		t.Fatalf("size = %d", len(data))
+	}
+	for i, value := range data {
+		if value != chunk[i%len(chunk)] {
+			t.Fatalf("wrong byte at %d", i)
+		}
 	}
 }

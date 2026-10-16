@@ -43,7 +43,7 @@ const (
 	// DefaultWriteLimit is the largest content Write accepts, in bytes.
 	DefaultWriteLimit = 1024 * 1024
 	// DefaultUploadLimit is the largest upload, all chunks together.
-	DefaultUploadLimit = 10 * 1024 * 1024
+	DefaultUploadLimit = 1024 * 1024 * 1024
 )
 
 // Watcher timing from chokidar, which the relay used with its defaults.

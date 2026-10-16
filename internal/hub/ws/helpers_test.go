@@ -36,7 +36,7 @@ const (
 var (
 	wantAuthSuccess = `{"type":"auth:success","serverVersion":"1.0.0",` +
 		`"capabilities":{"readOnly":false,"files":"write","scope":"all"},` +
-		`"features":["repo:request","repo:history","file:upload:ack","window:step","pane:step","repo:watch","repo:graph"]}`
+		`"features":["repo:request","repo:history","file:upload:ack","file:upload:1gib","window:step","pane:step","repo:watch","repo:graph"]}`
 	wantServerInfo = `{"type":"server:info","hostname":"testhost","platform":"` + runtime.GOOS +
 		`","uptime":1234.5,"defaultPath":"/srv/work"}`
 )
@@ -138,6 +138,88 @@ func (n *fakeNode) handledTypes() []string {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	return append([]string(nil), n.handled...)
+}
+
+// linkedNode is a node on another machine, like the remote node of
+// package machine. Done of a connection closes when its link to the
+// machine ends, and Close ends the link. Nothing else ends it unless a
+// test calls end.
+type linkedNode struct {
+	*fakeNode
+
+	linkMu sync.Mutex
+	links  map[node.ConnID]*nodeLink
+}
+
+type nodeLink struct {
+	done chan struct{}
+	once sync.Once
+}
+
+func newLinkedNode() *linkedNode {
+	return &linkedNode{fakeNode: newFakeNode(), links: map[node.ConnID]*nodeLink{}}
+}
+
+func (n *linkedNode) Open(ctx context.Context, id node.ConnID, out node.Sink) error {
+	n.linkMu.Lock()
+	n.links[id] = &nodeLink{done: make(chan struct{})}
+	n.linkMu.Unlock()
+	return n.fakeNode.Open(ctx, id, out)
+}
+
+func (n *linkedNode) Close(id node.ConnID) {
+	n.end(id)
+	n.fakeNode.Close(id)
+}
+
+// Done returns a closed channel for a connection that was never opened,
+// as the remote node does.
+func (n *linkedNode) Done(id node.ConnID) <-chan struct{} {
+	n.linkMu.Lock()
+	defer n.linkMu.Unlock()
+	if l := n.links[id]; l != nil {
+		return l.done
+	}
+	done := make(chan struct{})
+	close(done)
+	return done
+}
+
+// end ends the machine link of a connection, as a lost agent does.
+func (n *linkedNode) end(id node.ConnID) {
+	n.linkMu.Lock()
+	l := n.links[id]
+	n.linkMu.Unlock()
+	if l != nil {
+		l.once.Do(func() { close(l.done) })
+	}
+}
+
+// remoteHarness is a harness whose sockets all resolve to one linkedNode.
+func remoteHarness(t *testing.T) (*harness, *linkedNode) {
+	t.Helper()
+	n := newLinkedNode()
+	h := newHarness(t, func(o *Options) {
+		o.Node = nil
+		o.Resolve = func(string) (Target, error) {
+			return Target{
+				Node:     n,
+				Info:     server.ServerInfo{Type: "server:info", Hostname: "agent", Platform: "linux"},
+				Features: []string{},
+			}, nil
+		}
+	})
+	return h, n
+}
+
+// authRemote authenticates against a remoteHarness and reads the two
+// welcome messages.
+func (c *wsClient) authRemote() {
+	c.t.Helper()
+	c.authWith(testToken)
+	c.expect(`{"type":"auth:success","serverVersion":"1.0.0",` +
+		`"capabilities":{"readOnly":false,"files":"write","scope":"all"},"features":[]}`)
+	c.expect(`{"type":"server:info","hostname":"agent","platform":"linux","uptime":1234.5}`)
 }
 
 // harness is a Server behind httptest on loopback.

@@ -102,6 +102,7 @@ export function SettingsPanel({
         <AppearanceSection />
         <TextSection touch={touch} />
         <TerminalSection touch={touch} />
+        <SessionsSection />
         {touch && <KeyboardToolbarSection />}
         {touch && <TouchSection />}
         <LockSettings />
@@ -349,6 +350,8 @@ function TerminalSection({ touch }: { touch: boolean }) {
   const setCursorStyle = useTerminalStore((s) => s.setCursorStyle);
   const cursorBlink = useTerminalStore((s) => s.cursorBlink);
   const setCursorBlink = useTerminalStore((s) => s.setCursorBlink);
+  const copyOnSelect = useTerminalStore((s) => s.copyOnSelect);
+  const setCopyOnSelect = useTerminalStore((s) => s.setCopyOnSelect);
   const gpuRendering = useTerminalStore((s) => s.gpuRendering);
   const setGpuRendering = useTerminalStore((s) => s.setGpuRendering);
 
@@ -377,6 +380,12 @@ function TerminalSection({ touch }: { touch: boolean }) {
         checked={cursorBlink}
         onChange={setCursorBlink}
       />
+      <SwitchRow
+        label="Copy on select"
+        hint="Copy selected terminal text, including copies from tmux and terminal apps."
+        checked={copyOnSelect}
+        onChange={setCopyOnSelect}
+      />
       <SettingsRow
         label="Scrollback lines"
         hint="How far back you can scroll. 100 to 50,000."
@@ -391,6 +400,26 @@ function TerminalSection({ touch }: { touch: boolean }) {
           onChange={setGpuRendering}
         />
       )}
+    </SettingsSection>
+  );
+}
+
+/**
+ * Pane grids: the Sessions panel or tab, the overview and the phone's pane
+ * sheet. Every one of them reads this switch.
+ */
+function SessionsSection() {
+  const showPaneIndexes = useSettingsStore((s) => s.showPaneIndexes);
+  const setShowPaneIndexes = useSettingsStore((s) => s.setShowPaneIndexes);
+
+  return (
+    <SettingsSection title="Sessions">
+      <SwitchRow
+        label="Show pane indexes"
+        hint="The number tmux gives each pane, in the corner of its box."
+        checked={showPaneIndexes}
+        onChange={setShowPaneIndexes}
+      />
     </SettingsSection>
   );
 }
