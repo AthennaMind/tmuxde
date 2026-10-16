@@ -22,6 +22,7 @@ const shortcuts = [
   { keys: ["Ctrl/Cmd", "K"], description: "Open command palette" },
   { keys: ["Ctrl", "B"], description: "Toggle sidebar (outside the terminal)" },
   { keys: ["Ctrl", "E"], description: "Toggle files (outside the terminal)" },
+  { keys: ["Ctrl", "O"], description: "Toggle overview (outside the terminal)" },
   { keys: ["Ctrl/Cmd", "V"], description: "Paste a screenshot as a photo" },
   { keys: ["Ctrl", "Shift", "Space"], description: "Start or stop dictation" },
   { keys: ["Ctrl/Cmd", "+"], description: "Larger text, terminal or open file" },

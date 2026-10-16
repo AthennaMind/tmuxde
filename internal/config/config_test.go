@@ -65,6 +65,7 @@ func TestLoad(t *testing.T) {
 				"TMUXDE_DEV_WEB_URL": "http://127.0.0.1:24100",
 				"STT_SOCKET":         "/home/dev/.local/state/tmuxde/run/stt.sock",
 				"TMUXDE_CONFIG_DIR":  "/etc/tmuxde/",
+				"MACHINE_NAME":       " Build box ",
 			},
 			check: func(t *testing.T, c Config) {
 				if c.Listen != (Listen{Network: "unix", Address: "/run/user/1000/tmuxde/http.sock"}) {
@@ -87,6 +88,9 @@ func TestLoad(t *testing.T) {
 				}
 				if c.STTSocket != "/home/dev/.local/state/tmuxde/run/stt.sock" || c.ConfigDir != "/etc/tmuxde" {
 					t.Errorf("stt %q config %q", c.STTSocket, c.ConfigDir)
+				}
+				if c.MachineName != "Build box" {
+					t.Errorf("machine name %q", c.MachineName)
 				}
 			},
 		},
@@ -206,6 +210,47 @@ func TestLoad(t *testing.T) {
 		},
 		{name: "stt socket too long", env: map[string]string{"STT_SOCKET": "/" + strings.Repeat("s", 107)}, errVar: []string{"STT_SOCKET"}, errMsg: "at most 107 bytes, got 108"},
 		{name: "relative config dir", env: map[string]string{"TMUXDE_CONFIG_DIR": "cfg"}, errVar: []string{"TMUXDE_CONFIG_DIR"}, errMsg: "absolute"},
+		// Unset MACHINE_NAME leaves MachineName empty, see defaults.
+		// serve then names the local node after the hostname.
+		{
+			name:  "machine name",
+			env:   map[string]string{"MACHINE_NAME": "server-dev"},
+			check: func(t *testing.T, c Config) { want(t, c.MachineName, "server-dev") },
+		},
+		{
+			name:  "machine name trimmed",
+			env:   map[string]string{"MACHINE_NAME": "\t Build box \n"},
+			check: func(t *testing.T, c Config) { want(t, c.MachineName, "Build box") },
+		},
+		{
+			name:  "blank machine name is unset",
+			env:   map[string]string{"MACHINE_NAME": "   "},
+			check: func(t *testing.T, c Config) { want(t, c.MachineName, "") },
+		},
+		{
+			name:  "machine name at the length limit",
+			env:   map[string]string{"MACHINE_NAME": strings.Repeat("m", 64)},
+			check: func(t *testing.T, c Config) { want(t, c.MachineName, strings.Repeat("m", 64)) },
+		},
+		// 64 characters in 128 bytes. The limit counts characters.
+		{
+			name:  "machine name counts characters",
+			env:   map[string]string{"MACHINE_NAME": strings.Repeat("ü", 64)},
+			check: func(t *testing.T, c Config) { want(t, c.MachineName, strings.Repeat("ü", 64)) },
+		},
+		{
+			name:  "machine name ignored without local node",
+			env:   map[string]string{"TMUXDE_LOCAL_NODE": "false", "MACHINE_NAME": "bad\x00name"},
+			check: func(t *testing.T, c Config) { want(t, c.MachineName, "") },
+		},
+		{name: "machine name too long", env: map[string]string{"MACHINE_NAME": strings.Repeat("m", 65)}, errVar: []string{"MACHINE_NAME"}, errMsg: "at most 64 characters, got 65"},
+		{name: "machine name too long in characters", env: map[string]string{"MACHINE_NAME": strings.Repeat("ü", 65)}, errVar: []string{"MACHINE_NAME"}, errMsg: "at most 64 characters, got 65"},
+		{name: "machine name with tab", env: map[string]string{"MACHINE_NAME": "build\tbox"}, errVar: []string{"MACHINE_NAME"}, errMsg: "control characters"},
+		{name: "machine name with escape", env: map[string]string{"MACHINE_NAME": "box\x1b[31m"}, errVar: []string{"MACHINE_NAME"}, errMsg: "control characters"},
+		{name: "machine name with newline", env: map[string]string{"MACHINE_NAME": "build\nbox"}, errVar: []string{"MACHINE_NAME"}, errMsg: "control characters"},
+		{name: "machine name with c1 control", env: map[string]string{"MACHINE_NAME": "build\u0085box"}, errVar: []string{"MACHINE_NAME"}, errMsg: "control characters"},
+		{name: "machine name with delete", env: map[string]string{"MACHINE_NAME": "box\x7f"}, errVar: []string{"MACHINE_NAME"}, errMsg: "control characters"},
+		{name: "machine name not utf8", env: map[string]string{"MACHINE_NAME": "box\xff"}, errVar: []string{"MACHINE_NAME"}, errMsg: "valid UTF-8"},
 		{
 			name:   "all errors at once",
 			env:    map[string]string{"HOME": "", "AUTH_TOKEN": "", "ALLOWED_PATHS": "", "CORS_ORIGINS": ""},
@@ -243,6 +288,18 @@ func TestLoad(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAgentIgnoresMachineName checks that an agent never reads
+// MACHINE_NAME. Its name comes from the machine record.
+func TestAgentIgnoresMachineName(t *testing.T) {
+	env := base()
+	env["MACHINE_NAME"] = "bad\x00name"
+	cfg, err := load(lookup(env), true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want(t, cfg.MachineName, "")
 }
 
 func TestErrorsNeverShowToken(t *testing.T) {
@@ -302,7 +359,7 @@ func TestIsSettingCoversLoad(t *testing.T) {
 			t.Errorf("IsSetting(%q) = true, want a shell variable", name)
 		}
 	}
-	for _, name := range []string{"TMUXDE_LISTEN", "TMUXDE_TMUX_LAUNCHER", "TMUXDE_FUTURE", "AUTH_TOKEN", "STT_SOCKET"} {
+	for _, name := range []string{"TMUXDE_LISTEN", "TMUXDE_TMUX_LAUNCHER", "TMUXDE_FUTURE", "AUTH_TOKEN", "STT_SOCKET", "MACHINE_NAME"} {
 		if !IsSetting(name) {
 			t.Errorf("IsSetting(%q) = false", name)
 		}

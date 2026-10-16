@@ -22,6 +22,18 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("server URL", () => {
+  it("binds remote sockets to machine from route", () => {
+    vi.stubGlobal("window", {
+      location: {
+        origin: "https://terminal.local",
+        host: "terminal.local",
+        protocol: "https:",
+        pathname: "/m/alpha/s/dev",
+      },
+    });
+    expect(resolveRelayWsUrl()).toBe("wss://terminal.local/_relay?machine=alpha");
+  });
+
   it("uses this origin by default", () => {
     expect(resolveRelayWsUrl()).toBe("wss://terminal.local/_relay");
     expect(resolveRelayHttpBase()).toBe("https://terminal.local");

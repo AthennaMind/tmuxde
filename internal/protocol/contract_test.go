@@ -116,12 +116,23 @@ func TestFixtures(t *testing.T) {
 	}
 }
 
+// checkFixture decodes, validates and re-encodes every sample. Together
+// the samples set every field, and every optional field is left out by at
+// least one of them, so omitempty is tested both ways. Sample 0 sets all
+// fields it can. Fields that exclude each other, such as pane:swap
+// direction and target, cannot share one sample.
 func checkFixture(t *testing.T, s side, wireType string) {
 	samples, err := protocol.LoadFixture(s.name, wireType)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var optional []string
+	empty, ok := s.new(wireType)
+	if !ok {
+		t.Fatalf("New(%q) failed", wireType)
+	}
+	fields, optional := jsonFields(empty), optionalFields(empty)
+	set := map[string]bool{}
+	omitted := map[string]bool{}
 	for i, sample := range samples {
 		msg, err := s.decode(sample)
 		if err != nil {
@@ -147,28 +158,25 @@ func checkFixture(t *testing.T, s side, wireType string) {
 			t.Errorf("sample %d does not round trip\nfixture: %s\nencoded: %s", i, compact(sample), encoded)
 		}
 		keys := want.(map[string]any)
-		if i == 0 {
-			optional = optionalFields(msg)
-			for _, field := range jsonFields(msg) {
-				if _, ok := keys[field]; !ok {
-					t.Errorf("sample 0 must set every field, %q is missing", field)
-				}
+		for field := range keys {
+			set[field] = true
+		}
+		for _, field := range optional {
+			if _, ok := keys[field]; !ok {
+				omitted[field] = true
 			}
 		}
 	}
-	if len(optional) == 0 {
-		return
-	}
-	for _, sample := range samples[1:] {
-		var keys map[string]any
-		if json.Unmarshal(sample, &keys) != nil {
-			continue
-		}
-		if !slices.ContainsFunc(optional, func(f string) bool { _, ok := keys[f]; return ok }) {
-			return
+	for _, field := range fields {
+		if !set[field] {
+			t.Errorf("no sample sets field %q", field)
 		}
 	}
-	t.Errorf("needs a later sample without the optional fields %v", optional)
+	for _, field := range optional {
+		if !omitted[field] {
+			t.Errorf("needs a sample without the optional field %q", field)
+		}
+	}
 }
 
 // TestInvalidFixtures checks src/ui/src/protocol/fixtures/invalid. Each file

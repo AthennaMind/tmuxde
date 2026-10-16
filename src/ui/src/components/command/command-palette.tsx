@@ -21,6 +21,7 @@ import {
   SlidersHorizontal,
   TextSearch,
   GitGraph,
+  LayoutGrid,
 } from "lucide-react";
 import { useCommandStore } from "@/stores/command-store";
 import { useUiStore } from "@/stores/ui-store";
@@ -92,6 +93,12 @@ export function CommandPalette() {
         setPaletteOpen(false);
         if (isMobileViewport()) useUiStore.getState().setMobileTab("settings");
         else useMainTabsStore.getState().openSettings();
+      } else if (value === "open:overview") {
+        // A main-area tab on both layouts. A phone shows it where the
+        // terminal is.
+        setPaletteOpen(false);
+        useMainTabsStore.getState().openOverview();
+        if (isMobileViewport()) useUiStore.getState().setMobileTab("terminal");
       } else if (value.startsWith("goto:")) {
         // A real navigation, not `router.push`: these leave the terminal group
         // entirely, and the palette's own open state is the only thing worth
@@ -153,6 +160,15 @@ export function CommandPalette() {
             two; this is the one that works without either being visible. */}
         <CommandSeparator />
         <CommandGroup heading="Go to">
+          <CommandItem
+            value="open:overview"
+            keywords={["sessions", "windows", "panes", "machines", "choose-tree"]}
+            onSelect={handleSelect}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Overview
+            <CommandShortcut>^O</CommandShortcut>
+          </CommandItem>
           <CommandItem value="open:settings" onSelect={handleSelect}>
             <SlidersHorizontal className="h-4 w-4" />
             Settings

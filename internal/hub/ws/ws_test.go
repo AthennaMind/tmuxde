@@ -16,7 +16,9 @@ import (
 
 	"tmuxde/internal/hub/accesslog"
 	"tmuxde/internal/hub/auth"
+	"tmuxde/internal/hub/dictation"
 	"tmuxde/internal/protocol/client"
+	"tmuxde/internal/protocol/server"
 )
 
 const chromeOnLinux = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
@@ -440,6 +442,187 @@ func TestNodeLifecycle(t *testing.T) {
 	c.c.Close(websocket.StatusNormalClosure, "")
 	if got := receive(t, "node close", h.node.closed); got != id {
 		t.Fatalf("node closed %d, want %d", got, id)
+	}
+}
+
+// A socket bound to a remote machine must leave the registry when the
+// browser goes, like a local one. The machine link watcher used to wait
+// for the removal it was blocking, so every such socket held its address
+// slot until the hub restarted.
+func TestRemoteNodeLifecycle(t *testing.T) {
+	t.Run("browser closes", func(t *testing.T) {
+		h, n := remoteHarness(t)
+		for range 3 {
+			c := h.dial(t, nil)
+			c.authRemote()
+			id := receive(t, "node open", n.opened)
+			c.c.Close(websocket.StatusNormalClosure, "")
+			if got := receive(t, "node close", n.closed); got != id {
+				t.Fatalf("node closed %d, want %d", got, id)
+			}
+			waitFor(t, "connection removal", func() bool { return h.srv.Conns().Count() == 0 })
+		}
+	})
+
+	t.Run("browser drops", func(t *testing.T) {
+		h, n := remoteHarness(t)
+		c := h.dial(t, nil)
+		c.authRemote()
+		receive(t, "node open", n.opened)
+		// No close handshake, as when a tab is killed.
+		c.c.CloseNow()
+		receive(t, "node close", n.closed)
+		waitFor(t, "connection removal", func() bool { return h.srv.Conns().Count() == 0 })
+	})
+
+	t.Run("machine link ends", func(t *testing.T) {
+		h, n := remoteHarness(t)
+		c := h.dial(t, nil)
+		c.authRemote()
+		id := receive(t, "node open", n.opened)
+		n.end(id)
+		c.expectClose(websocket.StatusTryAgainLater, "Machine connection ended")
+		receive(t, "node close", n.closed)
+		waitFor(t, "connection removal", func() bool { return h.srv.Conns().Count() == 0 })
+	})
+
+	t.Run("shutdown", func(t *testing.T) {
+		h, n := remoteHarness(t)
+		c := h.dial(t, nil)
+		c.authRemote()
+		receive(t, "node open", n.opened)
+		_, errs := c.pump()
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := h.srv.Shutdown(ctx); err != nil {
+			t.Fatalf("Shutdown: %v", err)
+		}
+		err := receive(t, "close", errs)
+		var ce websocket.CloseError
+		if !errors.As(err, &ce) || ce.Code != websocket.StatusGoingAway {
+			t.Fatalf("got %v, want 1001", err)
+		}
+		if count := h.srv.Conns().Count(); count != 0 {
+			t.Fatalf("Count = %d after Shutdown", count)
+		}
+	})
+}
+
+// A resolved target describes its machine, and the hub adds its own
+// uptime. The resolvers of serve leave it out, so every socket got 0.
+func TestResolvedTargetUptime(t *testing.T) {
+	resolveTo := func(info server.ServerInfo) func(*Options) {
+		return func(o *Options) {
+			o.Node = nil
+			o.Resolve = func(string) (Target, error) {
+				return Target{Node: newFakeNode(), Info: info, Features: []string{}}, nil
+			}
+		}
+	}
+	tests := []struct {
+		name string
+		info server.ServerInfo
+		want string
+	}{
+		{
+			"hub uptime",
+			server.ServerInfo{Type: "server:info", Hostname: "agent", Platform: "linux"},
+			`{"type":"server:info","hostname":"agent","platform":"linux","uptime":1234.5}`,
+		},
+		{
+			"target keeps its own",
+			server.ServerInfo{Type: "server:info", Hostname: "agent", Platform: "linux", Uptime: 99},
+			`{"type":"server:info","hostname":"agent","platform":"linux","uptime":99}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHarness(t, resolveTo(tt.info))
+			c := h.dial(t, nil)
+			c.authWith(testToken)
+			c.read()
+			c.expect(tt.want)
+		})
+	}
+}
+
+// A machine that does not resolve fails the socket as a bad token does.
+// It used to stay authenticated until its close landed: the access log
+// and registry listeners saw a connect, and dictation and node messages
+// sent before the close were still routed.
+func TestUnresolvedMachine(t *testing.T) {
+	dialed := make(chan struct{}, 1)
+	bridge := dictation.New(dictation.Options{
+		// Never dialed. Dial below stands in for it.
+		SocketPath: "/nonexistent/stt.sock",
+		Logger:     quietLogger(),
+		Dial: func(context.Context) (net.Conn, error) {
+			select {
+			case dialed <- struct{}{}:
+			default:
+			}
+			return nil, errors.New("no speech service")
+		},
+	})
+	// The harness node stays set, so a routed node message shows up in
+	// its record.
+	h := newHarness(t, func(o *Options) {
+		o.Resolve = func(string) (Target, error) { return Target{}, errors.New("machine offline or not found") }
+		o.Dictation = bridge
+		o.DictationAvailable = func() bool { return true }
+	})
+	changed := make(chan struct{}, 8)
+	unsubscribe := h.srv.Conns().OnChanged(func() { changed <- struct{}{} })
+	defer unsubscribe()
+
+	c := h.dial(t, nil)
+	var k *socket
+	waitFor(t, "the socket", func() bool {
+		socks := h.srv.openSockets()
+		if len(socks) != 1 {
+			return false
+		}
+		k = socks[0]
+		return true
+	})
+	// Sent right behind auth, as a browser with queued messages does. The
+	// hub reads them before its close goes out.
+	c.authWith(testToken)
+	c.send(map[string]string{"type": "dictation:start", "id": "d1"})
+	c.send(map[string]string{"type": "session:list"})
+	c.expectError("MACHINE_OFFLINE", "Machine offline or unavailable")
+	if ph := k.getPhase(); ph != phaseFailed {
+		t.Errorf("phase %d after a failed resolve, want %d", ph, phaseFailed)
+	}
+	c.expectClose(websocket.StatusTryAgainLater, "Machine offline")
+	// Removal comes after the queued work has run.
+	waitFor(t, "connection removal", func() bool { return h.srv.Conns().Count() == 0 })
+
+	k.dictMu.Lock()
+	made := k.dict != nil
+	k.dictMu.Unlock()
+	if made {
+		t.Error("dictation:start made a session after a failed resolve")
+	}
+	if got := h.node.handledTypes(); len(got) != 0 {
+		t.Errorf("node handled %v after a failed resolve", got)
+	}
+	select {
+	case <-dialed:
+		t.Error("the speech service was dialed after a failed resolve")
+	default:
+	}
+	select {
+	case <-changed:
+		t.Error("registry listeners saw a connection that never resolved")
+	default:
+	}
+	events, err := accesslog.Read(h.logDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 0 {
+		t.Errorf("access log %+v after a failed resolve, want nothing", events)
 	}
 }
 

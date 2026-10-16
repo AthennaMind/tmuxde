@@ -142,7 +142,24 @@ func TestOwnershipRule(t *testing.T) {
 			return &client.PaneResize{Type: "pane:resize", ID: id, Direction: "U", Amount: 2}
 		}, true, "ResizePane"},
 		{"pane:kill", func(id string) client.Message { return &client.PaneKill{Type: "pane:kill", ID: id} }, true, "KillPane"},
-		{"pane:swap", func(id string) client.Message { return &client.PaneSwap{Type: "pane:swap", ID: id, Direction: "D"} }, true, "SwapPane"},
+		{"pane:swap", func(id string) client.Message {
+			return &client.PaneSwap{Type: "pane:swap", ID: id, Direction: ptr("D")}
+		}, true, "SwapPane"},
+		// Messages with two ids run once per id, the other one set to an
+		// id of the session. Each id alone decides.
+		{"pane:swap target source", func(id string) client.Message {
+			return &client.PaneSwap{Type: "pane:swap", ID: id, Target: ptr("%1")}
+		}, true, "SwapPanes"},
+		{"pane:swap target", func(id string) client.Message {
+			return &client.PaneSwap{Type: "pane:swap", ID: "%1", Target: &id}
+		}, true, "SwapPanes"},
+		{"pane:join pane", func(id string) client.Message {
+			return &client.PaneJoin{Type: "pane:join", ID: id, WindowID: "@1", Direction: "h"}
+		}, true, "JoinPane"},
+		{"pane:join window", func(id string) client.Message {
+			return &client.PaneJoin{Type: "pane:join", ID: "%1", WindowID: id, Direction: "h"}
+		}, false, "JoinPane"},
+		{"pane:break", func(id string) client.Message { return &client.PaneBreak{Type: "pane:break", ID: id} }, true, "BreakPane"},
 		{"pane:capture", func(id string) client.Message { return &client.PaneCapture{Type: "pane:capture", ID: id} }, true, "CapturePaneByID"},
 		{"pane:zoom", func(id string) client.Message {
 			return &client.PaneZoom{Type: "pane:zoom", ID: &id, Zoomed: ptr(true)}
@@ -519,6 +536,75 @@ func TestWindowScoping(t *testing.T) {
 		}
 	})
 
+	t.Run("swaps with a pane of another window and looks the panes up once", func(t *testing.T) {
+		h, sink := setup(t)
+		h.must(1, &client.PaneSwap{Type: "pane:swap", ID: "%2", Target: ptr("%3")})
+		if got := h.tm.called("SwapPanes"); !slices.Equal(got, []string{"SwapPanes %2 %3"}) {
+			t.Fatalf("calls = %v", got)
+		}
+		if got := h.tm.called("SwapPane"); len(got) != 0 {
+			t.Fatalf("swapped by direction: %v", got)
+		}
+		if got := h.tm.called("ListPanes work "); len(got) != 1 {
+			t.Fatalf("ownership listings = %v, want one for both ids", got)
+		}
+		if got := sink.types(); !slices.Equal(got, []string{"window:changed", "pane:changed"}) {
+			t.Fatalf("got %v", got)
+		}
+	})
+
+	t.Run("follows tmux to the window a joined pane went to", func(t *testing.T) {
+		h, sink := setup(t)
+		// join-pane shows the target window. The fake reports it current.
+		h.tm.set(func(f *fakeTmux) {
+			f.current = "@3"
+			f.panes[3].WindowID = "@3"
+		})
+		h.must(1, &client.PaneJoin{Type: "pane:join", ID: "%4", WindowID: "@3", Direction: "h"})
+		if got := h.tm.called("JoinPane"); !slices.Equal(got, []string{"JoinPane %4 @3 h"}) {
+			t.Fatalf("calls = %v", got)
+		}
+		if got := sink.types(); !slices.Equal(got, []string{"window:changed", "pane:changed"}) {
+			t.Fatalf("got %v", got)
+		}
+		if got := sink.last().(*server.PaneChanged); got.WindowID != "@3" || len(got.Panes) != 2 {
+			t.Fatalf("pane:changed = %+v, want @3 with two panes", got)
+		}
+		if st := h.state(1); st.active != "@3" {
+			t.Fatalf("activeWindowId = %q", st.active)
+		}
+	})
+
+	t.Run("follows tmux to the window a pane broke out into", func(t *testing.T) {
+		h, sink := setup(t)
+		h.tm.set(func(f *fakeTmux) {
+			f.windows = append(f.windows, window("@5", 3, true))
+			f.current = "@5"
+			f.panes[3].WindowID = "@5"
+		})
+		h.must(1, &client.PaneBreak{Type: "pane:break", ID: "%4"})
+		if got := h.tm.called("BreakPane"); !slices.Equal(got, []string{"BreakPane work %4"}) {
+			t.Fatalf("calls = %v", got)
+		}
+		if got := sink.last().(*server.PaneChanged); got.WindowID != "@5" {
+			t.Fatalf("windowId = %s", got.WindowID)
+		}
+		if st := h.state(1); st.active != "@5" {
+			t.Fatalf("activeWindowId = %q", st.active)
+		}
+	})
+
+	t.Run("answers an unvalidated swap with neither field without calling tmux", func(t *testing.T) {
+		h, _ := setup(t)
+		err := h.handle(1, &client.PaneSwap{Type: "pane:swap", ID: "%2"})
+		if !errors.Is(err, protocol.ErrInvalid) {
+			t.Fatalf("Handle = %v, want ErrInvalid", err)
+		}
+		if got := append(h.tm.called("SwapPane"), h.tm.called("SwapPanes")...); len(got) != 0 {
+			t.Fatalf("swapped: %v", got)
+		}
+	})
+
 	t.Run("keeps the active window when another one is killed", func(t *testing.T) {
 		h, _ := setup(t)
 		h.must(1, &client.WindowSelect{Type: "window:select", ID: "@3"})
@@ -546,7 +632,10 @@ func TestLayoutMessages(t *testing.T) {
 		{&client.PaneResize{Type: "pane:resize", ID: "%1", Direction: "L", Amount: 5}, "ResizePane %1 L 5"},
 		{&client.PaneKill{Type: "pane:kill", ID: "%1"}, "KillPane %1"},
 		{&client.PaneStep{Type: "pane:step", Delta: -1}, "StepPane work -1"},
-		{&client.PaneSwap{Type: "pane:swap", ID: "%1", Direction: "U"}, "SwapPane %1 U"},
+		{&client.PaneSwap{Type: "pane:swap", ID: "%1", Direction: ptr("U")}, "SwapPane %1 U"},
+		{&client.PaneSwap{Type: "pane:swap", ID: "%1", Target: ptr("%1")}, "SwapPanes %1 %1"},
+		{&client.PaneJoin{Type: "pane:join", ID: "%1", WindowID: "@1", Direction: "v"}, "JoinPane %1 @1 v"},
+		{&client.PaneBreak{Type: "pane:break", ID: "%1"}, "BreakPane work %1"},
 		{&client.WindowStep{Type: "window:step", Delta: 1}, "StepWindow work 1"},
 		{&client.WindowCreate{Type: "window:create", Name: ptr("logs")}, "CreateWindow work logs"},
 		{&client.WindowCreate{Type: "window:create"}, "CreateWindow work "},

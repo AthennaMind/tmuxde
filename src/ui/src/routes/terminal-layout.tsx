@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import { TransferPanel } from "@/components/files/transfer-controls";
 import { Outlet, useNavigate } from "react-router";
+import { TerminalWorkspace } from "@/components/terminal/terminal-workspace";
+import { useMachineStore } from "@/stores/machine-store";
+import { MachineWorkspace } from "@/components/machine-workspace";
 import { AppShell } from "@/components/app-shell";
 import { useWebSocket, getRelayClient } from "@/hooks/use-websocket";
 import {
@@ -22,6 +26,7 @@ import { MobileNav } from "@/components/mobile/mobile-nav";
 import { CommandComposer } from "@/components/mobile/command-composer";
 import { KeyboardToolbar } from "@/components/mobile/keyboard-toolbar";
 import { useUiStore } from "@/stores/ui-store";
+import { OVERVIEW_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
 import { useAlertStore } from "@/stores/alert-store";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
 import { useTerminalStore } from "@/stores/terminal-store";
@@ -31,7 +36,6 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { ConnectionBanner } from "@/components/connection-banner";
 import { CapabilityBanner } from "@/components/capability-banner";
 import { LockGate } from "@/components/lock/lock-gate";
-import { registerDisconnect } from "@/lib/lock-controller";
 import { VisualViewportSync } from "@/components/visual-viewport-sync";
 import { useMobileHistory } from "@/hooks/use-mobile-history";
 import { resolveRelayWsUrl } from "@/lib/relay-url";
@@ -55,7 +59,9 @@ import {
 export function TerminalLayout() {
   return (
     <LockGate>
-      <TerminalLayoutInner />
+      <MachineWorkspace>
+        <TerminalLayoutInner />
+      </MachineWorkspace>
     </LockGate>
   );
 }
@@ -121,9 +127,10 @@ function TerminalLayoutInner() {
   // or diff. xterm skips them (see xterm-factory.ts), so they reach here
   // instead of the shell. Anywhere else they stay browser page zoom.
   //
-  // Ctrl+B and Ctrl+E only outside the terminal. xterm has already sent those
-  // to tmux by the time they bubble here, and Ctrl+B is tmux's default prefix.
-  // Acting on it too would toggle the sidebar on every prefix press.
+  // Ctrl+B, Ctrl+E and Ctrl+O only outside the terminal. xterm has already
+  // sent those to tmux by the time they bubble here, and Ctrl+B is tmux's
+  // default prefix. Acting on it too would toggle the sidebar on every prefix
+  // press.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Works from the terminal too: xterm passes it through.
@@ -142,11 +149,24 @@ function TerminalLayoutInner() {
         return;
       }
       if (!(e.ctrlKey || e.metaKey)) return;
-      if (e.key !== "b" && e.key !== "e") return;
+      if (e.key !== "b" && e.key !== "e" && e.key !== "o") return;
       if (e.target instanceof Element && e.target.closest(".xterm")) return;
       e.preventDefault();
       if (e.key === "b") {
         useUiStore.getState().toggleSidebar();
+        return;
+      }
+      if (e.key === "o") {
+        // The overview tab, and back to the terminal on a second press.
+        const tabs = useMainTabsStore.getState();
+        const mobile = isMobileViewport();
+        if (tabs.active !== OVERVIEW_TAB) tabs.openOverview();
+        else {
+          tabs.showTerminal();
+          // Focus was in the page that just went away.
+          if (!mobile) requestAnimationFrame(() => getTerminalHandle()?.focus());
+        }
+        if (mobile) useUiStore.getState().setMobileTab("terminal");
         return;
       }
       if (filesDisabled(useConnectionStore.getState().capabilities)) return;
@@ -201,18 +221,12 @@ function TerminalLayoutInner() {
     return useTerminalStore.subscribe((s) => apply(s.codeWeight, s.codeZoom));
   }, []);
 
-  // Hand the lock the one thing it cannot reach on its own. Locking has to
-  // drop the socket as well as the keys: an authenticated connection left open
-  // behind a lock screen is a live capability a lock-screen XSS could drive.
-  useEffect(() => {
-    registerDisconnect(() => getRelayClient()?.disconnect());
-    return () => registerDisconnect(null);
-  }, []);
-
   // Called for its effect: this is where the socket is opened and registered.
   // Children reach it through `getRelayClient()`, not through a return value.
   const token = auth.phase === "ready" ? auth.token : null;
-  useWebSocket(token ? resolveRelayWsUrl() : "", token ?? "");
+  const activeMachine = useMachineStore((s) => s.activeMachine);
+  const switching = useMachineStore((s) => s.requested !== null);
+  useWebSocket(token && !switching ? resolveRelayWsUrl(activeMachine) : "", token ?? "");
 
   if (auth.phase !== "ready") {
     // Same markup as `RequireSession`'s pending branch, and for the same
@@ -240,10 +254,10 @@ function TerminalLayoutInner() {
   // Desktop has no header row. Window strip and actions sit in the terminal
   // bar, connection status in the sidebar. Banners stay here so a degraded
   // connection pushes the terminal down instead of covering its first row.
-  const header = isMobile ? undefined : (
+  const header = (
     <>
-      <ConnectionBanner />
-      <CapabilityBanner />
+      {!isMobile && <ConnectionBanner />}
+      {!isMobile && <CapabilityBanner />}
     </>
   );
 
@@ -288,7 +302,9 @@ function TerminalLayoutInner() {
       <VisualViewportSync />
       <ErrorBoundary fallbackMessage="Terminal crashed">
         <Outlet />
+        <TerminalWorkspace />
       </ErrorBoundary>
+      <TransferPanel />
       <CommandPalette />
       <CommandComposer />
       <KeyboardShortcutsDialog />

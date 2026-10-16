@@ -130,7 +130,8 @@ from `.docker/.env.token`. A `#token=<token>` link signs in too.
   dictation is on, `TMUXDE_CONFIG_DIR` and `HOME`. `TMUX_SOCKET` stays unset,
   so the binary uses the default tmux server, the one your shells use. To use
   another server, run setup with `TMUX_SOCKET=/path/to/socket` in the
-  environment.
+  environment. `MACHINE_NAME` stays unset, so the sidebar shows the hostname.
+  Set it in a drop-in to pick another name of up to 64 characters.
 - `~/.config/systemd/user/tmuxde.service` from `.docker/host/tmuxde.service`.
   Its `PATH` starts with the directories of `tmux` and `git` as your shell
   finds them, since a user unit does not see Homebrew. The system
@@ -384,6 +385,15 @@ connection ends dictation. Details and measurements are in
   There are no Git write actions. The host home is readable, credential
   directories stay blocked, and repositories outside `ALLOWED_PATHS` are
   refused.
+- Files supports multiple uploads to pane folder, or to a folder selected from
+  its menu. Confirm destination before upload. Matching names replace existing
+  files only after all bytes arrive. General uploads accept up to 1 GiB per file. Older agents keep their 10 MiB
+  limit until updated; confirmation shows destination machine limit.
+  Downloads are available from file menus, previews and mobile file rows.
+  Transfers keep their original machine across navigation. Progress and cancel
+  controls stay visible. Locking or disconnecting stops transfers. Interrupted
+  uploads need a fresh attempt. Check destination if final acknowledgement was
+  lost. Downloads use browser storage and memory for their temporary blob.
 - Photo uploads go to the upload folder, at most 10 MB. The path is pasted
   into the prompt without Enter. If the pane changed meanwhile, the path is
   shown instead.
@@ -425,3 +435,28 @@ checked. Docker images and package manifests pin them.
 Go lint is golangci-lint, built into the `gotools` image with its Go, config in
 `.golangci.yml`, run by `make lint`. UI has no linter or formatter. Planned
 replacement is oxlint and oxfmt.
+
+## Multiple machines
+
+Central server can host UI for remote tmuxde agents. Existing standalone mode
+remains default. Agent setup, credentials, CA trust and service installation are
+in [remote machine guide](../internal/machine/README.md). Central-only mode sets
+`TMUXDE_LOCAL_NODE=false`. Agents run `tmuxde agent` with server URL and separate
+machine token.
+
+
+Development can show two isolated demo machines at port 18443:
+
+```sh
+python3 .docker/dev/agents.py
+```
+
+Helper builds agent binary through gotools, registers Dev Alpha and Dev Beta,
+installs Caddy public CA certificate and starts both agent containers. Each has
+its own tmux server, `dev` session and `/workspace` repository. Sidebar lists both
+machines together. Open either session to add its terminal tab. Files and diffs
+from either machine stay in global tab strip when switching terminals.
+
+Credentials and demo workspaces live under ignored `.docker/bin/agents`. Helper
+recreates demo containers when rerun, so their tmux sessions restart. Workspace
+files survive. Production and host tmux stay separate.

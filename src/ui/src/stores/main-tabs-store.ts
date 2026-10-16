@@ -1,9 +1,11 @@
+import { machineId } from "@/lib/machine-context";
 import { create } from "zustand";
 import {
   createJSONStorage,
   persist,
   type StateStorage,
 } from "zustand/middleware";
+import { useSessionStore } from "./session-store";
 import { isEnrolled } from "@/lib/unlocked";
 
 export type ChangeScope = "staged" | "unstaged" | "untracked";
@@ -14,7 +16,24 @@ export type ChangeScope = "staged" | "unstaged" | "untracked";
  * Carries the pane it was opened from. Repository requests are scoped to a
  * pane's directory, and the active pane moves while the tab stays open.
  */
-export interface FileTab {
+export interface TabOrigin {
+  machineId?: string;
+  sessionName?: string | null;
+}
+
+export function tabOrigin(): TabOrigin {
+  if (machineId() === "local" && !useSessionStore.getState().activeSessionId) return {};
+  return {
+    machineId: machineId(),
+    sessionName: useSessionStore.getState().activeSessionId,
+  };
+}
+
+function scopedId(id: string, machine = "local"): string {
+  return machine === "local" ? id : `${machine}:${id}`;
+}
+
+export interface FileTab extends TabOrigin {
   kind: "file";
   id: string;
   paneId: string;
@@ -38,7 +57,7 @@ export interface FileTab {
  * Commits never change, so the tab needs no reload. `contextPath` pins the
  * repository the way a diff tab does.
  */
-export interface CommitTab {
+export interface CommitTab extends TabOrigin {
   kind: "commit";
   id: string;
   paneId: string;
@@ -56,7 +75,7 @@ export interface CommitTab {
  * a commit tab, so the graph stays on it when the active pane moves. One tab
  * per repository.
  */
-export interface GraphTab {
+export interface GraphTab extends TabOrigin {
   kind: "graph";
   id: string;
   paneId: string;
@@ -70,28 +89,45 @@ export interface SettingsTab {
   id: typeof SETTINGS_TAB;
 }
 
-export type MainTab = FileTab | CommitTab | GraphTab | SettingsTab;
+/**
+ * Every window of every machine as a card. At most one, opened from the rail
+ * or the palette. It has no origin, since it reads all machines at once.
+ */
+export interface OverviewTab {
+  kind: "overview";
+  id: typeof OVERVIEW_TAB;
+}
+
+export type MainTab = FileTab | CommitTab | GraphTab | SettingsTab | OverviewTab;
+
+/** Tabs opened from one machine and session. Settings and the overview belong to none. */
+export type MachineTab = FileTab | CommitTab | GraphTab;
+
+export function isMachineTab(tab: MainTab): tab is MachineTab {
+  return tab.kind !== "settings" && tab.kind !== "overview";
+}
 
 /**
- * What a bulk close takes. `all` includes settings and graphs, `diffs`
- * includes commits. The terminal stays.
+ * What a bulk close takes. `all` includes settings, the overview and graphs,
+ * `diffs` includes commits. The terminal stays.
  */
 export type CloseGroup = "all" | "diffs" | "files";
 
 export const TERMINAL_TAB = "terminal";
 export const SETTINGS_TAB = "settings";
+export const OVERVIEW_TAB = "overview";
 const MAX_TABS = 12;
 
-export function fileTabId(tab: Pick<FileTab, "path" | "scope">): string {
-  return `${tab.scope ?? "file"}:${tab.path}`;
+export function fileTabId(tab: Pick<FileTab, "path" | "scope" | "machineId">): string {
+  return scopedId(`${tab.scope ?? "file"}:${tab.path}`, tab.machineId);
 }
 
-export function commitTabId(hash: string): string {
-  return `commit:${hash}`;
+export function commitTabId(hash: string, machine?: string): string {
+  return scopedId(`commit:${hash}`, machine);
 }
 
-export function graphTabId(contextPath: string): string {
-  return `graph:${contextPath}`;
+export function graphTabId(contextPath: string, machine?: string): string {
+  return scopedId(`graph:${contextPath}`, machine);
 }
 
 interface MainTabsStore {
@@ -100,10 +136,15 @@ interface MainTabsStore {
   active: string;
   openFile: (tab: Omit<FileTab, "id" | "kind">) => void;
   openCommit: (tab: Omit<CommitTab, "id" | "kind">) => void;
-  /** Fill in a subject the opener did not know. Never activates. */
-  nameCommit: (hash: string, subject: string) => void;
+  /**
+   * Fill in a subject the opener did not know. Never activates. Takes the
+   * tab id, which carries the machine the tab was opened on. The machine
+   * selected now can be another one.
+   */
+  nameCommit: (id: string, subject: string) => void;
   openGraph: (tab: Omit<GraphTab, "id" | "kind">) => void;
   openSettings: () => void;
+  openOverview: () => void;
   closeTab: (id: string) => void;
   closeTabs: (group: CloseGroup) => void;
   activate: (id: string) => void;
@@ -113,8 +154,8 @@ interface MainTabsStore {
 /**
  * Cut the strip down to `MAX_TABS`. The oldest file or commit goes first.
  * Graphs hold loaded pages and are where commits are opened from, and
- * settings is a single tab, so those go only when nothing else can. A tab
- * in `keep` never goes.
+ * settings and the overview are single tabs, so those go only when nothing
+ * else can. A tab in `keep` never goes.
  */
 export function trimTabs(
   tabs: MainTab[],
@@ -157,14 +198,23 @@ function isMainTab(value: unknown): value is MainTab {
     | Partial<CommitTab>
     | Partial<GraphTab>
     | Partial<SettingsTab>
+    | Partial<OverviewTab>
     | null;
   if (tab?.kind === "settings") return tab.id === SETTINGS_TAB;
+  if (tab?.kind === "overview") return tab.id === OVERVIEW_TAB;
+  if (!tab) return false;
+  const origin = tab as TabOrigin;
+  if (
+    (origin.machineId !== undefined &&
+      (typeof origin.machineId !== "string" || !/^[a-zA-Z0-9_-]+$/.test(origin.machineId))) ||
+    (origin.sessionName != null && typeof origin.sessionName !== "string")
+  ) return false;
   if (tab?.kind === "graph")
     return (
       typeof tab.paneId === "string" &&
       typeof tab.contextPath === "string" &&
       tab.contextPath.startsWith("/") &&
-      tab.id === graphTabId(tab.contextPath)
+      tab.id === graphTabId(tab.contextPath, tab.machineId)
     );
   if (tab?.kind === "commit")
     return (
@@ -173,7 +223,7 @@ function isMainTab(value: unknown): value is MainTab {
       typeof tab.contextPath === "string" &&
       typeof tab.hash === "string" &&
       /^[0-9a-f]{40,64}$/.test(tab.hash) &&
-      tab.id === commitTabId(tab.hash)
+      tab.id === commitTabId(tab.hash, tab.machineId)
     );
   return (
     tab?.kind === "file" &&
@@ -219,7 +269,7 @@ function storages(): { keep: Storage; drop: Storage } | null {
   }
 }
 
-const tabStorage: StateStorage = {
+export const tabStorage: StateStorage = {
   getItem: (key) => {
     const s = storages();
     return s ? (s.keep.getItem(key) ?? s.drop.getItem(key)) : null;
@@ -245,15 +295,17 @@ export const useMainTabsStore = create<MainTabsStore>()(
       openFile: (input) =>
         set((s) => {
           // Same file again: refresh what it points at, keep its place.
-          const id = fileTabId(input);
+          const origin = { ...tabOrigin(), ...input };
+          const id = fileTabId(origin);
           return {
-            tabs: upsert(s.tabs, { ...input, kind: "file", id }, s.active),
+            tabs: upsert(s.tabs, { ...origin, kind: "file", id }, s.active),
             active: id,
           };
         }),
       openCommit: (input) =>
         set((s) => {
-          const id = commitTabId(input.hash);
+          const origin = { ...tabOrigin(), ...input };
+          const id = commitTabId(input.hash, origin.machineId);
           const known = s.tabs.find((t) => t.id === id);
           // A parent link knows no subject. Keep the one already shown.
           const subject =
@@ -262,15 +314,14 @@ export const useMainTabsStore = create<MainTabsStore>()(
           return {
             tabs: upsert(
               s.tabs,
-              { ...input, subject, kind: "commit", id },
+              { ...origin, subject, kind: "commit", id },
               s.active,
             ),
             active: id,
           };
         }),
-      nameCommit: (hash, subject) =>
+      nameCommit: (id, subject) =>
         set((s) => {
-          const id = commitTabId(hash);
           const index = s.tabs.findIndex((t) => t.id === id);
           const tab = s.tabs[index];
           if (tab?.kind !== "commit" || tab.subject === subject) return s;
@@ -280,9 +331,10 @@ export const useMainTabsStore = create<MainTabsStore>()(
         }),
       openGraph: (input) =>
         set((s) => {
-          const id = graphTabId(input.contextPath);
+          const origin = { ...tabOrigin(), ...input };
+          const id = graphTabId(input.contextPath, origin.machineId);
           return {
-            tabs: upsert(s.tabs, { ...input, kind: "graph", id }, s.active),
+            tabs: upsert(s.tabs, { ...origin, kind: "graph", id }, s.active),
             active: id,
           };
         }),
@@ -294,6 +346,15 @@ export const useMainTabsStore = create<MainTabsStore>()(
             s.active,
           ),
           active: SETTINGS_TAB,
+        })),
+      openOverview: () =>
+        set((s) => ({
+          tabs: upsert(
+            s.tabs,
+            { kind: "overview", id: OVERVIEW_TAB },
+            s.active,
+          ),
+          active: OVERVIEW_TAB,
         })),
       closeTab: (id) =>
         set((s) => {

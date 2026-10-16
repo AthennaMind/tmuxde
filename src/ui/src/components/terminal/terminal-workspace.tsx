@@ -1,3 +1,4 @@
+import { MachineContent } from "@/components/machine-workspace";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useStableMediaQuery } from "@/hooks/use-media-query";
 import { MOBILE_MEDIA_QUERY } from "@/lib/mobile-query";
@@ -8,12 +9,17 @@ import {
 import { FloatingAlerts } from "@/components/alert-banner";
 import { TerminalSearch } from "@/components/terminal/terminal-search";
 import { TerminalScrollRail } from "@/components/terminal/terminal-scroll-rail";
-import { SessionList } from "@/components/session/session-list";
+import { MachinesTree } from "@/components/sidebar/machines-tree";
+import { useMachineStore } from "@/stores/machine-store";
+import { useSessionTreeStore } from "@/stores/session-tree-store";
+import { LAST_SESSION_KEY, writeStored } from "@/lib/storage-keys";
+import { machineId } from "@/lib/machine-context";
 import { WorkspaceSidebar } from "@/components/sidebar/workspace-sidebar";
 import { MainTabs } from "@/components/terminal/main-tabs";
 import { SessionCreateDialog } from "@/components/session/session-create-dialog";
 import { RepositoryBrowser } from "@/components/files/repository-browser";
 import { SettingsPanel } from "@/components/settings/settings-panel";
+import { OverviewView } from "@/components/overview/overview-view";
 import { WindowTabs } from "@/components/mobile/window-tabs";
 import { TmuxFab } from "@/components/mobile/tmux-fab";
 import { PaneListPanel } from "@/components/mobile/pane-list-panel";
@@ -27,7 +33,11 @@ import { getFileViewMode } from "@/lib/file-utils";
 import { useSessionStore } from "@/stores/session-store";
 import { useFileStore } from "@/stores/file-store";
 import { useUiStore } from "@/stores/ui-store";
-import { TERMINAL_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
+import {
+  TERMINAL_TAB,
+  isMachineTab,
+  useMainTabsStore,
+} from "@/stores/main-tabs-store";
 import { useWheelScroll } from "@/hooks/use-wheel-scroll";
 import { lazyComponent } from "@/lib/lazy-component";
 import { leaveCopyMode } from "@/lib/terminal-scroll";
@@ -56,20 +66,27 @@ const CopyModeOverlay = lazyComponent(() =>
   import("@/components/mobile/copy-mode-overlay").then((m) => m.CopyModeOverlay),
 );
 
-/**
- * The terminal, its sidebar, its file panes and every mobile tab.
- *
- * This was the body of the terminal page, and it is a component now because
- * two routes need it. `/` is the one everything links to. `/s/<name>` deep-links
- * a specific tmux session — and used to `return null`, so following one of those
- * links rendered an empty shell. It set the active session in an effect and
- * trusted "the terminal is rendered by the parent layout", which was never true:
- * the layout renders `children`, and that child was the null.
- */
+/** Shared workspace chrome stays mounted across session and machine changes. */
 export function TerminalWorkspace() {
   const isMobile = useStableMediaQuery(MOBILE_MEDIA_QUERY);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const createSession = useMachineStore((s) => s.createSession);
+  const activeMachine = useMachineStore((s) => s.activeMachine);
+  const switching = useMachineStore((s) => s.requested !== null);
+  useEffect(() => {
+    if (createSession && !switching) {
+      setShowCreateDialog(true);
+      useMachineStore.setState({ createSession: false });
+    }
+  }, [createSession, switching]);
+  useEffect(() => {
+    if (activeSessionId) {
+      useMachineStore.getState().openTerminal(machineId(), activeSessionId);
+      writeStored(LAST_SESSION_KEY, activeSessionId);
+    }
+  }, [activeSessionId, activeMachine]);
+  const attachedSession = useSessionTreeStore((s) => s.attachedSession);
   const editorFile = useFileStore((s) => s.editorFile);
   const editorForceText = useFileStore((s) => s.editorForceText);
   const mobileTab = useUiStore((s) => s.mobileTab);
@@ -81,10 +98,19 @@ export function TerminalWorkspace() {
   const setTerminalSearchOpen = useUiStore((s) => s.setTerminalSearchOpen);
   const mainTabs = useMainTabsStore((s) => s.tabs);
   const mainTab = useMainTabsStore((s) => s.active);
-  const activeTab =
+  const selectedTab =
     mainTab === TERMINAL_TAB
       ? undefined
       : mainTabs.find((tab) => tab.id === mainTab);
+  // Settings and the overview belong to no machine. Other tabs show once
+  // their machine and session are the attached ones.
+  const activeTab =
+    selectedTab &&
+    (!isMachineTab(selectedTab) ||
+      ((selectedTab.machineId ?? "local") === machineId() &&
+        (!selectedTab.sessionName || selectedTab.sessionName === attachedSession)))
+      ? selectedTab
+      : undefined;
   const terminalRef = useRef<TerminalViewHandle>(null);
   /*
    * The terminal pane, for the wheel — see `useWheelScroll`.
@@ -159,6 +185,58 @@ export function TerminalWorkspace() {
     terminalRef.current?.findPrevious();
   }, []);
 
+  // Reads every machine, so it stays outside `MachineContent` and lives
+  // through a machine switch. Mounted only while in front: hidden, it would
+  // still render on every inventory update of every machine.
+  const overview =
+    activeTab?.kind === "overview" ? (
+      <OverviewView className="absolute inset-0" />
+    ) : null;
+
+  const tabContent = (
+    <MachineContent>
+      {selectedTab && !activeTab && (
+        <div role="status" className="absolute inset-0 grid place-items-center bg-background text-sm text-muted-foreground">
+          Waiting for session on this machine
+        </div>
+      )}
+      {activeTab?.kind === "file" && (
+        <FileTabView
+          key={activeTab.id}
+          tab={activeTab}
+          className="absolute inset-0"
+        />
+      )}
+      {activeTab?.kind === "commit" && (
+        <CommitTabView
+          key={activeTab.id}
+          tab={activeTab}
+          className="absolute inset-0"
+        />
+      )}
+      {/* Graphs stay mounted while hidden, so loaded pages, scroll and
+          the last opened commit survive a trip to a commit tab. */}
+      {mainTabs.map((tab) =>
+        tab.kind === "graph" &&
+        (tab.machineId ?? "local") === machineId() &&
+        (!tab.sessionName || tab.sessionName === attachedSession) ? (
+          <GraphTabView
+            key={tab.id}
+            tab={tab}
+            active={activeTab?.id === tab.id}
+            className={cn(
+              "absolute inset-0",
+              activeTab?.id !== tab.id && "hidden",
+            )}
+          />
+        ) : null,
+      )}
+      {activeTab?.kind === "settings" && (
+        <SettingsPanel touch={false} className="absolute inset-0" />
+      )}
+    </MachineContent>
+  );
+
   if (isMobile) {
     return (
       <div className="absolute inset-0 overflow-hidden">
@@ -172,21 +250,31 @@ export function TerminalWorkspace() {
           )}
         >
           <div className="flex h-full flex-col">
-            <WindowTabs className="tmuxde-hide-when-keyboard" />
+            <MainTabs />
+            {!selectedTab && (
+              <MachineContent>
+                <WindowTabs className="tmuxde-hide-when-keyboard" />
+              </MachineContent>
+            )}
             <div ref={paneRef} className="relative flex-1 overflow-hidden">
               {/* One recogniser for scroll, swipe and pinch — the three used
                   to be split across two stacked components that fought each
                   other. See lib/touch-gestures.ts. */}
-              <TerminalGestureSurface className="absolute inset-0">
-                <TerminalView
-                  ref={terminalRef}
-                  sessionName={activeSessionId}
-                  // Narrower gutter than desktop: the edge here is the screen,
-                  // and every column counts. See the desktop layout for why
-                  // the padding sits on `.xterm`.
-                  className="h-full [&_.xterm]:px-1"
-                  onCreateSession={() => setShowCreateDialog(true)}
-                />
+              <TerminalGestureSurface
+                className={cn(
+                  "absolute inset-0",
+                  selectedTab && "invisible pointer-events-none",
+                )}
+              >
+                <MachineContent>
+                  <TerminalView
+                    ref={terminalRef}
+                    sessionName={activeSessionId}
+                    // Keep the gutter narrow on phone screens.
+                    className="h-full [&_.xterm]:px-1"
+                    onCreateSession={() => setShowCreateDialog(true)}
+                  />
+                </MachineContent>
               </TerminalGestureSurface>
               <SwitchHint />
               {terminalSearchOpen && (
@@ -199,11 +287,17 @@ export function TerminalWorkspace() {
                 />
               )}
               {/* Actions open from More, outside terminal gesture handling. */}
-              <TmuxFab />
+              {!selectedTab && <TmuxFab />}
               {/* A sibling of the gesture surface, like everything else that
                   needs its own touches: `touch-action: none` cannot be given
                   back to a descendant. */}
-              <TerminalScrollRail sessionName={activeSessionId} />
+              {!selectedTab && (
+                <MachineContent>
+                  <TerminalScrollRail sessionName={activeSessionId} />
+                </MachineContent>
+              )}
+              {tabContent}
+              {overview}
             </div>
           </div>
         </div>
@@ -213,9 +307,9 @@ export function TerminalWorkspace() {
             mobileTab === "sessions" ? "flex" : "hidden",
           )}
         >
-          <SessionList
-            onCreateClick={() => setShowCreateDialog(true)}
-            className="flex-1"
+          <MachinesTree
+            onCreateSession={() => setShowCreateDialog(true)}
+            visible={mobileTab === "sessions"}
           />
         </div>
         <div
@@ -225,7 +319,9 @@ export function TerminalWorkspace() {
           )}
         >
           {mobileTab === "files" && (
-            <RepositoryBrowser className="min-h-0 flex-1" />
+            <MachineContent>
+              <RepositoryBrowser className="min-h-0 flex-1" />
+            </MachineContent>
           )}
         </div>
         <div
@@ -243,26 +339,42 @@ export function TerminalWorkspace() {
         {/* File editor overlay */}
         {editorFile &&
           (editorForceText || getFileViewMode(editorFile) === "text" ? (
-            <FileEditor />
+            <MachineContent>
+              <FileEditor />
+            </MachineContent>
           ) : (
-            <FileViewer />
+            <MachineContent>
+              <FileViewer />
+            </MachineContent>
           ))}
         {/* Copy mode overlay */}
-        {copyModeOpen && <CopyModeOverlay />}
-        <PaneListPanel />
-        <PaneOptionsSheet />
-        <PaneResizeControls />
-        <SessionCreateDialog
-          open={showCreateDialog}
-          onOpenChange={setShowCreateDialog}
-        />
+        {copyModeOpen && (
+          <MachineContent>
+            <CopyModeOverlay />
+          </MachineContent>
+        )}
+        <MachineContent>
+          <PaneListPanel />
+        </MachineContent>
+        <MachineContent>
+          <PaneOptionsSheet />
+        </MachineContent>
+        <MachineContent>
+          <PaneResizeControls />
+        </MachineContent>
+        <MachineContent>
+          <SessionCreateDialog
+            open={showCreateDialog}
+            onOpenChange={setShowCreateDialog}
+          />
+        </MachineContent>
       </div>
     );
   }
 
   // Desktop layout: rail and sidebar, then the main area. File and settings
   // tabs share the main area with the terminal, which stays mounted under them.
-  const tabActive = !!activeTab;
+  const tabActive = !!selectedTab;
   return (
     <div className="absolute inset-0 flex">
       <WorkspaceSidebar onCreateSession={() => setShowCreateDialog(true)} />
@@ -289,12 +401,14 @@ export function TerminalWorkspace() {
                   columns, so nothing is clipped, and xterm's viewport covers
                   the padding box so the gutter paints in the theme
                   background. */}
-              <TerminalView
-                ref={terminalRef}
-                sessionName={activeSessionId}
-                className="h-full [&_.xterm]:px-2"
-                onCreateSession={() => setShowCreateDialog(true)}
-              />
+              <MachineContent>
+                <TerminalView
+                  ref={terminalRef}
+                  sessionName={activeSessionId}
+                  className="h-full [&_.xterm]:px-2"
+                  onCreateSession={() => setShowCreateDialog(true)}
+                />
+              </MachineContent>
               <SwitchHint />
               {/* Floats like a browser find bar. Opened from the command
                   palette. */}
@@ -307,41 +421,13 @@ export function TerminalWorkspace() {
                   onClose={() => setTerminalSearchOpen(false)}
                 />
               )}
-              <TerminalScrollRail sessionName={activeSessionId} />
+              <MachineContent>
+                <TerminalScrollRail sessionName={activeSessionId} />
+              </MachineContent>
             </div>
           </div>
-          {activeTab?.kind === "file" && (
-            <FileTabView
-              key={activeTab.id}
-              tab={activeTab}
-              className="absolute inset-0"
-            />
-          )}
-          {activeTab?.kind === "commit" && (
-            <CommitTabView
-              key={activeTab.id}
-              tab={activeTab}
-              className="absolute inset-0"
-            />
-          )}
-          {/* Graphs stay mounted while hidden, so loaded pages, scroll and
-              the last opened commit survive a trip to a commit tab. */}
-          {mainTabs.map((tab) =>
-            tab.kind === "graph" ? (
-              <GraphTabView
-                key={tab.id}
-                tab={tab}
-                active={activeTab?.id === tab.id}
-                className={cn(
-                  "absolute inset-0",
-                  activeTab?.id !== tab.id && "hidden",
-                )}
-              />
-            ) : null,
-          )}
-          {activeTab?.kind === "settings" && (
-            <SettingsPanel touch={false} className="absolute inset-0" />
-          )}
+          {tabContent}
+          {overview}
           <FloatingAlerts />
           {/* Outside the terminal box, which turns invisible under a file
               tab. A live microphone must stay visible whatever is open. */}
@@ -352,15 +438,21 @@ export function TerminalWorkspace() {
       {/* File editor overlay */}
       {editorFile &&
         (editorForceText || getFileViewMode(editorFile) === "text" ? (
-          <FileEditor />
+          <MachineContent>
+            <FileEditor />
+          </MachineContent>
         ) : (
-          <FileViewer />
+          <MachineContent>
+            <FileViewer />
+          </MachineContent>
         ))}
 
-      <SessionCreateDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-      />
+      <MachineContent>
+        <SessionCreateDialog
+          open={showCreateDialog}
+          onOpenChange={setShowCreateDialog}
+        />
+      </MachineContent>
     </div>
   );
 }

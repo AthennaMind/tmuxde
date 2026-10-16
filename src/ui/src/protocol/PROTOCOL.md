@@ -5,7 +5,7 @@ Every message between the browser and the tmuxde server, as defined in
 
 `client-messages.ts` and `server-messages.ts` hold Zod discriminated unions,
 one JSON object per WebSocket message on `/_relay`. `codec.ts` validates both
-directions. **57** client types and **32** server types, the `repo:*` types
+directions. **59** client types and **32** server types, the `repo:*` types
 from `repository.ts` included. The Go server has a hand written
 type for each one in `internal/protocol/client` and `internal/protocol/server`.
 `fixtures/` holds a sample of every type plus invalid cases, and both the
@@ -58,9 +58,23 @@ corrupt its state machine. Optional, so older clients stay compatible.
 | `pane:step` | `delta: integer` | Focus the next pane of the current window, or the previous one when `delta` is negative |
 | `pane:zoom` | `id?`, `zoomed?` | Zoom a pane, the active one without `id`. Without `zoomed` it toggles |
 | `pane:resize` | `id`, `direction: "U"\|"D"\|"L"\|"R"`, `amount` | Resize a pane |
-| `pane:swap` | `id`, `direction` | Swap a pane with its neighbour |
+| `pane:swap` | `id`, `direction?: "U"\|"D"\|"L"\|"R"`, `target?` | Swap a pane with its neighbour toward `direction`, or with pane `target`. Exactly one of the two |
+| `pane:join` | `id`, `windowId`, `direction: "h" \| "v"` | Move a pane into window `windowId`, beside its active pane for `h` or below it for `v` |
+| `pane:break` | `id` | Move a pane out into a new window |
 | `pane:kill` | `id` | Kill a pane |
 | `pane:capture` | `id` | Capture a pane's contents as text |
+
+Every pane and window id in these messages must belong to the attached session.
+The server answers `PANE_NOT_FOUND` or `WINDOW_NOT_FOUND` for the first one that
+does not, and runs nothing. A swap with `target` runs `swap-pane -s id -t target`.
+The panes may sit in different windows, and each window activates the pane it
+received. A join makes the moved pane active and shows its window. A window left
+without panes closes. A join into the pane's own window fails with the tmux
+error while the pane is the active pane there, since tmux splits that pane. A
+break opens the new window at the first free index of the attached session and
+shows it. On the only pane of a window, tmux moves that window to a new index.
+None of the three has a reply of its own. `window:changed` and `pane:changed`
+follow, as for every layout change.
 
 ### Windows
 
@@ -117,7 +131,7 @@ app handles scrolling, so shell history rail stays hidden during TUI use.
 | `file:mkdir` | `path` | Create a directory |
 | `file:delete` | `path` | Delete a file or directory |
 | `file:rename` | `oldPath`, `newPath` | Rename or move |
-| `file:upload` | `path`, `content` (base64), `final`, `ack?` | Chunked upload (max 10 MB). With `ack: true`, each chunk returns `file:op:result` with `final` echoed after write completes. Wait for acknowledgement before sending next chunk. Requires `file:upload:ack` in `auth:success.features`. |
+| `file:upload` | `path`, `content` (base64), `final`, `ack?` | Chunked upload (max 1 GiB with `file:upload:1gib` in machine features, otherwise 10 MiB). With `ack: true`, each chunk returns `file:op:result` with `final` echoed after write completes. Wait for acknowledgement before sending next chunk. Requires `file:upload:ack` in `auth:success.features`. General file transfers use a dedicated machine-bound socket. Closing it discards partial files; final acknowledgement confirms atomic replacement. Transfers do not resume after disconnect. |
 | `file:watch` | `path` | Watch a directory (`depth: 0`) |
 | `file:unwatch` | `path` | Stop watching |
 
@@ -429,9 +443,67 @@ browser.
 ## Adding a message
 
 1. Add the Zod schema to the right file in `src/ui/src/protocol/`.
-2. Add it to the discriminated union.
+2. Add it to the discriminated union. A rule across fields of one client
+   message goes in the refinement on `ClientMessage`, and its Go `Validate`
+   reports the same field.
 3. Add the Go type and its registry entry in `internal/protocol/client` or
    `internal/protocol/server`.
-4. Add a fixture in `src/ui/src/protocol/fixtures`, plus invalid cases.
+4. Add a fixture in `src/ui/src/protocol/fixtures`, plus invalid cases. The
+   samples together set every field, and each optional field is left out by
+   one of them.
 5. Handle client messages in `internal/node/local/router.go`.
 6. Handle server messages in `src/ui/src/hooks/use-websocket.ts`.
+
+## Machine routing
+
+Browser WebSocket `/_relay?machine=<id>` binds to one machine after token
+validation. Omitted machine selects `local`. Unknown or offline machine returns
+`error` with code `MACHINE_OFFLINE` and closes with 1013. It never falls back to
+local machine. Node messages and their existing schemas remain unchanged.
+`server:info` and node features describe selected machine, except `uptime`, which
+is the hub process uptime for every machine. Dictation remains hub
+service. Login uses reserved `machine=hub` connection, which authenticates without
+opening node. Node requests on that connection return `MACHINE_REQUIRED`.
+
+`GET /machines` requires browser bearer token and returns array validated by
+`machines.ts`: id, name, online, hostname, platform, defaultPath, version and
+features. Offline entries retain ID and display name. No credentials appear in
+response. Response uses `Cache-Control: no-store`. UI polls inventory independently
+of selected machine socket, including while agent is offline.
+
+`GET /file?machine=<id>&path=<path>` uses same explicit machine selection and
+browser authentication. Missing machine means local. Offline machine returns 503.
+Path validation and open happen on selected machine. Range reads use same opened
+file through bounded agent chunks.
+
+## Agent protocol version 1
+
+Agents connect outbound to `/_agent` with `Authorization: Bearer <agent-token>`.
+Browser tokens and browser Origin headers are rejected. Initial text frame is
+`{"protocol":1,"info":{...}}`. Info carries hostname, platform, defaultPath,
+version and features. Hub assigns ID/name from credential registry and responds
+with same hello shape. Protocol mismatch closes connection. Only WebSocket
+ping/pong follows from agent on control link. Hub probes liveness and revocation.
+
+Hub requests dedicated outbound stream with
+`{"ticket":"<64 hex characters>","kind":"node"}` or kind `file`. Agent connects
+`/_agent/stream` with bearer token and `X-Tmuxde-Ticket` header. Ticket belongs to
+one machine control connection and can be consumed once. New control connection
+has fresh pending tickets. Credentials never appear in query strings.
+
+Node stream carries existing client/server JSON messages, one per frame, with
+sequential request handling. Auth, ping and dictation are hub-owned and excluded.
+Closing stream releases its local node context without killing tmux sessions.
+Every browser gets separate context and attach client.
+
+File stream starts with `{"path":"/absolute/path"}`. Agent opens through path
+guard and replies with name, size and modified timestamp, or error `denied`,
+`not-file` or `not-found`. Hub requests `{"offset":0,"length":65536}` and receives
+one binary frame of up to 65536 bytes. Empty binary frame means EOF. Stream close
+releases file. Files are never buffered in full by central server.
+
+Control hello limit is 16 KiB. Data frame limit is 2 MiB. Each machine has 64
+pending/active streams. Write and stream establishment timeouts are 15 seconds.
+Agent reconnects with bounded backoff and jitter. Input and mutations are never
+replayed. Link failure closes all data streams and browser attachment sockets;
+UI reconnects with fresh session inventory and attachment.

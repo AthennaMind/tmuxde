@@ -16,6 +16,7 @@ import (
 	"tmuxde/internal/hub/accesslog"
 	"tmuxde/internal/hub/conns"
 	"tmuxde/internal/hub/dictation"
+	"tmuxde/internal/node"
 	"tmuxde/internal/protocol/server"
 )
 
@@ -48,14 +49,16 @@ type closeFrame struct {
 
 // socket is one upgraded WebSocket and its goroutines: the reader, which
 // is the ServeHTTP goroutine, the writer and, after auth, the liveness
-// ticker.
+// ticker and for a remote machine the link watcher.
 type socket struct {
-	srv  *Server
-	ws   *websocket.Conn
-	raw  net.Conn
-	addr string
-	ua   string
-	log  *slog.Logger
+	node      node.Node
+	machineID string
+	srv       *Server
+	ws        *websocket.Conn
+	raw       net.Conn
+	addr      string
+	ua        string
+	log       *slog.Logger
 
 	// conn is set by run once the registry admits the socket.
 	conn    *conns.Conn
@@ -68,7 +71,9 @@ type socket struct {
 	// closing is set when the close handshake starts. Writes and pings
 	// fail from then on, and that is no reason to drop the socket.
 	closing atomic.Bool
-	workers sync.WaitGroup // writer and liveness
+	// workers are the writer, liveness and the machine link watcher. Each
+	// one returns once done is closed.
+	workers sync.WaitGroup
 
 	mu        sync.Mutex
 	phase     phase
@@ -86,6 +91,7 @@ type socket struct {
 func newSocket(s *Server, c *websocket.Conn, raw net.Conn, addr, ua string) *socket {
 	return &socket{
 		srv:     s,
+		node:    s.opts.Node,
 		ws:      c,
 		raw:     raw,
 		addr:    addr,

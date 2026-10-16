@@ -268,6 +268,66 @@ func (c *Client) SwapPane(ctx context.Context, paneID, direction string) error {
 	return nil
 }
 
+// SwapPanes swaps two panes by id. They may sit in different windows. Each
+// window keeps its layout and takes the other pane in its place. As tmux
+// does by default, each window activates the pane it received. In one
+// window that is targetID, now where paneID was.
+func (c *Client) SwapPanes(ctx context.Context, paneID, targetID string) error {
+	if err := checkPaneID(paneID); err != nil {
+		return err
+	}
+	if err := checkPaneID(targetID); err != nil {
+		return err
+	}
+	if _, err := c.run(ctx, "swap-pane", "-s", paneID, "-t", targetID); err != nil {
+		return err
+	}
+	c.log.Info("swapped panes", "pane", paneID, "target", targetID)
+	return nil
+}
+
+// JoinPane moves a pane into a window. It splits the active pane of the
+// window, beside it for "h" and below it for "v", as in client.PaneJoin.
+// The moved pane becomes active and its window becomes the current window
+// of the session. A window left without panes closes.
+func (c *Client) JoinPane(ctx context.Context, paneID, windowID, direction string) error {
+	if err := checkPaneID(paneID); err != nil {
+		return err
+	}
+	if err := checkWindowID(windowID); err != nil {
+		return err
+	}
+	if err := checkOneOf("direction", direction, client.SplitDirections); err != nil {
+		return err
+	}
+	if _, err := c.run(ctx, "join-pane", "-s", paneID, "-t", windowID, "-"+direction); err != nil {
+		return err
+	}
+	c.log.Info("joined pane", "pane", paneID, "window", windowID, "direction", direction)
+	return nil
+}
+
+// BreakPane moves a pane out into a new window of session, at the first
+// free index. The new window becomes current.
+//
+// The target names the session. Without it tmux picks the destination
+// from its own idea of the current session, which for a command from
+// outside tmux can be another session.
+func (c *Client) BreakPane(ctx context.Context, session, paneID string) error {
+	t, err := currentTarget(session)
+	if err != nil {
+		return err
+	}
+	if err := checkPaneID(paneID); err != nil {
+		return err
+	}
+	if _, err := c.run(ctx, "break-pane", "-s", paneID, "-t", t); err != nil {
+		return err
+	}
+	c.log.Info("broke pane out", "session", session, "pane", paneID)
+	return nil
+}
+
 // CaptureOptions bounds a capture.
 type CaptureOptions struct {
 	// Lines of history above the visible pane. Zero or less means 2000.

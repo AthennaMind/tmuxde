@@ -33,6 +33,9 @@
   --surface-panel: oklch(0.965 0.005 140);
   --surface-sunken: oklch(0.945 0.006 140);
   --surface-inverse: oklch(0.1479 0.0027 145.44);
+  /* Fill of a hovered, focused or selected item. One step past every
+     surface above, so it shows on a menu as well as on the page. */
+  --surface-hover: oklch(0.9 0.008 140);
 
   --line-subtle: oklch(0.92 0.008 138);
   --line: oklch(0.875 0.011 136);
@@ -110,6 +113,7 @@
   --surface-panel: oklch(0.1791 0.0051 145.36);
   --surface-sunken: oklch(0.138 0.003 145.41);
   --surface-inverse: oklch(0.961 0.0083 91.48);
+  --surface-hover: oklch(0.26 0.008 145);
 
   --line-subtle: oklch(0.2286 0.0128 135.12);
   --line: oklch(0.2687 0.0178 131.28);
@@ -183,7 +187,12 @@
   --secondary-foreground: var(--text-strong);
   --muted: var(--surface-panel);
   --muted-foreground: var(--text-muted);
-  --accent: var(--surface-panel);
+  /* Not `--surface-panel`: that is also `--popover`, and a menu item's focus
+     fill on its own menu measured 1.00:1. Keyboard focus in every menu was
+     invisible. `--surface-hover` is 1.21:1 dark and 1.22:1 light on the
+     menu, the step the pane grid cells use. Asserted in
+     `theme-contrast.test.ts`. */
+  --accent: var(--surface-hover);
   --accent-foreground: var(--text-strong);
   --destructive: var(--signal-failed);
   /* `--text-inverse`, and the comment that used to be here was wrong about
@@ -276,6 +285,7 @@
   --color-surface-panel: var(--surface-panel);
   --color-surface-sunken: var(--surface-sunken);
   --color-surface-inverse: var(--surface-inverse);
+  --color-surface-hover: var(--surface-hover);
 
   /* Lines */
   --color-line-subtle: var(--line-subtle);

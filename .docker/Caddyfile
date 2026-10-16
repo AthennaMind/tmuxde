@@ -43,7 +43,7 @@ https://{$LOCAL_DOMAIN}:18443 {
 
 	@outside not remote_ip private_ranges
 	@code_entry path /start /pair /j
-	@api path /_relay /health /file
+	@api path /_relay /_agent /_agent/stream /machines /health /file
 
 	header {
 		>Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://{$LOCAL_DOMAIN} wss://{$LOCAL_DOMAIN}:18443; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"

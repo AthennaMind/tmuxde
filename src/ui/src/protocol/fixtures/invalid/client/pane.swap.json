@@ -6,5 +6,46 @@
       "id": "%3",
       "direction": "X"
     }
+  },
+  {
+    "field": "direction",
+    "message": {
+      "type": "pane:swap",
+      "id": "%3"
+    }
+  },
+  {
+    "field": "target",
+    "message": {
+      "type": "pane:swap",
+      "id": "%3",
+      "direction": "R",
+      "target": "%7"
+    }
+  },
+  {
+    "field": "target",
+    "message": {
+      "type": "pane:swap",
+      "id": "%3",
+      "target": 7
+    }
+  },
+  {
+    "field": "target",
+    "message": {
+      "type": "pane:swap",
+      "id": "%3",
+      "target": null
+    }
+  },
+  {
+    "field": "direction",
+    "message": {
+      "type": "pane:swap",
+      "id": "%3",
+      "direction": "",
+      "target": "%7"
+    }
   }
 ]
