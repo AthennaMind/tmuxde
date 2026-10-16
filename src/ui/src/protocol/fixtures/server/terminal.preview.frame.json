@@ -1,0 +1,33 @@
+[
+  {
+    "type": "terminal:preview:frame",
+    "requestId": "overview-1",
+    "frames": [
+      {
+        "paneId": "%1",
+        "cols": 80,
+        "rows": 24,
+        "content": "\u001b[32mhello\u001b[0m\n",
+        "unavailable": false
+      }
+    ]
+  },
+  {
+    "type": "terminal:preview:frame",
+    "requestId": "overview-1",
+    "frames": []
+  },
+  {
+    "type": "terminal:preview:frame",
+    "requestId": "overview-1",
+    "frames": [
+      {
+        "paneId": "%1",
+        "cols": 80,
+        "rows": 24,
+        "content": "",
+        "unavailable": true
+      }
+    ]
+  }
+]

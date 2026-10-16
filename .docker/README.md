@@ -452,7 +452,7 @@ python3 .docker/dev/agents.py
 ```
 
 Helper builds agent binary through gotools, registers Dev Alpha and Dev Beta,
-installs Caddy public CA certificate and starts both agent containers. Each has
+installs Caddy public CA certificate and starts both agent containers. Image includes `htop` for interactive terminal and live preview testing. Each has
 its own tmux server, `dev` session and `/workspace` repository. Sidebar lists both
 machines together. Open either session to add its terminal tab. Files and diffs
 from either machine stay in global tab strip when switching terminals.

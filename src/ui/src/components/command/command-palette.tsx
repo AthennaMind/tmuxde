@@ -33,6 +33,7 @@ import { useConnectionStore } from "@/stores/connection-store";
 import { usePaneStore } from "@/stores/pane-store";
 import { useRepositoryQuery } from "@/components/files/repository-preview";
 import type { RepositoryClient } from "@/components/files/repository-request";
+import { useTerminalSearchStore } from "@/stores/terminal-search-store";
 
 export function CommandPalette() {
   const { paletteOpen, setPaletteOpen, history, snippets } = useCommandStore();
@@ -85,7 +86,10 @@ export function CommandPalette() {
 
   const handleSelect = useCallback(
     (value: string) => {
-      if (value === "open:search") {
+      if (value === "open:global-search") {
+        setPaletteOpen(false);
+        useTerminalSearchStore.setState({ open: true });
+      } else if (value === "open:search") {
         setPaletteOpen(false);
         useUiStore.getState().setTerminalSearchOpen(true);
       } else if (value === "open:settings") {
@@ -128,6 +132,10 @@ export function CommandPalette() {
         <CommandEmpty>Press Enter to execute as shell command</CommandEmpty>
 
         <CommandGroup heading="Quick Actions">
+          <CommandItem value="open:global-search" keywords={["search", "all", "terminals", "machines", "history", "output"]} onSelect={handleSelect}>
+            <TextSearch className="h-4 w-4" />
+            Search all terminals
+          </CommandItem>
           {/* Desktop has no terminal bar, so search opens from here. */}
           <CommandItem value="open:search" onSelect={handleSelect}>
             <TextSearch className="h-4 w-4" />

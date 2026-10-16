@@ -30,8 +30,9 @@ type conn struct {
 	// service. Set at Open and safe for concurrent use.
 	uploads *files.Uploads
 
-	mu     sync.Mutex
-	closed bool
+	mu      sync.Mutex
+	closed  bool
+	preview *previewWatch
 	// gen counts attach state changes. An attachment acts only while its
 	// gen is the current one.
 	gen uint64

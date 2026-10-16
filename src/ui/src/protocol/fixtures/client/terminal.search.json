@@ -1,0 +1,18 @@
+[
+  {
+    "type": "terminal:search",
+    "requestId": "search-1",
+    "query": "build failed",
+    "caseSensitive": false,
+    "excludeSessions": [
+      "private"
+    ]
+  },
+  {
+    "type": "terminal:search",
+    "requestId": "search-1",
+    "query": "literal [x].*",
+    "caseSensitive": true,
+    "excludeSessions": []
+  }
+]

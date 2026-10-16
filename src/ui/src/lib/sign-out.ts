@@ -37,7 +37,7 @@ export async function disconnectDevice(): Promise<void> {
   useFileStore.getState().setEntries([]);
   useFileStore.getState().setSelectedFile(null);
   useFileStore.getState().setFileContent(null);
-  useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB });
+  useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB, order: [] });
 
   // Both homes of the self-hosted token. `clearStored` alone leaves an enrolled
   // device still holding it in memory, which is exactly the case that made the

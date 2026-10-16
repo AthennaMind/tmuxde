@@ -1,0 +1,185 @@
+[
+  {
+    "field": "targets[0].paneId",
+    "message": {
+      "type": "terminal:preview",
+      "requestId": "overview-1",
+      "targets": [
+        {
+          "session": "dev",
+          "paneId": "@1"
+        }
+      ],
+      "excludeSessions": [],
+      "once": false
+    }
+  },
+  {
+    "field": "requestId",
+    "message": {
+      "type": "terminal:preview",
+      "requestId": "",
+      "targets": [
+        {
+          "session": "dev",
+          "paneId": "%1"
+        }
+      ],
+      "excludeSessions": [],
+      "once": false
+    }
+  },
+  {
+    "field": "targets",
+    "message": {
+      "type": "terminal:preview",
+      "requestId": "overview-1",
+      "targets": null,
+      "excludeSessions": [],
+      "once": false
+    }
+  },
+  {
+    "field": "targets",
+    "message": {
+      "type": "terminal:preview",
+      "requestId": "overview-1",
+      "targets": [
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        },
+        {
+          "session": "dev",
+          "paneId": "%1"
+        }
+      ],
+      "excludeSessions": [],
+      "once": false
+    }
+  }
+]

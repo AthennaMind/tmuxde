@@ -1,0 +1,96 @@
+[
+  {
+    "field": "query",
+    "message": {
+      "type": "terminal:search",
+      "requestId": "search-1",
+      "query": "",
+      "caseSensitive": false,
+      "excludeSessions": [
+        "private"
+      ]
+    }
+  },
+  {
+    "field": "query",
+    "message": {
+      "type": "terminal:search",
+      "requestId": "search-1",
+      "query": "  ",
+      "caseSensitive": false,
+      "excludeSessions": [
+        "private"
+      ]
+    }
+  },
+  {
+    "field": "query",
+    "message": {
+      "type": "terminal:search",
+      "requestId": "search-1",
+      "query": "line\nbreak",
+      "caseSensitive": false,
+      "excludeSessions": [
+        "private"
+      ]
+    }
+  },
+  {
+    "field": "query",
+    "message": {
+      "type": "terminal:search",
+      "requestId": "search-1",
+      "query": "\u0000",
+      "caseSensitive": false,
+      "excludeSessions": [
+        "private"
+      ]
+    }
+  },
+  {
+    "field": "query",
+    "message": {
+      "type": "terminal:search",
+      "requestId": "search-1",
+      "query": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "caseSensitive": false,
+      "excludeSessions": [
+        "private"
+      ]
+    }
+  },
+  {
+    "field": "requestId",
+    "message": {
+      "type": "terminal:search",
+      "requestId": "",
+      "query": "build failed",
+      "caseSensitive": false,
+      "excludeSessions": [
+        "private"
+      ]
+    }
+  },
+  {
+    "field": "excludeSessions",
+    "message": {
+      "type": "terminal:search",
+      "requestId": "search-1",
+      "query": "build failed",
+      "caseSensitive": false,
+      "excludeSessions": null
+    }
+  },
+  {
+    "field": "caseSensitive",
+    "message": {
+      "type": "terminal:search",
+      "requestId": "search-1",
+      "query": "build failed",
+      "caseSensitive": "true",
+      "excludeSessions": [
+        "private"
+      ]
+    }
+  }
+]

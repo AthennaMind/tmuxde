@@ -1,0 +1,33 @@
+[
+  {
+    "type": "terminal:preview",
+    "requestId": "overview-1",
+    "targets": [
+      {
+        "session": "dev",
+        "paneId": "%1"
+      }
+    ],
+    "excludeSessions": [],
+    "once": false
+  },
+  {
+    "type": "terminal:preview",
+    "requestId": "overview-1",
+    "targets": [],
+    "excludeSessions": [],
+    "once": false
+  },
+  {
+    "type": "terminal:preview",
+    "requestId": "overview-1",
+    "targets": [
+      {
+        "session": "dev",
+        "paneId": "%1"
+      }
+    ],
+    "excludeSessions": [],
+    "once": true
+  }
+]

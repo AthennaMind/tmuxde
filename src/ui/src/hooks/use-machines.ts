@@ -1,3 +1,4 @@
+import { receiveTerminalPreview, previewConnectionChanged, resetPreviews } from "@/stores/terminal-preview-store";
 import { useEffect } from "react";
 import { MachineListSchema } from "@/protocol/machines";
 import { RelayClient } from "@/lib/ws-client";
@@ -6,6 +7,7 @@ import { findRenames } from "@/lib/session-lifecycle";
 import { isMachineTab, useMainTabsStore } from "@/stores/main-tabs-store";
 import { useMachineStore } from "@/stores/machine-store";
 import * as registry from "@/lib/relay-registry";
+import { receiveTerminalSearch, resetTerminalSearch, terminalSearchDisconnected } from "@/stores/terminal-search-store";
 
 /** Read-only subscriptions keep every machine live without attaching a PTY. */
 export function useMachines(token: string) {
@@ -22,11 +24,17 @@ export function useMachines(token: string) {
         token,
         onStatusChange: (status) => {
           useMachineStore.getState().update(id, { status });
+          previewConnectionChanged(id);
+          if (status !== "connected") terminalSearchDisconnected(id);
         },
         onMessage: (message) => {
           if (controller.signal.aborted) return;
           const store = useMachineStore.getState();
-          if (message.type === "auth:success") {
+          if (message.type === "terminal:preview:frame") {
+            receiveTerminalPreview(id, message);
+          } else if (message.type === "terminal:search:result") {
+            receiveTerminalSearch(id, message);
+          } else if (message.type === "auth:success") {
             client.send({ type: "session:list" });
           } else if (message.type === "session:list") {
             const previous = store.inventory[id]?.sessions ?? [];
@@ -115,6 +123,8 @@ export function useMachines(token: string) {
     void load();
     return () => {
       controller.abort();
+      resetTerminalSearch();
+      resetPreviews();
       clearTimeout(timer);
       for (const [id] of clients) registry.release(`inventory:${id}`);
       useMachineStore.setState({ inventory: {}, machines: [], loaded: false });

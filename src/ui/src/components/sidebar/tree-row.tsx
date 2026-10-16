@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronRight, Ellipsis } from "lucide-react";
+import type { PaneInfo } from "@/protocol";
+import { PanePeek, usePanePeek } from "./pane-peek";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,6 +74,8 @@ export interface TreeRowModel {
   inline?: TreeAction[];
   menu?: TreeAction[];
   drop?: RowDrop;
+  /** Single-pane windows use the same preview as split-pane cells. */
+  peek?: { pane: PaneInfo; machineId: string; session: string };
 }
 
 /**
@@ -143,9 +147,17 @@ export function TreeRow({
   const mainRef = useRef<HTMLButtonElement>(null);
   const menu = row.menu ?? [];
   const inline = row.inline ?? [];
+  const preview = row.peek;
+  const peek = usePanePeek(!menuOpen && !renaming && !!preview);
 
   const handleKey = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     switch (event.key) {
+      case "p":
+      case "P":
+        if (!peek.enabled || !preview || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        event.preventDefault();
+        peek.toggleKey(preview.pane, event.currentTarget);
+        break;
       case "ArrowRight":
         if (!row.expandable) return;
         event.preventDefault();
@@ -193,9 +205,16 @@ export function TreeRow({
       )}
       style={{ paddingInlineStart: indent }}
       data-row-key={row.key}
+      {...(preview ? peek.hover(preview.pane) : {})}
+      onPointerDownCapture={(event) => {
+        const target = event.target as Node;
+        if (event.currentTarget.contains(target) && !mainRef.current?.contains(target)) peek.close();
+      }}
       onContextMenu={(event) => {
+        if (preview && mainRef.current?.contains(event.target as Node) && peek.contextMenu(event, preview.pane)) return;
         if (!menu.length) return;
         event.preventDefault();
+        peek.close();
         onMenuOpenChange(true);
       }}
     >
@@ -236,9 +255,18 @@ export function TreeRow({
           tabIndex={tabStop ? 0 : -1}
           aria-current={row.selected ? "true" : undefined}
           aria-expanded={row.expandable ? row.expanded : undefined}
-          title={row.title ?? row.label}
+          title={peek.enabled ? undefined : row.title ?? row.label}
+          aria-keyshortcuts={peek.enabled ? "P" : undefined}
           onFocus={() => onFocusRow(row.key)}
-          onClick={row.activate}
+          onPointerDown={(event) => {
+            if (preview) peek.pointerDown(event, preview.pane);
+          }}
+          onPointerMove={peek.pointerMove}
+          onPointerUp={peek.pointerUp}
+          onPointerCancel={peek.pointerUp}
+          onClick={() => {
+            if (!peek.consumeClick()) row.activate();
+          }}
           onDoubleClick={row.doubleClick}
           onKeyDown={handleKey}
           className="flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-md ps-0.5 text-start outline-none"
@@ -344,6 +372,16 @@ export function TreeRow({
       )}
 
       {row.drop && <DropFeedback drop={row.drop} />}
+      {peek.enabled && (
+        <PanePeek
+          peek={peek.peek}
+          scope={preview!}
+          onClose={peek.close}
+          onPointerEnter={peek.keepOpen}
+          onPointerLeave={peek.scheduleClose}
+          returnFocus={() => mainRef.current?.focus({ preventScroll: true })}
+        />
+      )}
     </div>
   );
 }

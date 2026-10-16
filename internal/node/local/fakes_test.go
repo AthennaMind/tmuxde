@@ -838,3 +838,16 @@ func wantError(t *testing.T, msg server.Message, code, text string) {
 }
 
 var errBoom = errors.New("boom")
+
+func (f *fakeTmux) SearchHistory(_ context.Context, query string, sensitive bool, exclude []string) (tmux.SearchResult, error) {
+	return tmux.SearchResult{}, f.record("SearchHistory", query, fmt.Sprint(sensitive), strings.Join(exclude, ","))
+}
+
+func (f *fakeTmux) PreviewScreens(_ context.Context, targets []protocol.PreviewTarget, _ []string) []protocol.PreviewFrame {
+	_ = f.record("PreviewScreens")
+	frames := make([]protocol.PreviewFrame, 0, len(targets))
+	for _, target := range targets {
+		frames = append(frames, protocol.PreviewFrame{PaneID: target.PaneID, Cols: 80, Rows: 24, Content: "preview"})
+	}
+	return frames
+}

@@ -205,9 +205,12 @@ export function buildMachine(
   const sessions = inventory?.sessions ?? selected?.sessions ?? [];
   const loaded = !!inventory?.loaded || !!selected?.sessionsLoaded;
   const status = inventory?.status ?? selected?.status ?? "disconnected";
-  const details = selected
-    ? { ...inventory?.details, ...selected.details }
-    : (inventory?.details ?? {});
+  // Inventory keeps refreshing every session. Only the attached session has
+  // fresher live details; cached details from earlier attachments can be stale.
+  const details = { ...selected?.details, ...inventory?.details };
+  const attached = selected?.attachedSession;
+  const attachedDetails = attached ? selected?.details[attached] : undefined;
+  if (attached && attachedDetails) details[attached] = attachedDetails;
 
   const state = machineState(machine.online, loaded, !!inventory || !!selected, status);
 
@@ -353,4 +356,27 @@ export function windowCardName(window: OverviewWindow): string {
   ]
     .filter(Boolean)
     .join(", ");
+}
+
+/** Each pane has its own gallery card, with its full navigation context. */
+export interface OverviewPane {
+  key: string;
+  machine: OverviewMachine;
+  session: OverviewSession;
+  window: OverviewWindow;
+  pane: PaneInfo;
+}
+
+export function overviewPanes(machines: OverviewMachine[], rawQuery = ""): OverviewPane[] {
+  const query = normalizeQuery(rawQuery);
+  return machines.flatMap((machine) => machine.sessions.flatMap((session) =>
+    session.windows.flatMap((window) => window.panes.flatMap((pane) => {
+      const matches = !query || [machine.machine.name, machine.machine.hostname,
+        session.session.name, window.window.name, pane.command, pane.path,
+        processPresentation(pane.command).label, pane.path && shortenPath(pane.path)]
+        .some((value) => has(value, query));
+      return matches ? [{ key: JSON.stringify([machine.machine.id, session.session.name, pane.id]),
+        machine, session, window, pane }] : [];
+    })),
+  ));
 }

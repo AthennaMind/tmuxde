@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { Loader2 } from "lucide-react";
 import type { PaneInfo } from "@/protocol";
-import { paneCellName, peekLines } from "@/lib/pane-grid-layout";
+import { paneCellName, gridAspect } from "@/lib/pane-grid-layout";
 import { useUiStore } from "@/stores/ui-store";
+import { TerminalScreen } from "@/components/terminal/terminal-screen";
+import { previewKey, useTerminalPreviewStore, watchPreview } from "@/stores/terminal-preview-store";
+import { useMachineStore } from "@/stores/machine-store";
 import { ProcessIcon } from "./process-icon";
 
 /** Hover this long before a peek opens. A long press waits as long. */
@@ -22,18 +24,8 @@ export interface Peek {
   anchor: HTMLElement;
 }
 
-/**
- * State and gestures of the peek popover of one grid.
- *
- * The text comes through the same path as the copy mode overlay: a
- * `pane:capture`, whose `pane:captured` reply lands in `ui-store` as
- * `capturedPaneId` and `capturedContent`. While the overlay is open it owns
- * that slot, so no peek opens. A peek clears the slot when it closes, and a
- * reply that lands after the peek closed is cleared too, so the overlay
- * never opens on a pane it did not ask for. "Copy contents" routes its reply
- * through `machine-store` and never reaches this slot.
- */
-export function usePanePeek(onPeek: ((pane: PaneInfo) => void) | undefined) {
+/** Shared hover, long press and keyboard gestures. Output lives in preview store. */
+export function usePanePeek(enabled: boolean) {
   const [peek, setPeek] = useState<Peek | null>(null);
   const peekRef = useRef(peek);
   peekRef.current = peek;
@@ -42,8 +34,6 @@ export function usePanePeek(onPeek: ((pane: PaneInfo) => void) | undefined) {
   // A long press opened the peek. The click that follows the lift is not a select.
   const pressed = useRef(false);
   const lastPointer = useRef<string>("mouse");
-  // Panes whose reply was still on the wire when their peek closed.
-  const stale = useRef(new Set<string>());
 
   const clearTimer = useCallback(() => {
     if (timer.current !== null) window.clearTimeout(timer.current);
@@ -61,16 +51,12 @@ export function usePanePeek(onPeek: ((pane: PaneInfo) => void) | undefined) {
     if (!current) return;
     peekRef.current = null;
     setPeek(null);
-    const ui = useUiStore.getState();
-    if (ui.copyModeOpen || ui.capturedPaneId !== current.pane.id) return;
-    if (ui.capturedContent === null) stale.current.add(current.pane.id);
-    ui.setCapturedPane(null, null);
   }, [cancelPress, clearTimer]);
 
   const open = useCallback(
     (pane: PaneInfo, via: PeekVia, anchor: HTMLElement) => {
       clearTimer();
-      if (!onPeek) return;
+      if (!enabled) return;
       const ui = useUiStore.getState();
       if (ui.copyModeOpen) return;
       const next = { pane, via, anchor };
@@ -79,29 +65,17 @@ export function usePanePeek(onPeek: ((pane: PaneInfo) => void) | undefined) {
         setPeek(next);
         return;
       }
-      stale.current.delete(pane.id);
-      ui.setCapturedPane(pane.id, null);
       peekRef.current = next;
       setPeek(next);
-      onPeek(pane);
     },
-    [clearTimer, onPeek],
+    [clearTimer, enabled],
   );
 
-  useEffect(
-    () =>
-      useUiStore.subscribe((state) => {
-        const id = state.capturedPaneId;
-        if (!id || state.capturedContent === null || state.copyModeOpen) return;
-        if (!stale.current.has(id) || peekRef.current?.pane.id === id) return;
-        stale.current.delete(id);
-        state.setCapturedPane(null, null);
-      }),
-    [],
-  );
-
-  // Timers die with the grid, and an open peek gives back the capture slot.
+  // Timers and subscription owners die with the row or grid.
   useEffect(() => () => close(), [close]);
+  useEffect(() => {
+    if (!enabled) close();
+  }, [enabled, close]);
 
   const scheduleClose = useCallback(() => {
     clearTimer();
@@ -110,7 +84,7 @@ export function usePanePeek(onPeek: ((pane: PaneInfo) => void) | undefined) {
 
   /** Hover handlers for the cell box. Mouse only: touch has no hover. */
   const hover = (pane: PaneInfo) =>
-    onPeek
+    enabled
       ? {
           onPointerEnter: (event: React.PointerEvent<HTMLElement>) => {
             if (event.pointerType !== "mouse" || event.buttons) return;
@@ -142,7 +116,7 @@ export function usePanePeek(onPeek: ((pane: PaneInfo) => void) | undefined) {
       if (peekRef.current) close();
       return;
     }
-    if (!onPeek || !event.isPrimary) return;
+    if (!enabled || !event.isPrimary) return;
     const anchor = event.currentTarget;
     press.current = {
       x: event.clientX,
@@ -174,7 +148,7 @@ export function usePanePeek(onPeek: ((pane: PaneInfo) => void) | undefined) {
    * press peeks and the menu stays shut. True when the event was taken.
    */
   const contextMenu = (event: React.MouseEvent<HTMLElement>, pane: PaneInfo) => {
-    if (!onPeek || lastPointer.current !== "touch") return false;
+    if (!enabled || lastPointer.current !== "touch") return false;
     event.preventDefault();
     if (!peekRef.current) {
       cancelPress();
@@ -192,7 +166,7 @@ export function usePanePeek(onPeek: ((pane: PaneInfo) => void) | undefined) {
 
   return {
     peek,
-    enabled: !!onPeek,
+    enabled: !!enabled,
     open,
     close,
     hover,
@@ -208,31 +182,40 @@ export function usePanePeek(onPeek: ((pane: PaneInfo) => void) | undefined) {
 }
 
 /**
- * The last lines of a pane beside its cell.
+ * A live screen beside its cell.
  *
  * Opened by hover it takes no focus and closes when the pointer leaves both
  * the cell and the popover. Opened by key it moves focus to the text, where
- * arrow keys scroll it, and Escape, P or Tab hands focus back to the cell.
+ * Escape or P hands focus back to the cell. Tab moves out of the preview.
  * Focus moving anywhere else, a press outside or Escape close it in every
  * case.
  */
 export function PanePeek({
   peek,
+  scope,
   onClose,
   onPointerEnter,
   onPointerLeave,
   returnFocus,
 }: {
   peek: Peek | null;
+  scope: { machineId: string; session: string };
   onClose: () => void;
   onPointerEnter: () => void;
   onPointerLeave: () => void;
   /** Focus the cell this peek belongs to. */
   returnFocus: (paneId: string) => void;
 }) {
-  const content = useUiStore((s) =>
-    peek && s.capturedPaneId === peek.pane.id ? s.capturedContent : null,
-  );
+  const owner = useId();
+  const key = previewKey(scope.machineId, peek?.pane.id ?? "");
+  const frame = useTerminalPreviewStore((s) => s.frames[key]);
+  const supported = useMachineStore((s) => s.machines.find((machine) => machine.id === scope.machineId)?.features.includes("terminal:preview"));
+  const connected = useMachineStore((s) => s.inventory[scope.machineId]?.status === "connected");
+  const paneId = peek?.pane.id;
+  useEffect(() => {
+    if (!paneId || !supported) return;
+    return watchPreview(owner, scope.machineId, [{ session: scope.session, paneId }], true);
+  }, [owner, scope.machineId, scope.session, paneId, supported]);
   const contentRef = useRef<HTMLDivElement>(null);
   const last = useRef(peek);
   if (peek) last.current = peek;
@@ -256,7 +239,11 @@ export function PanePeek({
       },
     };
   }, [peek?.anchor]);
-  const lines = content === null ? null : peekLines(content);
+  const status = !supported ? "Update machine to enable previews"
+    : !connected ? "Reconnecting…"
+    : frame?.unavailable ? "Preview unavailable"
+    : !frame ? "Loading preview…" : null;
+  const aspect = gridAspect(frame ? { cols: frame.cols, rows: frame.rows } : peek?.pane.dimensions);
   const name = peek ? paneCellName(peek.pane) : "";
 
   return (
@@ -275,6 +262,7 @@ export function PanePeek({
           sideOffset={6}
           collisionPadding={8}
           hideWhenDetached
+          style={{ width: `max(20rem, min(44rem, calc(65dvh * ${aspect})))` }}
           aria-label={`Peek at pane ${peek?.pane.index ?? ""}`}
           onOpenAutoFocus={(event) => {
             if (peek?.via !== "key") event.preventDefault();
@@ -300,38 +288,27 @@ export function PanePeek({
           }}
           onKeyDown={(event) => {
             const p = (event.key === "p" || event.key === "P") && !event.altKey && !event.ctrlKey && !event.metaKey;
-            // The popover sits at the end of the page, so Tab would leave
-            // the tree for nowhere. It closes and hands focus back instead.
-            if (p || event.key === "Tab") {
+            if (p) {
               event.preventDefault();
               onClose();
             }
           }}
-          className="z-[var(--z-modal)] flex w-max min-w-64 max-w-[min(36rem,var(--radix-popover-content-available-width))] flex-col overflow-hidden rounded-md border bg-popover font-chrome text-popover-foreground shadow-[var(--shadow-float)] outline-none motion-safe:data-[state=open]:animate-in motion-safe:data-[state=open]:fade-in-0"
+          className="z-[var(--z-modal)] flex w-[44rem] max-w-[min(calc(100vw-1rem),var(--radix-popover-content-available-width))] flex-col overflow-hidden rounded-md border bg-popover font-chrome text-popover-foreground shadow-[var(--shadow-float)] outline-none motion-safe:data-[state=open]:animate-in motion-safe:data-[state=open]:fade-in-0"
         >
           <div className="flex min-w-0 items-center gap-1.5 border-b px-2.5 py-1.5 text-xs leading-4 text-muted-foreground">
             {peek && <ProcessIcon command={peek.pane.command} className="h-3.5 w-3.5" />}
-            <span className="min-w-0 truncate">{name}</span>
+            <span className="min-w-0 flex-1 truncate">{name}</span>
           </div>
-          <div
-            role="region"
-            tabIndex={0}
-            aria-label={`Last lines of pane ${peek?.pane.index ?? ""}`}
-            aria-busy={lines === null}
-            className="overflow-x-auto overscroll-x-contain focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-          >
-            {lines === null ? (
-              <p className="flex items-center gap-2 px-2.5 py-2 text-xs leading-4 text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 motion-safe:animate-spin" aria-hidden />
-                Loading
-              </p>
-            ) : lines.length === 0 ? (
-              <p className="px-2.5 py-2 text-xs leading-4 text-muted-foreground">No output yet</p>
-            ) : (
-              <pre className="w-max min-w-full px-2.5 py-2 font-mono text-xs leading-4 whitespace-pre text-foreground">
-                {lines.join("\n")}
-              </pre>
-            )}
+          <div role="region" tabIndex={0}
+            aria-label={`Terminal preview of pane ${peek?.pane.index ?? ""}`}
+            aria-busy={supported && connected && !frame}
+            className="relative w-full overflow-hidden bg-background focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+            style={{ aspectRatio: aspect, maxHeight: "min(65dvh, calc(var(--radix-popover-content-available-height) - 3.5rem))" }}>
+            {status ? <p role="status" className="absolute inset-0 flex items-center justify-center p-3 text-center text-xs text-muted-foreground">{status}</p>
+              : frame && <>
+                  <TerminalScreen frame={frame} />
+                  <pre className="sr-only" aria-live="off">{frame.content.replace(/\x1b\[[0-9;:]*m/g, "")}</pre>
+                </>}
           </div>
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>
