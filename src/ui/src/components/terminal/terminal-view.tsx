@@ -17,6 +17,7 @@ import {
 } from "@/lib/terminal-themes";
 import { useTheme } from "@/hooks/use-theme";
 import { createXterm } from "@/lib/xterm-factory";
+import { copyText, copyFailureReason } from "@/lib/clipboard";
 import { terminalFontFamily } from "@/lib/terminal-font.js";
 import { consumeTerminalInput } from "@/lib/terminal-input.js";
 import { clipboardImage } from "@/lib/photo-upload.js";
@@ -334,6 +335,34 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
       fitAddonRef.current = fitAddon;
       searchAddonRef.current = searchAddon;
 
+      // Copy once on release, while clipboard access has user activation.
+      // Selection-change events also include search hits and buffer updates.
+      const terminalElement = terminal.element!;
+      let selecting = false;
+      const cancelSelectionCopy = () => {
+        selecting = false;
+      };
+      const startSelectionCopy = (event: MouseEvent) => {
+        selecting = event.button === 0;
+      };
+      const finishSelectionCopy = (event: MouseEvent) => {
+        if (event.button !== 0 || !selecting) return;
+        selecting = false;
+        if (!useTerminalStore.getState().copyOnSelect) return;
+        const selection = terminal.getSelection();
+        if (!selection) return;
+        void copyText(selection).then((copied) => {
+          if (!copied) {
+            useAlertStore.getState().push("error", copyFailureReason());
+          }
+        });
+      };
+      // Capture also sees Shift-drag when xterm stops mouse propagation.
+      terminalElement.addEventListener("mousedown", startSelectionCopy, true);
+      // Window receives releases outside terminal after xterm handles them.
+      window.addEventListener("mouseup", finishSelectionCopy);
+      window.addEventListener("blur", cancelSelectionCopy);
+
       // Safe fit wrapper — renderer may not be initialized during deferred calls
       const safeFit = () => {
         try {
@@ -589,6 +618,9 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(
         );
         dataDisposable.dispose();
         resizeDisposable.dispose();
+        terminalElement.removeEventListener("mousedown", startSelectionCopy, true);
+        window.removeEventListener("mouseup", finishSelectionCopy);
+        window.removeEventListener("blur", cancelSelectionCopy);
         // Real unmount — release the relay-side PTY. (Session *switches* don't
         // detach: the relay's attach handler replaces the bridge, and an
         // unpaired detach is exactly what used to wedge the client.)

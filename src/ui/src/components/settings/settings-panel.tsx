@@ -350,6 +350,8 @@ function TerminalSection({ touch }: { touch: boolean }) {
   const setCursorStyle = useTerminalStore((s) => s.setCursorStyle);
   const cursorBlink = useTerminalStore((s) => s.cursorBlink);
   const setCursorBlink = useTerminalStore((s) => s.setCursorBlink);
+  const copyOnSelect = useTerminalStore((s) => s.copyOnSelect);
+  const setCopyOnSelect = useTerminalStore((s) => s.setCopyOnSelect);
   const gpuRendering = useTerminalStore((s) => s.gpuRendering);
   const setGpuRendering = useTerminalStore((s) => s.setGpuRendering);
 
@@ -377,6 +379,12 @@ function TerminalSection({ touch }: { touch: boolean }) {
         label="Blink the cursor"
         checked={cursorBlink}
         onChange={setCursorBlink}
+      />
+      <SwitchRow
+        label="Copy on select"
+        hint="Copy selected terminal text to clipboard on mouse release."
+        checked={copyOnSelect}
+        onChange={setCopyOnSelect}
       />
       <SettingsRow
         label="Scrollback lines"
