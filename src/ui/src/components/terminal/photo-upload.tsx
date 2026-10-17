@@ -16,11 +16,13 @@ export function PhotoUpload({
   className,
   labelClassName,
   compact = false,
+  stacked = false,
 }: {
   className?: string;
   /** Lets a narrow toolbar hide the visible label. */
   labelClassName?: string;
   compact?: boolean;
+  stacked?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const mounted = useRef(true);
@@ -58,6 +60,7 @@ export function PhotoUpload({
       className={cn(
         "flex shrink-0 items-center gap-2",
         compact && "relative min-w-0",
+        stacked && "min-w-0 flex-col items-stretch",
       )}
     >
       <input
@@ -109,6 +112,7 @@ export function PhotoUpload({
           className={cn(
             "w-48 min-w-0 rounded border border-border bg-background p-2 text-xs",
             compact && "absolute bottom-full right-0 z-10",
+            stacked && "w-full",
           )}
           onFocus={(e) => e.target.select()}
         />

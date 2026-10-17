@@ -834,13 +834,6 @@ html[data-keyboard="open"] .tmuxde-hide-when-keyboard {
   display: none;
 }
 
-/* One row while typing. More reveals remaining controls at full touch size. */
-html[data-keyboard="open"]
-  .tmuxde-keyboard[data-expanded="false"]
-  [data-extra-control] {
-  display: none;
-}
-
 html[data-keyboard="open"] .tmuxde-terminal-shell {
   padding-bottom: 0;
 }

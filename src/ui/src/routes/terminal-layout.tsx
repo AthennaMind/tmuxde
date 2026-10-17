@@ -26,7 +26,7 @@ import { MobileNav } from "@/components/mobile/mobile-nav";
 import { CommandComposer } from "@/components/mobile/command-composer";
 import { KeyboardToolbar } from "@/components/mobile/keyboard-toolbar";
 import { useUiStore } from "@/stores/ui-store";
-import { OVERVIEW_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
+import { OVERVIEW_TAB, TERMINAL_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
 import { useAlertStore } from "@/stores/alert-store";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
 import { useTerminalStore } from "@/stores/terminal-store";
@@ -83,6 +83,7 @@ function TerminalLayoutInner() {
   // same store and is written on every keystroke in the command composer.
   const mobileTab = useUiStore((s) => s.mobileTab);
   const setMobileTab = useUiStore((s) => s.setMobileTab);
+  const terminalTabActive = useMainTabsStore((s) => s.active === TERMINAL_TAB);
 
   const isMobile = useStableMediaQuery(MOBILE_MEDIA_QUERY);
 
@@ -270,7 +271,7 @@ function TerminalLayoutInner() {
     <div>
       <ConnectionBanner />
       <CapabilityBanner />
-      {mobileTab === "terminal" && canType && (
+      {mobileTab === "terminal" && terminalTabActive && canType && (
         <KeyboardToolbar
           onFocusTerminal={() => getTerminalHandle()?.focus()}
           onBlurTerminal={() => getTerminalHandle()?.blur()}

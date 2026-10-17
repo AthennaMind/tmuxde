@@ -30,31 +30,39 @@ export function MobileNav({
     ? tabs.filter((t) => t.id !== "files")
     : tabs;
 
-  // No safe-area padding here — AppShell already insets the whole frame, and
-  // doubling it stole ~34px of screen on notched devices.
+  // AppShell owns safe-area padding. Keep this dock inside its footer.
   return (
     <nav
+      aria-label="Workspace"
       className={cn(
-        "flex items-center justify-around border-t landscape:py-0.5",
+        "px-3 py-1.5 font-sans landscape:px-2 landscape:py-1",
         className,
       )}
     >
-      {visible.map(({ id, label, icon: Icon }) => (
-        <button
-          key={id}
-          className={cn(
-            "flex min-h-11 flex-1 flex-col items-center justify-center gap-1 py-2.5 text-[11px] transition-colors landscape:flex-row landscape:gap-1.5 landscape:py-1 landscape:text-[11px]",
-            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
-            activeTab === id
-              ? "text-primary"
-              : "text-muted-foreground active:text-foreground",
-          )}
-          onClick={() => onTabChange(id)}
-        >
-          <Icon className="h-5 w-5 landscape:h-4 landscape:w-4" />
-          <span>{label}</span>
-        </button>
-      ))}
+      <div className="mx-auto flex max-w-lg items-stretch gap-1 rounded-2xl bg-surface-panel p-1 shadow-ambient ring-1 ring-inset ring-line-subtle">
+        {visible.map(({ id, label, icon: Icon }) => {
+          const active = activeTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[calc(var(--radius-2xl)-0.25rem)] px-1 py-1 text-xs leading-4 landscape:min-h-11 landscape:flex-row landscape:gap-2",
+                "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+                "motion-safe:transition-[background-color,color] motion-safe:duration-150",
+                active
+                  ? "bg-brand-subtle font-semibold text-primary"
+                  : "font-medium text-muted-foreground hover:bg-surface-hover hover:text-foreground active:bg-surface-hover",
+              )}
+              onClick={() => onTabChange(id)}
+            >
+              <Icon aria-hidden="true" className="size-5 shrink-0" strokeWidth={active ? 2 : 1.5} />
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 }

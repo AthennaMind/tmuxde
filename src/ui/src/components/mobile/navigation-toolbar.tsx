@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from "react";
-import { Keyboard } from "lucide-react";
+import { useEffect, useMemo, type RefObject } from "react";
+import { Keyboard, SlidersHorizontal } from "lucide-react";
 import { createKeyRepeat } from "@/lib/key-repeat.js";
 import { sendKeySequence } from "@/lib/send-key";
 import { useConnectionStore } from "@/stores/connection-store";
@@ -16,11 +16,13 @@ const keys = [
 export function NavigationToolbar({
   onKeyboard,
   onMore,
-  moreOpen,
+  controlsTrigger,
+  controlsOpen,
 }: {
   onKeyboard: () => void;
   onMore: () => void;
-  moreOpen: boolean;
+  controlsTrigger: RefObject<HTMLButtonElement | null>;
+  controlsOpen: boolean;
 }) {
   const connected = useConnectionStore((s) => s.status === "connected");
   const session = useSessionStore((s) => s.activeSessionId);
@@ -40,74 +42,59 @@ export function NavigationToolbar({
       window.removeEventListener("pointerup", stop);
       window.removeEventListener("pointercancel", stop);
     };
-  }, [repeat, connected, session, pane, moreOpen]);
+  }, [repeat, connected, session, pane, controlsOpen]);
   const keyClass =
-    "flex h-11 min-w-11 shrink-0 items-center justify-center rounded-md border border-border bg-background px-1 text-xs font-medium text-foreground active:bg-accent disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+    "flex h-11 min-w-0 items-center justify-center rounded-xl bg-surface-panel px-1 text-xs font-medium text-foreground active:bg-surface-hover disabled:opacity-40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring";
   return (
     <div
       role="group"
       aria-label="Terminal navigation"
-      className="flex gap-1 p-1"
+      className="grid grid-cols-4 gap-1.5 px-2 pt-2 pb-1"
     >
       <button
+        type="button"
         data-terminal-key
         className={keyClass}
         aria-label="Show keyboard"
         disabled={disabled}
         onClick={onKeyboard}
       >
-        <Keyboard className="h-4 w-4" />
+        <Keyboard aria-hidden className="h-5 w-5" />
       </button>
-      <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]">
-        {keys.map((key) => (
-          <button
-            key={key.label}
-            data-terminal-key
-            className={`${keyClass} flex-1 touch-pan-x select-none`}
-            aria-label={key.label}
-            disabled={disabled}
-            onContextMenu={(event) => event.preventDefault()}
-            onPointerDown={(event) => {
-              if (!event.isPrimary || event.button !== 0) return;
-              event.preventDefault();
-              event.currentTarget.setPointerCapture(event.pointerId);
-              repeat.start(key.value);
-            }}
-            onPointerUp={() => repeat.stop()}
-            onPointerCancel={() => repeat.stop()}
-            onPointerLeave={() => repeat.stop()}
-            onLostPointerCapture={() => repeat.stop()}
-            onClick={(event) => {
-              if (event.detail === 0) sendKeySequence(key.value);
-            }}
-          >
-            {key.text}
-          </button>
-        ))}
-        {[
-          ["Esc", "\x1b"],
-          ["Enter", "\r"],
-        ].map(([label, value]) => (
-          <button
-            key={label}
-            data-terminal-key
-            className={`${keyClass} flex-1`}
-            disabled={disabled}
-            onClick={() => sendKeySequence(value!)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <button
-        data-terminal-key
-        className={keyClass}
-        aria-label="More terminal controls"
-        aria-expanded={moreOpen}
-        onClick={onMore}
-      >
-        More
+      {[["Esc", "\x1b"], ["Enter", "\r"]].map(([label, value]) => (
+        <button key={label} type="button" data-terminal-key className={keyClass}
+          disabled={disabled} onClick={() => sendKeySequence(value!)}>{label}</button>
+      ))}
+      <button ref={controlsTrigger} type="button" className={`${keyClass} flex-col gap-0.5`}
+        aria-label="Terminal controls" aria-haspopup="dialog" aria-expanded={controlsOpen} onClick={onMore}>
+        <SlidersHorizontal aria-hidden className="size-4" /><span>Tools</span>
       </button>
+      {keys.map((key) => (
+        <button
+          key={key.label}
+          type="button"
+          data-terminal-key
+          className={`${keyClass} touch-none select-none`}
+          aria-label={key.label}
+          disabled={disabled}
+          onContextMenu={(event) => event.preventDefault()}
+          onPointerDown={(event) => {
+            if (!event.isPrimary || event.button !== 0) return;
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            repeat.start(key.value);
+          }}
+          onPointerUp={() => repeat.stop()}
+          onPointerCancel={() => repeat.stop()}
+          onPointerLeave={() => repeat.stop()}
+          onLostPointerCapture={() => repeat.stop()}
+          onClick={(event) => {
+            if (event.detail === 0) sendKeySequence(key.value);
+          }}
+        >
+          {key.text}
+        </button>
+      ))}
     </div>
   );
 }
