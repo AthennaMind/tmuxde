@@ -1,12 +1,12 @@
 # Reviewed historical test data and documentation false positives.
 # Exact commit fingerprints only. Live-account passwords remain blocked.
-c32e64ae90dac643178b52cc124e4d9ec26fa0f0:packages/protocol/fixtures/client/auth.json:generic-api-key:4
-9e4144ba1f652653c6b38ba0a8a409744a5f4e81:cmd/tmuxde/main_test.go:generic-api-key:88
-9e4144ba1f652653c6b38ba0a8a409744a5f4e81:cmd/tmuxde/main_test.go:generic-api-key:130
-9e4144ba1f652653c6b38ba0a8a409744a5f4e81:internal/config/config_test.go:generic-api-key:11
-9e4144ba1f652653c6b38ba0a8a409744a5f4e81:internal/config/config_test.go:generic-api-key:161
-9e4144ba1f652653c6b38ba0a8a409744a5f4e81:internal/protocol/client/auth_test.go:generic-api-key:20
-590997391573292bdf9c447ea0c43ebe8e6291ee:apps/docs/content/docs/pairing.mdx:generic-api-key:125
+6f2bb86231df04fb49a9ab294abd20bb75cfdad5:packages/protocol/fixtures/client/auth.json:generic-api-key:4
+69aaf4dff8fdbbefee0a98c049a90c0e998f3cd7:cmd/tmuxde/main_test.go:generic-api-key:88
+69aaf4dff8fdbbefee0a98c049a90c0e998f3cd7:cmd/tmuxde/main_test.go:generic-api-key:130
+69aaf4dff8fdbbefee0a98c049a90c0e998f3cd7:internal/config/config_test.go:generic-api-key:11
+69aaf4dff8fdbbefee0a98c049a90c0e998f3cd7:internal/config/config_test.go:generic-api-key:161
+69aaf4dff8fdbbefee0a98c049a90c0e998f3cd7:internal/protocol/client/auth_test.go:generic-api-key:20
+73820a51d4b535d91819937688bd7d07bee9fb57:apps/docs/content/docs/pairing.mdx:generic-api-key:125
 22a93f826410e619ff7315af5ff463b449b0c170:apps/site/_legacy/Security.dc.html:generic-api-key:71
 22a93f826410e619ff7315af5ff463b449b0c170:apps/site/_legacy/index.html:generic-api-key:358
 184d06188448e5369605ffdd0b8ba2eee2d9964f:apps/cli/scripts/smoke.mjs:generic-api-key:56
