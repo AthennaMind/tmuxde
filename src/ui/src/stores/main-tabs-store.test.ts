@@ -561,3 +561,25 @@ function memoryStorage(): Storage {
     setItem: (key: string, value: string) => void map.set(key, value),
   };
 }
+
+describe("current changes tabs", () => {
+  it("reuses repository tab and keeps machines separate", () => {
+    const store = useMainTabsStore.getState();
+    store.openChanges({ machineId: "alpha", sessionName: "dev", paneId: "%1", contextPath: "/repo" });
+    store.openChanges({ machineId: "alpha", sessionName: "dev", paneId: "%2", contextPath: "/repo" });
+    store.openChanges({ machineId: "beta", sessionName: "dev", paneId: "%1", contextPath: "/repo" });
+    const state = useMainTabsStore.getState();
+    expect(state.tabs).toHaveLength(2);
+    expect(state.tabs[0]).toMatchObject({ kind: "changes", machineId: "alpha", paneId: "%2" });
+    expect(restoreTabs(state).tabs).toEqual(state.tabs);
+    expect(restoreTabs(state).active).toBe(state.active);
+    store.closeTabs("diffs");
+    expect(useMainTabsStore.getState().tabs).toEqual([]);
+  });
+
+  it("rejects restored changes tabs with mismatched repository or machine", () => {
+    useMainTabsStore.getState().openChanges({ machineId: "alpha", paneId: "%1", contextPath: "/repo" });
+    const tab = useMainTabsStore.getState().tabs[0]!;
+    expect(restoreTabs({ tabs: [{ ...tab, contextPath: "/other" }, { ...tab, machineId: "beta" }] }).tabs).toEqual([]);
+  });
+});

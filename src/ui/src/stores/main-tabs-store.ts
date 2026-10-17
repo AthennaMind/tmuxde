@@ -83,6 +83,14 @@ export interface GraphTab extends TabOrigin {
   contextPath: string;
 }
 
+/** Current changes pinned to one machine and repository. */
+export interface ChangesTab extends TabOrigin {
+  kind: "changes";
+  id: string;
+  paneId: string;
+  contextPath: string;
+}
+
 /** The settings page. At most one, opened from the rail or the palette. */
 export interface SettingsTab {
   kind: "settings";
@@ -98,10 +106,10 @@ export interface OverviewTab {
   id: typeof OVERVIEW_TAB;
 }
 
-export type MainTab = FileTab | CommitTab | GraphTab | SettingsTab | OverviewTab;
+export type MainTab = FileTab | CommitTab | GraphTab | ChangesTab | SettingsTab | OverviewTab;
 
 /** Tabs opened from one machine and session. Settings and the overview belong to none. */
-export type MachineTab = FileTab | CommitTab | GraphTab;
+export type MachineTab = FileTab | CommitTab | GraphTab | ChangesTab;
 
 export function isMachineTab(tab: MainTab): tab is MachineTab {
   return tab.kind !== "settings" && tab.kind !== "overview";
@@ -130,6 +138,10 @@ export function graphTabId(contextPath: string, machine?: string): string {
   return scopedId(`graph:${contextPath}`, machine);
 }
 
+export function changesTabId(contextPath: string, machine?: string): string {
+  return scopedId(`changes:${contextPath}`, machine);
+}
+
 interface MainTabsStore {
   tabs: MainTab[];
   order: string[];
@@ -144,6 +156,7 @@ interface MainTabsStore {
    * selected now can be another one.
    */
   nameCommit: (id: string, subject: string) => void;
+  openChanges: (tab: Omit<ChangesTab, "id" | "kind">) => void;
   openGraph: (tab: Omit<GraphTab, "id" | "kind">) => void;
   openSettings: () => void;
   openOverview: () => void;
@@ -167,7 +180,7 @@ export function trimTabs(
   const next = [...tabs];
   while (next.length > MAX_TABS) {
     let index = next.findIndex(
-      (t) => (t.kind === "file" || t.kind === "commit") && !keep.has(t.id),
+      (t) => (t.kind === "file" || t.kind === "commit" || t.kind === "changes") && !keep.has(t.id),
     );
     if (index < 0) index = next.findIndex((t) => !keep.has(t.id));
     next.splice(Math.max(index, 0), 1);
@@ -189,7 +202,7 @@ function upsert(tabs: MainTab[], tab: MainTab, active: string): MainTab[] {
 
 export function inGroup(tab: MainTab, group: CloseGroup): boolean {
   if (group === "all") return true;
-  if (tab.kind === "commit") return group === "diffs";
+  if (tab.kind === "commit" || tab.kind === "changes") return group === "diffs";
   if (tab.kind !== "file") return false;
   return group === "diffs" ? !!tab.scope : !tab.scope;
 }
@@ -199,6 +212,7 @@ function isMainTab(value: unknown): value is MainTab {
     | Partial<FileTab>
     | Partial<CommitTab>
     | Partial<GraphTab>
+    | Partial<ChangesTab>
     | Partial<SettingsTab>
     | Partial<OverviewTab>
     | null;
@@ -211,12 +225,12 @@ function isMainTab(value: unknown): value is MainTab {
       (typeof origin.machineId !== "string" || !/^[a-zA-Z0-9_-]+$/.test(origin.machineId))) ||
     (origin.sessionName != null && typeof origin.sessionName !== "string")
   ) return false;
-  if (tab?.kind === "graph")
+  if (tab?.kind === "graph" || tab?.kind === "changes")
     return (
       typeof tab.paneId === "string" &&
       typeof tab.contextPath === "string" &&
       tab.contextPath.startsWith("/") &&
-      tab.id === graphTabId(tab.contextPath, tab.machineId)
+      tab.id === (tab.kind === "graph" ? graphTabId : changesTabId)(tab.contextPath, tab.machineId)
     );
   if (tab?.kind === "commit")
     return (
@@ -358,6 +372,15 @@ export const useMainTabsStore = create<MainTabsStore>()(
           const tabs = [...s.tabs];
           tabs[index] = { ...tab, subject };
           return { tabs };
+        }),
+      openChanges: (input) =>
+        set((s) => {
+          const origin = { ...tabOrigin(), ...input };
+          const id = changesTabId(input.contextPath, origin.machineId);
+          return {
+            tabs: upsert(s.tabs, { ...origin, kind: "changes", id }, s.active),
+            active: id,
+          };
         }),
       openGraph: (input) =>
         set((s) => {

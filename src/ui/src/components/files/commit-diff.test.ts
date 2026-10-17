@@ -70,3 +70,16 @@ describe("splitPath", () => {
     expect(splitPath("README.md")).toEqual({ folder: "", name: "README.md" });
   });
 });
+
+it("resets at each patch header and skips final newline", () => {
+  const patch = [
+    "diff --git a/old b/old", "--- a/old", "+++ /dev/null",
+    "@@ -1 +0,0 @@", "-old",
+    "diff --git a/new b/new", "--- /dev/null", "+++ b/new",
+    "@@ -0,0 +1 @@", "+new", "",
+  ].join("\n");
+  const { rows } = parsePatch(patch);
+  expect(rows.map((row) => row.kind)).toEqual(["hunk", "del", "hunk", "add"]);
+  expect(rows[1]).toMatchObject({ old: 1, text: "-old" });
+  expect(rows[3]).toMatchObject({ new: 1, text: "+new" });
+});

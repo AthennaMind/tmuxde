@@ -157,3 +157,16 @@ describe("native repository history", () => {
     expect(history.entries).toHaveLength(3);
   });
 });
+
+it("restores current changes detail and its pinned repository through back and forward", () => {
+  const changes = { ...root, tab: "changes" as const };
+  const detail = { ...changes, changesPath: "/repo" };
+  let history = navigateRepositoryHistory(createRepositoryHistory(changes), detail);
+  expect(history.entries).toHaveLength(2);
+  const stored = repositoryHistoryState({}, "%1", history);
+  expect(readRepositoryHistory(stored, "%1")?.entries[1]?.view).toEqual(detail);
+  history = moveRepositoryHistory(history, -1);
+  expect(history.entries[history.index]?.view).toEqual(changes);
+  history = moveRepositoryHistory(history, 1);
+  expect(history.entries[history.index]?.view).toEqual(detail);
+});

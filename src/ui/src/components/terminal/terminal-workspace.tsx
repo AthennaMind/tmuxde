@@ -51,6 +51,9 @@ const FileTabView = lazyComponent(() =>
   import("@/components/files/file-tab-view").then((m) => m.FileTabView),
 );
 
+const ChangesTabView = lazyComponent(() =>
+  import("@/components/files/current-changes-view").then((m) => m.ChangesTabView),
+);
 const CommitTabView = lazyComponent(() =>
   import("@/components/files/commit-tab-view").then((m) => m.CommitTabView),
 );
@@ -206,6 +209,9 @@ export function TerminalWorkspace() {
           tab={activeTab}
           className="absolute inset-0"
         />
+      )}
+      {activeTab?.kind === "changes" && (
+        <ChangesTabView key={activeTab.id} tab={activeTab} className="absolute inset-0" />
       )}
       {activeTab?.kind === "commit" && (
         <CommitTabView

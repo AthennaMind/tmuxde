@@ -11,6 +11,7 @@ export type RepositoryView = {
     size?: number;
     symlink?: boolean;
   } | null;
+  changesPath?: string | null;
   /** A commit open from History. Absent in entries saved before history. */
   commit?: { hash: string; subject: string } | null;
 };
@@ -45,6 +46,7 @@ export function createRepositoryHistory(
 function sameView(left: RepositoryView, right: RepositoryView) {
   return (
     left.tab === right.tab &&
+    left.changesPath === right.changesPath &&
     left.directory === right.directory &&
     left.filter === right.filter &&
     left.preview?.path === right.preview?.path &&
@@ -106,7 +108,8 @@ function isView(value: unknown): value is RepositoryView {
   if (
     !["files", "changes", "history"].includes(view.tab) ||
     (view.directory !== null && typeof view.directory !== "string") ||
-    typeof view.filter !== "string"
+    typeof view.filter !== "string" ||
+    (view.changesPath != null && (typeof view.changesPath !== "string" || !view.changesPath.startsWith("/")))
   )
     return false;
   const commit = view.commit;

@@ -35,6 +35,18 @@ import type { RepositorySyntaxToken } from "./repository-syntax-tokens";
 
 export type CommitResult = Extract<RepoResult, { kind: "show" }>;
 
+export type DiffFile = RepoCommitFile & {
+  scope?: "staged" | "unstaged" | "untracked";
+  error?: string;
+  truncated?: boolean;
+};
+
+export interface FileChangesResult {
+  files: DiffFile[];
+  hidden: number;
+  truncated: boolean;
+}
+
 /** Files past this many patch lines start hidden behind a button. */
 const LARGE_FILE_LINES = 1500;
 /** The file list starts open up to this many files. */
@@ -43,13 +55,17 @@ const LIST_OPEN_FILES = 25;
 const FILTER_CHIPS = 10;
 
 /** A file of the commit with its index into `files`. */
-type VisibleFile = { index: number; file: RepoCommitFile };
+type VisibleFile = { index: number; file: DiffFile };
 
 const NONE_SEEN: ReadonlySet<number> = new Set();
 
 /** Id of a file's section header, the target of the file list jump. */
 function sectionHeaderId(id: string, index: number): string {
   return `${id}-file-${index}`;
+}
+
+function fileKey(file: DiffFile): string {
+  return JSON.stringify([file.scope, file.path]);
 }
 
 function patchLines(file: RepoCommitFile): number {
@@ -74,6 +90,31 @@ export function CommitDetail({
   touch?: boolean;
   onOpenCommit: (hash: string) => void;
 }) {
+  return (
+    <FileChangesDetail
+      result={result}
+      wrap={wrap}
+      touch={touch}
+      header={<CommitMeta result={result} touch={touch} onOpenCommit={onOpenCommit} />}
+      emptyMessage="No file changes in this commit."
+    />
+  );
+}
+
+/** Shared file filters and patches for commits and current changes. */
+export function FileChangesDetail({
+  result,
+  wrap,
+  touch = false,
+  header,
+  emptyMessage = "Working tree is clean.",
+}: {
+  result: FileChangesResult;
+  wrap: boolean;
+  touch?: boolean;
+  header: React.ReactNode;
+  emptyMessage?: string;
+}) {
   const { files } = result;
   const id = useId();
   const lines = useMemo(() => files.map(patchLines), [files]);
@@ -81,9 +122,9 @@ export function CommitDetail({
     () => lines.map((count) => count > LARGE_FILE_LINES),
     [lines],
   );
-  // Index to open state. Large files start closed, the rest open.
-  const [open, setOpen] = useState<Record<number, boolean>>({});
-  const isOpen = (index: number) => open[index] ?? !large[index];
+  // Scope and path retain open state when current changes add or remove files.
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const isOpen = (index: number) => open[fileKey(files[index]!)] ?? !large[index];
   // The filter is a setting, so the next commit opens with it too. The input
   // reads the store itself. Sections follow a deferred copy, so typing stays
   // quick while React filters a big commit in the background.
@@ -92,7 +133,7 @@ export function CommitDetail({
   const patternText = useDeferredValue(storedText);
   const mode = useDeferredValue(storedMode);
   const patterns = useMemo(() => parseFilePatterns(patternText), [patternText]);
-  // Pairs keep the index into `files`, which keys open state and header ids.
+  // Pairs keep the index into `files` for section header ids.
   const visible = useMemo(
     () => filterCommitFiles(files, { patterns, mode }),
     [files, patterns, mode],
@@ -120,19 +161,22 @@ export function CommitDetail({
     () =>
       setOpen((prev) => ({
         ...prev,
-        ...Object.fromEntries(visible.map(({ index }) => [index, !allOpen])),
+        ...Object.fromEntries(visible.map(({ file }) => [fileKey(file), !allOpen])),
       })),
     [visible, allOpen],
   );
   // Stable, so a memoized section re-renders only when its own props change.
   const toggle = useCallback(
     (index: number) =>
-      setOpen((prev) => ({ ...prev, [index]: !(prev[index] ?? !large[index]) })),
-    [large],
+      setOpen((prev) => {
+        const key = fileKey(files[index]!);
+        return { ...prev, [key]: !(prev[key] ?? !large[index]) };
+      }),
+    [files, large],
   );
   const jump = useCallback(
     (index: number) => {
-      setOpen((prev) => ({ ...prev, [index]: true }));
+      setOpen((prev) => ({ ...prev, [fileKey(files[index]!)]: true }));
       // After the section opens, so the scroll lands on its final position.
       requestAnimationFrame(() => {
         const header = document.getElementById(sectionHeaderId(id, index));
@@ -140,19 +184,19 @@ export function CommitDetail({
         header?.focus({ preventScroll: true });
       });
     },
-    [id],
+    [id, files],
   );
 
   return (
     // Desktop chrome face. The phone keeps its own, like the change list.
     <div className={cn("min-h-0 flex-1 overflow-auto", !touch && "font-chrome")}>
-      <CommitMeta result={result} touch={touch} onOpenCommit={onOpenCommit} />
+      {header}
       {result.truncated && (
         <p
           role="status"
           className="border-b bg-warning/10 px-4 py-2 text-xs text-foreground"
         >
-          Commit is too large to show in full. Later files are cut short or
+          Changes are too large to show in full. Later files are cut short or
           missing.
         </p>
       )}
@@ -166,7 +210,7 @@ export function CommitDetail({
       {files.length === 0 ? (
         result.hidden === 0 && (
           <p className="px-4 py-6 text-sm text-muted-foreground">
-            No file changes in this commit.
+            {emptyMessage}
           </p>
         )
       ) : (
@@ -314,6 +358,12 @@ function CommitMeta({
   );
 }
 
+function FileScope({ file }: { file: DiffFile }) {
+  return file.scope ? (
+    <span className="shrink-0 text-xs capitalize text-muted-foreground">{file.scope}</span>
+  ) : null;
+}
+
 function Counts({ file }: { file: Pick<RepoCommitFile, "additions" | "deletions" | "binary"> }) {
   if (file.binary)
     return (
@@ -355,7 +405,7 @@ const FileList = memo(function FileList({
   onToggleAll,
   onJump,
 }: {
-  files: RepoCommitFile[];
+  files: DiffFile[];
   /** Files the filter keeps, with their index into `files`. */
   visible: VisibleFile[];
   filtering: boolean;
@@ -371,6 +421,8 @@ const FileList = memo(function FileList({
     }),
     { additions: 0, deletions: 0 },
   );
+  const uniqueFiles = useMemo(() => [...new Map(files.map((file) => [file.path, file])).values()], [files]);
+  const shownFiles = new Set(visible.map(({ file }) => file.path)).size;
   // From the full commit. A filter that changes the count must not reopen it.
   const [listOpen, setListOpen] = useState(files.length <= LIST_OPEN_FILES);
   return (
@@ -383,7 +435,7 @@ const FileList = memo(function FileList({
         )}
       >
         <h3 className="font-medium">
-          {filesChanged(visible.length, files.length, filtering)}
+          {filesChanged(shownFiles, uniqueFiles.length, filtering)}
         </h3>
         <LineCounts {...totals} />
         {visible.length > 0 && (
@@ -400,8 +452,8 @@ const FileList = memo(function FileList({
         )}
       </div>
       <FileFilter
-        files={files}
-        shown={visible.length}
+        files={uniqueFiles}
+        shown={shownFiles}
         filtering={filtering}
         touch={touch}
       />
@@ -426,7 +478,7 @@ const FileList = memo(function FileList({
           <ul className="pb-2">
             {visible.map(({ index, file }) => (
               <FileListRow
-                key={`${index}:${file.path}`}
+                key={fileKey(file)}
                 index={index}
                 file={file}
                 touch={touch}
@@ -448,7 +500,7 @@ const FileListRow = memo(function FileListRow({
   onJump,
 }: {
   index: number;
-  file: RepoCommitFile;
+  file: DiffFile;
   touch: boolean;
   onJump: (index: number) => void;
 }) {
@@ -472,6 +524,7 @@ const FileListRow = memo(function FileListRow({
           <span className="min-w-0 truncate text-muted-foreground">{folder}</span>
           <span className="shrink-0">{name}</span>
         </span>
+        <FileScope file={file} />
         <Counts file={file} />
       </button>
     </li>
@@ -493,7 +546,7 @@ function FileFilter({
   filtering,
   touch,
 }: {
-  files: RepoCommitFile[];
+  files: DiffFile[];
   shown: number;
   filtering: boolean;
   touch: boolean;
@@ -643,9 +696,9 @@ const DiffSections = memo(function DiffSections({
   onToggle,
 }: {
   id: string;
-  sections: CommitSection<RepoCommitFile>[];
-  /** Open state set by the user, by index. */
-  open: Record<number, boolean>;
+  sections: CommitSection<DiffFile>[];
+  /** Open state by scope and path. */
+  open: Record<string, boolean>;
   lines: number[];
   large: boolean[];
   truncated: boolean;
@@ -655,12 +708,12 @@ const DiffSections = memo(function DiffSections({
 }) {
   return sections.map(({ index, file, hidden }) => (
     <FileSection
-      key={`${index}:${file.path}`}
+      key={fileKey(file)}
       index={index}
       file={file}
       headerId={sectionHeaderId(id, index)}
       hidden={hidden}
-      open={open[index] ?? !large[index]}
+      open={open[fileKey(file)] ?? !large[index]}
       lines={lines[index] ?? 0}
       large={large[index] ?? false}
       truncated={truncated}
@@ -690,7 +743,7 @@ const FileSection = memo(function FileSection({
   onToggle,
 }: {
   index: number;
-  file: RepoCommitFile;
+  file: DiffFile;
   headerId: string;
   /** Dropped by the filter. Stays mounted so its diff is not parsed again. */
   hidden: boolean;
@@ -742,6 +795,7 @@ const FileSection = memo(function FileSection({
               </span>
             )}
           </span>
+          <FileScope file={file} />
           <Counts file={file} />
         </button>
       </h3>
@@ -796,7 +850,7 @@ const FileDiff = memo(function FileDiff({
   truncated,
   wrap,
 }: {
-  file: RepoCommitFile;
+  file: DiffFile;
   truncated: boolean;
   wrap: boolean;
 }) {
@@ -814,18 +868,20 @@ const FileDiff = memo(function FileDiff({
     return String(max).length;
   }, [rows]);
 
+  if (file.error) return <Note>{file.error}</Note>;
   if (file.binary)
     return <Note>Binary file. Text diff is unavailable.</Note>;
   if (!file.patch)
     return (
       <Note>
-        {truncated
-          ? "Diff not loaded. This commit reached the size limit."
+        {(file.truncated ?? truncated)
+          ? "Diff not loaded. Preview reached size limit."
           : "No text changes."}
       </Note>
     );
   return (
     <>
+      {file.truncated && <Note>Preview shortened. Only part of this file is shown.</Note>}
       {meta.length > 0 && (
         <div className="px-4 py-2 font-mono text-xs text-muted-foreground">
           {meta.map((line, index) => (

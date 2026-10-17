@@ -32,7 +32,12 @@ export function parsePatch(patch: string): ParsedPatch {
   let oldLine = 0;
   let newLine = 0;
   let inHunk = false;
-  patch.split("\n").forEach((text, index) => {
+  patch.split("\n").forEach((text, index, lines) => {
+    if (!text && index === lines.length - 1) return;
+    if (text.startsWith("diff --git ")) {
+      inHunk = false;
+      return;
+    }
     const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
     if (hunk) {
       inHunk = true;

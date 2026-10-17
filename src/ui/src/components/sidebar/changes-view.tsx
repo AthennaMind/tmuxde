@@ -36,6 +36,26 @@ export function ChangesView({ repo }: { repo: RepositoryState }) {
 
       <BranchRow repo={repo} />
 
+      {status?.root && count > 0 && (
+        <div className="shrink-0 border-b px-3 py-2">
+          <button
+            type="button"
+            disabled={!repo.client || !paneId}
+            onClick={() => {
+              if (!paneId || !status.root) return;
+              useMainTabsStore.getState().openChanges({
+                paneId,
+                contextPath: status.root,
+              });
+            }}
+            className="flex min-h-8 w-full items-center justify-center gap-2 rounded-md border px-3 text-[13px] hover:bg-accent disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <GitCompareArrows className="h-4 w-4" aria-hidden />
+            View all changes
+          </button>
+        </div>
+      )}
+
       <div className="min-h-0 flex-1 overflow-auto">
         {repo.unavailable ? (
           <Note>{repo.unavailable}</Note>

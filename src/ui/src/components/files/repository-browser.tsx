@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useRelayClient } from "@/hooks/use-websocket";
 import { CommitList, useCommitLog } from "./commit-log";
+import { lazyComponent } from "@/lib/lazy-component";
 import { CommitDetail } from "./commit-view";
 import { useRepositoryHistory, type RepositoryView } from "./repository-history";
 import { RepositoryNavigationSurface } from "./repository-navigation-surface";
@@ -40,6 +41,11 @@ import { usePaneStore } from "@/stores/pane-store";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { type RepositoryClient } from "./repository-request";
+
+const CurrentChangesView = lazyComponent(
+  () => import("./current-changes-view").then((m) => m.CurrentChangesView),
+  <Notice>Loading current changes</Notice>,
+);
 
 type Scope = "staged" | "unstaged" | "untracked";
 const SCOPE_LABELS: Record<Scope, string> = {
@@ -333,11 +339,11 @@ function BrowserContents({
                   (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) %
                     tabs.length
                 ]!;
-        navigate({ ...view, tab: next, preview: null, commit: null });
+        navigate({ ...view, tab: next, preview: null, commit: null, changesPath: null });
         document.getElementById(`${id}-${next}`)?.focus();
       }}
       onClick={() => {
-        navigate({ ...view, tab: value, preview: null, commit: null });
+        navigate({ ...view, tab: value, preview: null, commit: null, changesPath: null });
       }}
       className={cn(
         "flex min-h-12 items-center gap-2 border-b-2 px-4 text-sm font-medium",
@@ -499,6 +505,15 @@ function BrowserContents({
                   />
                 ) : null}
               </>
+            ) : view.changesPath ? (
+              <CurrentChangesView
+                key={view.changesPath}
+                client={client}
+                paneId={paneId}
+                path={view.changesPath}
+                touch
+                onBack={() => canBack ? back() : navigate({ ...view, changesPath: null })}
+              />
             ) : commit ? (
               <>
                 <div className="flex shrink-0 items-center gap-1 border-b px-2">
@@ -506,7 +521,7 @@ function BrowserContents({
                     variant="ghost"
                     className="h-11 shrink-0 gap-1 px-2"
                     onClick={() =>
-                      canBack ? back() : navigate({ ...view, commit: null })
+                      canBack ? back() : navigate({ ...view, commit: null, changesPath: null })
                     }
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -627,6 +642,18 @@ function BrowserContents({
                   branch={status?.branch ?? context.branch}
                   root={context.root}
                 />
+                {status?.root && status.entries.length > 0 && (
+                  <div className="shrink-0 border-b px-3 py-2">
+                    <Button
+                      variant="outline"
+                      className="min-h-11 w-full gap-2"
+                      onClick={() => navigate({ ...view, changesPath: status.root })}
+                    >
+                      <GitCompareArrows className="h-4 w-4" aria-hidden />
+                      View all changes
+                    </Button>
+                  </div>
+                )}
                 <div className="min-h-0 flex-1 overflow-auto">
                   {statusQuery.error ? (
                     <Notice error>{statusQuery.error}</Notice>

@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo } from "react";
 import {
   GitCommitHorizontal,
+  GitCompareArrows,
   GitGraph,
   LayoutGrid,
   Settings,
@@ -136,17 +137,17 @@ export function MainTabs() {
                   activateView(useMainTabsStore.getState().active);
                 }}
               />
-            ) : tab.kind === "graph" ? (
+            ) : tab.kind === "graph" || tab.kind === "changes" ? (
               <Tab
                 key={tab.id}
                 {...reorderProps(tab.id)}
-                label="Graph"
+                label={tab.kind === "graph" ? "Graph" : "Current changes"}
                 detail={
                   [tab.contextPath.replace(/\/+$/, "").split("/").pop() ||
                     tab.contextPath, originName(tab)].filter(Boolean).join(" · ")
                 }
-                title={`Graph of ${tab.contextPath}`}
-                icon={<GitGraph className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                title={`${tab.kind === "graph" ? "Graph" : "Current changes"} of ${tab.contextPath}`}
+                icon={tab.kind === "graph" ? <GitGraph className="h-3.5 w-3.5 shrink-0" aria-hidden /> : <GitCompareArrows className="h-3.5 w-3.5 shrink-0" aria-hidden />}
                 active={active === tab.id}
                 onSelect={() => activate(tab.id)}
                 onClose={() => {
@@ -287,7 +288,7 @@ function Tab({
         {icon}
         <span className="truncate">{label}</span>
         {detail && (
-          <span className="shrink-0 text-xs text-muted-foreground">{detail}</span>
+          <span className="max-w-28 shrink-0 truncate text-xs text-muted-foreground">{detail}</span>
         )}
       </button>
       {onClose && (
