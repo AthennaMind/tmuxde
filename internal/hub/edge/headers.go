@@ -18,10 +18,8 @@ var securityHeaders = []string{
 	"Referrer-Policy",
 }
 
-// setSecurityHeaders sets the headers the Next proxy.ts of the web app set,
-// with the values it built when the relay is same origin (relay URL
-// empty). The policy itself follows .docker/Caddyfile, see
-// contentSecurityPolicy. socket comes from socketOrigin.
+// setSecurityHeaders sets browser protections for pages served by tmuxde.
+// socket comes from socketOrigin.
 func setSecurityHeaders(h http.Header, socket string) {
 	h.Set("Content-Security-Policy", contentSecurityPolicy(socket))
 	// Microphone for dictation, this origin only. Nothing records until
@@ -32,17 +30,9 @@ func setSecurityHeaders(h http.Header, socket string) {
 	h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
 
-// contentSecurityPolicy is the policy .docker/Caddyfile sets, byte for byte
-// and in the same order, with socket as the only extra connect-src source.
-// Caddy names wss://{$LOCAL_DOMAIN} there. An empty socket leaves 'self'
-// alone.
-//
-// proxy.ts builds a weaker policy. It has no blob: in media-src and
-// frame-src, and no object-src, base-uri, form-action or frame-ancestors.
-// The file viewer plays video and audio and shows PDF from blob: object
-// URLs, so it needs blob: in media-src and frame-src. Behind Caddy that
-// never showed, because Caddy replaces the header. The binary serves
-// without Caddy, so it sends the Caddy policy itself.
+// contentSecurityPolicy allows local assets and the page's WebSocket origin.
+// Blob sources support file previews, media and workers. An empty socket
+// leaves connect-src limited to self.
 func contentSecurityPolicy(socket string) string {
 	connect := "'self'"
 	if socket != "" {
@@ -64,10 +54,9 @@ func contentSecurityPolicy(socket string) string {
 }
 
 // socketOrigin is the WebSocket origin of the page, ws or wss plus the
-// host the browser asked for. proxy.ts takes the request origin and swaps
-// http for ws. Like a URL origin it is lower case and drops the default
-// port. A Host with bytes that do not belong in a host gives "", so a
-// crafted Host cannot add CSP directives.
+// host the browser asked for. Like a URL origin it is lower case and drops
+// the default port. A Host with bytes that do not belong in a host gives
+// "", so a crafted Host cannot add CSP directives.
 func socketOrigin(r *http.Request) string {
 	host := strings.ToLower(r.Host)
 	if host == "" || strings.IndexFunc(host, notHostRune) >= 0 {
@@ -95,8 +84,8 @@ func notHostRune(c rune) bool {
 }
 
 // requestScheme is the scheme the browser used: https over TLS, or when
-// the first X-Forwarded-Proto value says so. Caddy terminates TLS and sets
-// that header. A direct client may send it too. That is safe here because
+// the first X-Forwarded-Proto value says so. TLS proxies set that header.
+// A direct client may send it too. That is safe here because
 // the value only shapes the response to that same client.
 func requestScheme(r *http.Request) string {
 	if r.TLS != nil {

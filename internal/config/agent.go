@@ -30,8 +30,15 @@ func LoadAgent(lookup func(string) (string, bool)) (Agent, error) {
 		URL:    get("TMUXDE_SERVER_URL"),
 		CAFile: get("TMUXDE_CA_FILE"),
 	}
+	allowHTTP := get("TMUXDE_DEV_ALLOW_HTTP")
+	if allowHTTP != "" && allowHTTP != "true" && allowHTTP != "false" {
+		return Agent{}, &Error{"TMUXDE_DEV_ALLOW_HTTP", "must be true or false"}
+	}
 	u, err := url.Parse(a.URL)
-	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
+	if err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
+		return Agent{}, &Error{"TMUXDE_SERVER_URL", "must be an origin without credentials, query or path"}
+	}
+	if u.Scheme != "https" && (u.Scheme != "http" || allowHTTP != "true") {
 		return Agent{}, &Error{"TMUXDE_SERVER_URL", "must be an https origin without credentials, query or path"}
 	}
 	a.URL = strings.TrimRight(a.URL, "/")

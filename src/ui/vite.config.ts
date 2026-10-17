@@ -1,17 +1,9 @@
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// The dev container mounts node_modules read only, so the Vite default
-// node_modules/.vite cannot be written. Compose mounts a cache volume at
-// /workspace/.vite instead. The absolute path keeps that location even when
-// Vite starts from another working directory.
-const inContainer =
-  Boolean(process.env.TMUXDE_CONTAINER) || existsSync("/workspace");
 
 // Language grammars and language service modes load on demand. Leaving them
 // out of the named chunks keeps each one a separate lazy chunk. The statically
@@ -27,11 +19,10 @@ export default defineConfig({
       "@": path.resolve(dirname, "./src"),
     },
   },
-  cacheDir: inContainer ? "/workspace/.vite" : ".vite",
   server: {
     host: "0.0.0.0",
     port: 24100,
-    // Caddy and the Go binary proxy a fixed port. Fail instead of moving.
+    // Go proxies this fixed port. Fail instead of moving.
     strictPort: true,
     // Requests arrive with the LOCAL_DOMAIN host through Caddy and with
     // 127.0.0.1 through the Go binary. Vite always allows IP addresses and

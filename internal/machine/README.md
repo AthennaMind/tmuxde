@@ -47,7 +47,8 @@ live inside `TMUXDE_CONFIG_DIR`, which file access guards deny.
 For private Caddy CA, copy its public root certificate to agent machine. Either
 install it in system trust or set `TMUXDE_CA_FILE=/absolute/path/to/root.crt`.
 Certificate verification stays enabled. Server URL must be HTTPS origin without
-path, credentials or query.
+path, credentials or query. Dev Compose enables `TMUXDE_DEV_ALLOW_HTTP=true`
+for direct HTTP connections between containers; no certificates are needed locally.
 
 Agent also supports `TMUX_SOCKET`, `TMUX_DEFAULT_SHELL`, `TMUXDE_CONFIG_DIR` and
 `TMUXDE_TMUX_LAUNCHER`. It ignores hub settings such as browser token, listener,
@@ -55,8 +56,30 @@ origins and dictation socket.
 
 ## User service
 
-Copy [.docker/host/tmuxde-agent.service](../../.docker/host/tmuxde-agent.service)
-to `~/.config/systemd/user/tmuxde-agent.service` on agent machine. Create
+Create `~/.config/systemd/user/tmuxde-agent.service` on agent machine:
+
+```ini
+[Unit]
+Description=tmuxde remote machine agent
+After=default.target
+
+[Service]
+Type=exec
+ExecStart=%h/.local/bin/tmuxde agent
+EnvironmentFile=%h/.config/tmuxde/agent.env
+Environment=TMUXDE_TMUX_LAUNCHER=systemd-run
+Restart=on-failure
+RestartSec=2
+KillSignal=SIGTERM
+TimeoutStopSec=15
+KillMode=control-group
+UMask=0077
+
+[Install]
+WantedBy=default.target
+```
+
+Create
 `~/.config/tmuxde/agent.env`, mode 0600, with absolute paths:
 
 ```ini
@@ -125,6 +148,7 @@ Development Caddy routes `/_agent`, `/_agent/stream` and `/machines` to server-d
 Reload Caddy after route edits. Keep existing server-dev network isolation.
 
 `internal/machine/integration_test.go` starts two local nodes with dedicated tmux
-sockets inside gotools and a TLS test hub. Tests cover duplicate session/pane IDs,
+sockets and a TLS test hub. Tests cover duplicate session/pane IDs,
 remote range reads, path guards, credentials and reconnect with session survival.
-Run through `docker compose run --rm gotools go test ./internal/machine`.
+Run natively with `go test -tags=integration -run '^TestIntegration' -count=1 ./internal/machine`.
+Default `go test ./internal/machine` runs unit tests without tmux.

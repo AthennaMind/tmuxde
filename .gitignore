@@ -1,5 +1,9 @@
 # Dependencies
 node_modules/
+.pnpm-store/
+
+# Local development state and credentials.
+.local/
 
 # Local checkouts of other projects, for reference
 .external/
@@ -10,6 +14,7 @@ out/
 
 # Tool caches
 .cache/
+cmd/tmuxde-stt/internal/bundle/models/
 
 # Vite dependency cache of the React app in src/ui. Its build output
 # src/ui/dist is covered by dist/ above. No leading path, so the pattern
@@ -64,16 +69,8 @@ data/
 # Local worktrees (see .worktrees/<branch>). These are checkouts, not source.
 .worktrees/
 
-# Python bytecode from setup.py and the Docker tests.
+# Python bytecode from setup and runtime checks.
 __pycache__/
-
-# Public copy of the Caddy local CA root, for device trust.
-.docker/certs/
-
-# Go binaries built by the gotools service. The dir itself stays tracked so
-# Docker does not create it as root.
-.docker/bin/*
-!.docker/bin/.gitkeep
 
 # Web build embedded by the Go server. .gitkeep keeps the embed compiling
 # without a build. dist/ above ignores the dir, so it is re-included first.

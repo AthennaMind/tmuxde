@@ -6,7 +6,6 @@ shamefullyHoist: false
 strictPeerDependencies: true
 autoInstallPeers: true
 updateNotifier: false
-storeDir: /pnpm/store
 minimumReleaseAge: 7200
 minimumReleaseAgeStrict: true
 minimumReleaseAgeIgnoreMissingTime: false

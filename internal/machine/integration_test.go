@@ -1,3 +1,5 @@
+//go:build integration
+
 package machine
 
 import (
@@ -138,7 +140,7 @@ func connectAgent(t *testing.T, hub *Hub, site *httptest.Server, a *Agent, id st
 	return stop
 }
 
-func TestTwoAgentsAndReconnect(t *testing.T) {
+func TestIntegrationTwoAgentsAndReconnect(t *testing.T) {
 	hub := NewHub(t.TempDir(), strings.Repeat("b", 32))
 	mux := http.NewServeMux()
 	mux.Handle("/", hub)
@@ -346,7 +348,7 @@ func TestTwoAgentsAndReconnect(t *testing.T) {
 
 // Separate tmux servers reuse pane IDs. Search must return each machine's
 // own history over its inventory stream, without attaching either terminal.
-func TestRemoteTerminalSearch(t *testing.T) {
+func TestIntegrationRemoteTerminalSearch(t *testing.T) {
 	hub := NewHub(t.TempDir(), strings.Repeat("b", 32))
 	site := httptest.NewTLSServer(hub)
 	t.Cleanup(site.Close)
@@ -387,7 +389,7 @@ func TestRemoteTerminalSearch(t *testing.T) {
 	}
 }
 
-func TestRegistryAndAuthentication(t *testing.T) {
+func TestIntegrationRegistryAndAuthentication(t *testing.T) {
 	hub := NewHub(t.TempDir(), strings.Repeat("b", 32))
 	record, token, err := Edit(hub.Dir, "add", "machine")
 	if err != nil {

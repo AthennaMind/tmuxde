@@ -7,5 +7,7 @@
 // repository tests work only inside the temp dir that is HOME and the one
 // allowed path. Git runs only in temp repositories, with a fixed identity
 // and no user or system configuration. The package has no code of its own,
-// only tests.
+// only tests, enabled by the integration build tag.
+//
+// Run with go test -tags=integration -run '^TestIntegration' -count=1 ./internal/e2e.
 package e2e

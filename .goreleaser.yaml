@@ -1,0 +1,47 @@
+version: 2
+project_name: tmuxde
+
+builds:
+  - id: tmuxde
+    main: ./cmd/tmuxde
+    binary: tmuxde
+    env: [CGO_ENABLED=0, GOPROXY=off, GOTOOLCHAIN=local]
+    goos: [linux]
+    goarch: [amd64, arm64]
+    flags: [-trimpath, -mod=vendor]
+    ldflags:
+      - -s -w -buildid= -X main.version={{.Version}}
+  - id: tmuxde-stt
+    main: ./cmd/tmuxde-stt
+    binary: tmuxde-stt
+    env:
+      - CGO_ENABLED=1
+      - GOPROXY=off
+      - GOTOOLCHAIN=local
+      - 'CC={{ if eq .Arch "arm64" }}aarch64-linux-gnu-gcc{{ else }}gcc{{ end }}'
+      - 'CGO_CFLAGS=-I{{ .Env.STT_ASSET_DIR }}/include'
+      - 'CGO_LDFLAGS=-L{{ .Env.STT_ASSET_DIR }}/{{ .Arch }}/lib -Wl,--start-group -lsherpa-onnx-c-api -lsherpa-onnx-core -lkaldi-decoder-core -lsherpa-onnx-kaldifst-core -lsherpa-onnx-fstfar -lsherpa-onnx-fst -lkaldi-native-fbank-core -lkissfft-float -lonnxruntime -lssentencepiece_core -Wl,--end-group -lstdc++ -lm -ldl -lpthread'
+    goos: [linux]
+    goarch: [amd64, arm64]
+    tags: [sherpa, stt_bundle, netgo, osusergo]
+    flags: [-trimpath, -mod=vendor]
+    ldflags:
+      - -s -w -buildid= -X main.version={{.Version}} -linkmode external -extldflags -static
+
+archives:
+  - id: tmuxde
+    ids: [tmuxde]
+    formats: [tar.gz]
+    name_template: 'tmuxde_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    files: [LICENSE, README.md]
+  - id: tmuxde-stt
+    ids: [tmuxde-stt]
+    formats: [tar.gz]
+    name_template: 'tmuxde-stt_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    files: [LICENSE, internal/stt/README.md, docs/stt-notices.md]
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  prerelease: auto

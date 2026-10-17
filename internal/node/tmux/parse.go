@@ -141,7 +141,7 @@ func parseWindows(out string) []protocol.WindowInfo {
 			Name:      f[2],
 			Active:    f[3] == "1",
 			PaneCount: atoi(f[4]),
-			Layout:    f[5],
+			Layout:    normalizeLayout(f[5]),
 			Activity:  flag(f[8]),
 			// window_layout is the same zoomed and unzoomed. tmux reports
 			// the layout the window goes back to. This flag is the only

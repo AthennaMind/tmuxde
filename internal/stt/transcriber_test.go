@@ -91,7 +91,7 @@ func TestCheckModelFiles(t *testing.T) {
 		}
 	}
 	err := CheckModelFiles(dir)
-	want := fmt.Sprintf("model files missing in %s: decoder.int8.onnx, joiner.int8.onnx, run scripts/setup.sh --dictation", dir)
+	want := fmt.Sprintf("model files missing in %s: decoder.int8.onnx, joiner.int8.onnx, provision models as described in internal/stt/README.md", dir)
 	if err == nil || err.Error() != want {
 		t.Fatalf("err = %v, want %q", err, want)
 	}

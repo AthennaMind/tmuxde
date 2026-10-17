@@ -1,0 +1,15 @@
+root = "."
+tmp_dir = "/tmp/air-stt"
+[build]
+cmd = "go build -tags 'sherpa netgo osusergo' -ldflags '-s -w -linkmode external -extldflags -static' -o /tmp/tmuxde-stt ./cmd/tmuxde-stt"
+entrypoint = ["/tmp/tmuxde-stt", "serve"]
+include_dir = ["cmd/tmuxde-stt", "internal/stt"]
+include_ext = ["go"]
+exclude_dir = ["cmd/tmuxde-stt/internal/bundle/models"]
+exclude_regex = ["_test.go"]
+delay = 300
+send_interrupt = true
+kill_delay = "3s"
+stop_on_error = false
+[log]
+time = true
