@@ -17,7 +17,6 @@ import {
   Pause,
   History,
   Bookmark,
-  PlugZap,
   SlidersHorizontal,
   TextSearch,
   GitGraph,
@@ -103,12 +102,6 @@ export function CommandPalette() {
         setPaletteOpen(false);
         useMainTabsStore.getState().openOverview();
         if (isMobileViewport()) useUiStore.getState().setMobileTab("terminal");
-      } else if (value.startsWith("goto:")) {
-        // A real navigation, not `router.push`: these leave the terminal group
-        // entirely, and the palette's own open state is the only thing worth
-        // preserving across the boundary — which is to say, nothing.
-        setPaletteOpen(false);
-        window.location.assign(value.replace("goto:", ""));
       } else if (value.startsWith("action:")) {
         sendQuickAction(value.replace("action:", ""));
       } else if (value.startsWith("history:") || value.startsWith("snippet:")) {
@@ -184,10 +177,6 @@ export function CommandPalette() {
           {paletteOpen && (
             <GraphCommand onDone={() => setPaletteOpen(false)} />
           )}
-          <CommandItem value="goto:/login" onSelect={handleSelect}>
-            <PlugZap className="h-4 w-4" />
-            Connect another machine
-          </CommandItem>
         </CommandGroup>
 
         {pinnedSnippets.length > 0 && (

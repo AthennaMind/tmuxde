@@ -467,8 +467,8 @@ function KeyboardToolbarSection() {
 
   return (
     <SettingsSection
-      title="Keyboard toolbar"
-      description="Keys in the row above the keyboard. The rest stay one tap away under ⋯ in that row."
+      title="Pinned terminal keys"
+      description="Choose keys shown in Controls > Keys > Pinned keys. Esc, Tab, Ctrl, Alt, and arrows stay beside terminal."
       action={
         <Button
           variant="ghost"
@@ -481,7 +481,7 @@ function KeyboardToolbarSection() {
       }
     >
       {KEY_GROUPS.map((group) => {
-        const keys = toolbarKeys.filter((k) => k.group === group);
+        const keys = toolbarKeys.filter((k) => k.group === group && k.group !== "core");
         if (keys.length === 0) return null;
         return (
           <SettingsRow key={group} label={GROUP_LABELS[group]} stacked textLabel>

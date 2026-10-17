@@ -20,6 +20,8 @@ import { copyFailureReason, copyText } from "@/lib/clipboard";
 import { shortenPath } from "@/lib/tmux-labels";
 import { useAlertStore } from "@/stores/alert-store";
 import { useFileStore } from "@/stores/file-store";
+import { useUiStore } from "@/stores/ui-store";
+import { Button } from "@/components/ui/button";
 import { isReadOnly, useConnectionStore } from "@/stores/connection-store";
 import { useMainTabsStore } from "@/stores/main-tabs-store";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
@@ -273,7 +275,35 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
       {repo.unavailable ? (
         <Note>{repo.unavailable}</Note>
       ) : repo.error && !context ? (
-        <Note error>{repo.error}</Note>
+        <div className="space-y-3 px-3 py-4 text-sm">
+          <div role="alert" className="space-y-2">
+            <p className="break-words text-destructive">{repo.error}</p>
+            <p className="text-muted-foreground">
+              {repo.error === "Access denied: path outside allowed directories"
+                ? "Files follow active pane. Select a pane in an allowed folder from Sessions, or ask machine owner to allow this folder."
+                : "Try refreshing files. If this keeps failing, select another pane from Sessions."}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => useUiStore.getState().showSidebarView("sessions")}
+            >
+              Show sessions
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={repo.refresh}
+              disabled={!client || repo.loading}
+            >
+              Retry
+            </Button>
+          </div>
+        </div>
       ) : !client || !paneId || !root ? (
         <Note>Finding pane folder</Note>
       ) : (
