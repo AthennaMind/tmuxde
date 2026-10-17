@@ -21,6 +21,32 @@ env:
   DO_NOT_TRACK: '1'
 
 jobs:
+  all-checks:
+    name: All checks passed
+    needs: [changes, gitleaks, lint, go, integration, ui, speech-assets]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Verify check results
+        env:
+          CHECK_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<< "$CHECK_RESULTS"
+          jq -e '
+            all(.[]; .result == "success" or .result == "skipped") and
+            .changes.result == "success" and
+            .gitleaks.result == "success" and
+            (.changes.outputs.go | . == "true" or . == "false") and
+            (.changes.outputs.ui | . == "true" or . == "false") and
+            (if .changes.outputs.go == "true" then
+              all(.lint, .go, .integration; .result == "success")
+            else true end) and
+            (if .changes.outputs.ui == "true" then
+              .ui.result == "success"
+            else true end)
+          ' <<< "$CHECK_RESULTS"
+
   changes:
     name: Changed paths
     runs-on: ubuntu-24.04
