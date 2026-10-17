@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { RepoCommitFile } from "@/protocol";
-import { CommitDetail, type CommitResult } from "./commit-view";
+import { CommitDetail, FileChangesDetail, type CommitResult } from "./commit-view";
 
 // A server render reads the initial store state, so the filter comes from a
 // stand in store instead.
@@ -110,5 +110,31 @@ describe("CommitDetail wrap", () => {
       const unwrapped = markup.match(/\[&amp;_code\]:whitespace-pre"/g);
       expect(unwrapped?.length ?? 0).toBe(wrap ? 0 : 3);
     }
+  });
+});
+
+describe("current changes detail", () => {
+  it("shares filters and scoped diffs without commit metadata", () => {
+    filter.commitFilterPatterns = "md";
+    filter.commitFilterMode = "hide";
+    const markup = renderToStaticMarkup(createElement(FileChangesDetail, {
+      result: {
+        files: [
+          { ...commitFile("app.ts"), scope: "staged" },
+          { ...commitFile("app.ts"), scope: "unstaged" },
+          { ...commitFile("README.md"), scope: "untracked" },
+        ],
+        hidden: 0, truncated: false,
+      },
+      wrap: false,
+      header: createElement("h2", {}, "Uncommitted changes"),
+    }));
+    expect(sections(markup)).toEqual(["app.ts", "app.ts"]);
+    expect(markup).toContain("staged");
+    expect(markup).toContain("unstaged");
+    expect(markup).toContain("1 of 2 files changed");
+    expect(markup).toContain("Uncommitted changes");
+    expect(markup).not.toContain("Author");
+    expect(markup).not.toContain("No commit message");
   });
 });
