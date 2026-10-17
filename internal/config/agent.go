@@ -38,7 +38,7 @@ func LoadAgent(lookup func(string) (string, bool)) (Agent, error) {
 	if err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
 		return Agent{}, &Error{"TMUXDE_SERVER_URL", "must be an origin without credentials, query or path"}
 	}
-	if u.Scheme != "https" && !(u.Scheme == "http" && allowHTTP == "true") {
+	if u.Scheme != "https" && (u.Scheme != "http" || allowHTTP != "true") {
 		return Agent{}, &Error{"TMUXDE_SERVER_URL", "must be an https origin without credentials, query or path"}
 	}
 	a.URL = strings.TrimRight(a.URL, "/")

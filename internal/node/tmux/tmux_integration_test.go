@@ -1416,17 +1416,6 @@ func (f *fixture) testPaneMoves(t *testing.T) {
 	})
 }
 
-// layoutChecksum is tmux's layout_checksum, the four hex digits in front of
-// a window_layout. select-layout refuses a layout whose checksum is wrong.
-func layoutChecksum(layout string) string {
-	var sum uint16
-	for i := 0; i < len(layout); i++ {
-		sum = (sum >> 1) + ((sum & 1) << 15)
-		sum += uint16(layout[i])
-	}
-	return fmt.Sprintf("%04x", sum)
-}
-
 // Not in the relay test file: which pane a border drag in the sidebar grid
 // sends to resize-pane. The layouts and owners are the ones
 // sharedBorders in src/ui/src/lib/pane-grid-layout.test.ts predicts. Each
@@ -1580,10 +1569,14 @@ func (f *fixture) testResizeOwner(t *testing.T) {
 				t.Run(ch.name, func(t *testing.T) {
 					body := tc.layout
 					f.tmux(t, "select-layout", "-t", "="+s+":", layoutChecksum(body)+","+body)
-					got := strings.TrimSpace(f.tmux(t, "display-message", "-p", "-t", "="+s+":", "#{window_layout}"))
+					windows, err := c.ListWindows(bg, s)
+					if err != nil || len(windows) != 1 {
+						t.Fatalf("ListWindows: %v, %v", windows, err)
+					}
+					got := windows[0].Layout
 					// The ids differ from the test layout. Sizes and offsets must not.
 					strip := regexp.MustCompile(`(\d+x\d+,\d+,\d+),\d+`)
-					if strip.ReplaceAllString(got[5:], "$1") != strip.ReplaceAllString(body, "$1") {
+					if len(got) < 5 || strip.ReplaceAllString(got[5:], "$1") != strip.ReplaceAllString(body, "$1") {
 						t.Fatalf("layout %q, want the shape of %q", got, body)
 					}
 					before, after := border(t, read(t), ch)

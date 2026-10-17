@@ -113,7 +113,7 @@ Browser checks target local dev at `http://localhost:24200`, or configured dev H
 
 `.github/workflows/checks.yml` runs on PRs against main, main pushes and reusable calls. Path filters select Go lint/unit/integration and UI jobs. UI protocol changes also trigger Go checks; workflow and GoReleaser changes trigger both. UI checks typecheck and test without building.
 
-Gitleaks scans checked-out history on every check run with redacted output. Its CLI download is pinned, cached and checksum verified. Integration jobs test multiple pinned tmux versions.
+Gitleaks scans checked-out history on every check run with redacted output. Its CLI download is pinned, cached and checksum verified. Integration jobs test latest two stable tmux releases, currently 3.7c and 3.8.
 
 `.github/workflows/release.yml` calls checks with `full-checks: true` on `v*` tags. Binary publishing waits for checks; image publishing waits for binaries and checks.
 
