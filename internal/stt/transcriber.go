@@ -35,7 +35,7 @@ func CheckModelFiles(dir string) error {
 		}
 	}
 	if len(missing) > 0 {
-		return fmt.Errorf("model files missing in %s: %s, run scripts/setup.sh --dictation", dir, strings.Join(missing, ", "))
+		return fmt.Errorf("model files missing in %s: %s, provision models as described in internal/stt/README.md", dir, strings.Join(missing, ", "))
 	}
 	return nil
 }

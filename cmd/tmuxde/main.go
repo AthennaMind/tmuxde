@@ -386,9 +386,8 @@ func (a *app) stopNode() {
 // choice once. A dev web URL wins: the edge proxies there and site is
 // unused. Otherwise site is served. Without index.html in site every page
 // answers 503 and that is logged here. On a TCP listener it is an error.
-// On a unix socket it is a warning: behind Caddy the dev binary only gets
-// the server routes, and pages come from the Vite dev server. A nil site
-// serves nothing, so the edge answers 404.
+// On a unix socket it is a warning: a reverse proxy may serve pages
+// separately. A nil site serves nothing, so the edge answers 404.
 func webHandler(cfg config.Config, site fs.FS, logger *slog.Logger) http.Handler {
 	present := false
 	if site != nil {

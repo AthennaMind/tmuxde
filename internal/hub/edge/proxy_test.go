@@ -214,7 +214,7 @@ func TestDevProxyPage(t *testing.T) {
 			socket:    "ws://" + testHost,
 		},
 		{
-			name:      "behind caddy",
+			name:      "forwarded https",
 			header:    http.Header{"X-Forwarded-Proto": {"https"}},
 			wantProto: "https",
 			socket:    "wss://" + testHost,

@@ -18,7 +18,7 @@ const (
 // SourceDir finds the TypeScript protocol dir src/ui/src/protocol by walking
 // up from the working directory. It holds the Zod sources and fixtures.
 // Go tests run in a package dir below the repository root, on the host and
-// in gotools, and both have src/ui/src/protocol at that root.
+// in server-dev, and both have src/ui/src/protocol at that root.
 func SourceDir() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {

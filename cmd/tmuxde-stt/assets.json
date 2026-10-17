@@ -1,0 +1,96 @@
+{
+  "version": "1.13.8",
+  "header": {
+    "url": "https://raw.githubusercontent.com/k2-fsa/sherpa-onnx/v1.13.8/sherpa-onnx/c-api/c-api.h",
+    "sha256": "2a1b95084be8fd1deb3228fcad2fd3f7f0258b64582f7402281ec174c7b7f4ce"
+  },
+  "libraries": {
+    "amd64": {
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/sherpa-onnx-v1.13.8-linux-x64-static-no-tts-lib.tar.bz2",
+      "sha256": "36f2ebd0b9aa09248ff6461a30dcb7edfe7eecf2deb67dfb0ceb3aaf4906051f"
+    },
+    "arm64": {
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/sherpa-onnx-v1.13.8-linux-aarch64-static-lib.tar.bz2",
+      "sha256": "77983e3cf29aa60f2e531d249dbd01d15596530550c8db2e9e02fc6a655da6bb"
+    }
+  },
+  "models": {
+    "encoder.int8.onnx": {
+      "url": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/2bda32ec70b097a55adaa07d9a7173915b43cc78/encoder.int8.onnx",
+      "size": 652184281,
+      "sha256": "acfc2b4456377e15d04f0243af540b7fe7c992f8d898d751cf134c3a55fd2247"
+    },
+    "decoder.int8.onnx": {
+      "url": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/2bda32ec70b097a55adaa07d9a7173915b43cc78/decoder.int8.onnx",
+      "size": 11845275,
+      "sha256": "179e50c43d1a9de79c8a24149a2f9bac6eb5981823f2a2ed88d655b24248db4e"
+    },
+    "joiner.int8.onnx": {
+      "url": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/2bda32ec70b097a55adaa07d9a7173915b43cc78/joiner.int8.onnx",
+      "size": 6355277,
+      "sha256": "3164c13fc2821009440d20fcb5fdc78bff28b4db2f8d0f0b329101719c0948b3"
+    },
+    "tokens.txt": {
+      "url": "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/2bda32ec70b097a55adaa07d9a7173915b43cc78/tokens.txt",
+      "size": 93939,
+      "sha256": "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d"
+    },
+    "silero_vad.onnx": {
+      "url": "https://huggingface.co/csukuangfj/vad/resolve/fba88cd2e921609e7675c3aaf51e0b9b295da4bc/silero_vad.onnx",
+      "size": 1807522,
+      "sha256": "a35ebf52fd3ce5f1469b2a36158dba761bc47b973ea3382b3186ca15b1f5af28"
+    }
+  },
+  "c_api_sources": {
+    "source": {
+      "url": "https://github.com/k2-fsa/sherpa-onnx/archive/refs/tags/v1.13.8.tar.gz",
+      "sha256": "b0374cc56dbc186d442ae73d5de743bb092470b640c4c50ce7b029044c0c4fa8"
+    },
+    "kaldi-decoder": {
+      "url": "https://github.com/k2-fsa/kaldi-decoder/archive/refs/tags/v0.3.0.tar.gz",
+      "sha256": "b9f34cfb4fd3b1344100eead79ef4d37aa15962274b9e3056de345021f76a1b0"
+    },
+    "openfst": {
+      "url": "https://github.com/csukuangfj/openfst/archive/refs/tags/v1.8.5-2026-07-09.tar.gz",
+      "sha256": "2ff712a32952fcb01d351121a6bc8ccf4fdc6b2aa06ce8df2b3095dedd518c0e"
+    },
+    "kaldifst": {
+      "url": "https://github.com/k2-fsa/kaldifst/archive/refs/tags/v1.8.0.tar.gz",
+      "sha256": "3f247b7e5a2409071202f5e2bc6200060f66728c0a3443c03923ad2723e040b3"
+    },
+    "eigen": {
+      "url": "https://gitlab.com/libeigen/eigen/-/archive/5.0.1/eigen-5.0.1.tar.gz",
+      "sha256": "e9c326dc8c05cd1e044c71f30f1b2e34a6161a3b6ecf445d56b53ff1669e3dec"
+    }
+  },
+  "c_api_headers": {
+    "onnxruntime_ep_c_api.h": {
+      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.2/include/onnxruntime/core/session/onnxruntime_ep_c_api.h",
+      "sha256": "db86df0f846b8d3bdbf429a5c76c5805293196575ca3c475878612591cd18e51"
+    },
+    "onnxruntime_float16.h": {
+      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.2/include/onnxruntime/core/session/onnxruntime_float16.h",
+      "sha256": "88b242845d25981633a0bbd1c148e273cf8bfb016ea3f57c4af41a06530f72b0"
+    },
+    "onnxruntime_error_code.h": {
+      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.2/include/onnxruntime/core/session/onnxruntime_error_code.h",
+      "sha256": "5ce3b054e798eced8d14f5b86e98692fd33470463f96194ce0700a2d53dd8721"
+    },
+    "onnxruntime_c_api.h": {
+      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.2/include/onnxruntime/core/session/onnxruntime_c_api.h",
+      "sha256": "b69a133143c0da61782b2b02cc8a620d21ac139231fd211719776d10385135c1"
+    },
+    "onnxruntime_cxx_api.h": {
+      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.2/include/onnxruntime/core/session/onnxruntime_cxx_api.h",
+      "sha256": "c6bf005e4063b7db911d0a6b030452bcb9d4fc5e87530a39d94c4a5fcd311b61"
+    },
+    "onnxruntime_cxx_inline.h": {
+      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.2/include/onnxruntime/core/session/onnxruntime_cxx_inline.h",
+      "sha256": "97f960b1bc4a372918893ef4c77102dee725ccfce0d76607f4570b03e7e28325"
+    },
+    "nlohmann/json.hpp": {
+      "url": "https://raw.githubusercontent.com/nlohmann/json/v3.12.0/single_include/nlohmann/json.hpp",
+      "sha256": "aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63"
+    }
+  }
+}

@@ -1,13 +1,17 @@
 .git
+.local
+.agents/plans
+.agents/reviews
+AGENTS.local.md
+CLAUDE.local.md
 **/node_modules
+**/.pnpm-store
 **/.vite
 **/.cache
 **/dist
 **/.env
 **/.env.*
 !**/.env.example
-.docker/certs
-.docker/bin/
 .playwright-cli
 **/coverage
 .worktrees
@@ -17,3 +21,4 @@ logs
 
 **/__pycache__
 **/*.pyc
+cmd/tmuxde-stt/internal/bundle/models

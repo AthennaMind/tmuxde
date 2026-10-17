@@ -1,3 +1,5 @@
+//go:build integration
+
 package machine
 
 import (
@@ -13,7 +15,7 @@ import (
 	"tmuxde/internal/protocol/server"
 )
 
-func TestRemoteTerminalPreview(t *testing.T) {
+func TestIntegrationRemoteTerminalPreview(t *testing.T) {
 	hub := NewHub(t.TempDir(), strings.Repeat("b", 32))
 	site := httptest.NewTLSServer(hub)
 	t.Cleanup(site.Close)

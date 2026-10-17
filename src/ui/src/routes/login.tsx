@@ -108,8 +108,7 @@ export function LoginPage() {
           Connect with a token
         </h1>
         <p className="text-sm text-muted-foreground">
-          Use AUTH_TOKEN from <code>.docker/.env.token</code> on your
-          machine.
+          Use AUTH_TOKEN configured on your server.
         </p>
       </div>
 

@@ -8,36 +8,31 @@ import (
 	"testing"
 )
 
-// caddyCSP is the Content-Security-Policy line in .docker/Caddyfile with
-// LOCAL_DOMAIN dev.example.
-const caddyCSP = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://dev.example; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-
-// nextCSP is the header the Next dev server sent on 2026-10-12 for a
-// request with X-Forwarded-Proto https, with its socket origin replaced by
-// wss://dev.example.
-const nextCSP = "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://dev.example; worker-src 'self' blob:; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self'; frame-src 'self';"
-
-func TestContentSecurityPolicyMatchesCaddy(t *testing.T) {
-	if got := contentSecurityPolicy("wss://dev.example"); got != caddyCSP {
-		t.Fatalf("policy\n got %s\nwant %s", got, caddyCSP)
-	}
-	want := "connect-src 'self'; font-src"
-	if got := contentSecurityPolicy(""); !strings.Contains(got, want) {
-		t.Fatalf("policy without socket %q lacks %q", got, want)
-	}
-}
-
-// TestContentSecurityPolicyCoversProxyTS checks that every source proxy.ts
-// allows is still allowed, so moving to the Caddy policy broke nothing the
-// pages loaded before.
-func TestContentSecurityPolicyCoversProxyTS(t *testing.T) {
-	got := parseCSP(contentSecurityPolicy("wss://dev.example"))
-	for directive, sources := range parseCSP(nextCSP) {
-		for _, src := range sources {
-			if !slices.Contains(got[directive], src) {
-				t.Errorf("%s lost %s", directive, src)
+func TestContentSecurityPolicy(t *testing.T) {
+	for _, socket := range []string{"", "ws://localhost:24200", "wss://dev.example"} {
+		t.Run(socket, func(t *testing.T) {
+			policy := parseCSP(contentSecurityPolicy(socket))
+			connect := []string{"'self'"}
+			if socket != "" {
+				connect = append(connect, socket)
 			}
-		}
+			// Allow local previews and workers while blocking embedded plugins
+			// and framing by other sites.
+			for directive, want := range map[string][]string{
+				"connect-src":     connect,
+				"media-src":       {"'self'", "blob:"},
+				"frame-src":       {"'self'", "blob:"},
+				"worker-src":      {"'self'", "blob:"},
+				"object-src":      {"'none'"},
+				"frame-ancestors": {"'none'"},
+				"base-uri":        {"'self'"},
+				"form-action":     {"'self'"},
+			} {
+				if got := policy[directive]; !slices.Equal(got, want) {
+					t.Errorf("%s = %q, want %q", directive, got, want)
+				}
+			}
+		})
 	}
 }
 

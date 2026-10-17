@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	"tmuxde/cmd/tmuxde-stt/internal/bundle"
 	"tmuxde/internal/stt"
 	"tmuxde/internal/stt/sherpa"
 )
@@ -48,8 +49,9 @@ Environment:
   STT_SOCKET        unix socket to listen on. Absolute, at most 107 bytes.
                     Required.
   STT_MODEL_DIR     folder with encoder.int8.onnx, decoder.int8.onnx,
-                    joiner.int8.onnx and tokens.txt. Required.
-  STT_VAD_MODEL     path to silero_vad.onnx. Unset means 30 s chunks.
+                    joiner.int8.onnx and tokens.txt. Releases bundle defaults.
+  STT_VAD_MODEL     path to silero_vad.onnx. Bundled by default in releases.
+  XDG_CACHE_HOME    extracted model cache. Default is user cache directory.
   STT_THREADS       threads per decode, 1 to 64. Default 4.
   STT_MAX_SESSIONS  dictations at once, 1 to 64. Default 4.
   STT_MAX_SECONDS   audio per dictation, 10 to 3600. Default 600.
@@ -124,7 +126,7 @@ func parseFlags(name, help string, args []string, stderr io.Writer) (int, bool) 
 // are JSON lines on stdout. They never hold audio or text.
 func runServe(lookup func(string) (string, bool), stdout io.Writer) int {
 	logger := slog.New(slog.NewJSONHandler(stdout, nil))
-	cfg, err := stt.LoadConfig(lookup)
+	cfg, err := loadConfig(lookup)
 	if err != nil {
 		logConfigError(logger, err)
 		return 1
@@ -160,6 +162,29 @@ func runServe(lookup func(string) (string, bool), stdout io.Writer) int {
 		NewSegmenter: newSegmenter,
 		Logger:       logger,
 	})
+}
+
+// loadConfig validates settings before extracting release defaults.
+func loadConfig(lookup func(string) (string, bool)) (stt.Config, error) {
+	model, _ := lookup("STT_MODEL_DIR")
+	useBundle := model == "" && bundle.Available()
+	cfg, err := stt.LoadConfig(func(key string) (string, bool) {
+		if key == "STT_MODEL_DIR" && useBundle {
+			return "embedded", true
+		}
+		return lookup(key)
+	})
+	if err != nil || !useBundle {
+		return cfg, err
+	}
+	cfg.ModelDir, err = bundle.Extract()
+	if err != nil {
+		return cfg, fmt.Errorf("extract speech models: %w", err)
+	}
+	if _, set := lookup("STT_VAD_MODEL"); !set {
+		cfg.VADModel = filepath.Join(cfg.ModelDir, "silero_vad.onnx")
+	}
+	return cfg, nil
 }
 
 // serve listens on cfg.Socket and runs the server until ctx ends. Then it

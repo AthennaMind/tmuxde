@@ -18,6 +18,7 @@ import {
   type MarkdownTarget,
 } from "@/lib/markdown";
 import { MarkdownCodeBlock } from "./markdown-code-block";
+import { MarkdownMermaid } from "./markdown-mermaid";
 
 type HastElement = NonNullable<ExtraProps["node"]>;
 const REMARK_PLUGINS = [remarkGfm];
@@ -148,12 +149,10 @@ export function MarkdownPreview({
             child.type === "element" && child.tagName === "code",
         );
         if (!code) return <pre>{children}</pre>;
-        return (
-          <MarkdownCodeBlock
-            language={codeBlockLanguage(code.properties?.className)}
-            source={hastText(code)}
-          />
-        );
+        const language = codeBlockLanguage(code.properties?.className);
+        const source = hastText(code);
+        if (language === "mermaid") return <MarkdownMermaid source={source} />;
+        return <MarkdownCodeBlock language={language} source={source} />;
       },
       code: ({ node: _node, className: _className, children, ...props }) => (
         <code className="markdown-inline-code" {...props}>

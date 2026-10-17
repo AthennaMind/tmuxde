@@ -58,3 +58,37 @@ func TestAgentConfiguration(t *testing.T) {
 		t.Fatal("accepted readable token file")
 	}
 }
+
+func TestAgentDevelopmentHTTP(t *testing.T) {
+	dir := t.TempDir()
+	for _, tt := range []struct {
+		name, url, allowHTTP string
+		wantError            bool
+	}{
+		{"https default", "https://hub.example", "", false},
+		{"http default", "http://server-dev:24200", "", true},
+		{"http disabled", "http://server-dev:24200", "false", true},
+		{"http development", "http://server-dev:24200", "true", false},
+		{"invalid flag", "https://hub.example", "yes", true},
+		{"invalid scheme", "ftp://server-dev:24200", "true", true},
+		{"credentials", "http://user:password@server-dev:24200", "true", true},
+		{"path", "http://server-dev:24200/path", "true", true},
+		{"query", "http://server-dev:24200?token=value", "true", true},
+		{"fragment", "http://server-dev:24200#fragment", "true", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			env := map[string]string{
+				"HOME":                  dir,
+				"ALLOWED_PATHS":         dir,
+				"TMUXDE_CONFIG_DIR":     dir,
+				"TMUXDE_AGENT_TOKEN":    strings.Repeat("a", 64),
+				"TMUXDE_SERVER_URL":     tt.url,
+				"TMUXDE_DEV_ALLOW_HTTP": tt.allowHTTP,
+			}
+			_, err := LoadAgent(lookup(env))
+			if (err != nil) != tt.wantError {
+				t.Fatalf("LoadAgent error = %v, want error = %v", err, tt.wantError)
+			}
+		})
+	}
+}

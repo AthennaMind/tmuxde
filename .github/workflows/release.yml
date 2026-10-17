@@ -1,0 +1,220 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GOTOOLCHAIN: local
+  GOTELEMETRY: 'off'
+  DO_NOT_TRACK: '1'
+  STT_ASSET_DIR: ${{ github.workspace }}/.cache/stt
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+    with:
+      full-checks: true
+
+  binaries:
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: |
+            go.mod
+            go.sum
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: '12.11.2'
+          package_json_file: src/ui/package.json
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '26.11.1'
+          cache: pnpm
+          cache-dependency-path: src/ui/pnpm-lock.yaml
+      - name: Install native tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ g++-aarch64-linux-gnu
+      - name: Install UI dependencies
+        working-directory: src/ui
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --offline --config.trustLockfile=true rebuild --pending
+      - name: Build UI into web/dist for embedding in tmuxde
+        working-directory: src/ui
+        run: |
+          pnpm exec vite build --configLoader native
+          mkdir -p ../../web/dist
+          find ../../web/dist -mindepth 1 ! -name .gitkeep -delete
+          cp -a dist/. ../../web/dist/
+          test -s ../../web/dist/index.html
+          # GoReleaser compiles tmuxde next. web/embed.go embeds this directory.
+      - name: Cache speech downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .cache/stt-downloads
+          key: stt-downloads-v1-${{ hashFiles('cmd/tmuxde-stt/assets.json') }}
+          restore-keys: stt-downloads-v1-
+      - name: Download and verify speech assets
+        run: |
+          mkdir -p .cache/stt-downloads
+          jq -r '[.header, .libraries[], .c_api_sources[], .c_api_headers[], .models[]] | unique_by(.sha256)[] | [.url, .sha256] | @tsv' cmd/tmuxde-stt/assets.json |
+          while IFS=$'\t' read -r url checksum; do
+            asset=".cache/stt-downloads/$checksum"
+            if ! echo "$checksum  $asset" | sha256sum --check --status; then
+              curl --fail --location --retry 3 "$url" -o "$asset"
+            fi
+            echo "$checksum  $asset" | sha256sum --check
+          done
+      - name: Prepare speech libraries and C header
+        run: |
+          mkdir -p "$STT_ASSET_DIR/include/sherpa-onnx/c-api"
+          checksum="$(jq -r '.header.sha256' cmd/tmuxde-stt/assets.json)"
+          cp ".cache/stt-downloads/$checksum" "$STT_ASSET_DIR/include/sherpa-onnx/c-api/c-api.h"
+          jq -r '.libraries | to_entries[] | [.key, .value.sha256] | @tsv' cmd/tmuxde-stt/assets.json |
+          while IFS=$'\t' read -r arch checksum; do
+            mkdir -p "$STT_ASSET_DIR/$arch"
+            tar -xjf ".cache/stt-downloads/$checksum" -C "$STT_ASSET_DIR/$arch" --strip-components=1 --wildcards '*/lib/*.a'
+          done
+      - name: Prepare ARM64 C API source and headers
+        run: |
+          jq -r '.c_api_sources | to_entries[] | [.key, .value.sha256] | @tsv' cmd/tmuxde-stt/assets.json |
+          while IFS=$'\t' read -r name checksum; do
+            mkdir -p "$STT_ASSET_DIR/$name"
+            tar -xzf ".cache/stt-downloads/$checksum" -C "$STT_ASSET_DIR/$name" --strip-components=1
+          done
+          jq -r '.c_api_headers | to_entries[] | [.key, .value.sha256] | @tsv' cmd/tmuxde-stt/assets.json |
+          while IFS=$'\t' read -r name checksum; do
+            mkdir -p "$(dirname "$STT_ASSET_DIR/include/$name")"
+            cp ".cache/stt-downloads/$checksum" "$STT_ASSET_DIR/include/$name"
+          done
+      - name: Build ARM64 C API without speech synthesis
+        run: |
+          aarch64-linux-gnu-g++ -std=c++17 -O2 -DNDEBUG -D_GLIBCXX_USE_CXX11_ABI=1 \
+            -DSHERPA_ONNX_ENABLE_TTS=0 -DSHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION=0 \
+            -I"$STT_ASSET_DIR/source" -I"$STT_ASSET_DIR/include" \
+            -I"$STT_ASSET_DIR/kaldi-decoder" -I"$STT_ASSET_DIR/kaldifst" \
+            -I"$STT_ASSET_DIR/openfst/src/include" -I"$STT_ASSET_DIR/eigen" \
+            -c "$STT_ASSET_DIR/source/sherpa-onnx/c-api/c-api.cc" -o "$STT_ASSET_DIR/arm64/c-api.cc.o"
+          rm "$STT_ASSET_DIR/arm64/lib/libsherpa-onnx-c-api.a"
+          aarch64-linux-gnu-ar rcs "$STT_ASSET_DIR/arm64/lib/libsherpa-onnx-c-api.a" "$STT_ASSET_DIR/arm64/c-api.cc.o"
+      - name: Prepare embedded speech models
+        run: |
+          mkdir -p cmd/tmuxde-stt/internal/bundle/models
+          jq -r '.models | to_entries[] | [.key, .value.sha256] | @tsv' cmd/tmuxde-stt/assets.json |
+          while IFS=$'\t' read -r name checksum; do
+            cp ".cache/stt-downloads/$checksum" "cmd/tmuxde-stt/internal/bundle/models/$name"
+          done
+          jq -cS '.models | map_values(.sha256)' cmd/tmuxde-stt/assets.json > cmd/tmuxde-stt/internal/bundle/models/manifest.json
+      - name: Check GoReleaser configuration
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
+        with:
+          version: v2.18.0
+          args: check
+      - name: Build release archives
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
+        with:
+          version: v2.18.0
+          args: release --snapshot --clean --skip=publish
+      - name: Verify archive checksums
+        working-directory: dist
+        run: sha256sum --check checksums.txt
+      - name: Verify standalone STT with empty model cache
+        run: |
+          binary="$PWD/dist/tmuxde-stt_linux_amd64_v1/tmuxde-stt"
+          export XDG_CACHE_HOME="$RUNNER_TEMP/stt-cache" STT_SOCKET="$RUNNER_TEMP/stt.sock"
+          unset STT_MODEL_DIR STT_VAD_MODEL
+          file "$binary" | tee "$RUNNER_TEMP/stt-file.txt"
+          grep -q 'statically linked' "$RUNNER_TEMP/stt-file.txt"
+          "$binary" serve > "$RUNNER_TEMP/stt.log" 2>&1 &
+          stt_pid=$!
+          trap 'kill "$stt_pid" 2>/dev/null || true; cat "$RUNNER_TEMP/stt.log"' EXIT
+          for attempt in $(seq 1 90); do
+            if "$binary" health 2>/dev/null; then break; fi
+            kill -0 "$stt_pid"
+            sleep 1
+          done
+          "$binary" health
+          kill "$stt_pid"
+          wait "$stt_pid"
+      - name: Publish binary releases
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
+        with:
+          version: v2.18.0
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  images:
+    needs: [checks, binaries]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - target: tmuxde
+            suffix: ''
+          - target: tmuxde-stt
+            suffix: '-stt'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image metadata
+        id: metadata
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ghcr.io/${{ github.repository }}${{ matrix.suffix }}
+          flavor: latest=false
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+      - name: Build settings
+        id: version
+        env:
+          IMAGE_SUFFIX: ${{ matrix.suffix }}
+        run: |
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          echo "cache-image=ghcr.io/${GITHUB_REPOSITORY,,}${IMAGE_SUFFIX}:buildcache" >> "$GITHUB_OUTPUT"
+      - name: Build and publish image from source
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: Dockerfile
+          target: ${{ matrix.target }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=registry,ref=${{ steps.version.outputs.cache-image }}
+          cache-to: type=registry,ref=${{ steps.version.outputs.cache-image }},mode=max
+          build-args: VERSION=${{ steps.version.outputs.version }}
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}

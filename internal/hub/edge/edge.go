@@ -8,10 +8,6 @@
 // starts. /_relay and /file belong to them. Until they are mounted the edge
 // answers 404 for those paths. /_relay, /file and /health never reach the
 // web app.
-//
-// Ported from the relay HTTP handler (apps/relay/src/server.ts), the
-// upgrade routing in ws-server.ts, the header block of the Next proxy.ts
-// and the redirects in .docker/Caddyfile.
 package edge
 
 import (
@@ -49,7 +45,7 @@ type Edge struct {
 }
 
 // codeEntryPaths are upstream code entry routes. The web app has no use for
-// them, so they go to the login page, as in the Caddyfile.
+// them, so they go to the login page.
 var codeEntryPaths = []string{"/start", "/pair", "/j"}
 
 // New builds the edge. Mount further routes with Handle before serving.
@@ -92,15 +88,13 @@ func (e *Edge) Handle(pattern string, h http.Handler) {
 // ServeHTTP answers OPTIONS on any path, sets the security headers and
 // routes the request.
 func (e *Edge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// The relay answered OPTIONS before routing. Same origin behind Caddy,
-	// so no CORS headers are needed.
+	// Handle preflight before routing. Browser requests use the same origin.
 	if r.Method == http.MethodOptions {
 		setSecurityHeaders(w.Header(), socketOrigin(r))
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	// Assets pass through from the web app as it sent them, as with the
-	// proxy.ts matcher.
+	// Assets pass through with headers from the web handler.
 	if e.web == nil || !isAsset(r.URL.Path) {
 		setSecurityHeaders(w.Header(), socketOrigin(r))
 	}

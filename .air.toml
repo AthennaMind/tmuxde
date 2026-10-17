@@ -1,11 +1,11 @@
-# air config for the server-dev container. air rebuilds and restarts the
-# dev binary on every Go change. See .docker/compose/dev.yaml.
-# The source mount is read only, so every output lives under /tmp.
+# Shared Air config for server and agents. Compose overrides args_bin
+# with agent for remote nodes. Go changes rebuild each dev binary.
+# Build outputs live under /tmp. Checkout is mounted read/write.
 
 # Watch root, the working dir /workspace. It holds the Go module, the
-# protocol fixtures and the build caches.
+# protocol fixtures. Build caches live at /cache.
 root = "."
-# air keeps its build log here. Outside the read only source.
+# Air keeps build logs outside source.
 tmp_dir = "/tmp/air"
 
 [build]
@@ -19,7 +19,7 @@ args_bin = ["serve"]
 include_ext = ["go"]
 # Not watched. Paths are relative to root, so only top level dirs match.
 # After a go-vendor run, restart server-dev to pick up new modules.
-exclude_dir = ["vendor", "testdata", "src", ".cache"]
+exclude_dir = ["vendor", "testdata", "src", ".cache", ".git", ".local", ".agents", "dist"]
 # Tests are not part of the binary.
 exclude_regex = ["_test.go"]
 # Wait this many ms after a change, so a save of many files builds once.

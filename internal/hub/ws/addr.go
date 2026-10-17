@@ -11,7 +11,7 @@ import (
 // clientAddr is the address caps, throttle and the access log key on.
 //
 // It is the host of the TCP peer. When the server listens on a unix socket
-// or the peer is loopback, the peer is the local proxy, Caddy, and the
+// or the peer is loopback, the peer is treated as a local proxy, and the
 // first X-Forwarded-For entry names the browser. A direct client on the
 // LAN could write that header too, so from any other peer it is ignored.
 // An entry that is not an IP address is ignored as well.

@@ -116,6 +116,14 @@ describe("MarkdownPreview", () => {
     expect(markup).toContain('<code class="markdown-inline-code">x</code>');
   });
 
+  it("routes Mermaid fences to diagrams while keeping source available", () => {
+    const markup = render("```Mermaid\nflowchart LR\nA --> B\n```\n\n`mermaid`");
+    expect(markup).toContain("Rendering diagram");
+    expect(markup).toContain("flowchart LR");
+    expect(markup).toContain('aria-label="Copy code"');
+    expect(markup).toContain('<code class="markdown-inline-code">mermaid</code>');
+  });
+
   it("folds front matter above the body", () => {
     const markup = render("---\ntitle: Hi\n---\n# Body");
     expect(markup).toContain("<summary>Front matter</summary>");

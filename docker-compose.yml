@@ -1,5 +1,180 @@
-name: tmuxde
+name: tmuxde-dev
 
-include:
-  - .docker/compose/dev.yaml
-  - .docker/compose/agents.yaml
+services:
+  ui:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+      target: dev-ui
+      args:
+        DEV_UID: ${DEV_UID:-1000}
+        DEV_GID: ${DEV_GID:-1000}
+    init: true
+    working_dir: /workspace/src/ui
+    command: [pnpm, dev]
+    environment:
+      LOCAL_DOMAIN: ${LOCAL_DOMAIN:-localhost}
+      DO_NOT_TRACK: "1"
+      PNPM_CONFIG_STORE_DIR: /home/dev/.local/share/pnpm/store
+    volumes:
+      - .:/workspace
+      - /workspace/src/ui/node_modules
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:24100/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+
+  server-dev:
+    image: tmuxde-dev-server-dev
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+      target: dev-server
+      args:
+        DEV_UID: ${DEV_UID:-1000}
+        DEV_GID: ${DEV_GID:-1000}
+    init: true
+    command: [air, -c, .air.toml]
+    environment:
+      AUTH_TOKEN: ${AUTH_TOKEN:?Run make setup}
+      ALLOWED_PATHS: /workspace,/home/dev
+      TMUX_SOCKET: /tmp/tmuxde-dev.sock
+      TMUX_DEFAULT_SHELL: /bin/bash
+      TMUXDE_CONFIG_DIR: /workspace/.local/dev/server
+      TMUXDE_TMUX_LAUNCHER: none
+      TMUXDE_DEV_WEB_URL: http://ui:24100
+      CORS_ORIGINS: http://localhost:24200,http://127.0.0.1:24200,https://${LOCAL_DOMAIN:-localhost}:18443
+      MACHINE_NAME: development
+      STT_SOCKET: /run/stt/stt.sock
+    ports:
+      - "127.0.0.1:24200:24200"
+    volumes:
+      - .:/workspace
+      - go-cache:/cache
+      - dev-home:/home/dev
+      - stt-socket:/run/stt
+    depends_on:
+      ui:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, 'curl -fsS -o /dev/null "http://$$(hostname -i | awk ''{print $$1}''):24200/health"']
+      interval: 5s
+      timeout: 5s
+      start_period: 60s
+
+  agent-alpha:
+    image: tmuxde-dev-server-dev
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+      target: dev-server
+      args:
+        DEV_UID: ${DEV_UID:-1000}
+        DEV_GID: ${DEV_GID:-1000}
+    init: true
+    hostname: dev-alpha
+    entrypoint: [/bin/bash, -ec]
+    command:
+      - |
+        umask 077
+        mkdir -p /tmp/tmuxde-dev/bin "$$TMUXDE_CONFIG_DIR" /home/dev/workspace
+        if [ ! -s "$$TMUXDE_AGENT_TOKEN_FILE" ]; then
+          TMUXDE_CONFIG_DIR=/workspace/.local/dev/server go run ./cmd/tmuxde machine add 'Dev Alpha' > "$$TMUXDE_AGENT_TOKEN_FILE.new"
+          mv "$$TMUXDE_AGENT_TOKEN_FILE.new" "$$TMUXDE_AGENT_TOKEN_FILE"
+        fi
+        tmux -S "$$TMUX_SOCKET" new-session -d -s dev -c /home/dev/workspace /bin/bash
+        exec air -c .air.toml --build.args_bin agent
+    environment:
+      TMUXDE_SERVER_URL: http://server-dev:24200
+      TMUXDE_DEV_ALLOW_HTTP: "true"
+      TMUXDE_CONFIG_DIR: /workspace/.local/dev/agents/alpha
+      TMUXDE_AGENT_TOKEN_FILE: /workspace/.local/dev/agents/alpha/agent-token
+      ALLOWED_PATHS: /home/dev/workspace
+      TMUX_SOCKET: /tmp/tmuxde-agent.sock
+      TMUX_DEFAULT_SHELL: /bin/bash
+      TMUXDE_TMUX_LAUNCHER: none
+    volumes:
+      - .:/workspace
+      - go-cache:/cache
+    depends_on:
+      server-dev:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, tmux, -S, /tmp/tmuxde-agent.sock, has-session, -t, '=dev']
+      interval: 5s
+      timeout: 3s
+      start_period: 60s
+
+  agent-beta:
+    image: tmuxde-dev-server-dev
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+      target: dev-server
+      args:
+        DEV_UID: ${DEV_UID:-1000}
+        DEV_GID: ${DEV_GID:-1000}
+    init: true
+    hostname: dev-beta
+    entrypoint: [/bin/bash, -ec]
+    command:
+      - |
+        umask 077
+        mkdir -p /tmp/tmuxde-dev/bin "$$TMUXDE_CONFIG_DIR" /home/dev/workspace
+        if [ ! -s "$$TMUXDE_AGENT_TOKEN_FILE" ]; then
+          TMUXDE_CONFIG_DIR=/workspace/.local/dev/server go run ./cmd/tmuxde machine add 'Dev Beta' > "$$TMUXDE_AGENT_TOKEN_FILE.new"
+          mv "$$TMUXDE_AGENT_TOKEN_FILE.new" "$$TMUXDE_AGENT_TOKEN_FILE"
+        fi
+        tmux -S "$$TMUX_SOCKET" new-session -d -s dev -c /home/dev/workspace /bin/bash
+        exec air -c .air.toml --build.args_bin agent
+    environment:
+      TMUXDE_SERVER_URL: http://server-dev:24200
+      TMUXDE_DEV_ALLOW_HTTP: "true"
+      TMUXDE_CONFIG_DIR: /workspace/.local/dev/agents/beta
+      TMUXDE_AGENT_TOKEN_FILE: /workspace/.local/dev/agents/beta/agent-token
+      ALLOWED_PATHS: /home/dev/workspace
+      TMUX_SOCKET: /tmp/tmuxde-agent.sock
+      TMUX_DEFAULT_SHELL: /bin/bash
+      TMUXDE_TMUX_LAUNCHER: none
+    volumes:
+      - .:/workspace
+      - go-cache:/cache
+    depends_on:
+      server-dev:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, tmux, -S, /tmp/tmuxde-agent.sock, has-session, -t, '=dev']
+      interval: 5s
+      timeout: 3s
+      start_period: 60s
+
+  stt:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+      target: dev-stt
+      args:
+        DEV_UID: ${DEV_UID:-1000}
+        DEV_GID: ${DEV_GID:-1000}
+    init: true
+    network_mode: none
+    environment:
+      STT_SOCKET: /run/stt/stt.sock
+      STT_MODEL_DIR: /opt/stt/models
+      STT_VAD_MODEL: /opt/stt/models/silero_vad.onnx
+      STT_THREADS: "4"
+    volumes:
+      - .:/workspace
+      - go-cache:/cache
+      - stt-socket:/run/stt
+    healthcheck:
+      test: [CMD, /tmp/tmuxde-stt, health]
+      interval: 5s
+      timeout: 3s
+      start_period: 120s
+
+volumes:
+  go-cache:
+  dev-home:
+  stt-socket:

@@ -38,7 +38,7 @@ func newDevProxy(target *url.URL, logger *slog.Logger) *devProxy {
 				// For, Host and Proto from this hop only. Inbound copies
 				// are already dropped by Rewrite.
 				pr.SetXForwarded()
-				// Behind Caddy the browser speaks https.
+				// Preserve browser scheme when a proxy terminates TLS.
 				pr.Out.Header.Set("X-Forwarded-Proto", requestScheme(pr.In))
 			},
 			Transport: transport,

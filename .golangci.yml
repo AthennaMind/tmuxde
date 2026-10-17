@@ -1,6 +1,4 @@
-# golangci-lint v2 config for the Go module at the repository root. Runs in
-# the gotools service through make lint. Version pin lives in
-# .docker/dev/go.Dockerfile.
+# Native Go lint. Version pinned in .github/workflows/checks.yml.
 version: "2"
 
 run:
