@@ -26,15 +26,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
-      go: ${{ inputs.full-checks || steps.filter.outputs.go == 'true' }}
-      ui: ${{ inputs.full-checks || steps.filter.outputs.ui == 'true' }}
+      go: ${{ inputs.full-checks || github.event.forced || steps.filter.outputs.go == 'true' }}
+      ui: ${{ inputs.full-checks || github.event.forced || steps.filter.outputs.ui == 'true' }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Detect Go and UI changes
-        if: ${{ !inputs.full-checks }}
+        # A force-push may remove the previous commit from history.
+        if: ${{ !inputs.full-checks && !github.event.forced }}
         id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
