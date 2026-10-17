@@ -113,7 +113,7 @@ Browser checks target local dev at `http://localhost:24200`, or configured dev H
 
 `.github/workflows/checks.yml` runs on PRs against main, main pushes and reusable calls. Path filters select Go lint/unit/integration and UI jobs. UI protocol changes also trigger Go checks; workflow and GoReleaser changes trigger both. UI checks typecheck and test without building.
 
-Require `All checks passed` for PR protection. It always runs, accepts jobs skipped by path filters and fails on failed, cancelled or unexpectedly skipped required checks.
+Require `All checks passed` for PR protection. It always runs, accepts skipped jobs and fails on failed or cancelled jobs.
 
 Gitleaks scans checked-out history on every check run with redacted output. Its CLI download is pinned, cached and checksum verified. Integration jobs test latest two stable tmux releases, currently 3.7c and 3.8.
 

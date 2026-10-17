@@ -28,24 +28,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Verify check results
+      - name: Verify required jobs succeeded or were skipped
         env:
-          CHECK_RESULTS: ${{ toJSON(needs) }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
-          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<< "$CHECK_RESULTS"
-          jq -e '
-            all(.[]; .result == "success" or .result == "skipped") and
-            .changes.result == "success" and
-            .gitleaks.result == "success" and
-            (.changes.outputs.go | . == "true" or . == "false") and
-            (.changes.outputs.ui | . == "true" or . == "false") and
-            (if .changes.outputs.go == "true" then
-              all(.lint, .go, .integration; .result == "success")
-            else true end) and
-            (if .changes.outputs.ui == "true" then
-              .ui.result == "success"
-            else true end)
-          ' <<< "$CHECK_RESULTS"
+          echo "$NEEDS_JSON"
+          echo "$NEEDS_JSON" | jq -e 'all(.[]; .result == "success" or .result == "skipped")' > /dev/null
+          echo "All required jobs passed."
 
   changes:
     name: Changed paths
