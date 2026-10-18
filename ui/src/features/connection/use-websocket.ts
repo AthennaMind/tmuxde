@@ -416,9 +416,10 @@ export function useWebSocket(url: string, token: string): void {
       // store status directly used to desync it from RelayClient — the UI said
       // "Disconnected" while the client still believed it was connected, so
       // nothing ever put it back and anything keyed on the store status stayed
-      // stuck. Going through disconnect() keeps the two in step; `online` above
-      // reconnects.
-      held.disconnect();
+      // stuck. Going through the client keeps the two in step. `suspend()`,
+      // not `disconnect()`: a disconnect is final, and `online` above could
+      // not bring it back.
+      held.suspend();
     };
 
     window.addEventListener("online", handleOnline);

@@ -191,6 +191,25 @@ export class RelayClient {
     this.setStatus("disconnected");
   }
 
+  /**
+   * Drop the socket because the network went away, and wait for it.
+   *
+   * Unlike `disconnect()` this is not the end of the client. Nothing retries
+   * while offline, and `reconnectNow()` brings it back once the network or
+   * the tab returns. A client already closed on purpose stays closed.
+   */
+  suspend(): void {
+    this.connecting = false;
+    this.stopPing();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.transport?.close();
+    this.transport = null;
+    this.setStatus("disconnected");
+  }
+
   send(msg: ClientMessage): void {
     // Only send once the relay has confirmed auth (status === "connected").
     // The WS readyState becomes OPEN at handshake — before auth:success — so

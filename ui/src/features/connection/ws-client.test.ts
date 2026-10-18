@@ -113,6 +113,39 @@ describe("disconnect", () => {
   });
 });
 
+describe("suspend", () => {
+  it("waits while offline and comes back on reconnectNow", () => {
+    const client = makeClient();
+    client.connect();
+    const first = latest();
+    first.authenticate();
+
+    client.suspend();
+    expect(client.status).toBe("disconnected");
+    expect(first.closed).toBe(true);
+    // No backoff ladder runs against a network that is gone.
+    vi.advanceTimersByTime(60_000);
+    expect(FakeSocket.instances).toHaveLength(1);
+
+    client.reconnectNow();
+    latest().authenticate();
+    expect(FakeSocket.instances).toHaveLength(2);
+    expect(client.status).toBe("connected");
+  });
+
+  it("does not revive a client closed on purpose", () => {
+    const client = makeClient();
+    client.connect();
+    latest().authenticate();
+
+    client.disconnect();
+    client.suspend();
+    client.reconnectNow();
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(client.status).toBe("disconnected");
+  });
+});
+
 describe("queue policy", () => {
   it("never replays mutations after machine disconnect", () => {
     const client = makeClient();
