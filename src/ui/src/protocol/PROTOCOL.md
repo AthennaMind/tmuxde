@@ -554,3 +554,31 @@ Feature `terminal:preview` enables read-only visible-screen previews on inventor
 - Captures repeat after 150 ms. Each pass has a two-second timeout, a 128 KiB per-screen cap and a 1 MiB aggregate budget. Subscriptions expire after 35 seconds; visible live clients renew every 20 seconds. Disconnect, replacement or empty targets cancels capture and waits for the previous sender to stop.
 - Every pass verifies session membership and rejects hidden sessions, excluded sessions and their linked panes. Reads never attach a PTY, select a pane, resize tmux or send input. Preview content is omitted from logs.
 - UI continuously watches visible cards and open hover previews, including when reduced motion is enabled. Hidden documents and closed Overview tabs stop their subscriptions. Device lock and sign-out discard frames. Frames are memory-only and separate from copy captures. Sidebar hover previews share screen subscriptions with Overview. Each hover owner stops on close, keeps subscriptions alive independently of Overview, and receives live updates while open.
+
+### Workspace filename search
+
+`repo:search` in machine features enables `repo:request` action `search`.
+`query` is an optional string of 1 to 256 characters on the wire, required and
+nonblank for search. `path` selects workspace root, otherwise pane folder is
+used. Attached-session pane ownership, file capabilities and allowed/denied
+path guards apply exactly as for other repository reads. Existing machine
+forwarding and correlated `repo:result` handling carry this action unchanged.
+
+Result is `{ kind: "search", path: string, files: string[], truncated: boolean }`.
+`path` is canonical searched directory. `files` contains at most 100 relative
+regular-file paths, each at most 4096 characters. Results prefer exact basename,
+prefix, substring, path and then ordered-character matches. Space-separated
+query terms are case-insensitive and all must match. File contents are not read.
+
+Search skips `.git`, `node_modules`, `.cache`, `.venv` and `__pycache__`
+directories. Directory symlinks are never traversed. File symlinks must resolve
+inside searched root and pass path guards. Hidden and Git-ignored files remain
+searchable unless policy denies them. Root-confined filesystem access prevents
+symlink swaps from escaping workspace.
+
+One search runs per machine repository service. Scans stop at 100,000 entries,
+64 levels or three seconds; returned path text is capped at 128 KiB. Extra
+matches, scan limits or unreadable subdirectories set `truncated`. Callers must
+show partial results and offer a narrower query. Concurrent requests receive
+correlated error with retry guidance. Disconnect cancels work. Search requests
+are not replayed after reconnect. Browser discards stale query/context replies.

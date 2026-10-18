@@ -15,13 +15,11 @@ interface Snippet {
 interface CommandStore {
   history: string[];
   snippets: Snippet[];
-  paletteOpen: boolean;
   addToHistory: (command: string) => void;
   clearHistory: () => void;
   addSnippet: (snippet: Omit<Snippet, "id">) => void;
   removeSnippet: (id: string) => void;
   togglePinned: (id: string) => void;
-  setPaletteOpen: (open: boolean) => void;
 }
 
 export const useCommandStore = create<CommandStore>()(
@@ -29,7 +27,6 @@ export const useCommandStore = create<CommandStore>()(
     (set) => ({
       history: [],
       snippets: [],
-      paletteOpen: false,
       addToHistory: (command) =>
         set((s) => ({
           history: [command, ...s.history.filter((c) => c !== command)].slice(
@@ -52,7 +49,6 @@ export const useCommandStore = create<CommandStore>()(
             x.id === id ? { ...x, pinned: !x.pinned } : x,
           ),
         })),
-      setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
     }),
     {
       name: machineStorageKey("tmuxde-commands"),

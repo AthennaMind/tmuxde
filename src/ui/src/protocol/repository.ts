@@ -6,9 +6,10 @@ export const RepoRequest = z.object({
   type: z.literal("repo:request"),
   requestId: z.string().min(1).max(128),
   id: z.string().min(1),
-  action: z.enum(["context", "list", "read", "status", "diff", "log", "show"]),
+  action: z.enum(["context", "list", "read", "status", "diff", "log", "show", "search"]),
   path: z.string().optional(),
   file: z.string().optional(),
+  query: z.string().min(1).max(256).optional(),
   scope: RepoScope.optional(),
   /** `log` only. Commits to pass over, for the next page. */
   skip: z.number().int().min(0).max(1_000_000).optional(),
@@ -117,6 +118,12 @@ export const RepoResult = z.discriminatedUnion("kind", [
     files: z.array(RepoCommitFileSchema),
     /** Files left out because file policy denies their path. */
     hidden: z.number(),
+    truncated: z.boolean(),
+  }),
+  z.object({
+    kind: z.literal("search"),
+    path: z.string(),
+    files: z.array(z.string().min(1).max(4096)).max(100),
     truncated: z.boolean(),
   }),
   z.object({ kind: z.literal("error"), message: z.string() }),

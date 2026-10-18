@@ -57,5 +57,13 @@
     "action": "show",
     "path": "/home/dev/projects/tmuxde",
     "commit": "aba3127f0c2d9e8b1a4c6e5d7f9b0a1c2d3e4f5a"
+  },
+  {
+    "type": "repo:request",
+    "requestId": "search-1",
+    "id": "%3",
+    "action": "search",
+    "path": "/workspace",
+    "query": "keyboard toolbar"
   }
 ]

@@ -65,7 +65,7 @@ describe("global terminal search", () => {
     expect(useTerminalSearchStore.getState().machines[0]?.result?.matches[0]?.text).toBe("new");
     fixture.disconnect();
     receiveTerminalSearch("beta", reply(next, "secret"));
-    expect(useTerminalSearchStore.getState()).toMatchObject({ query: "", requestId: null, machines: [], open: false });
+    expect(useTerminalSearchStore.getState()).toMatchObject({ query: "", requestId: null, machines: [] });
   });
 
   it("reports offline, unsupported and reconnecting machines without sending requests", () => {

@@ -207,6 +207,7 @@ type RepoRequest struct {
 	RequestID string  `json:"requestId"`
 	ID        string  `json:"id"`
 	Action    string  `json:"action"`
+	Query     *string `json:"query,omitempty"`
 	Path      *string `json:"path,omitempty"`
 	File      *string `json:"file,omitempty"`
 	Scope     *string `json:"scope,omitempty"`
@@ -225,6 +226,9 @@ func (m *RepoRequest) Validate() error {
 		protocol.MinLength("id", m.ID, 1),
 		protocol.OneOf("action", m.Action, protocol.RepoActions...),
 	)
+	if m.Query != nil {
+		err = errors.Join(err, protocol.LengthBetween("query", *m.Query, 1, 256))
+	}
 	if m.Scope != nil {
 		err = errors.Join(err, protocol.OneOf("scope", *m.Scope, protocol.RepoScopes...))
 	}

@@ -1,17 +1,13 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { create } from "zustand";
+import { useEffect, useMemo, useState } from "react";
 import {
   Loader2,
   Lock,
   Plus,
   PlugZap,
-  Search,
   SquareTerminal,
-  X,
 } from "lucide-react";
 import type { ClientMessage } from "@/protocol";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { LivePreview } from "./live-preview";
 import { PreviewControls } from "./preview-controls";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
@@ -31,19 +27,9 @@ import {
   buildMachine,
   overviewPanes,
   machineStatusLabel,
-  normalizeQuery,
-  plural,
   type LiveState,
   type OverviewPane,
 } from "./overview-model";
-
-/**
- * The filter outlives the page. The page mounts only while its tab is in
- * front, and a trip to a pane and back should find the same list.
- */
-const useOverviewFilter = create<{ query: string; setQuery: (query: string) => void }>()(
-  (set) => ({ query: "", setQuery: (query) => set({ query }) }),
-);
 
 /** Attach the session on its machine, run the messages, show the terminal. */
 function go(machineId: string, session: string, messages: ClientMessage[]) {
@@ -120,20 +106,11 @@ export function OverviewView({ className }: { className?: string }) {
   const inventory = useMachineStore((s) => s.inventory);
   const live = useLiveState();
   const readOnly = useConnectionStore((s) => isReadOnly(s.capabilities));
-  const query = useOverviewFilter((s) => s.query);
-  const setQuery = useOverviewFilter((s) => s.setQuery);
-  const deferredQuery = useDeferredValue(query);
-  const inputRef = useRef<HTMLInputElement>(null);
   const [previewSize, setPreviewSize] = useState("20rem");
   const [, refreshLocks] = useState(0);
   useEffect(() => subscribeKeys(() => refreshLocks((value) => value + 1)), []);
-  useEffect(() => {
-    if (!isMobileViewport()) inputRef.current?.focus({ preventScroll: true });
-  }, []);
   const all = useMemo(() => machines.map((machine) => buildMachine(machine, inventory[machine.id], live)), [machines, inventory, live]);
-  const panes = useMemo(() => overviewPanes(all, deferredQuery), [all, deferredQuery]);
-  const filtering = normalizeQuery(deferredQuery) !== "";
-  const first = panes.find((view) => view.machine.connected);
+  const panes = useMemo(() => overviewPanes(all, ""), [all]);
   const available = all.find((view) => view.connected);
   const loading = all.some((view) => view.state === "loading" || view.sessions.some((session) => session.loading));
   const openPane = (view: OverviewPane) => go(view.machine.machine.id, view.session.session.name, [{ type: "pane:select", id: view.pane.id }]);
@@ -141,29 +118,8 @@ export function OverviewView({ className }: { className?: string }) {
   return <div style={{ "--preview-size": previewSize } as React.CSSProperties}
     className={cn("@container overflow-y-auto overscroll-contain bg-background font-chrome", className)}>
     <div className="mx-auto w-full max-w-[120rem] px-4 pt-6 pb-16 @lg:px-8 @lg:pt-8">
-      <header className="mb-7 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
-          <h1 className="text-lg font-semibold text-foreground">Overview</h1>
-          <div role="search" className="relative order-last w-full @3xl:order-none @3xl:w-auto @3xl:max-w-md @3xl:flex-1">
-            <Search aria-hidden className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input ref={inputRef} type="text" aria-label="Filter panes by machine, session, window, process or folder"
-              placeholder="Search terminals" autoComplete="off" autoCapitalize="off" spellCheck={false} enterKeyHint="go"
-              value={query} onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape" && query) { event.preventDefault(); setQuery(""); }
-                else if (event.key === "Enter" && filtering && first) { event.preventDefault(); openPane(first); }
-              }} className="h-10 bg-muted/40 ps-9 pe-10 pointer-coarse:h-11" />
-            {query && <button type="button" aria-label="Clear filter" title="Clear filter"
-              onClick={() => { setQuery(""); inputRef.current?.focus(); }}
-              className="absolute end-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:size-9">
-              <X className="size-4" aria-hidden />
-            </button>}
-          </div>
-          <PreviewControls size={previewSize} setSize={setPreviewSize} />
-        </div>
-        <p role="status" className="text-xs text-muted-foreground tabular-nums">
-          {loaded ? filtering ? `${plural(panes.length, "pane")} match${panes.length === 1 ? "es" : ""}` : plural(panes.length, "pane") : "Loading terminals…"}
-        </p>
+      <header className="mb-6 flex justify-end">
+        <PreviewControls size={previewSize} setSize={setPreviewSize} />
       </header>
       {error && !machines.length ? <EmptyState icon={PlugZap} title="Server unavailable" body="Waiting for connection. Retrying automatically." />
         : !loaded ? <Loading label="Loading machines" />
@@ -174,8 +130,6 @@ export function OverviewView({ className }: { className?: string }) {
           </li>)}
         </ul>
         : loading ? <Loading label="Loading panes" />
-        : filtering ? <EmptyState icon={Search} title={`No panes match "${deferredQuery.trim()}"`} body="Search by machine, session, window, process or folder."
-          action={<Button size="sm" variant="outline" onClick={() => { setQuery(""); inputRef.current?.focus(); }}>Clear filter</Button>} />
         : <EmptyState icon={SquareTerminal} title="No terminals yet" body="Start a session to see its panes here."
           action={!readOnly && available ? <Button size="sm" onClick={() => newSession(available.machine.id)}><Plus aria-hidden className="size-4" />New session</Button> : undefined} />}
       <div className="mt-6 space-y-2 text-xs text-muted-foreground">
@@ -195,7 +149,7 @@ function PaneCard({ view, locked, onOpen }: { view: OverviewPane; locked: boolea
   return <button type="button" aria-label={`Open ${name}`} aria-current={selected ? "true" : undefined}
     title={name} onClick={onOpen} disabled={!machine.connected}
     className="group block w-full min-w-0 rounded-xl text-start disabled:cursor-wait focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
-    <div className={cn("rounded-xl", selected && "ring-2 ring-primary ring-offset-2 ring-offset-background")}>
+    <div className="rounded-xl">
       <LivePreview machineId={machine.machine.id} session={session.session.name} paneId={pane.id}
         supported={machine.machine.features.includes("terminal:preview")} locked={locked} connected={machine.connected} />
     </div>

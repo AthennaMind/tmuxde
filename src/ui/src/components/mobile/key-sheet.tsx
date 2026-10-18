@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GROUP_LABELS, useSettingsStore, type ToolbarKeyGroup } from "@/stores/settings-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
@@ -26,11 +27,15 @@ export function TerminalKeys() {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <label htmlFor="terminal-key-group" className="text-sm font-medium">Key group</label>
-        <select id="terminal-key-group" value={group} onChange={(event) => setGroup(event.target.value as typeof group)}
-          className="h-11 min-w-0 rounded-xl border border-input bg-surface-panel px-3 text-base">
-          <option value="pinned">Pinned keys</option>
-          {groups.map((id) => <option key={id} value={id}>{GROUP_LABELS[id]}</option>)}
-        </select>
+        <Select value={group} onValueChange={(value) => setGroup(value as typeof group)}>
+          <SelectTrigger id="terminal-key-group" className="h-11 w-44 text-base">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value="pinned">Pinned keys</SelectItem>
+            {groups.map((id) => <SelectItem key={id} value={id}>{GROUP_LABELS[id]}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
       <p className="text-xs leading-5 text-muted-foreground">{group === "core" ? "Basic keys always stay beside terminal." : "Tap to send. Pin keys for quick access."}</p>
       {visible.length ? <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">

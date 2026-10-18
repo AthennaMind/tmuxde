@@ -157,7 +157,7 @@ func TestSink(t *testing.T) {
 }
 
 func TestFeatures(t *testing.T) {
-	base := []string{"repo:request", "repo:history", "file:upload:ack", "file:upload:1gib", "window:step", "pane:step", "repo:watch", "repo:graph", "terminal:search", "terminal:preview"}
+	base := []string{"repo:request", "repo:history", "file:upload:ack", "file:upload:1gib", "window:step", "pane:step", "repo:watch", "repo:graph", "terminal:search", "terminal:preview", "repo:search"}
 	if got := Features(false); !slices.Equal(got, base) {
 		t.Fatalf("Features(false) = %v", got)
 	}

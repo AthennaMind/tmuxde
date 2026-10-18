@@ -9,7 +9,7 @@ import { useMachineStore } from "@/stores/machine-store";
 import { usePaneStore } from "@/stores/pane-store";
 import { useTerminalStore } from "@/stores/terminal-store";
 import { useUiStore } from "@/stores/ui-store";
-import { useCommandStore } from "@/stores/command-store";
+import { openPalette } from "@/stores/palette-store";
 import { useAlertStore } from "@/stores/alert-store";
 import { useTerminalInput } from "@/lib/terminal-input.js";
 import { sendKeySequence } from "@/lib/send-key";
@@ -132,7 +132,7 @@ export function TerminalControls({ open, onOpenChange, triggerRef, navigation, o
                 <Action icon={Keyboard} label={navigation ? "Typing controls" : "Navigation controls"} onClick={() => handoff(onNavigation)} />
                 <Action icon={LayoutGrid} label="Panes and windows" disabled={disabled} onClick={() => handoff(() => useUiStore.getState().setFabOpen(true))} />
                 {onSearchOpen && <Action icon={Search} label="Find in terminal" disabled={disabled} onClick={() => handoff(onSearchOpen)} />}
-                <Action icon={Terminal} label="Command palette" onClick={() => handoff(() => useCommandStore.getState().setPaletteOpen(true))} />
+                <Action icon={Terminal} label="Command palette" onClick={() => handoff(() => openPalette("commands"))} />
               </div>
               <section className="rounded-2xl bg-surface-panel p-3">
                 <div className="mb-2 flex items-center justify-between text-sm"><h3 className="font-medium">Text size</h3><output className="text-muted-foreground tabular-nums">{fontSize}px</output></div>

@@ -1,3 +1,4 @@
+import { QuickOpenTrigger } from "@/components/files/quick-open-trigger";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ClipboardCopy,
@@ -271,6 +272,7 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
           spinning={repo.loading}
         />
       </PanelHeader>
+      <QuickOpenTrigger />
 
       {repo.unavailable ? (
         <Note>{repo.unavailable}</Note>

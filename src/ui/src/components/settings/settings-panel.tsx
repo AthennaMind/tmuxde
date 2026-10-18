@@ -28,6 +28,7 @@ import {
 import { LockSettings } from "@/components/lock/lock-settings";
 import { DisconnectSection } from "./disconnect-section";
 import { InstallAppSection } from "@/components/pwa/install-app-section";
+import { useDictationAvailable } from "@/components/dictation/dictation-button";
 import {
   Segmented,
   SettingsRow,
@@ -103,6 +104,7 @@ export function SettingsPanel({
         <TextSection touch={touch} />
         <TerminalSection touch={touch} />
         <SessionsSection />
+        <MicrophoneSection />
         {touch && <KeyboardToolbarSection />}
         {touch && <TouchSection />}
         <LockSettings />
@@ -110,6 +112,27 @@ export function SettingsPanel({
         <InstallAppSection />
       </div>
     </div>
+  );
+}
+
+function MicrophoneSection() {
+  const available = useDictationAvailable();
+  if (!available) return null;
+  return (
+    <SettingsSection title="Microphone" description="Audio is captured only while dictation is running.">
+      <details className="text-sm">
+        <summary className={cn("min-h-11 cursor-pointer rounded-md py-3 font-medium", settingsFocus)}>
+          Remember microphone access
+        </summary>
+        <div className="space-y-3 pt-2 text-muted-foreground">
+          <p>Browser controls permission for each site and device. To avoid repeated prompts, choose Allow for this site.</p>
+          <p>iPhone Safari: Page Menu &gt; Website Settings &gt; Microphone &gt; Allow.</p>
+          <p>Mac Safari: Settings &gt; Websites &gt; Microphone &gt; Allow.</p>
+          <p>Chrome: site controls beside address bar &gt; Site settings &gt; Microphone &gt; Allow.</p>
+          <p>Permission is reused between recordings while app stays open. Microphone stays muted between recordings and is released when app hides, locks, or disconnects.</p>
+        </div>
+      </details>
+    </SettingsSection>
   );
 }
 

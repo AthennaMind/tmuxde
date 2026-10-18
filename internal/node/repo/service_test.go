@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"slices"
 
@@ -191,4 +192,23 @@ func TestTextFileRefusesSwappedLink(t *testing.T) {
 	if got, err := s.textFile(secret); err != nil || got.content != "top secret" {
 		t.Fatalf("textFile(file) = %+v, %v", got, err)
 	}
+}
+
+func TestSearch(t *testing.T) {
+	base := tempBase(t)
+	dir := filepath.Join(base, "project")
+	mustMkdir(t, dir)
+	mustWrite(t, filepath.Join(dir, "button.tsx"), "")
+	mustWrite(t, filepath.Join(base, "outside.tsx"), "")
+	s := newService(newTestGuard(t, []string{base}, nil), Options{})
+	got := as[*protocol.RepoSearch](t, request(t, s, base, client.RepoRequest{Action: "search", Path: ptr("project"), Query: ptr("tsx")}))
+	if got.Path != dir || !slices.Equal(got.Files, []string{"button.tsx"}) {
+		t.Fatalf("search = %+v", got)
+	}
+	for _, query := range []*string{nil, ptr("  "), ptr(strings.Repeat("x", 257))} {
+		as[*protocol.RepoError](t, request(t, s, base, client.RepoRequest{Action: "search", Query: query}))
+	}
+	s.searchMu.Lock()
+	as[*protocol.RepoError](t, request(t, s, base, client.RepoRequest{Action: "search", Query: ptr("tsx")}))
+	s.searchMu.Unlock()
 }
