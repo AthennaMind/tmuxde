@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent } from "react";
 
 /**
  * Run something on a timer, but only while the tab is actually being looked at.
@@ -39,10 +39,9 @@ export function useVisibleInterval(
     enabled?: boolean;
   } = {},
 ) {
-  // Held in a ref so a caller can pass an inline closure without restarting
-  // the timer on every render.
-  const held = useRef(callback);
-  held.current = callback;
+  // An effect event, so a caller can pass an inline closure without
+  // restarting the timer on every render. Each tick runs the latest one.
+  const tick = useEffectEvent(callback);
 
   useEffect(() => {
     if (!enabled || typeof document === "undefined") return;
@@ -53,7 +52,7 @@ export function useVisibleInterval(
 
     const run = () => {
       lastRun = Date.now();
-      held.current();
+      tick();
     };
 
     const start = () => {
