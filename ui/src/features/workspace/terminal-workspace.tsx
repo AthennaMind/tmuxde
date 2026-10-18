@@ -72,6 +72,9 @@ export function TerminalWorkspace() {
    * view through `createSession`, which often comes with a machine switch.
    * That request holds the dialog open once the switch lands. Closing the
    * dialog clears both.
+   *
+   * The request lasts no longer than this view. A lock unmounts it with the
+   * dialog open, and the dialog must not come back, empty, after the unlock.
    */
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const createRequested = useMachineStore((s) => s.createSession && s.requested === null);
@@ -80,6 +83,12 @@ export function TerminalWorkspace() {
     setShowCreateDialog(open);
     if (!open) useMachineStore.setState({ createSession: false });
   }, []);
+  useEffect(
+    () => () => {
+      useMachineStore.setState({ createSession: false });
+    },
+    [],
+  );
   useEffect(() => {
     if (activeSessionId) {
       useMachineStore.getState().openTerminal(machineId(), activeSessionId);
