@@ -24,7 +24,7 @@ git log -10 --format='%s%n%n%b---'
 
 ### 2. Group changes
 
-One commit per topic. A feature travels with its tests and its `src/ui/src/protocol/PROTOCOL.md` update. Plans, backlogs and reviews under `.agents/` are gitignored and never committed. `pnpm-lock.yaml` goes with the `package.json` change behind it.
+One commit per topic. A feature travels with its tests and its `ui/src/protocol/PROTOCOL.md` update. Plans, backlogs and reviews under `.agents/` are gitignored and never committed. `pnpm-lock.yaml` goes with the `package.json` change behind it.
 
 Unrelated work in the tree gets separate commits. Example: markdown preview next to new app icons. When there is more than one group, show the proposed split before committing.
 

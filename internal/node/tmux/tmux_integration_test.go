@@ -1418,7 +1418,7 @@ func (f *fixture) testPaneMoves(t *testing.T) {
 
 // Not in the relay test file: which pane a border drag in the sidebar grid
 // sends to resize-pane. The layouts and owners are the ones
-// sharedBorders in src/ui/src/lib/pane-grid-layout.test.ts predicts. Each
+// sharedBorders in ui/src/lib/pane-grid-layout.test.ts predicts. Each
 // check applies its layout again, resizes one pane and reads back where the
 // panes on both sides of the border ended.
 func (f *fixture) testResizeOwner(t *testing.T) {

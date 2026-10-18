@@ -16,10 +16,10 @@ out/
 .cache/
 cmd/tmuxde-stt/internal/bundle/models/
 
-# Vite dependency cache of the React app in src/ui. Its build output
-# src/ui/dist is covered by dist/ above. No leading path, so the pattern
-# also matches in the dev containers, where src/ui is /workspace and Tailwind
-# reads this file to skip the cache.
+# Vite dependency cache of the React app in ui. Its build output
+# ui/dist is covered by dist/ above. No leading path, so the pattern
+# also matches ui/.vite in the dev containers, where Tailwind reads this
+# file to skip the cache.
 .vite/
 
 # Environment variables

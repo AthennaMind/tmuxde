@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/ui/public/icon-512.png" width="112" alt="TmuxDE icon">
+  <img src="ui/public/icon-512.png" width="112" alt="TmuxDE icon">
 </p>
 
 <h1 align="center">TmuxDE</h1>

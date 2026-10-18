@@ -1,7 +1,7 @@
 # Local tooling runs in started dev containers. CI uses direct commands.
 SHELL := /bin/bash
 GO_EXEC := docker compose exec -T -w /workspace server-dev
-UI_EXEC := docker compose exec -T -w /workspace/src/ui ui
+UI_EXEC := docker compose exec -T -w /workspace/ui ui
 GO_TEST_ARGS ?= ./...
 UI_TEST_ARGS ?=
 VERSION ?= dev
@@ -50,7 +50,7 @@ typecheck: ## UI TypeScript checks in ui
 
 ui-build: ## Build UI and copy assets to web/dist inside ui
 	$(UI_EXEC) pnpm build
-	$(UI_EXEC) sh -ec 'mkdir -p ../../web/dist; find ../../web/dist -mindepth 1 ! -name .gitkeep -delete; cp -a dist/. ../../web/dist/'
+	$(UI_EXEC) sh -ec 'mkdir -p ../web/dist; find ../web/dist -mindepth 1 ! -name .gitkeep -delete; cp -a dist/. ../web/dist/'
 
 ui: typecheck ui-build ## UI typecheck and embedded production assets
 

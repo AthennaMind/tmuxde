@@ -7,12 +7,12 @@ RUN npm install -g npm@12.2.0 && npm install -g --allow-scripts=pnpm pnpm@12.11.
 ARG DEV_UID=1000
 ARG DEV_GID=1000
 
-RUN mkdir -p /home/dev /workspace/src/ui && chown -R ${DEV_UID}:${DEV_GID} /home/dev /workspace
+RUN mkdir -p /home/dev /workspace/ui && chown -R ${DEV_UID}:${DEV_GID} /home/dev /workspace
 ENV HOME=/home/dev DO_NOT_TRACK=1 \
   PNPM_CONFIG_STORE_DIR=/home/dev/.local/share/pnpm/store
 USER ${DEV_UID}:${DEV_GID}
-WORKDIR /workspace/src/ui
-COPY --chown=${DEV_UID}:${DEV_GID} src/ui/package.json src/ui/pnpm-lock.yaml src/ui/pnpm-workspace.yaml ./
+WORKDIR /workspace/ui
+COPY --chown=${DEV_UID}:${DEV_GID} ui/package.json ui/pnpm-lock.yaml ui/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts
 RUN --network=none pnpm --config.trustLockfile=true rebuild --pending
 CMD ["pnpm", "dev"]

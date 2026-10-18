@@ -79,7 +79,7 @@ func TestRegistryKeysMatchWireTypes(t *testing.T) {
 	}
 }
 
-// TestFixtures checks src/ui/src/protocol/fixtures against the registries.
+// TestFixtures checks ui/src/protocol/fixtures against the registries.
 // Every fixture file names a registered type, every registered type has a
 // fixture, and every sample decodes, validates and re-encodes to equal JSON.
 func TestFixtures(t *testing.T) {
@@ -179,7 +179,7 @@ func checkFixture(t *testing.T, s side, wireType string) {
 	}
 }
 
-// TestInvalidFixtures checks src/ui/src/protocol/fixtures/invalid. Each file
+// TestInvalidFixtures checks ui/src/protocol/fixtures/invalid. Each file
 // holds entries { field, message } for one wire type. Zod rejects every
 // message, so Decode must reject it too, and for the named field. This
 // catches a Validate that is looser than its Zod schema.

@@ -1,7 +1,7 @@
 # Protocol Reference
 
 Every message between the browser and the tmuxde server, as defined in
-`src/ui/src/protocol`, imported as `@/protocol`.
+`ui/src/protocol`, imported as `@/protocol`.
 
 `client-messages.ts` and `server-messages.ts` hold Zod discriminated unions,
 one JSON object per WebSocket message on `/_relay`. `codec.ts` validates both
@@ -442,17 +442,17 @@ browser.
 
 ## Adding a message
 
-1. Add the Zod schema to the right file in `src/ui/src/protocol/`.
+1. Add the Zod schema to the right file in `ui/src/protocol/`.
 2. Add it to the discriminated union. A rule across fields of one client
    message goes in the refinement on `ClientMessage`, and its Go `Validate`
    reports the same field.
 3. Add the Go type and its registry entry in `internal/protocol/client` or
    `internal/protocol/server`.
-4. Add a fixture in `src/ui/src/protocol/fixtures`, plus invalid cases. The
+4. Add a fixture in `ui/src/protocol/fixtures`, plus invalid cases. The
    samples together set every field, and each optional field is left out by
    one of them.
 5. Handle client messages in `internal/node/local/router.go`.
-6. Handle server messages in `src/ui/src/hooks/use-websocket.ts`.
+6. Handle server messages in `ui/src/hooks/use-websocket.ts`.
 
 ## Machine routing
 

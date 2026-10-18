@@ -39,7 +39,7 @@ mic ─► browser worklet ─► tmuxde ─► stt ─► text ─► tmuxde �
        16 kHz PCM16       (auth)   VAD + Parakeet
 ```
 
-1. The browser records the microphone and downsamples it to 16 kHz mono PCM16 in an AudioWorklet (`src/ui/public/dictation-worklet.js`). It sends 200 ms frames over the `/_relay` WebSocket it is already logged in to.
+1. The browser records the microphone and downsamples it to 16 kHz mono PCM16 in an AudioWorklet (`ui/public/dictation-worklet.js`). It sends 200 ms frames over the `/_relay` WebSocket it is already logged in to.
 2. The tmuxde server checks token, origin and write access, then forwards the audio to this service. One WebSocket per dictation.
 3. Silero VAD cuts the audio into utterances at pauses of 0.6 s. Each utterance gets 0.3 s of audio from before it, because the VAD marks speech slightly late and would clip a soft first sound.
 4. Parakeet decodes each utterance as soon as it ends and sends the text back. The browser types it in while you keep talking.
@@ -151,4 +151,4 @@ See [development guide](../../docs/DEVELOPMENT.md) for container check commands 
 | `config.go` | Environment variables |
 | `sherpa/` | cgo binding to Parakeet and Silero through the sherpa-onnx C API |
 
-The protocol is in [PROTOCOL.md](../../src/ui/src/protocol/PROTOCOL.md), under "Dictation" for browser messages and "Speech service (internal)" for this service.
+The protocol is in [PROTOCOL.md](../../ui/src/protocol/PROTOCOL.md), under "Dictation" for browser messages and "Speech service (internal)" for this service.
