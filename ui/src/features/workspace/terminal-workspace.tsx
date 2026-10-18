@@ -1,4 +1,4 @@
-import { MachineContent } from "@/features/connection/machine-workspace";
+import { MachineContent } from "./machine-workspace";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useStableMediaQuery } from "@/shared/use-media-query";
 import { MOBILE_MEDIA_QUERY } from "@/shared/mobile-query";

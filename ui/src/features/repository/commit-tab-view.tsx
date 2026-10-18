@@ -6,7 +6,7 @@ import { useConnectionStore } from "@/features/connection/connection-store";
 import { useMainTabsStore, type CommitTab } from "@/features/workspace/main-tabs-store";
 import { useSettingsStore } from "@/features/settings/settings-store";
 import { CommitDetail } from "./commit-view";
-import { HeaderButton } from "@/features/files/file-tab-view";
+import { HeaderButton } from "@/features/workspace/panel-header";
 import { Notice } from "./repository-preview";
 import { useRepositoryQuery } from "./use-repository-query";
 import type { RepositoryClient } from "./repository-request";

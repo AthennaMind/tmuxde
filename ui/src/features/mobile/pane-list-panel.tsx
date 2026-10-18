@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { PaneGrid, type PaneGridProps } from "@/features/panes/pane-grid";
-import { ProcessIcon } from "@/features/workspace/process-icon";
+import { ProcessIcon } from "@/features/panes/process-icon";
 import { cn } from "@/shared/utils";
 import { useStableMediaQuery } from "@/shared/use-media-query";
 import { zoomPane } from "@/features/panes/pane-zoom";

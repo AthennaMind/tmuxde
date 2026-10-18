@@ -7,7 +7,7 @@ import { Terminal as XTerm } from "@xterm/xterm";
 
 import { refreshWhenFontLoads, terminalFontFamily } from "./terminal-font";
 import { brightenDimText } from "./terminal-dim";
-import { isFontZoomKey } from "@/features/settings/font-zoom-key";
+import { isFontZoomKey } from "./font-zoom-key";
 import { isDictationKey } from "@/features/dictation/dictation-key";
 
 import { getTerminalTheme, terminalThemeToXterm, type ColorScheme } from "./terminal-themes";

@@ -8,7 +8,7 @@ import {
   Settings,
   SquareTerminal,
 } from "lucide-react";
-import { MachineContent } from "@/features/connection/machine-workspace";
+import { MachineContent } from "./machine-workspace";
 import { cn } from "@/shared/utils";
 import type { ConnectionState } from "@/protocol";
 import { getRelayClient } from "@/features/connection/use-websocket";

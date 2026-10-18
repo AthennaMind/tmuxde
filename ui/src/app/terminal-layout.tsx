@@ -6,7 +6,7 @@ import { TransferPanel } from "@/features/files/transfer-controls";
 import { Outlet, useNavigate } from "react-router";
 import { TerminalWorkspace } from "@/features/workspace/terminal-workspace";
 import { useMachineStore } from "@/features/connection/machine-store";
-import { MachineWorkspace } from "@/features/connection/machine-workspace";
+import { MachineWorkspace } from "@/features/workspace/machine-workspace";
 import { AppShell } from "./app-shell";
 import { useWebSocket } from "@/features/connection/use-websocket";
 import {
@@ -17,10 +17,10 @@ import {
 import { useSessionStore } from "@/features/session/session-store";
 import { useStableMediaQuery } from "@/shared/use-media-query";
 import { MOBILE_MEDIA_QUERY, isMobileViewport } from "@/shared/mobile-query";
-import { fontZoomStep } from "@/features/settings/font-zoom-key";
+import { fontZoomStep } from "@/features/terminal/font-zoom-key";
 import { isDictationKey } from "@/features/dictation/dictation-key";
 import { toggleDictation } from "@/features/dictation/dictation";
-import { applyFontZoom, fontZoomSurface, trackZoomPointer } from "@/features/settings/font-zoom";
+import { applyFontZoom, fontZoomSurface, trackZoomPointer } from "@/features/terminal/font-zoom";
 import { MobileNav } from "@/features/mobile/mobile-nav";
 import { CommandComposer } from "@/features/mobile/command-composer";
 import { KeyboardToolbar } from "@/features/mobile/keyboard-toolbar";
@@ -30,7 +30,7 @@ import { useAlertStore } from "@/shared/alert-store";
 import { getTerminalHandle } from "@/features/terminal/terminal-handle";
 import { useTerminalStore } from "@/features/terminal/terminal-store";
 import { KeyboardShortcutsDialog } from "@/features/palette/keyboard-shortcuts-dialog";
-import { ErrorBoundary } from "@/features/workspace/error-boundary";
+import { TerminalErrorBoundary } from "./terminal-error-boundary";
 import { ConnectionBanner } from "@/features/connection/connection-banner";
 import { CapabilityBanner } from "@/features/connection/capability-banner";
 import { LockGate } from "@/features/lock/lock-gate";
@@ -296,10 +296,10 @@ function TerminalLayoutInner() {
         />
       )}
       <VisualViewportSync />
-      <ErrorBoundary fallbackMessage="Terminal crashed">
+      <TerminalErrorBoundary fallbackMessage="Terminal crashed">
         <Outlet />
         <TerminalWorkspace />
-      </ErrorBoundary>
+      </TerminalErrorBoundary>
       <TransferPanel />
       <Palette />
       <CommandComposer />

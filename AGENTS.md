@@ -30,7 +30,7 @@ Closing browser or locking UI leaves tmux running. Stopping or recreating dev co
 
 UI layout: `ui/src` holds `app` (bootstrap, router, routes and providers), `features` (one flat folder per feature with its components, stores, hooks, helpers and tests), `shared` (cross-cutting helpers), `components/ui` (shadcn primitives) and `protocol`. Features import each other directly. `shared`, `components/ui` and `protocol` never import features or `app`. oxlint enforces these layers and kebab-case filenames. Only connection helpers and `ui/src/features/files/file-url.ts` call `fetch`.
 
-UI routes live in `ui/src/app/router.tsx`; remote sessions use `/m/:machineId/s/:sessionId`. Machine state and WebSocket handling live in `ui/src/features/connection`: `machine-store.ts`, `machine-workspace.tsx`, `ws-client.ts` and `use-websocket.ts`.
+UI routes live in `ui/src/app/router.tsx`; remote sessions use `/m/:machineId/s/:sessionId`. Machine state and WebSocket handling live in `ui/src/features/connection`: `machine-store.ts`, `ws-client.ts` and `use-websocket.ts`. Machine switching lives in `ui/src/features/workspace/machine-workspace.tsx`.
 
 Local lock code lives in `ui/src/features/lock`, mainly `lock-store.ts` and `lock-controller.ts`. Locking clears decrypted credentials and browser connections, not tmux sessions.
 

@@ -64,3 +64,29 @@ export function PanelIconButton({
     </button>
   );
 }
+
+/** Icon button in the header row of a main-area tab. Children are the icon. */
+export function HeaderButton({
+  label,
+  pressed,
+  onClick,
+  children,
+}: {
+  label: string;
+  pressed?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      title={label}
+      onClick={onClick}
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-pressed:bg-accent aria-pressed:text-foreground"
+    >
+      {children}
+    </button>
+  );
+}

@@ -9,6 +9,7 @@ import { useRepoChangeCount } from "@/features/repository/repo-watch-store";
 import { shortenPath } from "@/shared/tmux-labels";
 import { useConnectionStore } from "@/features/connection/connection-store";
 import { useMainTabsStore, type FileTab } from "@/features/workspace/main-tabs-store";
+import { HeaderButton } from "@/features/workspace/panel-header";
 import { useSettingsStore } from "@/features/settings/settings-store";
 import { RepositoryFileIcon } from "./repository-file-icon";
 import { FilePreview, Notice } from "@/features/repository/repository-preview";
@@ -177,30 +178,5 @@ function FileTabBody({
       rendered={rendered}
       onOpenPath={onOpenPath}
     />
-  );
-}
-
-export function HeaderButton({
-  label,
-  pressed,
-  onClick,
-  children,
-}: {
-  label: string;
-  pressed?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={pressed}
-      title={label}
-      onClick={onClick}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-pressed:bg-accent aria-pressed:text-foreground"
-    >
-      {children}
-    </button>
   );
 }

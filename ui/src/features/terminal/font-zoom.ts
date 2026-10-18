@@ -3,7 +3,7 @@ import {
   clampFontSize,
   getDefaultFontSize,
   useTerminalStore,
-} from "@/features/terminal/terminal-store";
+} from "./terminal-store";
 
 export type ZoomSurface = "terminal" | "code";
 

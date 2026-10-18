@@ -4,7 +4,7 @@ import { paneCellName, gridAspect } from "./pane-grid-layout";
 import { TerminalScreen } from "@/features/terminal/terminal-screen";
 import { previewKey, useTerminalPreviewStore, watchPreview } from "./terminal-preview-store";
 import { useMachineStore } from "@/features/connection/machine-store";
-import { ProcessIcon } from "@/features/workspace/process-icon";
+import { ProcessIcon } from "./process-icon";
 import type { Peek } from "./use-pane-peek";
 
 /** Terminal color and style escapes, cut from the screen reader copy. */

@@ -15,7 +15,7 @@ import {
   receiveTerminalSearch,
   resetTerminalSearch,
   terminalSearchDisconnected,
-} from "@/features/terminal/terminal-search-store";
+} from "@/features/palette/terminal-search-store";
 
 /** Read-only subscriptions keep every machine live without attaching a PTY. */
 export function useMachines(token: string) {

@@ -36,7 +36,7 @@ import { cn } from "@/shared/utils";
 import { GridBorders } from "./pane-grid-borders";
 import { PanePeek } from "./pane-peek";
 import { usePanePeek } from "./use-pane-peek";
-import { ProcessIcon } from "@/features/workspace/process-icon";
+import { ProcessIcon } from "./process-icon";
 import { TreeMenuItem, type TreeAction } from "@/features/workspace/tree-row";
 
 /** Space between cells in px. tmux's own separator scales with the window. */

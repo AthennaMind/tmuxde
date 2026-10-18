@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Command } from "cmdk";
 import { RepositoryFileIcon } from "@/features/files/repository-file-icon";
-import { useQuickOpenQuery } from "@/features/files/use-quick-open-query";
+import { useQuickOpenQuery } from "./use-quick-open-query";
 import { useRelayClient } from "@/features/connection/use-websocket";
 import { isMobileViewport } from "@/shared/mobile-query";
 import { filesDisabled, useConnectionStore } from "@/features/connection/connection-store";

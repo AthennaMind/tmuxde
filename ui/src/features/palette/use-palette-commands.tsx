@@ -52,7 +52,7 @@ import {
 } from "lucide-react";
 import type { ClientMessage } from "@/protocol";
 import { RepositoryFileIcon } from "@/features/files/repository-file-icon";
-import { useQuickOpenQuery } from "@/features/files/use-quick-open-query";
+import { useQuickOpenQuery } from "./use-quick-open-query";
 import { useDictationAvailable } from "@/features/dictation/use-dictation-available";
 import { useShortcutsDialog } from "./shortcuts-dialog-store";
 import { getRelayClient, useRelayClient } from "@/features/connection/use-websocket";

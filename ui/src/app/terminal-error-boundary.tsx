@@ -5,12 +5,12 @@ import { useSessionStore } from "@/features/session/session-store";
 import { usePaneStore } from "@/features/panes/pane-store";
 import { copyText, copyFailureReason } from "@/shared/clipboard";
 
-interface ErrorBoundaryProps {
+interface TerminalErrorBoundaryProps {
   children: React.ReactNode;
   fallbackMessage?: string;
 }
 
-interface ErrorBoundaryState {
+interface TerminalErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
   retryCount: number;
@@ -18,8 +18,15 @@ interface ErrorBoundaryState {
   copyResult: string | null;
 }
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
+/**
+ * Error boundary of the terminal route. A second Retry clears the active
+ * session and every pane, so it only fits around terminal state.
+ */
+export class TerminalErrorBoundary extends React.Component<
+  TerminalErrorBoundaryProps,
+  TerminalErrorBoundaryState
+> {
+  constructor(props: TerminalErrorBoundaryProps) {
     super(props);
     this.state = {
       hasError: false,
@@ -37,7 +44,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // #16: Structured console logging
-    console.error("[ErrorBoundary]", {
+    console.error("[TerminalErrorBoundary]", {
       message: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,

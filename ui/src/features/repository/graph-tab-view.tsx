@@ -9,7 +9,7 @@ import { useConnectionStore } from "@/features/connection/connection-store";
 import { commitTabId, useMainTabsStore, type GraphTab } from "@/features/workspace/main-tabs-store";
 import { useRepoChangeCount, useRepoWatch, watchHealthy } from "./repo-watch-store";
 import { useCommitLog } from "./use-commit-log";
-import { HeaderButton } from "@/features/files/file-tab-view";
+import { HeaderButton } from "@/features/workspace/panel-header";
 import { GraphList } from "./graph-list";
 import { Notice } from "./repository-preview";
 

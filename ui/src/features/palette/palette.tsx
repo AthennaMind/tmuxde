@@ -27,7 +27,7 @@ import { sendCommand } from "@/features/terminal/send-command";
 import { closePalette, usePaletteStore } from "./palette-store";
 import { isReadOnly, useConnectionStore } from "@/features/connection/connection-store";
 import { useSessionStore } from "@/features/session/session-store";
-import { searchTerminals, useTerminalSearchStore } from "@/features/terminal/terminal-search-store";
+import { searchTerminals, useTerminalSearchStore } from "./terminal-search-store";
 import { CONTROL_CLASS, Kbd, PaletteFooter } from "./palette-primitives";
 import { PaletteContext } from "./palette-context";
 import { CommandsMode } from "./commands-mode";

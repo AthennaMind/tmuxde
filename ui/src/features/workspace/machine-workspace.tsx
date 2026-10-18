@@ -1,27 +1,31 @@
 import { Fragment, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { useMachines } from "./use-machines";
-import { useMachineStore } from "./machine-store";
+import { useMachines } from "@/features/connection/use-machines";
+import { useMachineStore } from "@/features/connection/machine-store";
 import { useSessionStore } from "@/features/session/session-store";
 import { useSessionTreeStore } from "@/features/session/session-tree-store";
-import { useConnectionStore } from "./connection-store";
+import { useConnectionStore } from "@/features/connection/connection-store";
 import { usePaneStore } from "@/features/panes/pane-store";
 import { useFileStore } from "@/features/files/file-store";
 import { useScrollStore } from "@/features/terminal/scroll-store";
-import { isMachineTab, useMainTabsStore } from "@/features/workspace/main-tabs-store";
+import { isMachineTab, useMainTabsStore } from "./main-tabs-store";
 import { useCommandStore } from "@/features/terminal/command-store";
-import { useUiStore } from "@/features/workspace/ui-store";
-import { activateView, openWorkspace } from "@/features/workspace/workspace-target";
+import { useUiStore } from "./ui-store";
+import { activateView, openWorkspace } from "./workspace-target";
 import { RequireUnlockDialog } from "@/features/lock/require-unlock-dialog";
 import { cancelDictation } from "@/features/dictation/dictation";
-import { machineStorageKey, setMachineId } from "./machine-context";
+import { machineStorageKey, setMachineId } from "@/features/connection/machine-context";
 import { useTerminalInput } from "@/features/terminal/terminal-input";
-import { LAST_SESSION_KEY, writeStored, readSelfHostedToken } from "./storage-keys";
+import {
+  LAST_SESSION_KEY,
+  writeStored,
+  readSelfHostedToken,
+} from "@/features/connection/storage-keys";
 import { noteSessionDetached } from "@/features/session/session-target";
 import { resetSessionLifecycle } from "@/features/session/session-lifecycle";
 import { resetScrollState } from "@/features/terminal/terminal-scroll";
 import { registerDisconnect } from "@/features/lock/lock-controller";
-import { disconnectAll } from "./relay-registry";
+import { disconnectAll } from "@/features/connection/relay-registry";
 
 /** Keep workspace chrome mounted while replacing machine-scoped consumers. */
 export function MachineWorkspace({ children }: { children: React.ReactNode }) {

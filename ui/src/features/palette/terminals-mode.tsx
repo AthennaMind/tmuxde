@@ -4,10 +4,7 @@ import type { TerminalSearchMatch } from "@/protocol";
 import { isSessionLocked } from "@/features/lock/lock-store";
 import { openMachineSession } from "@/features/workspace/workspace-target";
 import { useMachineStore } from "@/features/connection/machine-store";
-import {
-  useTerminalSearchStore,
-  type MachineSearch,
-} from "@/features/terminal/terminal-search-store";
+import { useTerminalSearchStore, type MachineSearch } from "./terminal-search-store";
 import { GROUP_CLASS, LIST_CLASS, PaletteEmpty, PaletteFooter } from "./palette-primitives";
 import { usePalette } from "./palette-context";
 

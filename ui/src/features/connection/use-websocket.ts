@@ -34,7 +34,7 @@ import {
   noteSessionCreated,
   sessionNotFoundText,
 } from "@/features/session/session-lifecycle";
-import { receiveTerminalSearch } from "@/features/terminal/terminal-search-store";
+import { receiveTerminalSearch } from "@/features/palette/terminal-search-store";
 
 /**
  * Sessions whose end was already reported, for ten seconds.
