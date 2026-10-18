@@ -1,57 +1,84 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 /**
  * Media query hook that re-evaluates on real viewport changes (window
  * resize, orientation change, devtools toggle) but ignores pinch-zoom, which
  * changes the CSS viewport width without a real layout shift.
  *
- * The zoom guard checks `visualViewport.scale ≈ 1` — when the user is
- * pinch-zoomed, matchMedia "change" events are suppressed to prevent
- * layout-critical mobile/desktop switches from flip-flopping (which would
- * destroy and rebuild the component tree, killing xterm).
+ * The zoom guard checks `visualViewport.scale ≈ 1`. While the user is
+ * pinch-zoomed, matchMedia "change" events are ignored. Otherwise the
+ * layout-critical mobile/desktop switch could flip-flop, which would destroy
+ * and rebuild the component tree and kill xterm.
  */
 export function useStableMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia(query).matches;
-  });
+  const store = stableQuery(query);
+  return useSyncExternalStore(store.subscribe, store.getSnapshot, () => false);
+}
 
-  useEffect(() => {
-    const media = window.matchMedia(query);
+interface StableQuery {
+  subscribe: (notify: () => void) => () => void;
+  getSnapshot: () => boolean;
+}
 
-    // Sync initial value
-    setMatches(media.matches);
+/**
+ * One store per query, shared by every component that asks it. The store
+ * holds the accepted answer, which only real viewport changes move. A
+ * component that mounts during a pinch therefore agrees with the layout
+ * around it.
+ */
+const queries = new Map<string, StableQuery>();
 
-    const isZoomed = () => {
-      const scale = window.visualViewport?.scale ?? 1;
-      return Math.abs(scale - 1) > 0.05;
-    };
+function isPinchZoomed(): boolean {
+  const scale = window.visualViewport?.scale ?? 1;
+  return Math.abs(scale - 1) > 0.05;
+}
 
-    // matchMedia change listener — fires on real resize AND zoom-driven
-    // viewport changes, so we gate on zoom scale
-    const handleMediaChange = () => {
-      if (isZoomed()) return; // pinch-zoom, ignore
-      setMatches(media.matches);
-    };
+function stableQuery(query: string): StableQuery {
+  const known = queries.get(query);
+  if (known) return known;
 
-    media.addEventListener("change", handleMediaChange);
+  const media = window.matchMedia(query);
+  const listeners = new Set<() => void>();
+  let accepted = media.matches;
 
-    // Orientation change as fallback (some mobile browsers)
-    const handleOrientationChange = () => {
-      setTimeout(() => {
-        setMatches(media.matches);
-      }, 100);
-    };
+  const accept = () => {
+    if (accepted === media.matches) return;
+    accepted = media.matches;
+    for (const notify of listeners) notify();
+  };
+  // Fires on real resizes and on zoom-driven viewport changes alike, so it
+  // gates on the zoom scale.
+  const onMediaChange = () => {
+    if (!isPinchZoomed()) accept();
+  };
+  // Orientation change as fallback for some mobile browsers. The query
+  // settles shortly after the event.
+  const onOrientationChange = () => {
+    setTimeout(accept, 100);
+  };
 
-    window.addEventListener("orientationchange", handleOrientationChange);
-    screen.orientation?.addEventListener("change", handleOrientationChange);
-
-    return () => {
-      media.removeEventListener("change", handleMediaChange);
-      window.removeEventListener("orientationchange", handleOrientationChange);
-      screen.orientation?.removeEventListener("change", handleOrientationChange);
-    };
-  }, [query]);
-
-  return matches;
+  const store: StableQuery = {
+    subscribe(notify) {
+      if (listeners.size === 0) {
+        // Nobody listened, so changes since then went unseen.
+        accepted = media.matches;
+        media.addEventListener("change", onMediaChange);
+        window.addEventListener("orientationchange", onOrientationChange);
+        screen.orientation?.addEventListener("change", onOrientationChange);
+      }
+      listeners.add(notify);
+      return () => {
+        listeners.delete(notify);
+        if (listeners.size > 0) return;
+        media.removeEventListener("change", onMediaChange);
+        window.removeEventListener("orientationchange", onOrientationChange);
+        screen.orientation?.removeEventListener("change", onOrientationChange);
+      };
+    },
+    // A first render before any subscription reads the live answer, as a
+    // fresh mount always did.
+    getSnapshot: () => (listeners.size > 0 ? accepted : media.matches),
+  };
+  queries.set(query, store);
+  return store;
 }
