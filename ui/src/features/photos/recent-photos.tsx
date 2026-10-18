@@ -1,14 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Images } from "lucide-react";
 import { cn } from "@/shared/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { getRelayClient } from "@/features/connection/use-websocket";
 import { usePhotoHistory } from "./use-photo-history";
 import { useBelievedInCopyMode } from "@/features/terminal/use-copy-mode";
@@ -157,59 +148,5 @@ export function RecentPhotoList({
         </ul>
       )}
     </div>
-  );
-}
-
-export function RecentPhotos({
-  className,
-  labelClassName,
-}: {
-  className?: string;
-  /** Lets a narrow toolbar hide the visible label. */
-  labelClassName?: string;
-}) {
-  const { client, paths } = usePhotoHistory();
-  const status = useConnectionStore((s) => s.status);
-  const capabilities = useConnectionStore((s) => s.capabilities);
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [client]);
-
-  const canRead = capabilities?.files !== "none";
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          disabled={!paths.length || status !== "connected" || !canRead}
-          title="Recent photos"
-          className={cn(
-            "flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-            className,
-          )}
-        >
-          <Images className="h-4 w-4 shrink-0" aria-hidden />
-          <span className={labelClassName}>
-            Recent photos{paths.length > 0 ? ` (${paths.length})` : ""}
-          </span>
-        </button>
-      </DialogTrigger>
-      <DialogContent
-        className="max-h-[80dvh] w-[calc(100%-2rem)] overflow-y-auto rounded-lg"
-        onCloseAutoFocus={(event) => event.preventDefault()}
-      >
-        <DialogHeader>
-          <DialogTitle>Recent photos</DialogTitle>
-          <DialogDescription>
-            Reuse a photo saved on this machine. Its path is inserted without pressing Enter.
-          </DialogDescription>
-        </DialogHeader>
-        {/* Unmounts on close, which aborts a reuse still in flight. */}
-        <RecentPhotoList onReused={() => setOpen(false)} />
-      </DialogContent>
-    </Dialog>
   );
 }

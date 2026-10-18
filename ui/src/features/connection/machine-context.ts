@@ -23,10 +23,6 @@ export function machineBasePath(): string {
   return id === "local" ? "" : `/m/${id}`;
 }
 
-export function machinePath(id: string): string {
-  return id === "local" ? "/" : `/m/${encodeURIComponent(id)}/`;
-}
-
 /** Remove saved workspace data for every machine on device erasure. */
 export function clearMachineStorage(): void {
   if (typeof window === "undefined") return;

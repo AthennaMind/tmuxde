@@ -136,11 +136,3 @@ export function selectStripEntry(key: string): boolean {
   if (useSettingsStore.getState().hapticEnabled) triggerHaptic(15);
   return true;
 }
-
-/** Test seam: drop the module-level timers between cases. */
-export function resetStripController(): void {
-  if (pendingTimer) clearTimeout(pendingTimer);
-  if (hudTimer) clearTimeout(hudTimer);
-  pendingTimer = null;
-  hudTimer = null;
-}

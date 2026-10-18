@@ -26,11 +26,6 @@ export function isMacLike(): boolean {
   return /mac|iphone|ipad|ipod/i.test(data?.platform ?? navigator.platform ?? "");
 }
 
-/** Modifier shown in key hints. */
-export function modLabel(): string {
-  return isMacLike() ? "⌘" : "Ctrl";
-}
-
 /** `⌘K` on a Mac, `Ctrl K` elsewhere. */
 export function modKey(keys: string): string {
   return isMacLike() ? `⌘${keys}` : `Ctrl ${keys}`;

@@ -133,12 +133,6 @@ export function getFileViewMode(path: string): FileViewMode {
   return "text";
 }
 
-export function isBinaryFile(path: string): boolean {
-  const ext = path.split(".").pop()?.toLowerCase();
-  if (!ext) return false;
-  return ext in BINARY_EXTENSIONS;
-}
-
 export function getFileCategory(path: string): string | null {
   const ext = path.split(".").pop()?.toLowerCase();
   if (!ext) return null;

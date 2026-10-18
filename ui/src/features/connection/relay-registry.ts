@@ -26,13 +26,6 @@ import type { RelayClient } from "./ws-client";
  * connect/disconnect stay entirely inside `RelayClient`.
  */
 
-/**
- * The id used when there is no pairing at all — the self-hosted and split
- * deployments, where the relay is simply "this origin" and there is no device
- * fingerprint to key on.
- */
-export const LOCAL_SERVER_ID = "local";
-
 type Entry = {
   client: RelayClient;
   refs: number;

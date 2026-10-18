@@ -81,10 +81,6 @@ export function subscribeLock(fn: (state: LockState) => void): () => void {
   return () => listeners.delete(fn);
 }
 
-export function lockState(): LockState {
-  return snapshot();
-}
-
 export function isUnlocked(): boolean {
   return masterKeyRef !== null;
 }

@@ -5,12 +5,9 @@ import { useEffect, useRef } from "react";
  *
  * ## Why this exists
  *
- * The dashboard fetched `/v1/servers` exactly once, on mount, and then never
- * again. `online` is a 90-second window on the broker, so a user who opened the
- * dashboard and *then* ran `mtmux` on their laptop saw "Pair this device"
- * disabled forever, with no recovery but a hard reload — a hard block on
- * onboarding a new phone, which is the single most common way this page is
- * opened.
+ * Repository views poll Git state as a safety net under the server watch: the
+ * current changes view, the graph tab and `use-repository-state.ts`. They poll
+ * slowly while the watch is healthy and faster without it.
  *
  * ## Why not a plain `setInterval`
  *
@@ -89,12 +86,3 @@ export function useVisibleInterval(
     };
   }, [intervalMs, debounceMs, enabled]);
 }
-
-/**
- * Half the broker's 90-second `onlineWindowSeconds`.
- *
- * Sampling at the window length would mean a machine could be online for a full
- * window before the dashboard noticed; half of it bounds the lie to ~45s
- * without doubling the request rate again for no further gain.
- */
-export const SERVERS_POLL_MS = 45_000;
