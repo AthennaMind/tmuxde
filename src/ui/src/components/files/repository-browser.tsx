@@ -1,3 +1,5 @@
+import { QuickOpenTrigger } from "./quick-open-trigger";
+import { useQuickOpenStore } from "@/stores/quick-open-store";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -156,6 +158,9 @@ function BrowserContents({
     useRepositoryHistory(paneId);
   const { tab, directory, filter, preview } = view;
   const commit = view.commit ?? null;
+  useEffect(() => {
+    if (preview && !preview.scope) useQuickOpenStore.getState().remember({ machineId: machineId(), path: preview.path });
+  }, [preview?.path, preview?.scope]);
   const historySupported = useConnectionStore((s) =>
     s.features.has("repo:history"),
   );
@@ -411,6 +416,7 @@ function BrowserContents({
           {onClose && <CloseButton onClose={onClose} />}
         </div>
       </div>
+      {tab === "files" && <QuickOpenTrigger />}
       <div
         id={`${id}-panel`}
         role="tabpanel"

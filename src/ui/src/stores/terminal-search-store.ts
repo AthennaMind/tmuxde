@@ -14,7 +14,6 @@ export interface MachineSearch {
 }
 
 interface TerminalSearchStore {
-  open: boolean;
   query: string;
   caseSensitive: boolean;
   requestId: string | null;
@@ -22,7 +21,7 @@ interface TerminalSearchStore {
 }
 
 const initial: TerminalSearchStore = {
-  open: false, query: "", caseSensitive: false, requestId: null, machines: [],
+  query: "", caseSensitive: false, requestId: null, machines: [],
 };
 
 export const useTerminalSearchStore = create<TerminalSearchStore>(() => initial);

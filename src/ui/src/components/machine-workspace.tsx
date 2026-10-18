@@ -74,7 +74,7 @@ export function MachineWorkspace({ children }: { children: React.ReactNode }) {
     const commands = useCommandStore.persist.getOptions().storage;
     const oldKey = useCommandStore.persist.getOptions().name ?? "tmuxde-commands";
     const saved = commands?.getItem(oldKey);
-    useCommandStore.setState({ history: [], snippets: [], paletteOpen: false });
+    useCommandStore.setState({ history: [], snippets: [] });
     if (saved && !(saved instanceof Promise)) commands?.setItem(oldKey, saved);
     setMachineId(requested.machineId);
     useCommandStore.persist.setOptions({ name: machineStorageKey("tmuxde-commands") });

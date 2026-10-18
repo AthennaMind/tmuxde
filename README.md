@@ -22,10 +22,10 @@ TmuxDE (Tmux Development Environment) is a self-hosted DE built on top of tmux. 
 
 - Your full tmux workflow, themes and configuration in the browser and mobile.
 - Connect remote machines through TmuxDE agents, each with its own tmux, files and Git.
-- Search retained terminal history across all connected machines.
-- Rich file previews.
+- You can hide all UI and features and just use your tmux in the browser
 - Files and git integration at the current focused pane / window / split.
-- Clipboard image paste.
+- One command palette with Ctrl/Cmd+K: open views, sessions, windows, panes, tmux actions, appearance, snippets and recent commands.
+- Find files with Ctrl/Cmd+P and search retained terminal history across all machines with Ctrl/Cmd+Shift+F, in the same palette.
 - Optional speech to text at your tmux cursor.
 - No phone home, ever.
     - No telemetry, analytics or crash reporting.

@@ -1,10 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { create } from "zustand";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+/** Opened by `?` and by the command palette. */
+export const useShortcutsDialog = create<{ open: boolean }>(() => ({ open: false }));
 
 /**
  * On a phone every one of these is a button in the toolbar rather than a key
@@ -19,7 +23,10 @@ const agentKeys = [
 ];
 
 const shortcuts = [
-  { keys: ["Ctrl/Cmd", "K"], description: "Open command palette" },
+  { keys: ["Ctrl/Cmd", "K"], description: "Command palette" },
+  { keys: ["Ctrl/Cmd", "P"], description: "Find files" },
+  { keys: ["Ctrl/Cmd", "Shift", "F"], description: "Search terminals" },
+  { keys: ["Ctrl/Cmd", "Enter"], description: "Run typed text in the terminal, from the palette" },
   { keys: ["Ctrl", "B"], description: "Toggle sidebar (outside the terminal)" },
   { keys: ["Ctrl", "E"], description: "Toggle files (outside the terminal)" },
   { keys: ["Ctrl", "O"], description: "Toggle overview (outside the terminal)" },
@@ -36,7 +43,8 @@ const shortcuts = [
 ];
 
 export function KeyboardShortcutsDialog() {
-  const [open, setOpen] = useState(false);
+  const open = useShortcutsDialog((s) => s.open);
+  const setOpen = (open: boolean) => useShortcutsDialog.setState({ open });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -92,12 +100,12 @@ export function KeyboardShortcutsDialog() {
           {shortcuts.map(({ keys, description }) => (
             <div
               key={description}
-              className="flex items-center justify-between py-1"
+              className="flex items-center justify-between gap-4 py-1"
             >
               <span className="text-sm text-muted-foreground">
                 {description}
               </span>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1">
                 {keys.map((key) => (
                   <kbd
                     key={key}

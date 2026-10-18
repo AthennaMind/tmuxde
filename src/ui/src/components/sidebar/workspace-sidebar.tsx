@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Search,
   FolderTree,
   GitCompareArrows,
+  LayoutGrid,
   History,
   Images,
   Settings,
@@ -17,6 +17,7 @@ import { readStored, writeStored } from "@/lib/storage-keys";
 import { DictationButton } from "@/components/dictation/dictation-button";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
 import {
+  OVERVIEW_TAB,
   SETTINGS_TAB,
   useMainTabsStore,
 } from "@/stores/main-tabs-store";
@@ -33,7 +34,6 @@ import { ChangesView } from "./changes-view";
 import { HistoryView } from "./history-view";
 import { PhotosView } from "./photos-view";
 import { useRepositoryState } from "./use-repository-state";
-import { useTerminalSearchStore } from "@/stores/terminal-search-store";
 
 const PREFS_KEY = "tmuxde-sidebar";
 const VIEWS: SidebarView[] = [
@@ -113,6 +113,7 @@ export function WorkspaceSidebar({
   const noFiles = filesDisabled(capabilities);
   const { paths } = usePhotoHistory();
   const settingsActive = useMainTabsStore((s) => s.active === SETTINGS_TAB);
+  const overviewActive = useMainTabsStore((s) => s.active === OVERVIEW_TAB);
 
   const [changeCount, setChangeCount] = useState(0);
   // A share without file access has no repository views to show.
@@ -128,13 +129,23 @@ export function WorkspaceSidebar({
         aria-label="Sidebar"
         className="flex w-12 shrink-0 flex-col items-center gap-1 border-e bg-surface-sunken py-1.5"
       >
+        {/* Overview tab first. A second click goes back to the terminal. */}
+        <RailButton
+          label="Overview (Ctrl+O)"
+          icon={LayoutGrid}
+          active={overviewActive}
+          onClick={() => {
+            const tabs = useMainTabsStore.getState();
+            if (overviewActive) tabs.showTerminal();
+            else tabs.openOverview();
+          }}
+        />
         <RailButton
           label="Sessions"
           icon={SquareTerminal}
           active={open("sessions")}
           onClick={() => toggleView("sessions")}
         />
-        <RailButton label="Search all terminals" icon={Search} active={false} onClick={() => useTerminalSearchStore.setState({ open: true })} />
         {!noFiles && (
           <>
             <RailButton

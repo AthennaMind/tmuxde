@@ -1,3 +1,6 @@
+import { Palette } from "@/components/palette/palette";
+import { paletteKeyMode } from "@/lib/palette-key";
+import { togglePalette } from "@/stores/palette-store";
 import { useCallback, useEffect, useState } from "react";
 import { TransferPanel } from "@/components/files/transfer-controls";
 import { Outlet, useNavigate } from "react-router";
@@ -30,7 +33,6 @@ import { OVERVIEW_TAB, TERMINAL_TAB, useMainTabsStore } from "@/stores/main-tabs
 import { useAlertStore } from "@/stores/alert-store";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
 import { useTerminalStore } from "@/stores/terminal-store";
-import { CommandPalette } from "@/components/command/command-palette";
 import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ConnectionBanner } from "@/components/connection-banner";
@@ -46,7 +48,6 @@ import {
   readSelfHostedToken,
   readStored,
 } from "@/lib/storage-keys";
-import { GlobalTerminalSearch } from "@/components/terminal/global-terminal-search";
 
 /**
  * The gate is outside the layout body on purpose.
@@ -135,6 +136,14 @@ function TerminalLayoutInner() {
   // press.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const palette = paletteKeyMode(e);
+      if (palette) {
+        e.preventDefault();
+        // Another dialog owns the keyboard. The palette itself switches modes.
+        if (e.target instanceof Element && e.target.closest('[role="dialog"]:not([data-palette])')) return;
+        if (!e.repeat) togglePalette(palette);
+        return;
+      }
       // Works from the terminal too: xterm passes it through.
       if (isDictationKey(e)) {
         if (!useConnectionStore.getState().features.has("dictation")) return;
@@ -307,8 +316,7 @@ function TerminalLayoutInner() {
         <TerminalWorkspace />
       </ErrorBoundary>
       <TransferPanel />
-      <CommandPalette />
-      <GlobalTerminalSearch />
+      <Palette />
       <CommandComposer />
       <KeyboardShortcutsDialog />
     </AppShell>

@@ -1,3 +1,4 @@
+import { isPaletteKey } from "./palette-key";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
@@ -152,7 +153,7 @@ export function createXterm(options: XtermOptions): XtermBundle {
   // terminal turns Ctrl+- into a control character. Skipped here, the key
   // bubbles to the terminal layout, which sizes the terminal or the code view.
   terminal.attachCustomKeyEventHandler(
-    (event) => !isFontZoomKey(event) && !isDictationKey(event),
+    (event) => !isFontZoomKey(event) && !isDictationKey(event) && !isPaletteKey(event),
   );
 
   terminal.unicode.activeVersion = "11";
