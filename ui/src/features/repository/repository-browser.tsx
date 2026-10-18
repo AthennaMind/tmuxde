@@ -149,10 +149,12 @@ function BrowserContents({
     useRepositoryHistory(paneId);
   const { tab, directory, filter, preview } = view;
   const commit = view.commit ?? null;
+  // A file opened here joins quick open's recent files. Diff previews do not.
+  const openedFile = preview && !preview.scope ? preview.path : null;
   useEffect(() => {
-    if (preview && !preview.scope)
-      useQuickOpenStore.getState().remember({ machineId: machineId(), path: preview.path });
-  }, [preview?.path, preview?.scope]);
+    if (openedFile)
+      useQuickOpenStore.getState().remember({ machineId: machineId(), path: openedFile });
+  }, [openedFile]);
   const historySupported = useConnectionStore((s) => s.features.has("repo:history"));
   const tabs: Tab[] = historySupported ? ["files", "changes", "history"] : ["files", "changes"];
   const [refresh, setRefresh] = useState(0);
@@ -271,9 +273,9 @@ function BrowserContents({
     fileQuery.loading ||
     commitQuery.loading ||
     log.refreshing;
-  useEffect(() => {
-    if (refreshing && !anyLoading) setRefreshing(false);
-  }, [refreshing, anyLoading]);
+  // Every answer landed. Cleared during render, so the spinner stops in the
+  // same paint as the last answer.
+  if (refreshing && !anyLoading) setRefreshing(false);
   const spinning =
     refreshing ||
     empty(contextQuery) ||

@@ -1,4 +1,4 @@
-import { memo, useCallback, useDeferredValue, useEffect, useId, useMemo, useState } from "react";
+import { memo, useCallback, useDeferredValue, useId, useMemo, useState } from "react";
 import { ChevronRight, Copy, Search } from "lucide-react";
 import type { RepoCommitFile, RepoResult } from "@/protocol";
 import { cn } from "@/shared/utils";
@@ -130,16 +130,13 @@ export function FileChangesDetail({
     [files, patterns, mode],
   );
   // Files shown at least once. Their sections stay mounted while hidden.
+  // Stored during render when the filter shows a new file. React drops that
+  // update along with any render it throws away, so only files really shown
+  // count as seen.
   const [seen, setSeen] = useState({ files, indices: NONE_SEEN });
-  const seenIndices = seen.files === files ? seen.indices : NONE_SEEN;
-  useEffect(() => {
-    // After commit, so a render React drops never marks files as seen.
-    setSeen((prev) => {
-      const base = prev.files === files ? prev.indices : NONE_SEEN;
-      const indices = addSeenIndices(base, visible);
-      return prev.files === files && indices === prev.indices ? prev : { files, indices };
-    });
-  }, [files, visible]);
+  const seenIndices = addSeenIndices(seen.files === files ? seen.indices : NONE_SEEN, visible);
+  if (seen.files !== files || seen.indices !== seenIndices)
+    setSeen({ files, indices: seenIndices });
   const sections = useMemo(
     () => commitSections(files, visible, seenIndices),
     [files, visible, seenIndices],

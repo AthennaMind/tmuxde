@@ -41,6 +41,17 @@ export function ChangesTabView({ tab, className }: { tab: ChangesTab; className?
   );
 }
 
+/** The last load of current changes, and what it was loaded for. */
+interface Answer {
+  client: RepositoryClient;
+  /** Attach, pane and folder. */
+  view: string;
+  result?: CurrentChangesResult;
+  error?: string;
+  /** A reload after this answer is in flight. */
+  reloading: boolean;
+}
+
 /** Mounted only while visible. Requests stay on the repository opened. */
 export function CurrentChangesView({
   client,
@@ -63,70 +74,77 @@ export function CurrentChangesView({
   const setWrap = useSettingsStore((s) => s.setWrapLines);
   const attached = useSessionTreeStore((s) => s.attachedSession !== null);
   const attachCount = useSessionTreeStore((s) => s.attachCount);
-  const [result, setResult] = useState<CurrentChangesResult>();
-  const [error, setError] = useState<string>();
-  const [loading, setLoading] = useState(true);
+  // Answers carry what they were loaded for. Another client, pane, folder or
+  // attach starts empty, so nothing has to reset them.
+  const view = `${attachCount}:${paneId}:${path}`;
+  const [answer, setAnswer] = useState<Answer>();
+  const current =
+    attached && answer?.client === client && answer.view === view ? answer : undefined;
+  const result = current?.result;
+  const error = current?.error;
+  // The first load has no answer yet. Later loads keep the last one on screen.
+  const loading = !current || current.reloading;
   const reload = useRef(() => {});
   const watch = useRepoWatch(attached ? client : null, result?.root, { paneId, path });
 
   useEffect(() => {
-    setResult(undefined);
-    setError(undefined);
-    setLoading(true);
     if (!attached) return;
     const controller = new AbortController();
+    const mine = (prev: Answer | undefined): prev is Answer =>
+      prev?.client === client && prev.view === view;
     let busy = false;
     let again = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let root = path;
-    async function refresh() {
+    async function load() {
+      busy = true;
+      try {
+        const next = await loadCurrentChanges(client, paneId, path, controller.signal);
+        if (controller.signal.aborted) return;
+        root = next.root ?? path;
+        setAnswer({ client, view, result: next, reloading: false });
+      } catch (cause) {
+        if (controller.signal.aborted) return;
+        const message = cause instanceof Error ? cause.message : "Could not load changes.";
+        setAnswer((prev) => ({
+          ...(mine(prev) ? prev : { client, view }),
+          error: message,
+          reloading: false,
+        }));
+      } finally {
+        busy = false;
+        if (again && !controller.signal.aborted) {
+          again = false;
+          refresh();
+        }
+      }
+    }
+    // A reload spins the button and keeps the last answer on screen. One
+    // runs at a time. One asked for meanwhile runs after it.
+    function refresh() {
       if (controller.signal.aborted) return;
       if (busy) {
         again = true;
         return;
       }
-      busy = true;
-      setLoading(true);
-      try {
-        const next = await loadCurrentChanges(client, paneId, path, controller.signal);
-        if (!controller.signal.aborted) {
-          root = next.root ?? path;
-          setResult(next);
-          setError(undefined);
-        }
-      } catch (cause) {
-        if (!controller.signal.aborted)
-          setError(cause instanceof Error ? cause.message : "Could not load changes.");
-      } finally {
-        busy = false;
-        if (!controller.signal.aborted) {
-          setLoading(false);
-          if (again) {
-            again = false;
-            void refresh();
-          }
-        }
-      }
+      setAnswer((prev) => (mine(prev) ? { ...prev, reloading: true } : prev));
+      void load();
     }
-    reload.current = () => {
-      void refresh();
-    };
+    reload.current = refresh;
     const unsubscribe = useRepoWatchStore.subscribe((state, previous) => {
       const change = state.lastChange;
       if (!change || change === previous.lastChange || !sameRoot(change, root)) return;
       clearTimeout(timer);
-      timer = setTimeout(() => {
-        void refresh();
-      }, 200);
+      timer = setTimeout(refresh, 200);
     });
-    void refresh();
+    void load();
     return () => {
       controller.abort();
       clearTimeout(timer);
       unsubscribe();
       reload.current = () => {};
     };
-  }, [client, paneId, path, attached, attachCount]);
+  }, [client, paneId, path, attached, view]);
 
   useVisibleInterval(() => reload.current(), watchHealthy(watch) ? 120_000 : 15_000, {
     enabled: attached,

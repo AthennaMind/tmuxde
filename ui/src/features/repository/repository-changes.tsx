@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronRight, Folder, List, ListTree } from "lucide-react";
 import type { RepoResult } from "@/protocol";
 import { cn } from "@/shared/utils";
@@ -13,6 +13,16 @@ const SCOPE_LABELS = {
 };
 const VIEW_KEY = "tmuxde-change-view";
 
+/** The saved layout, read once when the list mounts. */
+function savedView(): "list" | "tree" {
+  try {
+    return localStorage.getItem(VIEW_KEY) === "tree" ? "tree" : "list";
+  } catch {
+    /* Storage can be unavailable. */
+    return "list";
+  }
+}
+
 type ChangeEntry = Extract<RepoResult, { kind: "status" }>["entries"][number];
 export function ChangesList({
   entries,
@@ -24,14 +34,7 @@ export function ChangesList({
   /** Mouse density for the desktop sidebar. Touch rows stay 44px. */
   dense?: boolean;
 }) {
-  const [view, setView] = useState<"list" | "tree">("list");
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(VIEW_KEY) === "tree") setView("tree");
-    } catch {
-      /* Storage can be unavailable. */
-    }
-  }, []);
+  const [view, setView] = useState(savedView);
   const selectView = (value: "list" | "tree") => {
     setView(value);
     try {
