@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { X, Save, WrapText, Terminal, AlertTriangle, Lock } from "lucide-react";
+import type { ServerMessage } from "@/protocol";
 import { DownloadButton } from "./transfer-controls";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,7 @@ import { getMonacoLanguage, getLanguageLabel } from "./file-utils";
 import { useFileStore } from "./file-store";
 import { useSessionStore } from "@/features/session/session-store";
 import { getRelayClient } from "@/features/connection/use-websocket";
+import type { RelayClient } from "@/features/connection/ws-client";
 import { sendCommand } from "@/features/terminal/send-command";
 import { useConnectionStore } from "@/features/connection/connection-store";
 
@@ -41,7 +43,18 @@ function parentFolder(path: string): string {
 }
 
 export function FileEditor() {
-  const { editorFile, editorTruncated, isSaving, closeEditor, setIsSaving } = useFileStore();
+  const editorFile = useFileStore((s) => s.editorFile);
+  if (!editorFile) return null;
+  // One editor per file. Another file starts with fresh content, load state
+  // and save bookkeeping instead of resetting them by hand.
+  return <OpenFileEditor key={editorFile} path={editorFile} />;
+}
+
+function OpenFileEditor({ path }: { path: string }) {
+  const editorTruncated = useFileStore((s) => s.editorTruncated);
+  const isSaving = useFileStore((s) => s.isSaving);
+  const closeEditor = useFileStore((s) => s.closeEditor);
+  const setIsSaving = useFileStore((s) => s.setIsSaving);
   const { activeSessionId } = useSessionStore();
   const connectionStatus = useConnectionStore((s) => s.status);
 
@@ -59,102 +72,87 @@ export function FileEditor() {
   const [externalChange, setExternalChange] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const unsubRef = useRef<(() => void) | null>(null);
   const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isModified =
     savedContent !== null && currentContent !== null && savedContent !== currentContent;
 
-  // The message handler below lives as long as the file is open. It reads
-  // the edit state through refs, so it never sees the state of the render
-  // that subscribed it.
-  const modifiedRef = useRef(isModified);
-  modifiedRef.current = isModified;
   // The content of the save in flight, which becomes the saved content.
   const savingRef = useRef<string | null>(null);
   // Our own save also changes the file on disk. Its event is no news.
   const quietUntilRef = useRef(0);
 
-  // Load file on mount
-  useEffect(() => {
-    if (!editorFile) return;
+  // Relay messages about this file. The subscription below lives as long as
+  // the file is open. As an effect event, each message still sees the edit
+  // state of the latest render, not the one that subscribed.
+  const onMessage = useEffectEvent((client: RelayClient, msg: ServerMessage) => {
+    if (msg.type === "file:content" && msg.path === path) {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
+      setSavedContent(msg.content);
+      setCurrentContent(msg.content);
+      if (msg.truncated) {
+        setIsReadOnly(true);
+      }
+    }
+    if (msg.type === "file:stat" && msg.stat.path === path) {
+      setFileStat({
+        size: msg.stat.size,
+        permissions: msg.stat.permissions,
+        modified: msg.stat.modified,
+        isWritable: msg.stat.isWritable,
+      });
+      if (!msg.stat.isWritable) {
+        setIsReadOnly(true);
+      }
+    }
+    if (msg.type === "file:write:result" && msg.path === path) {
+      setIsSaving(false);
+      const written = savingRef.current;
+      savingRef.current = null;
+      if (msg.success) {
+        if (written !== null) setSavedContent(written);
+        quietUntilRef.current = Date.now() + SAVE_ECHO_MS;
+        useAlertStore.getState().push("success", "File saved");
+      } else {
+        useAlertStore.getState().push("error", msg.error ?? "Save failed");
+      }
+    }
+    // The watch is on the folder, and the server names files by their
+    // real path. The name picks out this file. An editor that saves
+    // through a temp file and a rename shows up as add.
+    if (
+      msg.type === "file:changed" &&
+      baseName(msg.path) === baseName(path) &&
+      (msg.event === "change" || msg.event === "add") &&
+      savingRef.current === null &&
+      Date.now() > quietUntilRef.current
+    ) {
+      if (isModified) {
+        // Keep the edits. The banner offers a reload.
+        setExternalChange(true);
+      } else {
+        client.send({ type: "file:read", path });
+      }
+    }
+  });
 
+  // Load the file and follow its messages while it is open.
+  useEffect(() => {
     const client = getRelayClient();
     if (!client) return;
-
-    // Reset state
-    setSavedContent(null);
-    setCurrentContent(null);
-    setIsReadOnly(false);
-    setFileStat(null);
-    setExternalChange(false);
-    setLoadError(null);
-    savingRef.current = null;
-    quietUntilRef.current = 0;
 
     // Timeout if file:content never arrives
     loadTimeoutRef.current = setTimeout(() => {
       setLoadError("Timed out waiting for file content");
     }, 10_000);
 
-    client.send({ type: "file:read", path: editorFile });
-    client.send({ type: "file:stat", path: editorFile });
+    client.send({ type: "file:read", path });
+    client.send({ type: "file:stat", path });
 
-    const unsub = client.onMessage((msg) => {
-      if (msg.type === "file:content" && msg.path === editorFile) {
-        if (loadTimeoutRef.current) {
-          clearTimeout(loadTimeoutRef.current);
-          loadTimeoutRef.current = null;
-        }
-        setSavedContent(msg.content);
-        setCurrentContent(msg.content);
-        if (msg.truncated) {
-          setIsReadOnly(true);
-        }
-      }
-      if (msg.type === "file:stat" && msg.stat.path === editorFile) {
-        setFileStat({
-          size: msg.stat.size,
-          permissions: msg.stat.permissions,
-          modified: msg.stat.modified,
-          isWritable: msg.stat.isWritable,
-        });
-        if (!msg.stat.isWritable) {
-          setIsReadOnly(true);
-        }
-      }
-      if (msg.type === "file:write:result" && msg.path === editorFile) {
-        setIsSaving(false);
-        const written = savingRef.current;
-        savingRef.current = null;
-        if (msg.success) {
-          if (written !== null) setSavedContent(written);
-          quietUntilRef.current = Date.now() + SAVE_ECHO_MS;
-          useAlertStore.getState().push("success", "File saved");
-        } else {
-          useAlertStore.getState().push("error", msg.error ?? "Save failed");
-        }
-      }
-      // The watch is on the folder, and the server names files by their
-      // real path. The name picks out this file. An editor that saves
-      // through a temp file and a rename shows up as add.
-      if (
-        msg.type === "file:changed" &&
-        baseName(msg.path) === baseName(editorFile) &&
-        (msg.event === "change" || msg.event === "add") &&
-        savingRef.current === null &&
-        Date.now() > quietUntilRef.current
-      ) {
-        if (modifiedRef.current) {
-          // Keep the edits. The banner offers a reload.
-          setExternalChange(true);
-        } else {
-          client.send({ type: "file:read", path: editorFile });
-        }
-      }
-    });
-
-    unsubRef.current = unsub;
+    const unsub = client.onMessage((msg) => onMessage(client, msg));
 
     return () => {
       unsub();
@@ -163,41 +161,43 @@ export function FileEditor() {
         loadTimeoutRef.current = null;
       }
     };
-  }, [editorFile]);
+  }, [path]);
 
   // Establish (and re-establish) the server-side file watch whenever the
   // connection (re)establishes. The relay forgets watches across reconnects,
   // so a watch sent only on mount silently dies after a reconnect and
   // external-change detection stops. Keying this on connection status makes it
-  // re-run — and re-issue file:watch — on every successful (re)connect without
+  // re-run and re-issue file:watch on every successful (re)connect without
   // resetting the editor's content/edit state.
   useEffect(() => {
-    if (!editorFile) return;
     if (connectionStatus !== "connected") return;
     const client = getRelayClient();
     if (!client) return;
     // The server watches folders only. Watch the one that holds the file.
-    const folder = parentFolder(editorFile);
+    const folder = parentFolder(path);
     client.send({ type: "file:watch", path: folder });
     return () => {
       getRelayClient()?.send({ type: "file:unwatch", path: folder });
     };
-  }, [editorFile, connectionStatus]);
+  }, [path, connectionStatus]);
 
   // Monaco binds Ctrl+S once, when it mounts, so the handler it holds is
-  // the first one. It reads the file and the text through refs. Reading
-  // them from its closure saved the text the file had when it opened.
-  const saveTarget = useRef({ editorFile, currentContent, isReadOnly });
-  saveTarget.current = { editorFile, currentContent, isReadOnly };
+  // the first one. Reading the text from that closure saved the text the
+  // file had when it opened. The handler reads it through a ref instead,
+  // which each commit updates before the next key can arrive.
+  const saveInput = useRef({ currentContent, isReadOnly });
+  useLayoutEffect(() => {
+    saveInput.current = { currentContent, isReadOnly };
+  }, [currentContent, isReadOnly]);
   const handleSave = useCallback(() => {
-    const { editorFile: path, currentContent: content, isReadOnly: readOnly } = saveTarget.current;
-    if (!path || content === null || readOnly) return;
+    const { currentContent: content, isReadOnly: readOnly } = saveInput.current;
+    if (content === null || readOnly) return;
     const client = getRelayClient();
     if (!client) return;
     setIsSaving(true);
     savingRef.current = content;
     client.send({ type: "file:write", path, content });
-  }, [setIsSaving]);
+  }, [path, setIsSaving]);
 
   // Keep unsaved edits visible during navigation or a machine change.
   useEffect(() => {
@@ -228,38 +228,34 @@ export function FileEditor() {
   }, [isModified, closeEditor]);
 
   const handleReload = useCallback(() => {
-    if (!editorFile) return;
     const client = getRelayClient();
     if (!client) return;
-    client.send({ type: "file:read", path: editorFile });
+    client.send({ type: "file:read", path });
     setExternalChange(false);
-  }, [editorFile]);
+  }, [path]);
 
   const handleOpenInNewSession = useCallback(() => {
-    if (!editorFile) return;
     const client = getRelayClient();
     if (!client) return;
-    const dir = editorFile.substring(0, editorFile.lastIndexOf("/"));
-    const fileName = editorFile.split("/").pop() ?? "edit";
+    const dir = path.substring(0, path.lastIndexOf("/"));
+    const fileName = path.split("/").pop() ?? "edit";
     client.send({
       type: "session:create",
       name: `edit-${fileName}`,
       cwd: dir,
     });
     closeEditor();
-  }, [editorFile, closeEditor]);
+  }, [path, closeEditor]);
 
   const handleSendToTerminal = useCallback(() => {
-    if (!editorFile || !activeSessionId) return;
-    if (!sendCommand(`vim ${editorFile}`, { record: false })) return;
+    if (!activeSessionId) return;
+    if (!sendCommand(`vim ${path}`, { record: false })) return;
     closeEditor();
-  }, [editorFile, activeSessionId, closeEditor]);
+  }, [path, activeSessionId, closeEditor]);
 
-  if (!editorFile) return null;
-
-  const fileName = editorFile.split("/").pop() ?? "";
-  const language = getMonacoLanguage(editorFile);
-  const languageLabel = getLanguageLabel(editorFile);
+  const fileName = path.split("/").pop() ?? "";
+  const language = getMonacoLanguage(path);
+  const languageLabel = getLanguageLabel(path);
 
   return (
     <>
@@ -282,7 +278,7 @@ export function FileEditor() {
           <Badge variant="secondary" className="text-[10px] shrink-0">
             {languageLabel}
           </Badge>
-          <DownloadButton path={editorFile} />
+          <DownloadButton path={path} />
           {(isReadOnly || editorTruncated) && (
             <Badge variant="outline" className="text-[10px] shrink-0 gap-1">
               <Lock className="h-2.5 w-2.5" />
@@ -373,11 +369,11 @@ export function FileEditor() {
                 onClick={() => {
                   setLoadError(null);
                   const client = getRelayClient();
-                  if (client && editorFile) {
+                  if (client) {
                     loadTimeoutRef.current = setTimeout(() => {
                       setLoadError("Timed out waiting for file content");
                     }, 10_000);
-                    client.send({ type: "file:read", path: editorFile });
+                    client.send({ type: "file:read", path });
                   }
                 }}
               >
