@@ -6,7 +6,7 @@ import { useFileStore } from "@/features/files/file-store";
 import { TERMINAL_TAB, useMainTabsStore } from "@/features/workspace/main-tabs-store";
 import { useSessionStore } from "@/features/session/session-store";
 import { forgetSealedLocalToken } from "./lock-store";
-import { LAST_SESSION_KEY, TOKEN_KEY, clearStored } from "@/shared/storage-keys";
+import { LAST_SESSION_KEY, TOKEN_KEY, clearStored } from "@/features/connection/storage-keys";
 import { setLocalToken } from "./unlocked";
 
 /**

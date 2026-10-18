@@ -16,7 +16,7 @@ import { RequireUnlockDialog } from "@/features/lock/require-unlock-dialog";
 import { cancelDictation } from "@/features/dictation/dictation";
 import { machineStorageKey, setMachineId } from "./machine-context";
 import { useTerminalInput } from "@/features/terminal/terminal-input";
-import { LAST_SESSION_KEY, writeStored, readSelfHostedToken } from "@/shared/storage-keys";
+import { LAST_SESSION_KEY, writeStored, readSelfHostedToken } from "./storage-keys";
 import { noteSessionDetached } from "@/features/session/session-target";
 import { resetSessionLifecycle } from "@/features/session/session-lifecycle";
 import { resetScrollState } from "@/features/terminal/terminal-scroll";

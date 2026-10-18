@@ -1,6 +1,6 @@
 import { triggerHaptic } from "@/shared/haptics";
 import { getRelayClient } from "@/features/connection/use-websocket";
-import { LAST_SESSION_KEY, writeStored } from "@/shared/storage-keys";
+import { LAST_SESSION_KEY, writeStored } from "@/features/connection/storage-keys";
 import { resolveStep, resolveStrip, stepTarget, type Strip, type StripEntry } from "./switch-strip";
 import { supportsStep, useConnectionStore } from "@/features/connection/connection-store";
 import { usePaneStore } from "@/features/panes/pane-store";

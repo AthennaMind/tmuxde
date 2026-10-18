@@ -1,6 +1,6 @@
 import { ImageOff } from "lucide-react";
 import { cn } from "@/shared/utils";
-import { useFileObjectUrl } from "@/shared/use-file-object-url";
+import { useFileObjectUrl } from "@/features/files/use-file-object-url";
 
 export function PhotoThumbnail({ path, className }: { path: string; className?: string }) {
   const { url, loading } = useFileObjectUrl(path);

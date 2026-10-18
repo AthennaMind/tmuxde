@@ -11,7 +11,12 @@ import {
   wipe,
   wrapMasterKey,
 } from "@/shared/crypto";
-import { LAST_SESSION_KEY, TOKEN_KEY, clearStored, readStored } from "@/shared/storage-keys";
+import {
+  LAST_SESSION_KEY,
+  TOKEN_KEY,
+  clearStored,
+  readStored,
+} from "@/features/connection/storage-keys";
 import {
   CENSUS_STORE,
   DESCRIPTOR_STORE,

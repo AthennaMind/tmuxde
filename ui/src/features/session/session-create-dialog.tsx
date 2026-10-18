@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { getRelayClient, useRelaySubscription } from "@/features/connection/use-websocket";
 import { useSessionStore } from "./session-store";
-import { LAST_SESSION_KEY, writeStored } from "@/shared/storage-keys";
+import { LAST_SESSION_KEY, writeStored } from "@/features/connection/storage-keys";
 
 interface SessionCreateDialogProps {
   open: boolean;

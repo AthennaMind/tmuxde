@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchFileObjectUrl } from "@/features/files/file-url";
+import { fetchFileObjectUrl } from "./file-url";
 
 interface FileObjectUrlState {
   url: string | null;

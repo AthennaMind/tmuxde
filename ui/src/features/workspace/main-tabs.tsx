@@ -26,7 +26,7 @@ import {
   type TabOrigin,
 } from "./main-tabs-store";
 import { useMachineStore } from "@/features/connection/machine-store";
-import { LAST_SESSION_KEY, clearStored } from "@/shared/storage-keys";
+import { LAST_SESSION_KEY, clearStored } from "@/features/connection/storage-keys";
 import { activateView, openMachineSession } from "./workspace-target";
 import { useTabReorder } from "./use-tab-reorder";
 import { useSessionStore } from "@/features/session/session-store";

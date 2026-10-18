@@ -1,7 +1,7 @@
 import { machineId } from "@/features/connection/machine-context";
 import { resolveRelayHttpBase } from "@/features/connection/relay-url";
 
-import { readSelfHostedToken } from "@/shared/storage-keys";
+import { readSelfHostedToken } from "@/features/connection/storage-keys";
 
 /**
  * Thrown when the current connection has no HTTP route to the relay.
@@ -63,6 +63,7 @@ export async function downloadFile(
   } = {},
 ): Promise<void> {
   const token = getStoredToken();
+  // oxlint-disable-next-line no-restricted-globals -- sanctioned file download path, token stays in the header.
   const res = await fetch(getFileUrl(path, true, options.machineId), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     signal: options.signal,
@@ -106,6 +107,7 @@ export async function downloadFile(
  */
 export async function fetchFileObjectUrl(path: string, signal?: AbortSignal): Promise<string> {
   const token = getStoredToken();
+  // oxlint-disable-next-line no-restricted-globals -- sanctioned file preview path, token stays in the header.
   const res = await fetch(getFileUrl(path), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     signal,

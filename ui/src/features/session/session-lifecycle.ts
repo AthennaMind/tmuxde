@@ -4,7 +4,12 @@ import {
   noteEnteredCopyMode,
   noteLeftCopyMode,
 } from "@/features/terminal/copy-mode-belief";
-import { LAST_SESSION_KEY, clearStored, readStored, writeStored } from "@/shared/storage-keys";
+import {
+  LAST_SESSION_KEY,
+  clearStored,
+  readStored,
+  writeStored,
+} from "@/features/connection/storage-keys";
 import { usePaneStore } from "@/features/panes/pane-store";
 import { useSessionStore } from "./session-store";
 import { useSessionTreeStore } from "./session-tree-store";

@@ -30,7 +30,7 @@ import { useAlertStore } from "@/shared/alert-store";
 import { getTerminalHandle } from "@/features/terminal/terminal-handle";
 import { useTerminalStore } from "@/features/terminal/terminal-store";
 import { KeyboardShortcutsDialog } from "@/features/palette/keyboard-shortcuts-dialog";
-import { ErrorBoundary } from "@/shared/error-boundary";
+import { ErrorBoundary } from "@/features/workspace/error-boundary";
 import { ConnectionBanner } from "@/features/connection/connection-banner";
 import { CapabilityBanner } from "@/features/connection/capability-banner";
 import { LockGate } from "@/features/lock/lock-gate";
@@ -39,7 +39,11 @@ import { useMobileHistory } from "@/features/mobile/use-mobile-history";
 import { resolveRelayWsUrl } from "@/features/connection/relay-url";
 import { Loader2 } from "lucide-react";
 import { copyFailureReason, copyText } from "@/shared/clipboard";
-import { LAST_SESSION_KEY, readSelfHostedToken, readStored } from "@/shared/storage-keys";
+import {
+  LAST_SESSION_KEY,
+  readSelfHostedToken,
+  readStored,
+} from "@/features/connection/storage-keys";
 
 /**
  * The gate is outside the layout body on purpose.

@@ -24,7 +24,7 @@ import {
   type KeyRecord,
 } from "./session-key-store";
 import { forget, isEnrolled, isUnlocked, masterKey, subscribeLock } from "./unlocked";
-import { readSelfHostedToken } from "@/shared/storage-keys";
+import { readSelfHostedToken } from "@/features/connection/storage-keys";
 
 /**
  * The lock, against a real IndexedDB implementation.

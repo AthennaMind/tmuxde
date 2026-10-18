@@ -4,7 +4,7 @@ vi.mock("@/features/connection/use-websocket", () => ({ getRelayClient: () => nu
 
 import { enrollPin, eraseDevice, unlockWithPin } from "./lock-store";
 import { disconnectDevice } from "./sign-out";
-import { readSelfHostedToken } from "@/shared/storage-keys";
+import { readSelfHostedToken } from "@/features/connection/storage-keys";
 import { forget } from "./unlocked";
 
 /**

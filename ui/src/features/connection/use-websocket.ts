@@ -18,7 +18,7 @@ import {
   noteScrollStateReply,
   requestScrollState,
 } from "@/features/terminal/terminal-scroll";
-import { TOKEN_KEY, clearStored } from "@/shared/storage-keys";
+import { TOKEN_KEY, clearStored } from "./storage-keys";
 import * as registry from "./relay-registry";
 import { isMobileViewport } from "@/shared/mobile-query";
 import { noteSessionAttached, noteSessionDetached } from "@/features/session/session-target";

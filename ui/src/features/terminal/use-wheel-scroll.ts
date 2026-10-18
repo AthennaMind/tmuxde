@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { flushScroll, scrollByLines } from "@/features/terminal/terminal-scroll";
+import { flushScroll, scrollByLines } from "./terminal-scroll";
 
 /** A wheel notch, in lines, when the event reports pixels. */
 const PIXELS_PER_LINE = 20;

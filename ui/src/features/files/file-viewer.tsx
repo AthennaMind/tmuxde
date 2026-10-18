@@ -17,7 +17,7 @@ import { MiniScrollbar } from "@/components/ui/mini-scrollbar";
 import { useFileStore } from "./file-store";
 import { startDownload } from "./transfer-store";
 import { Slot } from "@radix-ui/react-slot";
-import { useFileObjectUrl } from "@/shared/use-file-object-url";
+import { useFileObjectUrl } from "./use-file-object-url";
 import { getFileViewMode, getFileCategory, formatFileSize, type FileViewMode } from "./file-utils";
 import { getRelayClient } from "@/features/connection/use-websocket";
 

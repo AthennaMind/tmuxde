@@ -4,7 +4,7 @@ import { resolveRelayHttpBase, resolveRelayWsUrl } from "./relay-url";
 const mock = vi.hoisted(() => ({
   relay: undefined as string | undefined,
 }));
-vi.mock("@/app/env", () => ({
+vi.mock("@/shared/env", () => ({
   get relayUrl() {
     return mock.relay;
   },

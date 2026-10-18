@@ -100,6 +100,7 @@ export function useMachines(token: string) {
 
     const load = async () => {
       try {
+        // oxlint-disable-next-line no-restricted-globals -- sanctioned machine inventory request.
         const response = await fetch(`${resolveRelayHttpBase()}/machines`, {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",

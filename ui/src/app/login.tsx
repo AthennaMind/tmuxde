@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { RelayClient } from "@/features/connection/ws-client";
 import { resolveRelayWsUrl } from "@/features/connection/relay-url";
-import { TOKEN_KEY, clearStored, writeStored } from "@/shared/storage-keys";
+import { TOKEN_KEY, clearStored, writeStored } from "@/features/connection/storage-keys";
 
 /** Connect to the server with its token. */
 export function LoginPage() {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { cn } from "@/shared/utils";
-import { useFileObjectUrl } from "@/shared/use-file-object-url";
+import { useFileObjectUrl } from "@/features/files/use-file-object-url";
 import { RepositorySyntaxLine } from "./repository-syntax";
 import { useRepositorySyntax } from "./use-syntax-tokens";
 import type { RepositoryResult } from "./use-repository-query";

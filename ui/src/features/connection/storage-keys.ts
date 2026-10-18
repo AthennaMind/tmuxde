@@ -1,4 +1,4 @@
-import { machineId, machineStorageKey } from "@/features/connection/machine-context";
+import { machineId, machineStorageKey } from "./machine-context";
 import { localToken } from "@/features/lock/unlocked";
 
 /**

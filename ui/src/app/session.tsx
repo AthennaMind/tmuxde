@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useSessionStore } from "@/features/session/session-store";
-import { LAST_SESSION_KEY, writeStored } from "@/shared/storage-keys";
+import { LAST_SESSION_KEY, writeStored } from "@/features/connection/storage-keys";
 import { isGone, renamedTo } from "@/features/session/session-lifecycle";
 
 /** Adopt session deep links while TerminalLayout keeps workspace mounted. */

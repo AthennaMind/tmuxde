@@ -13,7 +13,7 @@ import { cn } from "@/shared/utils";
 import type { ConnectionState } from "@/protocol";
 import { getRelayClient } from "@/features/connection/use-websocket";
 import { usePhotoHistory } from "@/features/photos/use-photo-history";
-import { readStored, writeStored } from "@/shared/storage-keys";
+import { readStored, writeStored } from "@/features/connection/storage-keys";
 import { DictationButton } from "@/features/dictation/dictation-button";
 import { filesDisabled, useConnectionStore } from "@/features/connection/connection-store";
 import { OVERVIEW_TAB, SETTINGS_TAB, useMainTabsStore } from "./main-tabs-store";

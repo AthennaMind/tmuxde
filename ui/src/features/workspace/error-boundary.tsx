@@ -3,7 +3,7 @@ import { AlertTriangle, RefreshCw, Copy, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSessionStore } from "@/features/session/session-store";
 import { usePaneStore } from "@/features/panes/pane-store";
-import { copyText, copyFailureReason } from "./clipboard";
+import { copyText, copyFailureReason } from "@/shared/clipboard";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;

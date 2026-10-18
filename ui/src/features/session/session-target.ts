@@ -1,6 +1,6 @@
 import type { ClientMessage } from "@/protocol";
 import { getRelayClient } from "@/features/connection/use-websocket";
-import { LAST_SESSION_KEY, writeStored } from "@/shared/storage-keys";
+import { LAST_SESSION_KEY, writeStored } from "@/features/connection/storage-keys";
 import { useSessionStore } from "./session-store";
 import { useSessionTreeStore } from "./session-tree-store";
 

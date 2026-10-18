@@ -5,7 +5,7 @@ import { setMachineId } from "@/features/connection/machine-context";
 vi.mock("@/features/connection/relay-url", () => ({
   resolveRelayHttpBase: () => "https://hub.test",
 }));
-vi.mock("@/shared/storage-keys", () => ({ readSelfHostedToken: () => "test-token" }));
+vi.mock("@/features/connection/storage-keys", () => ({ readSelfHostedToken: () => "test-token" }));
 
 afterEach(() => {
   setMachineId(null);

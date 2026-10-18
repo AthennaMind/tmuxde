@@ -3,7 +3,7 @@ import Markdown, { type Components, type ExtraProps, type Options } from "react-
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
-import { useFileObjectUrl } from "@/shared/use-file-object-url";
+import { useFileObjectUrl } from "./use-file-object-url";
 import { filesAvailable } from "./file-url";
 import {
   codeBlockLanguage,

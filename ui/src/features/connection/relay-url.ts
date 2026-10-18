@@ -1,5 +1,5 @@
 import { machineId } from "./machine-context";
-import { relayUrl } from "@/app/env";
+import { relayUrl } from "@/shared/env";
 
 const RELAY_PATH = "/_relay";
 
