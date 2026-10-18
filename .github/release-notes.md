@@ -23,7 +23,7 @@ Both images support linux/amd64 and linux/arm64. Server and agent use the same `
 
 ## Verify signatures
 
-Images and `checksums.txt` are signed with cosign keyless signing from the release workflow. The certificate identity is the workflow and tag below.
+Images and `checksums.txt` are signed with cosign keyless signing from the release workflow. The certificate identity is the workflow and tag below. Use cosign 3.
 
 ```sh
 cosign verify ${IMAGE}@${DIGEST} \
@@ -35,8 +35,7 @@ cosign verify ${IMAGE}-stt@${STT_DIGEST} \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
 cosign verify-blob checksums.txt \
-  --certificate checksums.txt.pem \
-  --signature checksums.txt.sig \
+  --bundle checksums.txt.sigstore.json \
   --certificate-identity ${IDENTITY} \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
