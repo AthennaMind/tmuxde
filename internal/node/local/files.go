@@ -247,6 +247,13 @@ func (n *Node) repoRequest(ctx context.Context, c *conn, m *client.RepoRequest) 
 	if dir == nil || *dir == "" {
 		return c.send(ctx, repo.ErrorResult(m.RequestID, textNoPaneDirectory))
 	}
+	if m.Action == "search" {
+		searchCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		stop := context.AfterFunc(c.ctx, cancel)
+		defer stop()
+		return c.send(ctx, n.repo.Request(searchCtx, *dir, m))
+	}
 	return c.send(ctx, n.repo.Request(ctx, *dir, m))
 }
 

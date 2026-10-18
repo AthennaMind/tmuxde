@@ -12,7 +12,7 @@ import (
 // packages. This file holds what they carry.
 
 // RepoActions are the values of repo:request action.
-var RepoActions = []string{"context", "list", "read", "status", "diff", "log", "show"}
+var RepoActions = []string{"context", "list", "read", "status", "diff", "log", "show", "search"}
 
 // RepoScopes mirrors RepoScope.
 var RepoScopes = []string{"unstaged", "staged", "untracked"}
@@ -38,11 +38,12 @@ var repoKinds = map[string]func() RepoResult{
 	"diff":    func() RepoResult { return &RepoDiff{} },
 	"log":     func() RepoResult { return &RepoLog{} },
 	"show":    func() RepoResult { return &RepoShow{} },
+	"search":  func() RepoResult { return &RepoSearch{} },
 	"error":   func() RepoResult { return &RepoError{} },
 }
 
 // RepoKinds lists the values of result.kind, in the order of the union.
-var RepoKinds = []string{"context", "list", "read", "status", "diff", "log", "show", "error"}
+var RepoKinds = []string{"context", "list", "read", "status", "diff", "log", "show", "search", "error"}
 
 // errNotResultObject is returned for a result that is not a JSON object.
 // Within adds the field name.
@@ -270,4 +271,21 @@ func (*RepoError) RepoKind() string { return "error" }
 
 func (r *RepoError) Validate() error {
 	return kindLiteral(r, r.Kind)
+}
+
+// RepoSearch answers filename search with workspace-relative file paths.
+type RepoSearch struct {
+	Kind      string   `json:"kind"`
+	Path      string   `json:"path"`
+	Files     []string `json:"files"`
+	Truncated bool     `json:"truncated"`
+}
+
+func (*RepoSearch) RepoKind() string { return "search" }
+func (r *RepoSearch) Validate() error {
+	err := errors.Join(kindLiteral(r, r.Kind), RequiredSlice("files", r.Files), MaxItems("files", r.Files, 100))
+	for _, path := range r.Files {
+		err = errors.Join(err, LengthBetween("files", path, 1, 4096))
+	}
+	return err
 }

@@ -150,5 +150,25 @@
       "skip": 0,
       "all": "true"
     }
+  },
+  {
+    "field": "query",
+    "message": {
+      "type": "repo:request",
+      "requestId": "search-1",
+      "id": "%3",
+      "action": "search",
+      "query": ""
+    }
+  },
+  {
+    "field": "query",
+    "message": {
+      "type": "repo:request",
+      "requestId": "search-1",
+      "id": "%3",
+      "action": "search",
+      "query": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
   }
 ]

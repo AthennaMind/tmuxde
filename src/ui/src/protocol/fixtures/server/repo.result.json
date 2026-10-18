@@ -252,5 +252,17 @@
       "kind": "error",
       "message": "Current pane directory is not a Git repository"
     }
+  },
+  {
+    "type": "repo:result",
+    "requestId": "search-1",
+    "result": {
+      "kind": "search",
+      "path": "/workspace",
+      "files": [
+        "src/mobile/keyboard-toolbar.tsx"
+      ],
+      "truncated": false
+    }
   }
 ]

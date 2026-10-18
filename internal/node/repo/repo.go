@@ -36,10 +36,12 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"tmuxde/internal/node"
+	"tmuxde/internal/node/files"
 	"tmuxde/internal/protocol"
 	"tmuxde/internal/protocol/client"
 	"tmuxde/internal/protocol/server"
@@ -88,12 +90,13 @@ type Options struct {
 	Logger *slog.Logger
 }
 
-// Service answers repo:request for one machine. It holds no state between
-// requests and is safe for concurrent use.
+// Service answers repo:request for one machine. It is safe for concurrent use.
+// Filename searches run one at a time to bound filesystem work.
 type Service struct {
-	guard Guard
-	opts  Options
-	log   *slog.Logger
+	searchMu sync.Mutex
+	guard    Guard
+	opts     Options
+	log      *slog.Logger
 	// bin is the Git program. exec looks it up on PATH at each call.
 	bin string
 	// env is the environment every Git call gets, built from the process
@@ -171,6 +174,24 @@ func (s *Service) handle(ctx context.Context, cwd string, req *client.RepoReques
 	}
 	path := deref(req.Path)
 	switch req.Action {
+	case "search":
+		if !s.searchMu.TryLock() {
+			return nil, fail("Another file search is running. Try again.")
+		}
+		defer s.searchMu.Unlock()
+		query := strings.TrimSpace(deref(req.Query))
+		if query == "" || len([]rune(query)) > 256 {
+			return nil, fail("Enter a filename or path, up to 256 characters")
+		}
+		dir := cwd
+		if path != "" {
+			dir = resolvePath(cwd, path)
+		}
+		result, err := files.Search(ctx, s.guard, dir, query)
+		if err != nil {
+			return nil, err
+		}
+		return &protocol.RepoSearch{Kind: "search", Path: result.Path, Files: result.Files, Truncated: result.Truncated}, nil
 	case "list":
 		dir := cwd
 		if path != "" {

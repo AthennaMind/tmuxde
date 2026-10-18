@@ -771,26 +771,28 @@ func TestRepoRequestRouting(t *testing.T) {
 		{name: "refuses a pane without a directory", attached: "work", panes: []protocol.PaneInfo{withPath("%1", "")}, id: "%1", want: "Pane directory is unavailable"},
 	}
 	for _, tt := range refusals {
-		t.Run(tt.name, func(t *testing.T) {
-			fh := newFileHarness(t)
-			sink := fh.open(1)
-			fh.setAttached(1, tt.attached)
-			fh.tm.set(func(f *fakeTmux) {
-				f.panes = tt.panes
-				if tt.listErr != nil {
-					f.errs["ListPanes"] = tt.listErr
+		for _, action := range []string{"status", "search"} {
+			t.Run(tt.name+"/"+action, func(t *testing.T) {
+				fh := newFileHarness(t)
+				sink := fh.open(1)
+				fh.setAttached(1, tt.attached)
+				fh.tm.set(func(f *fakeTmux) {
+					f.panes = tt.panes
+					if tt.listErr != nil {
+						f.errs["ListPanes"] = tt.listErr
+					}
+				})
+				fh.must(1, &client.RepoRequest{Type: "repo:request", RequestID: "denied-1", ID: tt.id, Action: action, Query: ptr("config")})
+				if calls := fh.repo.called(); len(calls) != 0 {
+					t.Fatalf("repository service ran: %+v", calls)
+				}
+				got := only[*server.RepoResult](t, sink)
+				e, ok := got.Result.(*protocol.RepoError)
+				if !ok || got.RequestID != "denied-1" || e.Kind != "error" || e.Message != tt.want {
+					t.Fatalf("repo:result = %+v %+v, want error %q", got, got.Result, tt.want)
 				}
 			})
-			fh.must(1, &client.RepoRequest{Type: "repo:request", RequestID: "denied-1", ID: tt.id, Action: "status"})
-			if calls := fh.repo.called(); len(calls) != 0 {
-				t.Fatalf("repository service ran: %+v", calls)
-			}
-			got := only[*server.RepoResult](t, sink)
-			e, ok := got.Result.(*protocol.RepoError)
-			if !ok || got.RequestID != "denied-1" || e.Kind != "error" || e.Message != tt.want {
-				t.Fatalf("repo:result = %+v %+v, want error %q", got, got.Result, tt.want)
-			}
-		})
+		}
 	}
 
 	t.Run("correlates service errors", func(t *testing.T) {
