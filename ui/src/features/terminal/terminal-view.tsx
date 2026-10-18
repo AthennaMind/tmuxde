@@ -112,9 +112,25 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
   const gpuRendering = useTerminalStore((s) => s.gpuRendering);
   const status = useConnectionStore((s) => s.status);
   const readOnly = isReadOnly(useConnectionStore((s) => s.capabilities));
-  // Mirrors the attach machine for rendering only: until the ack lands the
-  // terminal is a blank black rectangle, for up to ATTACH_TIMEOUT_MS.
-  const [attaching, setAttaching] = useState(false);
+  /*
+   * The attach overlay. Until the ack lands the terminal is a blank black
+   * rectangle, for up to ATTACH_TIMEOUT_MS.
+   *
+   * Derived from the inputs of the attach effect below, not mirrored from the
+   * attach machine. Every run of that effect with a session and a connected
+   * client sends one attach, so the overlay shows from the render that starts
+   * the run until the run settles: the ack lands or the attach timer gives
+   * up. A new session or connection status starts a new run and clears the
+   * flag here, during render. The store status stands in for the client's.
+   * Should the two ever disagree, the attach timer still settles the run.
+   */
+  const [attachRun, setAttachRun] = useState({ sessionName, status });
+  const [attachSettled, setAttachSettled] = useState(false);
+  if (attachRun.sessionName !== sessionName || attachRun.status !== status) {
+    setAttachRun({ sessionName, status });
+    setAttachSettled(false);
+  }
+  const attaching = !!sessionName && status === "connected" && !attachSettled;
 
   // Capabilities land with `auth:success`, after the init effect below has
   // already built the terminal — so this is its own effect rather than a
@@ -736,7 +752,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
       // corrupt the state machine.
       if (next === prev) return;
       attachStateRef.current = next;
-      setAttaching(false);
+      setAttachSettled(true);
       // reset(), not clear(): clear() leaves modes and the alternate buffer
       // intact, so old content bleeds through the replayed scrollback.
       terminalRef.current?.reset();
@@ -771,14 +787,13 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
         type: "detach",
       });
       lastSentSizeRef.current = null;
-      setAttaching(false);
       return;
     }
 
     // Armed before any early return so a stuck attach is always surfaced,
     // whatever the reason it stalled.
     const errorTimer = setTimeout(() => {
-      setAttaching(false);
+      setAttachSettled(true);
       if (
         !shouldWriteOutput(attachStateRef.current) &&
         attachedName(attachStateRef.current) === sessionName &&
@@ -816,7 +831,6 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
         attachId,
       });
       lastSentSizeRef.current = size;
-      setAttaching(true);
 
       client.send({
         type: "session:attach",
@@ -862,7 +876,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
 
       {/* Attaching — pointer-events-none so keyboard/touch input still lands
             on the terminal underneath the moment output starts flowing. */}
-      {sessionName && attaching && (
+      {attaching && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/80 text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin" />
           <p className="text-sm">
