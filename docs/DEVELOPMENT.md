@@ -74,4 +74,4 @@ docker compose up -d --build --renew-anon-volumes --wait ui
 - `ui/src/components/ui`: shadcn primitives
 - `ui/src/protocol`: Zod wire schemas shared with Go
 
-Features import each other directly. `shared`, `components/ui` and `protocol` never import features or `app`. `make ui-lint` enforces it.
+Features import each other directly and never import `app`. `shared`, `components/ui` and `protocol` never import features or `app`. `protocol` imports only zod. `make ui-lint` enforces these rules.
