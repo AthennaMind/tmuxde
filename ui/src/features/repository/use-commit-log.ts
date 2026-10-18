@@ -63,14 +63,6 @@ export function useCommitLog({
 }): CommitLog {
   const attached = useSessionTreeStore((s) => s.attachedSession !== null);
   const key = client && paneId && path && root && attached ? `${all ? "all" : "head"}:${root}` : "";
-  // Latest request target. A pane switch inside one repository asks nothing.
-  const target = useRef({ client, paneId, path });
-  target.current = { client, paneId, path };
-  // A folder change blanks status until the next answer. Only an answer is a
-  // poll, or the gap would ask twice.
-  const lastTick = useRef(tick);
-  if (tick !== undefined) lastTick.current = tick;
-  const poll = lastTick.current;
   const [state, setState] = useState<{
     key: string;
     commits: RepoCommit[];
@@ -80,8 +72,11 @@ export function useCommitLog({
     branch?: string | null;
   }>();
   const [loadingMore, setLoadingMore] = useState(false);
-  // Last `refresh` value answered. Differs from `refresh` while one loads.
-  const [answered, setAnswered] = useState(refresh);
+  // The last first page request that ended: the `refresh` value it carried,
+  // and a count. `refresh` differs from it while one loads. Each end sets a
+  // new value, so the request effect runs again and sends what was marked
+  // while that request was in flight.
+  const [answered, setAnswered] = useState({ refresh, count: 0 });
   const pending = useRef<AbortController | null>(null);
 
   // The first page request in flight, if any, and when to send the next.
@@ -89,64 +84,16 @@ export function useCommitLog({
   const [gate] = useState(() => new FirstPageGate());
   // Key of the last answer, so a remount asks again.
   const loaded = useRef("");
-  const seen = useRef({ key: "", refresh, poll });
-  const latest = useRef({ key, refresh, active });
-  latest.current = { key, refresh, active };
+  // What the last run of the request effect saw.
+  const seen = useRef({ key: "", refresh, poll: tick });
 
-  // Sends the first page request the gate let through. False when there is
-  // nothing to send it to.
-  const send = useCallback((): boolean => {
-    const { key: requestKey, refresh: requestRefresh } = latest.current;
-    const { client: requestClient, paneId: requestPaneId, path: requestPath } = target.current;
-    if (!requestKey || !requestClient || !requestPaneId || !requestPath) return false;
-    const controller = new AbortController();
-    flight.current = { key: requestKey, controller };
-    const allRefs = requestKey.startsWith("all:");
-    repositoryRequest(
-      requestClient,
-      { id: requestPaneId, action: "log", path: requestPath, ...(allRefs ? { all: true } : {}) },
-      controller.signal,
-    )
-      .then((result) => {
-        if (controller.signal.aborted || result.kind !== "log") return;
-        const { root: logRoot, branch } = result;
-        setState((prev) => {
-          const kept =
-            prev?.key === requestKey ? keepOlderPages(prev.commits, result.commits) : null;
-          if (kept && prev)
-            return { key: requestKey, commits: kept, more: prev.more, root: logRoot, branch };
-          return {
-            key: requestKey,
-            commits: result.commits,
-            more: result.more,
-            root: logRoot,
-            branch,
-          };
-        });
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        const message = error instanceof Error ? error.message : "Could not load history.";
-        setState((prev) =>
-          prev?.key === requestKey
-            ? { ...prev, error: message }
-            : { key: requestKey, commits: [], more: false, error: message },
-        );
-      })
-      .finally(() => {
-        if (flight.current?.controller !== controller) return;
-        flight.current = null;
-        gate.settle();
-        loaded.current = requestKey;
-        setAnswered(requestRefresh);
-        const now = latest.current;
-        if (now.key === requestKey && gate.take(now.active) && !send()) gate.settle();
-      });
-    return true;
-  }, [gate]);
-
+  // The only place a first page request goes out. A pane switch inside one
+  // repository runs it again, but marks nothing, so it asks nothing.
   useEffect(() => {
     const last = seen.current;
+    // A folder change blanks status until the next answer. Only an answer is
+    // a poll, or the gap would ask twice.
+    const poll = tick === undefined ? last.poll : tick;
     seen.current = { key, refresh, poll };
     // A different repository, or none, drops the request for the old one.
     if (flight.current && flight.current.key !== key) {
@@ -154,14 +101,46 @@ export function useCommitLog({
       flight.current = null;
       gate.settle();
     }
-    if (!key) return;
+    if (!key || !client || !paneId || !path) return;
     // Nothing answered for this key and nothing on the way, as after a
     // remount.
     const unanswered = loaded.current !== key && flight.current?.key !== key;
     if (last.key !== key || last.refresh !== refresh || last.poll !== poll || unanswered)
       gate.mark();
-    if (gate.take(active) && !send()) gate.settle();
-  }, [key, refresh, poll, active, send, gate]);
+    if (!gate.take(active)) return;
+    const controller = new AbortController();
+    flight.current = { key, controller };
+    repositoryRequest(
+      client,
+      { id: paneId, action: "log", path, ...(all ? { all: true } : {}) },
+      controller.signal,
+    )
+      .then((result) => {
+        if (controller.signal.aborted || result.kind !== "log") return;
+        const { root: logRoot, branch } = result;
+        setState((prev) => {
+          const kept = prev?.key === key ? keepOlderPages(prev.commits, result.commits) : null;
+          if (kept && prev) return { key, commits: kept, more: prev.more, root: logRoot, branch };
+          return { key, commits: result.commits, more: result.more, root: logRoot, branch };
+        });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        const message = error instanceof Error ? error.message : "Could not load history.";
+        setState((prev) =>
+          prev?.key === key
+            ? { ...prev, error: message }
+            : { key, commits: [], more: false, error: message },
+        );
+      })
+      .finally(() => {
+        if (flight.current?.controller !== controller) return;
+        flight.current = null;
+        gate.settle();
+        loaded.current = key;
+        setAnswered((prev) => ({ refresh, count: prev.count + 1 }));
+      });
+  }, [key, refresh, tick, active, client, paneId, path, all, gate, answered]);
 
   useEffect(
     () => () => {
@@ -183,20 +162,18 @@ export function useCommitLog({
 
   const current = state?.key === key ? state : undefined;
   const loadMore = useCallback(() => {
-    const { client: requestClient, paneId: requestPaneId, path: requestPath } = target.current;
-    if (!current?.more || pending.current || !requestClient || !requestPaneId || !requestPath)
-      return;
+    if (!current?.more || pending.current || !client || !paneId || !path) return;
     const controller = new AbortController();
     pending.current = controller;
     setLoadingMore(true);
     repositoryRequest(
-      requestClient,
+      client,
       {
-        id: requestPaneId,
+        id: paneId,
         action: "log",
-        path: requestPath,
+        path,
         skip: current.commits.length,
-        ...(key.startsWith("all:") ? { all: true } : {}),
+        ...(all ? { all: true } : {}),
       },
       controller.signal,
     )
@@ -229,14 +206,14 @@ export function useCommitLog({
         pending.current = null;
         setLoadingMore(false);
       });
-  }, [current, key]);
+  }, [current, key, client, paneId, path, all]);
 
   return {
     commits: current?.commits ?? [],
     more: current?.more ?? false,
     loading: !!key && !current,
     loadingMore,
-    refreshing: !!key && answered !== refresh,
+    refreshing: !!key && answered.refresh !== refresh,
     error: current?.error,
     root: current?.root,
     branch: current?.branch,
