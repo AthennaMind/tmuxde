@@ -85,10 +85,7 @@ interface TerminalStore {
  * Version 3 gave the terminal its own weight. It starts at the shared weight
  * people already chose, so nothing changes until they change it.
  */
-export function migrateTerminalStore(
-  persisted: unknown,
-  version: number,
-): Partial<TerminalStore> {
+export function migrateTerminalStore(persisted: unknown, version: number): Partial<TerminalStore> {
   const state = { ...(persisted as Partial<TerminalStore>) };
   if (version < 1) state.gpuRendering = false;
   if (version < 2 && state.themeName === "dracula") {
@@ -131,8 +128,7 @@ export const useTerminalStore = create<TerminalStore>()(
     {
       name: "ccremote-terminal",
       version: 3,
-      migrate: (persisted, version) =>
-        migrateTerminalStore(persisted, version) as TerminalStore,
+      migrate: (persisted, version) => migrateTerminalStore(persisted, version) as TerminalStore,
     },
   ),
 );

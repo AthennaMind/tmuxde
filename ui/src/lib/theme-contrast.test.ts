@@ -53,10 +53,7 @@ import {
  */
 
 const CSS = readFileSync(
-  path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "../globals.css",
-  ),
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../globals.css"),
   "utf8",
 );
 
@@ -81,8 +78,7 @@ function block(selector: string): string {
  */
 function scheme(selector: string): Record<string, Oklch> {
   const out: Record<string, Oklch> = {};
-  const re =
-    /(--[\w-]+):\s*oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*(?:\/[^)]*)?\)/g;
+  const re = /(--[\w-]+):\s*oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*(?:\/[^)]*)?\)/g;
   for (const m of block(selector).matchAll(re)) {
     out[m[1]!] = { L: Number(m[2]), C: Number(m[3]), h: Number(m[4]) };
   }
@@ -104,9 +100,7 @@ function aliases(): { refs: Record<string, string>; literals: string[] } {
   for (const m of source.matchAll(/(--[\w-]+):\s*var\(\s*(--[\w-]+)\s*\)/g)) {
     refs[m[1]!] = m[2]!;
   }
-  const literals = [...source.matchAll(/(--[\w-]+):\s*oklch\(/g)].map(
-    (m) => m[1]!,
-  );
+  const literals = [...source.matchAll(/(--[\w-]+):\s*oklch\(/g)].map((m) => m[1]!);
   return { refs, literals };
 }
 
@@ -208,10 +202,7 @@ describe.each([
     ];
     for (const [fg, bg] of pairs) {
       const ratio = contrast(tokens[fg]!, tokens[bg]!);
-      expect(
-        ratio,
-        `${fg} on ${bg} is ${ratio.toFixed(2)}:1`,
-      ).toBeGreaterThanOrEqual(AA_NORMAL);
+      expect(ratio, `${fg} on ${bg} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_NORMAL);
     }
   });
 
@@ -226,9 +217,7 @@ describe.each([
       .filter((name) => name.endsWith("-foreground"))
       .map((fg): [string, string] => [
         fg,
-        fg === "--foreground"
-          ? "--background"
-          : fg.slice(0, -"-foreground".length),
+        fg === "--foreground" ? "--background" : fg.slice(0, -"-foreground".length),
       ]),
   )("puts readable text on %s / %s", (fg, bg) => {
     const { refs } = aliases();
@@ -236,10 +225,7 @@ describe.each([
       const target = refs[alias];
       expect(target, `${alias} is not a var() alias`).toBeDefined();
       const colour = tokens[target!];
-      expect(
-        colour,
-        `${alias} -> ${target} is not a literal in the ${name} scheme`,
-      ).toBeDefined();
+      expect(colour, `${alias} -> ${target} is not a literal in the ${name} scheme`).toBeDefined();
       return colour!;
     };
     const ratio = contrast(resolve(fg), resolve(bg));
@@ -319,9 +305,9 @@ describe("the brand hazard specifically", () => {
     expect(dark["--brand-fill"]!.L).toBeCloseTo(0.8627, 3);
 
     // And that a fill is usable: dark text on it, in both schemes.
-    expect(
-      contrast(light["--surface-inverse"]!, light["--brand-fill"]!),
-    ).toBeGreaterThanOrEqual(AA_NORMAL);
+    expect(contrast(light["--surface-inverse"]!, light["--brand-fill"]!)).toBeGreaterThanOrEqual(
+      AA_NORMAL,
+    );
   });
 });
 
@@ -425,20 +411,14 @@ describe.each(PALETTES)("the tmuxde $name terminal palette", (palette) => {
   const theme = terminalThemes[palette.key]!;
   const tokens = scheme(palette.selector);
 
-  it.each([...SHARED_TOKENS, ...palette.tokens])(
-    "paints %s as %s",
-    (key, token) => {
-      const want = toBytes(tokens[token]!);
-      const got = hexBytes(theme[key]);
-      // One step of rounding either way, so float error is not a failure.
-      got.forEach((byte, i) =>
-        expect(
-          Math.abs(byte - want[i]!),
-          `${key} ${theme[key]} vs ${token}`,
-        ).toBeLessThanOrEqual(1),
-      );
-    },
-  );
+  it.each([...SHARED_TOKENS, ...palette.tokens])("paints %s as %s", (key, token) => {
+    const want = toBytes(tokens[token]!);
+    const got = hexBytes(theme[key]);
+    // One step of rounding either way, so float error is not a failure.
+    got.forEach((byte, i) =>
+      expect(Math.abs(byte - want[i]!), `${key} ${theme[key]} vs ${token}`).toBeLessThanOrEqual(1),
+    );
+  });
 
   const text = ANSI.filter((key) => !palette.surfaces.includes(key));
 
@@ -446,19 +426,16 @@ describe.each(PALETTES)("the tmuxde $name terminal palette", (palette) => {
   // what is drawn is what was chosen.
   it.each(text)("is readable as %s text on the background", (key) => {
     const ratio = hexContrast(theme[key], theme.background);
-    expect(ratio, `${key} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
-      AA_NORMAL,
-    );
+    expect(ratio, `${key} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA_NORMAL);
   });
 
   it.each(text.filter((key) => key !== "brightBlack"))(
     `puts readable ${palette.ink} text on %s`,
     (key) => {
       const ratio = hexContrast(theme[palette.ink], theme[key]);
-      expect(
-        ratio,
-        `${palette.ink} on ${key} is ${ratio.toFixed(2)}:1`,
-      ).toBeGreaterThanOrEqual(AA_NORMAL);
+      expect(ratio, `${palette.ink} on ${key} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+        AA_NORMAL,
+      );
     },
   );
 
@@ -467,32 +444,22 @@ describe.each(PALETTES)("the tmuxde $name terminal palette", (palette) => {
     expect(
       hexContrast(theme.selectionForeground!, theme.selectionBackground),
     ).toBeGreaterThanOrEqual(AA_NORMAL);
-    expect(hexContrast(theme.cursorAccent, theme.cursor)).toBeGreaterThanOrEqual(
-      AA_NORMAL,
-    );
+    expect(hexContrast(theme.cursorAccent, theme.cursor)).toBeGreaterThanOrEqual(AA_NORMAL);
   });
 });
 
 describe("the default terminal theme", () => {
   it("matches the app scheme", () => {
-    expect(getTerminalTheme(DEFAULT_TERMINAL_THEME, "dark")).toBe(
-      terminalThemes.tmuxdeDark,
-    );
-    expect(getTerminalTheme(DEFAULT_TERMINAL_THEME, "light")).toBe(
-      terminalThemes.tmuxdeLight,
-    );
+    expect(getTerminalTheme(DEFAULT_TERMINAL_THEME, "dark")).toBe(terminalThemes.tmuxdeDark);
+    expect(getTerminalTheme(DEFAULT_TERMINAL_THEME, "light")).toBe(terminalThemes.tmuxdeLight);
   });
 
   it("keeps a picked theme in either scheme", () => {
     expect(getTerminalTheme("nord", "light")).toBe(terminalThemes.nord);
-    expect(getTerminalTheme("tmuxdeDark", "light")).toBe(
-      terminalThemes.tmuxdeDark,
-    );
+    expect(getTerminalTheme("tmuxdeDark", "light")).toBe(terminalThemes.tmuxdeDark);
   });
 
   it("falls back to the matching palette for an unknown name", () => {
-    expect(getTerminalTheme("removed-theme", "light")).toBe(
-      terminalThemes.tmuxdeLight,
-    );
+    expect(getTerminalTheme("removed-theme", "light")).toBe(terminalThemes.tmuxdeLight);
   });
 });

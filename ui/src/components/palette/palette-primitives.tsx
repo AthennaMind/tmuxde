@@ -49,9 +49,23 @@ export interface PaletteItem {
   run: () => void;
 }
 
-export function Kbd({ children, className, ...props }: { children: ReactNode; className?: string; "aria-hidden"?: boolean }) {
+export function Kbd({
+  children,
+  className,
+  ...props
+}: {
+  children: ReactNode;
+  className?: string;
+  "aria-hidden"?: boolean;
+}) {
   return (
-    <kbd {...props} className={cn("inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-foreground/[0.06] px-1.5 font-mono text-[11px] leading-none text-muted-foreground ring-1 ring-inset ring-foreground/10", className)}>
+    <kbd
+      {...props}
+      className={cn(
+        "inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-foreground/[0.06] px-1.5 font-mono text-[11px] leading-none text-muted-foreground ring-1 ring-inset ring-foreground/10",
+        className,
+      )}
+    >
       {children}
     </kbd>
   );
@@ -62,22 +76,34 @@ export function Highlight({ text, ranges }: { text: string; ranges: readonly Ran
   return (
     <>
       {splitHighlight(text, ranges).map((part, index) =>
-        part.hit
-          ? <mark key={index} className="bg-transparent font-semibold text-current">{part.text}</mark>
-          : <span key={index}>{part.text}</span>,
+        part.hit ? (
+          <mark key={index} className="bg-transparent font-semibold text-current">
+            {part.text}
+          </mark>
+        ) : (
+          <span key={index}>{part.text}</span>
+        ),
       )}
     </>
   );
 }
 
-export function PaletteRow({ item, ranges = [] }: { item: PaletteItem; ranges?: readonly Range[] }) {
+export function PaletteRow({
+  item,
+  ranges = [],
+}: {
+  item: PaletteItem;
+  ranges?: readonly Range[];
+}) {
   return (
     <Command.Item value={item.id} onSelect={item.run} title={item.detail} className={ROW_CLASS}>
       <span
         aria-hidden
         className={cn(
           "flex size-[18px] shrink-0 items-center justify-center [&_svg]:size-[18px]",
-          item.destructive ? "text-destructive" : "text-muted-foreground group-data-[selected=true]:text-accent-foreground",
+          item.destructive
+            ? "text-destructive"
+            : "text-muted-foreground group-data-[selected=true]:text-accent-foreground",
         )}
       >
         {item.icon}
@@ -100,14 +126,22 @@ export function PaletteRow({ item, ranges = [] }: { item: PaletteItem; ranges?: 
       )}
       {item.shortcut && (
         <span className="hidden shrink-0 items-center gap-1 sm:flex" aria-hidden>
-          {item.shortcut.map((key, index) => <Kbd key={index}>{key}</Kbd>)}
+          {item.shortcut.map((key, index) => (
+            <Kbd key={index}>{key}</Kbd>
+          ))}
         </span>
       )}
     </Command.Item>
   );
 }
 
-export function PaletteEmpty({ children, action }: { children: ReactNode; action?: { label: string; onClick: () => void } }) {
+export function PaletteEmpty({
+  children,
+  action,
+}: {
+  children: ReactNode;
+  action?: { label: string; onClick: () => void };
+}) {
   return (
     <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
       <p className="text-sm text-muted-foreground">{children}</p>
@@ -115,7 +149,10 @@ export function PaletteEmpty({ children, action }: { children: ReactNode; action
         <button
           type="button"
           onClick={action.onClick}
-          className={cn("min-h-10 rounded-xl bg-accent px-4 text-sm font-medium text-accent-foreground", CONTROL_CLASS)}
+          className={cn(
+            "min-h-10 rounded-xl bg-accent px-4 text-sm font-medium text-accent-foreground",
+            CONTROL_CLASS,
+          )}
         >
           {action.label}
         </button>
@@ -125,7 +162,13 @@ export function PaletteEmpty({ children, action }: { children: ReactNode; action
 }
 
 /** One line: context on the leading side, key hints trailing on desktop. */
-export function PaletteFooter({ left, right = [] }: { left?: ReactNode; right?: [string, string][] }) {
+export function PaletteFooter({
+  left,
+  right = [],
+}: {
+  left?: ReactNode;
+  right?: [string, string][];
+}) {
   return (
     <div className="flex h-10 shrink-0 items-center gap-4 border-t border-foreground/10 px-4 text-[11px] leading-4 text-muted-foreground">
       <div className="flex min-w-0 flex-1 items-center gap-2">{left}</div>
@@ -150,7 +193,11 @@ export function ContextLine({ parts }: { parts: (string | null | undefined)[] })
     <>
       {visible.map((part, index) => (
         <span key={index} className="flex min-w-0 items-center gap-2">
-          {index > 0 && <span aria-hidden className="opacity-50">·</span>}
+          {index > 0 && (
+            <span aria-hidden className="opacity-50">
+              ·
+            </span>
+          )}
           <span className={cn("truncate", index > 0 && "font-chrome")}>{part}</span>
         </span>
       ))}

@@ -1,26 +1,9 @@
-import {
-  memo,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  type ReactElement,
-} from "react";
+import { memo, useCallback, useMemo, useRef, useState, type ReactElement } from "react";
 import type { RepoCommit } from "@/protocol";
 import { cn } from "@/lib/utils";
 import { useTreeKeyboard } from "@/components/sidebar/tree-row";
-import {
-  RefChip,
-  commitAge,
-  formatCommitDate,
-  parseRefs,
-} from "./commit-log";
-import {
-  graphOrder,
-  layoutGraph,
-  sameGraphRow,
-  type GraphRow,
-} from "./graph-layout";
+import { RefChip, commitAge, formatCommitDate, parseRefs } from "./commit-log";
+import { graphOrder, layoutGraph, sameGraphRow, type GraphRow } from "./graph-layout";
 
 /** Row height in px. Fixed, so lanes meet across rows. */
 const ROW = 28;
@@ -73,17 +56,9 @@ export const GraphList = memo(function GraphList({
   const [focused, setFocused] = useState<string | null>(null);
   const latestOpen = useRef(onOpen);
   latestOpen.current = onOpen;
-  const open = useCallback(
-    (commit: RepoCommit) => latestOpen.current(commit),
-    [],
-  );
-  const has = (hash: string | null | undefined) =>
-    !!hash && commits.some((c) => c.hash === hash);
-  const tabStop = has(focused)
-    ? focused
-    : has(selected)
-      ? selected
-      : commits[0]?.hash;
+  const open = useCallback((commit: RepoCommit) => latestOpen.current(commit), []);
+  const has = (hash: string | null | undefined) => !!hash && commits.some((c) => c.hash === hash);
+  const tabStop = has(focused) ? focused : has(selected) ? selected : commits[0]?.hash;
 
   // Last element of each row, by hash. A row whose props compare equal gets
   // the same element back, and React skips it without a call. Every element
@@ -102,11 +77,7 @@ export const GraphList = memo(function GraphList({
     };
     const old = elements.current.get(commit.hash);
     const element =
-      old && sameRowProps(old.props, props) ? (
-        old
-      ) : (
-        <GraphRowItem key={commit.hash} {...props} />
-      );
+      old && sameRowProps(old.props, props) ? old : <GraphRowItem key={commit.hash} {...props} />;
     next.set(commit.hash, element);
     return element;
   });
@@ -240,15 +211,7 @@ const GraphRowItem = memo(function GraphRowItem({
  * hidden lanes are left out. Lines between a hidden and a drawn lane run to
  * the right edge.
  */
-export function GraphCell({
-  row,
-  merge,
-  head,
-}: {
-  row: GraphRow;
-  merge: boolean;
-  head: boolean;
-}) {
+export function GraphCell({ row, merge, head }: { row: GraphRow; merge: boolean; head: boolean }) {
   const lanes = Math.min(row.lanes, MAX_LANES);
   const hidden = row.lanes - lanes;
   const offscreen = row.lane >= MAX_LANES;
@@ -257,15 +220,12 @@ export function GraphCell({
   const drawn = (lane: number) => lane < MAX_LANES;
   const tops = new Map<number, number>();
   for (const edge of row.edges)
-    if (edge.from !== row.lane && drawn(edge.from))
-      tops.set(edge.from, edge.color);
+    if (edge.from !== row.lane && drawn(edge.from)) tops.set(edge.from, edge.color);
   if (row.child && !offscreen) tops.set(row.lane, row.color);
   const edges = row.edges.filter((e) => drawn(e.from) || drawn(e.to));
   const title = [
     head ? "Current commit." : merge ? "Merge commit." : "",
-    offscreen
-      ? `In lane ${row.lane + 1}. Only the first ${MAX_LANES} lanes are drawn.`
-      : "",
+    offscreen ? `In lane ${row.lane + 1}. Only the first ${MAX_LANES} lanes are drawn.` : "",
   ]
     .filter(Boolean)
     .join(" ");

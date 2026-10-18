@@ -59,9 +59,7 @@ export function noteLeftCopyMode(session: string | null | undefined): void {
   emit();
 }
 
-export function believedInCopyMode(
-  session: string | null | undefined,
-): boolean {
+export function believedInCopyMode(session: string | null | undefined): boolean {
   return session ? sessionsInCopyMode.has(`${machineId()}:${session}`) : false;
 }
 

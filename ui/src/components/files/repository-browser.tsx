@@ -84,15 +84,9 @@ export function RepositoryBrowser({
   const paneId = usePaneStore((state) => state.activePaneId);
   const status = useConnectionStore((state) => state.status);
   const capabilities = useConnectionStore((state) => state.capabilities);
-  const supported = useConnectionStore((state) =>
-    state.features.has("repo:request"),
-  );
+  const supported = useConnectionStore((state) => state.features.has("repo:request"));
   const available =
-    client &&
-    paneId &&
-    status === "connected" &&
-    supported &&
-    !filesDisabled(capabilities);
+    client && paneId && status === "connected" && supported && !filesDisabled(capabilities);
   return (
     <section
       aria-label="Repository browser"
@@ -159,14 +153,11 @@ function BrowserContents({
   const { tab, directory, filter, preview } = view;
   const commit = view.commit ?? null;
   useEffect(() => {
-    if (preview && !preview.scope) useQuickOpenStore.getState().remember({ machineId: machineId(), path: preview.path });
+    if (preview && !preview.scope)
+      useQuickOpenStore.getState().remember({ machineId: machineId(), path: preview.path });
   }, [preview?.path, preview?.scope]);
-  const historySupported = useConnectionStore((s) =>
-    s.features.has("repo:history"),
-  );
-  const tabs: Tab[] = historySupported
-    ? ["files", "changes", "history"]
-    : ["files", "changes"];
+  const historySupported = useConnectionStore((s) => s.features.has("repo:history"));
+  const tabs: Tab[] = historySupported ? ["files", "changes", "history"] : ["files", "changes"];
   const [refresh, setRefresh] = useState(0);
   const uploaded = useTransferStore((s) => s.revisions[machineId()] ?? 0);
   // Spins from a Refresh click until every answer lands. Quiet reloads after
@@ -179,9 +170,7 @@ function BrowserContents({
   const id = useId();
   // A `cd` in the pane moves its folder. Asking for the context again then
   // follows it, as the desktop sidebar does.
-  const folder = usePaneStore(
-    (state) => state.panes.find((p) => p.id === paneId)?.path ?? "",
-  );
+  const folder = usePaneStore((state) => state.panes.find((p) => p.id === paneId)?.path ?? "");
   const [seenFolder, setSeenFolder] = useState(folder);
   const [folderMoves, setFolderMoves] = useState(0);
   if (folder !== seenFolder) {
@@ -194,8 +183,7 @@ function BrowserContents({
     refresh + folderMoves,
     { keepOnRefresh: true },
   );
-  const context =
-    contextQuery.result?.kind === "context" ? contextQuery.result : undefined;
+  const context = contextQuery.result?.kind === "context" ? contextQuery.result : undefined;
   useEffect(() => {
     if (context && directory === null) {
       replace({ ...view, directory: context.path });
@@ -216,20 +204,12 @@ function BrowserContents({
   const listingPushes = useRepoChangeCount((change) =>
     path ? changeTouchesFolder(change, path) : false,
   );
-  const statusPushes = useRepoChangeCount((change) =>
-    root ? sameRoot(change, root) : false,
-  );
+  const statusPushes = useRepoChangeCount((change) => (root ? sameRoot(change, root) : false));
   const previewPushes = useRepoChangeCount((change) =>
     !preview
       ? false
       : preview.scope
-        ? !!root &&
-          changeTouchesDiff(
-            change,
-            root,
-            preview.path,
-            preview.scope !== "untracked",
-          )
+        ? !!root && changeTouchesDiff(change, root, preview.path, preview.scope !== "untracked")
         : changeTouchesFile(change, preview.path),
   );
   const listing = useRepositoryQuery(
@@ -246,8 +226,7 @@ function BrowserContents({
     refresh + statusPushes,
     { keepOnRefresh: true },
   );
-  const status =
-    statusQuery.result?.kind === "status" ? statusQuery.result : undefined;
+  const status = statusQuery.result?.kind === "status" ? statusQuery.result : undefined;
   const fileQuery = useRepositoryQuery(
     client,
     preview && context
@@ -284,8 +263,7 @@ function BrowserContents({
       : null,
     refresh,
   );
-  const commitResult =
-    commitQuery.result?.kind === "show" ? commitQuery.result : undefined;
+  const commitResult = commitQuery.result?.kind === "show" ? commitQuery.result : undefined;
   // A query with nothing to show yet. Reloads keep their last answer.
   const empty = (query: { loading: boolean; result?: unknown; error?: string }) =>
     query.loading && !query.result && !query.error;
@@ -331,8 +309,7 @@ function BrowserContents({
       aria-selected={tab === value}
       tabIndex={tab === value ? 0 : -1}
       onKeyDown={(event) => {
-        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
-          return;
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
         event.preventDefault();
         const index = tabs.indexOf(value);
         const next =
@@ -340,10 +317,7 @@ function BrowserContents({
             ? tabs[0]!
             : event.key === "End"
               ? tabs[tabs.length - 1]!
-              : tabs[
-                  (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) %
-                    tabs.length
-                ]!;
+              : tabs[(index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length]!;
         navigate({ ...view, tab: next, preview: null, commit: null, changesPath: null });
         document.getElementById(`${id}-${next}`)?.focus();
       }}
@@ -407,10 +381,7 @@ function BrowserContents({
             title="Refresh"
           >
             <RefreshCw
-              className={cn(
-                "h-4 w-4",
-                spinning && "animate-spin motion-reduce:animate-none",
-              )}
+              className={cn("h-4 w-4", spinning && "animate-spin motion-reduce:animate-none")}
             />
           </Button>
           {onClose && <CloseButton onClose={onClose} />}
@@ -437,9 +408,7 @@ function BrowserContents({
                   <Button
                     variant="ghost"
                     className="h-11 shrink-0 gap-1 px-2"
-                    onClick={() =>
-                      canBack ? back() : navigate({ ...view, preview: null })
-                    }
+                    onClick={() => (canBack ? back() : navigate({ ...view, preview: null }))}
                   >
                     <ArrowLeft className="h-4 w-4" />
                     Back
@@ -462,9 +431,7 @@ function BrowserContents({
                       title="Render Markdown"
                       onClick={() => setRendered(!rendered)}
                     >
-                      <BookOpen
-                        className={cn("h-4 w-4", rendered && "text-primary")}
-                      />
+                      <BookOpen className={cn("h-4 w-4", rendered && "text-primary")} />
                     </Button>
                   )}
                   {!showRendered && (
@@ -477,9 +444,7 @@ function BrowserContents({
                       title="Wrap lines"
                       onClick={() => setWrap(!wrap)}
                     >
-                      <WrapText
-                        className={cn("h-4 w-4", wrap && "text-primary")}
-                      />
+                      <WrapText className={cn("h-4 w-4", wrap && "text-primary")} />
                     </Button>
                   )}
                 </div>
@@ -505,9 +470,7 @@ function BrowserContents({
                     size={preview.size}
                     symlink={preview.symlink}
                     rendered={showRendered}
-                    onOpenPath={(path) =>
-                      navigate({ ...view, preview: { path } })
-                    }
+                    onOpenPath={(path) => navigate({ ...view, preview: { path } })}
                   />
                 ) : null}
               </>
@@ -518,7 +481,7 @@ function BrowserContents({
                 paneId={paneId}
                 path={view.changesPath}
                 touch
-                onBack={() => canBack ? back() : navigate({ ...view, changesPath: null })}
+                onBack={() => (canBack ? back() : navigate({ ...view, changesPath: null }))}
               />
             ) : commit ? (
               <>
@@ -541,9 +504,7 @@ function BrowserContents({
                     className="min-w-0 flex-1 truncate text-sm font-medium"
                     title={commit.subject || commitResult?.commit.subject}
                   >
-                    {commit.subject ||
-                      commitResult?.commit.subject ||
-                      commit.hash.slice(0, 7)}
+                    {commit.subject || commitResult?.commit.subject || commit.hash.slice(0, 7)}
                   </span>
                   <Button
                     variant="ghost"
@@ -554,9 +515,7 @@ function BrowserContents({
                     title="Wrap lines"
                     onClick={() => setWrap(!wrap)}
                   >
-                    <WrapText
-                      className={cn("h-4 w-4", wrap && "text-primary")}
-                    />
+                    <WrapText className={cn("h-4 w-4", wrap && "text-primary")} />
                   </Button>
                 </div>
                 {!historySupported ? (
@@ -577,7 +536,12 @@ function BrowserContents({
               </>
             ) : tab === "files" ? (
               <>
-                <div className="flex items-center border-b"><div className="min-w-0 flex-1"><Breadcrumbs path={path ?? context.path} go={go} /></div><UploadControl directory={path ?? context.path} /></div>
+                <div className="flex items-center border-b">
+                  <div className="min-w-0 flex-1">
+                    <Breadcrumbs path={path ?? context.path} go={go} />
+                  </div>
+                  <UploadControl directory={path ?? context.path} />
+                </div>
                 <div className="shrink-0 border-b px-3 py-2">
                   <label className="flex min-h-10 items-center gap-2 rounded-md border border-input bg-background px-2.5 focus-within:ring-1 focus-within:ring-ring">
                     <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -585,9 +549,7 @@ function BrowserContents({
                       aria-label="Filter files in this folder"
                       placeholder="Filter this folder"
                       value={filter}
-                      onChange={(event) =>
-                        replace({ ...view, filter: event.target.value })
-                      }
+                      onChange={(event) => replace({ ...view, filter: event.target.value })}
                       className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
                     />
                   </label>
@@ -610,10 +572,7 @@ function BrowserContents({
                                   ...view,
                                   preview: {
                                     path: entry.path,
-                                    size:
-                                      entry.type === "file"
-                                        ? entry.size
-                                        : undefined,
+                                    size: entry.type === "file" ? entry.size : undefined,
                                     symlink: entry.type === "symlink",
                                   },
                                 })
@@ -623,31 +582,22 @@ function BrowserContents({
                     </ul>
                   ) : (
                     <Notice>
-                      {filter
-                        ? "No files match this filter."
-                        : "This folder is empty."}
+                      {filter ? "No files match this filter." : "This folder is empty."}
                     </Notice>
                   )}
-                  {listing.result?.kind === "list" &&
-                    listing.result.truncated && (
-                      <Notice>
-                        Folder listing shortened. Some entries are not shown.
-                      </Notice>
-                    )}
+                  {listing.result?.kind === "list" && listing.result.truncated && (
+                    <Notice>Folder listing shortened. Some entries are not shown.</Notice>
+                  )}
                 </div>
                 <div className="flex shrink-0 items-center justify-between gap-2 border-t px-3 py-2 text-[11px] text-muted-foreground">
                   <span>
-                    {filtered.length}{" "}
-                    {filtered.length === 1 ? "entry" : "entries"}
+                    {filtered.length} {filtered.length === 1 ? "entry" : "entries"}
                   </span>
                 </div>
               </>
             ) : tab === "changes" ? (
               <>
-                <BranchBlock
-                  branch={status?.branch ?? context.branch}
-                  root={context.root}
-                />
+                <BranchBlock branch={status?.branch ?? context.branch} root={context.root} />
                 {status?.root && status.entries.length > 0 && (
                   <div className="shrink-0 border-b px-3 py-2">
                     <Button
@@ -667,15 +617,12 @@ function BrowserContents({
                     <Notice>Loading current changes...</Notice>
                   ) : !status?.root ? (
                     <Notice>
-                      Pane directory is outside a Git repository. Use Files to
-                      browse this folder.
+                      Pane directory is outside a Git repository. Use Files to browse this folder.
                     </Notice>
                   ) : status.entries.length === 0 ? (
                     <div className="px-4 py-8">
                       <GitCompareArrows className="mb-3 h-5 w-5 text-muted-foreground" />
-                      <p className="text-sm font-medium">
-                        Working tree is clean
-                      </p>
+                      <p className="text-sm font-medium">Working tree is clean</p>
                       <p className="mt-1 text-sm text-muted-foreground">
                         No staged, unstaged, or untracked files.
                       </p>
@@ -683,15 +630,11 @@ function BrowserContents({
                   ) : (
                     <ChangesList
                       entries={status.entries}
-                      onOpen={(path, scope) =>
-                        navigate({ ...view, preview: { path, scope } })
-                      }
+                      onOpen={(path, scope) => navigate({ ...view, preview: { path, scope } })}
                     />
                   )}
                   {status?.truncated && (
-                    <Notice>
-                      Change list shortened. Some files are not shown.
-                    </Notice>
+                    <Notice>Change list shortened. Some files are not shown.</Notice>
                   )}
                 </div>
                 <div className="shrink-0 border-t px-3 py-2 text-[11px] text-muted-foreground">
@@ -700,19 +643,13 @@ function BrowserContents({
               </>
             ) : (
               <>
-                <BranchBlock
-                  branch={status?.branch ?? context.branch}
-                  root={context.root}
-                />
+                <BranchBlock branch={status?.branch ?? context.branch} root={context.root} />
                 <div className="min-h-0 flex-1 overflow-auto">
                   {!historySupported ? (
-                    <Notice>
-                      Update tmuxde on this machine to browse history.
-                    </Notice>
+                    <Notice>Update tmuxde on this machine to browse history.</Notice>
                   ) : !context.root ? (
                     <Notice>
-                      Pane directory is outside a Git repository. Use Files to
-                      browse this folder.
+                      Pane directory is outside a Git repository. Use Files to browse this folder.
                     </Notice>
                   ) : log.loading ? (
                     <Notice>Loading history...</Notice>
@@ -766,13 +703,7 @@ function BrowserContents({
   );
 }
 
-function BranchBlock({
-  branch,
-  root,
-}: {
-  branch: string | null;
-  root: string | null;
-}) {
+function BranchBlock({ branch, root }: { branch: string | null; root: string | null }) {
   return (
     <div className="shrink-0 border-b px-3 py-3">
       <div className="flex items-center gap-2 text-sm">
@@ -782,26 +713,17 @@ function BranchBlock({
         </span>
       </div>
       {root && (
-        <p className="mt-1 break-all font-mono text-code-meta text-muted-foreground">
-          {root}
-        </p>
+        <p className="mt-1 break-all font-mono text-code-meta text-muted-foreground">{root}</p>
       )}
     </div>
   );
 }
 
-function Breadcrumbs({
-  path,
-  go,
-}: {
-  path: string;
-  go: (path: string) => void;
-}) {
+function Breadcrumbs({ path, go }: { path: string; go: (path: string) => void }) {
   const parts = path.split("/").filter(Boolean);
   const scrollRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (scrollRef.current)
-      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
   }, [path]);
   return (
     <nav
@@ -821,10 +743,7 @@ function Breadcrumbs({
         const target = `/${parts.slice(0, index + 1).join("/")}`;
         return (
           <span key={target} className="flex shrink-0 items-center">
-            <ChevronRight
-              aria-hidden
-              className="h-3 w-3 text-muted-foreground"
-            />
+            <ChevronRight aria-hidden className="h-3 w-3 text-muted-foreground" />
             <button
               type="button"
               aria-current={index === parts.length - 1 ? "location" : undefined}

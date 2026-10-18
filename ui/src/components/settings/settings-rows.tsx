@@ -33,24 +33,17 @@ export function SettingsSection({
     <section aria-labelledby={headingId} className="space-y-3">
       <div className="flex items-end justify-between gap-4">
         <div className="min-w-0 space-y-1">
-          <h2
-            id={headingId}
-            className="text-base font-semibold text-foreground text-balance"
-          >
+          <h2 id={headingId} className="text-base font-semibold text-foreground text-balance">
             {title}
           </h2>
           {description && (
-            <p className="text-[13px] leading-5 text-muted-foreground text-pretty">
-              {description}
-            </p>
+            <p className="text-[13px] leading-5 text-muted-foreground text-pretty">{description}</p>
           )}
         </div>
         {action}
       </div>
       {children && (
-        <div className="divide-y divide-line-subtle rounded-lg border bg-card">
-          {children}
-        </div>
+        <div className="divide-y divide-line-subtle rounded-lg border bg-card">{children}</div>
       )}
     </section>
   );
@@ -102,9 +95,7 @@ export function SettingsRow({
         stacked ? "flex-col" : "flex-wrap items-center justify-between",
       )}
     >
-      <div
-        className={cn("min-w-0 space-y-0.5", !stacked && "flex-1 basis-56")}
-      >
+      <div className={cn("min-w-0 space-y-0.5", !stacked && "flex-1 basis-56")}>
         {textLabel ? (
           <span id={ids.labelId} className={name}>
             {label}
@@ -115,18 +106,13 @@ export function SettingsRow({
           </label>
         )}
         {hint && (
-          <p
-            id={ids.hintId}
-            className="text-[13px] leading-5 text-muted-foreground text-pretty"
-          >
+          <p id={ids.hintId} className="text-[13px] leading-5 text-muted-foreground text-pretty">
             {hint}
           </p>
         )}
       </div>
       {children && (
-        <div className={stacked ? "min-w-0" : "max-w-full shrink-0"}>
-          {children(ids)}
-        </div>
+        <div className={stacked ? "min-w-0" : "max-w-full shrink-0"}>{children(ids)}</div>
       )}
     </div>
   );

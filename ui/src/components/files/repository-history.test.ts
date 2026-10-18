@@ -30,9 +30,7 @@ describe("repository history", () => {
     history = moveRepositoryHistory(history, -1);
     expect(history.entries[history.index]?.view).toEqual(filtered);
     history = moveRepositoryHistory(history, 1);
-    expect(history.entries[history.index]?.view.preview).toEqual(
-      preview.preview,
-    );
+    expect(history.entries[history.index]?.view.preview).toEqual(preview.preview);
     expect(moveRepositoryHistory(history, 1)).toBe(history);
   });
 
@@ -66,8 +64,7 @@ describe("repository history", () => {
       });
     }
     expect(history.entries).toHaveLength(100);
-    for (let index = 0; index < 100; index++)
-      history = moveRepositoryHistory(history, -1);
+    for (let index = 0; index < 100; index++) history = moveRepositoryHistory(history, -1);
     expect(history.index).toBe(0);
     expect(moveRepositoryHistory(history, -1)).toBe(history);
   });
@@ -92,15 +89,8 @@ describe("native repository history", () => {
   });
 
   it("preserves framework state and restores viewer snapshot for matching pane", () => {
-    const history = navigateRepositoryHistory(
-      createRepositoryHistory(root),
-      preview,
-    );
-    const state = repositoryHistoryState(
-      { __NA: true, tree: ["route"] },
-      "%1",
-      history,
-    );
+    const history = navigateRepositoryHistory(createRepositoryHistory(root), preview);
+    const state = repositoryHistoryState({ __NA: true, tree: ["route"] }, "%1", history);
     expect(state).toMatchObject({
       __NA: true,
       tree: ["route"],
@@ -108,9 +98,7 @@ describe("native repository history", () => {
     });
     expect(readRepositoryHistory(state, "%1")).toEqual(history);
     expect(readRepositoryHistory(state, "%2")).toBeNull();
-    expect(
-      readRepositoryHistory({ ...state, mobileTab: "sessions" }, "%1"),
-    ).toBeNull();
+    expect(readRepositoryHistory({ ...state, mobileTab: "sessions" }, "%1")).toBeNull();
   });
 
   it("rejects malformed browser state", () => {
@@ -132,23 +120,22 @@ describe("native repository history", () => {
       tab: "history" as const,
       commit: { hash: "a".repeat(40), subject: "Fix it" },
     };
-    const history = navigateRepositoryHistory(
-      createRepositoryHistory(root),
-      commit,
-    );
+    const history = navigateRepositoryHistory(createRepositoryHistory(root), commit);
     const state = repositoryHistoryState({}, "%1", history);
     expect(readRepositoryHistory(state, "%1")).toEqual(history);
     const bad = navigateRepositoryHistory(createRepositoryHistory(root), {
       ...commit,
       commit: { hash: "HEAD", subject: "" },
     });
-    expect(
-      readRepositoryHistory(repositoryHistoryState({}, "%1", bad), "%1"),
-    ).toBeNull();
+    expect(readRepositoryHistory(repositoryHistoryState({}, "%1", bad), "%1")).toBeNull();
   });
 
   it("treats a different commit as a new step", () => {
-    const first = { ...root, tab: "history" as const, commit: { hash: "a".repeat(40), subject: "" } };
+    const first = {
+      ...root,
+      tab: "history" as const,
+      commit: { hash: "a".repeat(40), subject: "" },
+    };
     const second = { ...first, commit: { hash: "b".repeat(40), subject: "" } };
     const history = navigateRepositoryHistory(
       navigateRepositoryHistory(createRepositoryHistory(root), first),

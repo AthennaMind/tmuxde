@@ -54,11 +54,7 @@ let active: string | null = null;
  * `create` is called only when there is nothing usable to hand back, so a
  * second caller never opens a second socket to the same machine.
  */
-export function acquire(
-  serverId: string,
-  create: () => RelayClient,
-  key = "",
-): RelayClient {
+export function acquire(serverId: string, create: () => RelayClient, key = ""): RelayClient {
   const existing = entries.get(serverId);
   if (existing) {
     if (existing.key === key) {
@@ -130,7 +126,9 @@ const disconnectHandlers = new Set<() => void>();
 
 export function onDisconnectAll(handler: () => void): () => void {
   disconnectHandlers.add(handler);
-  return () => { disconnectHandlers.delete(handler); };
+  return () => {
+    disconnectHandlers.delete(handler);
+  };
 }
 
 /** Lock and sign-out close inventory sockets as well as active terminal. */

@@ -93,7 +93,8 @@ export function usePanePeek(enabled: boolean) {
             const current = peekRef.current;
             if (current) {
               // A peek is up: the next cell shows at once, like a row of tooltips.
-              if (current.via === "hover" && current.pane.id !== pane.id) open(pane, "hover", anchor);
+              if (current.via === "hover" && current.pane.id !== pane.id)
+                open(pane, "hover", anchor);
               return;
             }
             timer.current = window.setTimeout(() => open(pane, "hover", anchor), PEEK_DELAY_MS);
@@ -209,7 +210,11 @@ export function PanePeek({
   const owner = useId();
   const key = previewKey(scope.machineId, peek?.pane.id ?? "");
   const frame = useTerminalPreviewStore((s) => s.frames[key]);
-  const supported = useMachineStore((s) => s.machines.find((machine) => machine.id === scope.machineId)?.features.includes("terminal:preview"));
+  const supported = useMachineStore((s) =>
+    s.machines
+      .find((machine) => machine.id === scope.machineId)
+      ?.features.includes("terminal:preview"),
+  );
   const connected = useMachineStore((s) => s.inventory[scope.machineId]?.status === "connected");
   const paneId = peek?.pane.id;
   useEffect(() => {
@@ -239,10 +244,15 @@ export function PanePeek({
       },
     };
   }, [peek?.anchor]);
-  const status = !supported ? "Update machine to enable previews"
-    : !connected ? "Reconnecting…"
-    : frame?.unavailable ? "Preview unavailable"
-    : !frame ? "Loading preview…" : null;
+  const status = !supported
+    ? "Update machine to enable previews"
+    : !connected
+      ? "Reconnecting…"
+      : frame?.unavailable
+        ? "Preview unavailable"
+        : !frame
+          ? "Loading preview…"
+          : null;
   const aspect = gridAspect(frame ? { cols: frame.cols, rows: frame.rows } : peek?.pane.dimensions);
   const name = peek ? paneCellName(peek.pane) : "";
 
@@ -287,7 +297,11 @@ export function PanePeek({
             if (event.pointerType === "mouse") onPointerLeave();
           }}
           onKeyDown={(event) => {
-            const p = (event.key === "p" || event.key === "P") && !event.altKey && !event.ctrlKey && !event.metaKey;
+            const p =
+              (event.key === "p" || event.key === "P") &&
+              !event.altKey &&
+              !event.ctrlKey &&
+              !event.metaKey;
             if (p) {
               event.preventDefault();
               onClose();
@@ -299,16 +313,34 @@ export function PanePeek({
             {peek && <ProcessIcon command={peek.pane.command} className="h-3.5 w-3.5" />}
             <span className="min-w-0 flex-1 truncate">{name}</span>
           </div>
-          <div role="region" tabIndex={0}
+          <div
+            role="region"
+            tabIndex={0}
             aria-label={`Terminal preview of pane ${peek?.pane.index ?? ""}`}
             aria-busy={supported && connected && !frame}
             className="relative w-full overflow-hidden bg-background focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-            style={{ aspectRatio: aspect, maxHeight: "min(65dvh, calc(var(--radix-popover-content-available-height) - 3.5rem))" }}>
-            {status ? <p role="status" className="absolute inset-0 flex items-center justify-center p-3 text-center text-xs text-muted-foreground">{status}</p>
-              : frame && <>
+            style={{
+              aspectRatio: aspect,
+              maxHeight: "min(65dvh, calc(var(--radix-popover-content-available-height) - 3.5rem))",
+            }}
+          >
+            {status ? (
+              <p
+                role="status"
+                className="absolute inset-0 flex items-center justify-center p-3 text-center text-xs text-muted-foreground"
+              >
+                {status}
+              </p>
+            ) : (
+              frame && (
+                <>
                   <TerminalScreen frame={frame} />
-                  <pre className="sr-only" aria-live="off">{frame.content.replace(/\x1b\[[0-9;:]*m/g, "")}</pre>
-                </>}
+                  <pre className="sr-only" aria-live="off">
+                    {frame.content.replace(/\x1b\[[0-9;:]*m/g, "")}
+                  </pre>
+                </>
+              )
+            )}
           </div>
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>

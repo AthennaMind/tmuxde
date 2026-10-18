@@ -3,22 +3,38 @@ import type { ClientMessage, ServerMessage } from "@/protocol";
 import { disconnectAll } from "@/lib/relay-registry";
 import { setMachineId } from "@/lib/machine-context";
 
-const clients = vi.hoisted(() => [] as {
-  options: { url: string; token: string; reconnect: boolean };
-  sent: ClientMessage[];
-  disconnect: () => void;
-  emit: (message: ServerMessage) => void;
-}[]);
+const clients = vi.hoisted(
+  () =>
+    [] as {
+      options: { url: string; token: string; reconnect: boolean };
+      sent: ClientMessage[];
+      disconnect: () => void;
+      emit: (message: ServerMessage) => void;
+    }[],
+);
 vi.mock("@/lib/file-url", () => ({ getStoredToken: () => "test", downloadFile: vi.fn() }));
-vi.mock("@/lib/relay-url", () => ({ resolveRelayWsUrl: (id: string) => `wss://hub.test/_relay?machine=${id}` }));
-vi.mock("./machine-store", () => ({ useMachineStore: { getState: () => ({ machines: [{ id: "alpha", name: "Alpha" }, { id: "beta", name: "Beta" }] }) } }));
+vi.mock("@/lib/relay-url", () => ({
+  resolveRelayWsUrl: (id: string) => `wss://hub.test/_relay?machine=${id}`,
+}));
+vi.mock("./machine-store", () => ({
+  useMachineStore: {
+    getState: () => ({
+      machines: [
+        { id: "alpha", name: "Alpha" },
+        { id: "beta", name: "Beta" },
+      ],
+    }),
+  },
+}));
 vi.mock("@/lib/ws-client", () => ({
   RelayClient: class {
     status = "disconnected";
     sent: ClientMessage[] = [];
     handlers = new Set<(message: ServerMessage) => void>();
     statuses = new Set<(status: string) => void>();
-    constructor(public options: { url: string; token: string; reconnect: boolean }) { clients.push(this); }
+    constructor(public options: { url: string; token: string; reconnect: boolean }) {
+      clients.push(this);
+    }
     connect() {
       this.status = "connected";
       this.emit({ type: "auth:success", serverVersion: "test", features: ["file:upload:ack"] });
@@ -27,8 +43,12 @@ vi.mock("@/lib/ws-client", () => ({
       this.status = "disconnected";
       this.statuses.forEach((handler) => handler(this.status));
     });
-    send(message: ClientMessage) { this.sent.push(message); }
-    emit(message: ServerMessage) { this.handlers.forEach((handler) => handler(message)); }
+    send(message: ClientMessage) {
+      this.sent.push(message);
+    }
+    emit(message: ServerMessage) {
+      this.handlers.forEach((handler) => handler(message));
+    }
     onMessage(handler: (message: ServerMessage) => void) {
       this.handlers.add(handler);
       return () => this.handlers.delete(handler);
@@ -51,10 +71,18 @@ beforeEach(async () => {
 
 describe("transfer lifecycle", () => {
   it("keeps queued uploads on captured machine and cancels without sending final chunks", async () => {
-    startUploads([new File(["one"], "one"), new File(["two"], "two"), new File(["three"], "three")], "/folder");
+    startUploads(
+      [new File(["one"], "one"), new File(["two"], "two"), new File(["three"], "three")],
+      "/folder",
+    );
     setMachineId("beta");
     await vi.waitFor(() => expect(clients.map((client) => client.sent.length)).toEqual([1, 1]));
-    expect(clients.every((client) => client.options.url.endsWith("machine=alpha") && client.options.reconnect === false)).toBe(true);
+    expect(
+      clients.every(
+        (client) =>
+          client.options.url.endsWith("machine=alpha") && client.options.reconnect === false,
+      ),
+    ).toBe(true);
     const first = useTransferStore.getState().transfers[0]!;
     cancelTransfer(first.id);
     await vi.waitFor(() => expect(clients).toHaveLength(3));
@@ -65,12 +93,17 @@ describe("transfer lifecycle", () => {
   });
 
   it("lock aborts running and queued transfers and clears paths", async () => {
-    startUploads([new File(["x"], "one"), new File(["x"], "two"), new File(["x"], "three")], "/private");
+    startUploads(
+      [new File(["x"], "one"), new File(["x"], "two"), new File(["x"], "three")],
+      "/private",
+    );
     await vi.waitFor(() => expect(clients.map((client) => client.sent.length)).toEqual([1, 1]));
     disconnectAll();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(clients).toHaveLength(2);
-    expect(clients.every((client) => vi.mocked(client.disconnect).mock.calls.length > 0)).toBe(true);
+    expect(clients.every((client) => vi.mocked(client.disconnect).mock.calls.length > 0)).toBe(
+      true,
+    );
     expect(useTransferStore.getState().transfers).toEqual([]);
   });
 });

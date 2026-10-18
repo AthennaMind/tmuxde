@@ -13,9 +13,7 @@ export function EntryHeader() {
           <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10">
             <Terminal className="h-4 w-4 text-primary" aria-hidden />
           </span>
-          <span className="font-mono text-sm font-semibold tracking-tight">
-            tmuxde
-          </span>
+          <span className="font-mono text-sm font-semibold tracking-tight">tmuxde</span>
         </Link>
       </div>
     </header>

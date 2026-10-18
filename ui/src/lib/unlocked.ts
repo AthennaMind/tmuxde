@@ -121,7 +121,9 @@ export function setMasterKey(mk: Uint8Array): void {
 const keyListeners = new Set<(serverId: string) => void>();
 export function subscribeKeys(listener: (serverId: string) => void): () => void {
   keyListeners.add(listener);
-  return () => { keyListeners.delete(listener); };
+  return () => {
+    keyListeners.delete(listener);
+  };
 }
 
 export function cacheKeys(serverId: string, unlocked: UnlockedKeys): void {

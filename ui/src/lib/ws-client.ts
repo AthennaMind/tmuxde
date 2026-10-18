@@ -4,16 +4,10 @@ import {
   type ClientMessage,
   type ServerMessage,
 } from "@/protocol";
-import {
-  directTransport,
-  type Transport,
-  type TransportFactory,
-} from "./transport";
+import { directTransport, type Transport, type TransportFactory } from "./transport";
 
 type MessageHandler = (msg: ServerMessage) => void;
-type StatusHandler = (
-  status: "connecting" | "connected" | "reconnecting" | "disconnected",
-) => void;
+type StatusHandler = (status: "connecting" | "connected" | "reconnecting" | "disconnected") => void;
 
 interface RelayClientOptions {
   /** Ignored when `transport` is supplied. */
@@ -58,11 +52,7 @@ export class RelayClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private intentionalClose = false;
-  private _status:
-    | "connecting"
-    | "connected"
-    | "reconnecting"
-    | "disconnected" = "disconnected";
+  private _status: "connecting" | "connected" | "reconnecting" | "disconnected" = "disconnected";
   private _latency: number | null = null;
   private _reconnectCount = 0;
   // #15: Track last pong for zombie connection detection
@@ -71,8 +61,7 @@ export class RelayClient {
   private pendingMessages: ClientMessage[] = [];
   /** True between connect() and either auth:success or a close. */
   private connecting = false;
-  private onMessageDroppedHandler: ((droppedCount: number) => void) | null =
-    null;
+  private onMessageDroppedHandler: ((droppedCount: number) => void) | null = null;
 
   constructor(options: RelayClientOptions) {
     if (!options.transport && !options.url) {
@@ -83,8 +72,7 @@ export class RelayClient {
     this.reconnect = options.reconnect ?? true;
     if (options.onMessage) this.messageHandlers.add(options.onMessage);
     if (options.onStatusChange) this.statusHandlers.add(options.onStatusChange);
-    if (options.onMessageDropped)
-      this.onMessageDroppedHandler = options.onMessageDropped;
+    if (options.onMessageDropped) this.onMessageDroppedHandler = options.onMessageDropped;
   }
 
   get status() {
@@ -262,10 +250,7 @@ export class RelayClient {
       this.connect();
     }, this.reconnectDelay);
 
-    this.reconnectDelay = Math.min(
-      this.reconnectDelay * 2,
-      MAX_RECONNECT_DELAY,
-    );
+    this.reconnectDelay = Math.min(this.reconnectDelay * 2, MAX_RECONNECT_DELAY);
   }
 
   private startPing(): void {

@@ -1,10 +1,6 @@
 import { machineId } from "@/lib/machine-context";
 import { create } from "zustand";
-import {
-  createJSONStorage,
-  persist,
-  type StateStorage,
-} from "zustand/middleware";
+import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { useSessionStore } from "./session-store";
 import { isEnrolled } from "@/lib/unlocked";
 
@@ -172,10 +168,7 @@ interface MainTabsStore {
  * settings and the overview are single tabs, so those go only when nothing
  * else can. A tab in `keep` never goes.
  */
-export function trimTabs(
-  tabs: MainTab[],
-  keep: ReadonlySet<string>,
-): MainTab[] {
+export function trimTabs(tabs: MainTab[], keep: ReadonlySet<string>): MainTab[] {
   if (tabs.length <= MAX_TABS) return tabs;
   const next = [...tabs];
   while (next.length > MAX_TABS) {
@@ -224,7 +217,8 @@ function isMainTab(value: unknown): value is MainTab {
     (origin.machineId !== undefined &&
       (typeof origin.machineId !== "string" || !/^[a-zA-Z0-9_-]+$/.test(origin.machineId))) ||
     (origin.sessionName != null && typeof origin.sessionName !== "string")
-  ) return false;
+  )
+    return false;
   if (tab?.kind === "graph" || tab?.kind === "changes")
     return (
       typeof tab.paneId === "string" &&
@@ -250,14 +244,10 @@ function isMainTab(value: unknown): value is MainTab {
 }
 
 /** Keep well formed tabs only, and an active id that still names one. */
-export function restoreTabs(
-  persisted: unknown,
-): Pick<MainTabsStore, "tabs" | "active" | "order"> {
+export function restoreTabs(persisted: unknown): Pick<MainTabsStore, "tabs" | "active" | "order"> {
   const state = persisted as Partial<MainTabsStore> | undefined;
   const keep = new Set(typeof state?.active === "string" ? [state.active] : []);
-  const tabs = Array.isArray(state?.tabs)
-    ? trimTabs(state.tabs.filter(isMainTab), keep)
-    : [];
+  const tabs = Array.isArray(state?.tabs) ? trimTabs(state.tabs.filter(isMainTab), keep) : [];
   const active = tabs.find((t) => t.id === state?.active)?.id ?? TERMINAL_TAB;
   const order = Array.isArray(state?.order)
     ? [...new Set(state.order.filter((id): id is string => typeof id === "string"))]
@@ -330,11 +320,12 @@ export const useMainTabsStore = create<MainTabsStore>()(
     (set) => ({
       tabs: [],
       order: [],
-      setOrder: (order) => set((s) =>
-        order.length === s.order.length && order.every((id, index) => id === s.order[index])
-          ? s
-          : { order },
-      ),
+      setOrder: (order) =>
+        set((s) =>
+          order.length === s.order.length && order.every((id, index) => id === s.order[index])
+            ? s
+            : { order },
+        ),
       active: TERMINAL_TAB,
       openFile: (input) =>
         set((s) => {
@@ -352,15 +343,9 @@ export const useMainTabsStore = create<MainTabsStore>()(
           const id = commitTabId(input.hash, origin.machineId);
           const known = s.tabs.find((t) => t.id === id);
           // A parent link knows no subject. Keep the one already shown.
-          const subject =
-            input.subject ||
-            (known?.kind === "commit" ? known.subject : "");
+          const subject = input.subject || (known?.kind === "commit" ? known.subject : "");
           return {
-            tabs: upsert(
-              s.tabs,
-              { ...origin, subject, kind: "commit", id },
-              s.active,
-            ),
+            tabs: upsert(s.tabs, { ...origin, subject, kind: "commit", id }, s.active),
             active: id,
           };
         }),
@@ -393,20 +378,12 @@ export const useMainTabsStore = create<MainTabsStore>()(
         }),
       openSettings: () =>
         set((s) => ({
-          tabs: upsert(
-            s.tabs,
-            { kind: "settings", id: SETTINGS_TAB },
-            s.active,
-          ),
+          tabs: upsert(s.tabs, { kind: "settings", id: SETTINGS_TAB }, s.active),
           active: SETTINGS_TAB,
         })),
       openOverview: () =>
         set((s) => ({
-          tabs: upsert(
-            s.tabs,
-            { kind: "overview", id: OVERVIEW_TAB },
-            s.active,
-          ),
+          tabs: upsert(s.tabs, { kind: "overview", id: OVERVIEW_TAB }, s.active),
           active: OVERVIEW_TAB,
         })),
       closeTab: (id) =>

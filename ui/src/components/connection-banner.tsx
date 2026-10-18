@@ -47,9 +47,7 @@ export function ConnectionBanner() {
           : "Disconnected — input paused"}
       </span>
 
-      <BannerButton onClick={() => getRelayClient()?.connect()}>
-        Retry now
-      </BannerButton>
+      <BannerButton onClick={() => getRelayClient()?.connect()}>Retry now</BannerButton>
     </div>
   );
 }
@@ -62,13 +60,7 @@ export function ConnectionBanner() {
  * button is a 44px row and the pill is a span inside it, the same split the
  * window tabs use: the target grows, the chrome does not.
  */
-function BannerButton({
-  onClick,
-  children,
-}: {
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
+function BannerButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button"

@@ -45,8 +45,9 @@ export function useTabReorder(order: string[], setOrder: (order: string[]) => vo
     setOrder(next);
     setAnnouncement(`Tab moved to position ${next.indexOf(id) + 1} of ${next.length}.`);
     requestAnimationFrame(() => {
-      const item = Array.from(nav.current?.querySelectorAll<HTMLElement>("[data-view-id]") ?? [])
-        .find((element) => element.dataset.viewId === id);
+      const item = Array.from(
+        nav.current?.querySelectorAll<HTMLElement>("[data-view-id]") ?? [],
+      ).find((element) => element.dataset.viewId === id);
       item?.querySelector<HTMLButtonElement>("[data-view-handle]")?.focus({ preventScroll: true });
       item?.scrollIntoView({ block: "nearest", inline: "nearest" });
     });
@@ -61,8 +62,12 @@ export function useTabReorder(order: string[], setOrder: (order: string[]) => vo
       const point = pointer.current;
       if (element && point) {
         const rect = element.getBoundingClientRect();
-        if (point.y >= rect.top && point.y <= rect.bottom &&
-            point.x >= rect.left && point.x <= rect.right) {
+        if (
+          point.y >= rect.top &&
+          point.y <= rect.bottom &&
+          point.x >= rect.left &&
+          point.x <= rect.right
+        ) {
           const delta = point.x < rect.left + 36 ? -8 : point.x > rect.right - 36 ? 8 : 0;
           if (delta) {
             element.scrollLeft += delta;
@@ -97,7 +102,11 @@ export function useTabReorder(order: string[], setOrder: (order: string[]) => vo
       onDragEnter: dragOver,
       onDragOver: dragOver,
       onDragLeave(event: DragEvent<HTMLElement>) {
-        if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+        if (
+          event.relatedTarget instanceof Node &&
+          event.currentTarget.contains(event.relatedTarget)
+        )
+          return;
         pointer.current = null;
         setTarget(null);
       },
@@ -110,8 +119,14 @@ export function useTabReorder(order: string[], setOrder: (order: string[]) => vo
       },
       onDragEnd: finish,
       onKeyDown(event: KeyboardEvent<HTMLElement>) {
-        if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
-            (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+        if (
+          !event.altKey ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey ||
+          (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
+        )
+          return;
         const handle = (event.target as HTMLElement).closest("[data-view-handle]");
         const id = handle?.closest<HTMLElement>("[data-view-id]")?.dataset.viewId;
         if (!id) return;

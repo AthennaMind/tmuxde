@@ -6,11 +6,7 @@ import { useRelayClient } from "@/hooks/use-websocket";
 import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
 import { useMainTabsStore, type ChangesTab } from "@/stores/main-tabs-store";
-import {
-  useRepoWatch,
-  useRepoWatchStore,
-  watchHealthy,
-} from "@/stores/repo-watch-store";
+import { useRepoWatch, useRepoWatchStore, watchHealthy } from "@/stores/repo-watch-store";
 import { useSessionTreeStore } from "@/stores/session-tree-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { FileChangesDetail } from "./commit-view";
@@ -18,13 +14,7 @@ import { loadCurrentChanges, type CurrentChangesResult } from "./current-changes
 import { Notice } from "./repository-preview";
 import type { RepositoryClient } from "./repository-request";
 
-export function ChangesTabView({
-  tab,
-  className,
-}: {
-  tab: ChangesTab;
-  className?: string;
-}) {
+export function ChangesTabView({ tab, className }: { tab: ChangesTab; className?: string }) {
   const client = useRelayClient();
   const status = useConnectionStore((s) => s.status);
   const capabilities = useConnectionStore((s) => s.capabilities);
@@ -118,12 +108,16 @@ export function CurrentChangesView({
         }
       }
     }
-    reload.current = () => { void refresh(); };
+    reload.current = () => {
+      void refresh();
+    };
     const unsubscribe = useRepoWatchStore.subscribe((state, previous) => {
       const change = state.lastChange;
       if (!change || change === previous.lastChange || !sameRoot(change, root)) return;
       clearTimeout(timer);
-      timer = setTimeout(() => { void refresh(); }, 200);
+      timer = setTimeout(() => {
+        void refresh();
+      }, 200);
     });
     void refresh();
     return () => {
@@ -134,11 +128,10 @@ export function CurrentChangesView({
     };
   }, [client, paneId, path, attached, attachCount]);
 
-  useVisibleInterval(
-    () => reload.current(),
-    watchHealthy(watch) ? 120_000 : 15_000,
-    { enabled: attached, debounceMs: 1_000 },
-  );
+  useVisibleInterval(() => reload.current(), watchHealthy(watch) ? 120_000 : 15_000, {
+    enabled: attached,
+    debounceMs: 1_000,
+  });
   const button = cn(
     "flex shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
     touch ? "h-11 w-11" : "h-8 w-8",
@@ -147,18 +140,24 @@ export function CurrentChangesView({
     <section
       aria-label="Current changes"
       data-zoom-surface="code"
-      className={cn("flex min-h-0 min-w-0 flex-1 flex-col bg-background [--code-leading:1.6] [--code-meta-size:0.75rem] [--code-size:0.8125rem]", className)}
+      className={cn(
+        "flex min-h-0 min-w-0 flex-1 flex-col bg-background [--code-leading:1.6] [--code-meta-size:0.75rem] [--code-size:0.8125rem]",
+        className,
+      )}
     >
-      <div className={cn("flex min-h-11 shrink-0 items-center gap-2 border-b ps-3 pe-1", !touch && "font-chrome")}>
+      <div
+        className={cn(
+          "flex min-h-11 shrink-0 items-center gap-2 border-b ps-3 pe-1",
+          !touch && "font-chrome",
+        )}
+      >
         {onBack && (
           <button type="button" aria-label="Back to changes" onClick={onBack} className={button}>
             <ArrowLeft className="h-4 w-4" />
           </button>
         )}
         <GitCompareArrows className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
-          Current changes
-        </span>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">Current changes</span>
         <button
           type="button"
           aria-label="Refresh changes"
@@ -166,7 +165,9 @@ export function CurrentChangesView({
           onClick={() => reload.current()}
           className={button}
         >
-          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin motion-reduce:animate-none")} />
+          <RefreshCw
+            className={cn("h-4 w-4", loading && "animate-spin motion-reduce:animate-none")}
+          />
         </button>
         <button
           type="button"
@@ -179,13 +180,21 @@ export function CurrentChangesView({
           <WrapText className={cn("h-4 w-4", wrap && "text-primary")} />
         </button>
         {onClose && (
-          <button type="button" aria-label="Close" title="Close" onClick={onClose} className={button}>
+          <button
+            type="button"
+            aria-label="Close"
+            title="Close"
+            onClick={onClose}
+            className={button}
+          >
             <X className="h-4 w-4" />
           </button>
         )}
       </div>
       {error && <Notice error>{error} Use Refresh changes to try again.</Notice>}
-      {!result ? (!error && <Notice>Loading current changes</Notice>) : !result.root ? (
+      {!result ? (
+        !error && <Notice>Loading current changes</Notice>
+      ) : !result.root ? (
         <Notice>This folder is outside a Git repository.</Notice>
       ) : (
         <FileChangesDetail

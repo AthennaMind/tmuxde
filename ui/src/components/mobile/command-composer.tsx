@@ -234,9 +234,7 @@ function ComposerBody({
                 onClick={() => setTab(name)}
                 className={cn(
                   "rounded-md px-3 py-1.5 text-xs capitalize transition-colors",
-                  tab === name
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground",
+                  tab === name ? "bg-muted text-foreground" : "text-muted-foreground",
                 )}
               >
                 {name}
@@ -252,9 +250,7 @@ function ComposerBody({
               aria-label={`${tab} entries`}
             >
               {entries.length === 0 ? (
-                <li className="px-1 py-2 text-xs text-muted-foreground">
-                  {emptyStateFor(tab)}
-                </li>
+                <li className="px-1 py-2 text-xs text-muted-foreground">{emptyStateFor(tab)}</li>
               ) : (
                 entries.map((entry, i) => (
                   <li key={`${entry}-${i}`}>

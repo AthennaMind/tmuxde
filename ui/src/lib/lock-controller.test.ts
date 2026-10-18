@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  ceremonyInProgress,
-  duringCeremony,
-  lockNow,
-  registerDisconnect,
-} from "./lock-controller";
+import { ceremonyInProgress, duringCeremony, lockNow, registerDisconnect } from "./lock-controller";
 import { forget, isUnlocked, setEnrolled, setMasterKey } from "./unlocked";
 
 function memoryStorage(): Storage {

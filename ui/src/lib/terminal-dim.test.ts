@@ -38,12 +38,8 @@ describe("mobile dim text", () => {
     const { terminal, renderer } = view();
     brightenDimText(terminal);
     renderer._injectCss(darkTheme.replaceAll("eeeeee", "111111"));
-    expect(renderer._themeStyleElement.textContent).toContain(
-      ".xterm-dim { color: #111111cc; }",
-    );
-    expect(renderer._themeStyleElement.textContent).toContain(
-      ".xterm-rows { color: #111111; }",
-    );
+    expect(renderer._themeStyleElement.textContent).toContain(".xterm-dim { color: #111111cc; }");
+    expect(renderer._themeStyleElement.textContent).toContain(".xterm-rows { color: #111111; }");
   });
 
   it("leaves opaque RGB colors and cursor or selection styles unchanged", () => {
@@ -59,8 +55,6 @@ describe("mobile dim text", () => {
 
   it("leaves unsupported renderers usable", () => {
     expect(() => brightenDimText({})).not.toThrow();
-    expect(() =>
-      brightenDimText({ _core: { _renderService: { _renderer: {} } } }),
-    ).not.toThrow();
+    expect(() => brightenDimText({ _core: { _renderService: { _renderer: {} } } })).not.toThrow();
   });
 });

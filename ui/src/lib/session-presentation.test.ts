@@ -63,7 +63,11 @@ describe("session presentation", () => {
 
 describe("pane layout map", () => {
   it("preserves nested horizontal and vertical splits from tmux layout", () => {
-    const rects = paneLayout("abcd,81x24,0,0{40x24,0,0,0,40x24,41,0[40x11,41,0,1,40x12,41,12,2]}", [pane(0), pane(1), pane(2)]);
+    const rects = paneLayout("abcd,81x24,0,0{40x24,0,0,0,40x24,41,0[40x11,41,0,1,40x12,41,12,2]}", [
+      pane(0),
+      pane(1),
+      pane(2),
+    ]);
     expect(rects).toEqual([
       { id: "%0", x: 0, y: 0, width: 40 / 81, height: 1 },
       { id: "%1", x: 41 / 81, y: 0, width: 40 / 81, height: 11 / 24 },

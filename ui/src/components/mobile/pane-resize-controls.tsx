@@ -75,10 +75,7 @@ export function PaneResizeControls() {
   // which is a pane that keeps resizing after the overlay is gone.
   useEffect(() => stopRepeat, [stopRepeat]);
 
-  const directionButton = (
-    direction: "U" | "D" | "L" | "R",
-    Icon: typeof ArrowUp,
-  ) => (
+  const directionButton = (direction: "U" | "D" | "L" | "R", Icon: typeof ArrowUp) => (
     <Button
       variant="outline"
       size="icon"
@@ -118,8 +115,8 @@ export function PaneResizeControls() {
                 describes it from this, and "what does holding one of these
                 do" is the one thing the arrows cannot say themselves. */}
             <DialogDescription className="sr-only">
-              Each press moves the pane boundary five cells. Press and hold to
-              keep moving it. Press Escape to leave resize mode.
+              Each press moves the pane boundary five cells. Press and hold to keep moving it. Press
+              Escape to leave resize mode.
             </DialogDescription>
             <div className="grid grid-cols-3 gap-2">
               <div />

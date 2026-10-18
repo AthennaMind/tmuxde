@@ -50,9 +50,7 @@ export function RequireUnlockDialog({
         return;
       }
       toast.error(
-        outcome.reason === "throttled"
-          ? "Too many attempts. Wait a moment."
-          : "Wrong PIN.",
+        outcome.reason === "throttled" ? "Too many attempts. Wait a moment." : "Wrong PIN.",
       );
     } finally {
       setBusy(false);

@@ -85,20 +85,11 @@ export function SettingsPanel({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "@container overflow-y-auto overscroll-contain bg-background",
-        className,
-      )}
-    >
+    <div className={cn("@container overflow-y-auto overscroll-contain bg-background", className)}>
       <div className="mx-auto w-full max-w-2xl space-y-10 px-4 pt-6 pb-16 @lg:px-8 @lg:pt-10">
         <header className="space-y-1">
-          <h1 className="text-xl font-semibold text-foreground text-balance">
-            Settings
-          </h1>
-          <p className="text-[13px] leading-5 text-muted-foreground">
-            Saved in this browser only.
-          </p>
+          <h1 className="text-xl font-semibold text-foreground text-balance">Settings</h1>
+          <p className="text-[13px] leading-5 text-muted-foreground">Saved in this browser only.</p>
         </header>
         <AppearanceSection />
         <TextSection touch={touch} />
@@ -119,17 +110,30 @@ function MicrophoneSection() {
   const available = useDictationAvailable();
   if (!available) return null;
   return (
-    <SettingsSection title="Microphone" description="Audio is captured only while dictation is running.">
+    <SettingsSection
+      title="Microphone"
+      description="Audio is captured only while dictation is running."
+    >
       <details className="text-sm">
-        <summary className={cn("min-h-11 cursor-pointer rounded-md py-3 font-medium", settingsFocus)}>
+        <summary
+          className={cn("min-h-11 cursor-pointer rounded-md py-3 font-medium", settingsFocus)}
+        >
           Remember microphone access
         </summary>
         <div className="space-y-3 pt-2 text-muted-foreground">
-          <p>Browser controls permission for each site and device. To avoid repeated prompts, choose Allow for this site.</p>
+          <p>
+            Browser controls permission for each site and device. To avoid repeated prompts, choose
+            Allow for this site.
+          </p>
           <p>iPhone Safari: Page Menu &gt; Website Settings &gt; Microphone &gt; Allow.</p>
           <p>Mac Safari: Settings &gt; Websites &gt; Microphone &gt; Allow.</p>
-          <p>Chrome: site controls beside address bar &gt; Site settings &gt; Microphone &gt; Allow.</p>
-          <p>Permission is reused between recordings while app stays open. Microphone stays muted between recordings and is released when app hides, locks, or disconnects.</p>
+          <p>
+            Chrome: site controls beside address bar &gt; Site settings &gt; Microphone &gt; Allow.
+          </p>
+          <p>
+            Permission is reused between recordings while app stays open. Microphone stays muted
+            between recordings and is released when app hides, locks, or disconnects.
+          </p>
         </div>
       </details>
     </SettingsSection>
@@ -152,7 +156,11 @@ function AppearanceSection() {
             options={[
               { value: "light", label: "Light", icon: <Sun className="h-3.5 w-3.5" aria-hidden /> },
               { value: "dark", label: "Dark", icon: <Moon className="h-3.5 w-3.5" aria-hidden /> },
-              { value: "system", label: "System", icon: <Monitor className="h-3.5 w-3.5" aria-hidden /> },
+              {
+                value: "system",
+                label: "System",
+                icon: <Monitor className="h-3.5 w-3.5" aria-hidden />,
+              },
             ]}
           />
         )}
@@ -231,26 +239,19 @@ function ThemeGrid({
               <span style={{ color: theme.blue }}>git</span> status
             </div>
             <div className="flex gap-1">
-              {[
-                theme.red,
-                theme.yellow,
-                theme.green,
-                theme.cyan,
-                theme.blue,
-                theme.magenta,
-              ].map((color, index) => (
-                <span
-                  key={index}
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
-              ))}
+              {[theme.red, theme.yellow, theme.green, theme.cyan, theme.blue, theme.magenta].map(
+                (color, index) => (
+                  <span
+                    key={index}
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                ),
+              )}
             </div>
           </div>
           <div className="flex items-center justify-between gap-2 px-1.5 pt-1.5 pb-0.5">
-            <span className="text-[13px] leading-5 text-foreground">
-              {name}
-            </span>
+            <span className="text-[13px] leading-5 text-foreground">{name}</span>
             <Check
               aria-hidden
               className="h-3.5 w-3.5 shrink-0 text-primary opacity-0 group-has-[:checked]:opacity-100"
@@ -297,20 +298,12 @@ function TextSection({ touch }: { touch: boolean }) {
         hint="At Bold, bold output looks like the rest."
         textLabel
       >
-        {(ids) => (
-          <WeightPicker
-            ids={ids}
-            value={terminalWeight}
-            onChange={setTerminalWeight}
-          />
-        )}
+        {(ids) => <WeightPicker ids={ids} value={terminalWeight} onChange={setTerminalWeight} />}
       </SettingsRow>
       <SettingsRow
         label="File and diff text size"
         hint={
-          touch
-            ? "Files, diffs and the editor."
-            : "Ctrl with + or - also works in a file or diff."
+          touch ? "Files, diffs and the editor." : "Ctrl with + or - also works in a file or diff."
         }
         textLabel
       >
@@ -327,14 +320,8 @@ function TextSection({ touch }: { touch: boolean }) {
           />
         )}
       </SettingsRow>
-      <SettingsRow
-        label="File and diff text weight"
-        hint="Files, diffs and the editor."
-        textLabel
-      >
-        {(ids) => (
-          <WeightPicker ids={ids} value={codeWeight} onChange={setCodeWeight} />
-        )}
+      <SettingsRow label="File and diff text weight" hint="Files, diffs and the editor." textLabel>
+        {(ids) => <WeightPicker ids={ids} value={codeWeight} onChange={setCodeWeight} />}
       </SettingsRow>
     </SettingsSection>
   );
@@ -395,21 +382,14 @@ function TerminalSection({ touch }: { touch: boolean }) {
           />
         )}
       </SettingsRow>
-      <SwitchRow
-        label="Blink the cursor"
-        checked={cursorBlink}
-        onChange={setCursorBlink}
-      />
+      <SwitchRow label="Blink the cursor" checked={cursorBlink} onChange={setCursorBlink} />
       <SwitchRow
         label="Copy on select"
         hint="Copy selected terminal text, including copies from tmux and terminal apps."
         checked={copyOnSelect}
         onChange={setCopyOnSelect}
       />
-      <SettingsRow
-        label="Scrollback lines"
-        hint="How far back you can scroll. 100 to 50,000."
-      >
+      <SettingsRow label="Scrollback lines" hint="How far back you can scroll. 100 to 50,000.">
         {(ids) => <ScrollbackInput ids={ids} />}
       </SettingsRow>
       {!touch && (
@@ -452,10 +432,7 @@ function ScrollbackInput({ ids }: { ids: RowIds }) {
   useEffect(() => setDraft(String(scrollback)), [scrollback]);
 
   const commit = () => {
-    const lines = Math.max(
-      100,
-      Math.min(50000, Math.round(Number(draft)) || 1000),
-    );
+    const lines = Math.max(100, Math.min(50000, Math.round(Number(draft)) || 1000));
     setScrollback(lines);
     setDraft(String(lines));
   };
@@ -506,11 +483,7 @@ function KeyboardToolbarSection() {
         return (
           <SettingsRow key={group} label={GROUP_LABELS[group]} stacked textLabel>
             {(ids) => (
-              <div
-                role="group"
-                aria-labelledby={ids.labelId}
-                className="flex flex-wrap gap-1.5"
-              >
+              <div role="group" aria-labelledby={ids.labelId} className="flex flex-wrap gap-1.5">
                 {keys.map((key) => (
                   <button
                     key={key.id}
@@ -564,11 +537,7 @@ function TouchSection() {
         checked={autoZoom}
         onChange={setAutoZoom}
       />
-      <SwitchRow
-        label="Vibrate on key press"
-        checked={hapticEnabled}
-        onChange={setHapticEnabled}
-      />
+      <SwitchRow label="Vibrate on key press" checked={hapticEnabled} onChange={setHapticEnabled} />
     </SettingsSection>
   );
 }

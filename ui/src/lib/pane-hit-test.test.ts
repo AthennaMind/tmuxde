@@ -18,13 +18,7 @@ const GRID: GridGeometry = {
   rows: 24,
 };
 
-const pane = (
-  id: string,
-  x: number,
-  y: number,
-  cols: number,
-  rows: number,
-): PaneInfo =>
+const pane = (id: string, x: number, y: number, cols: number, rows: number): PaneInfo =>
   ({
     id,
     index: 0,

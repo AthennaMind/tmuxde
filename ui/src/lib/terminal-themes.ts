@@ -301,12 +301,8 @@ export const terminalThemes: Record<string, TerminalTheme> = {
 };
 
 /** The palette to draw with. `scheme` is the app's resolved light or dark. */
-export function getTerminalTheme(
-  name: string,
-  scheme: ColorScheme,
-): TerminalTheme {
-  const matched =
-    scheme === "light" ? terminalThemes.tmuxdeLight! : terminalThemes.tmuxdeDark!;
+export function getTerminalTheme(name: string, scheme: ColorScheme): TerminalTheme {
+  const matched = scheme === "light" ? terminalThemes.tmuxdeLight! : terminalThemes.tmuxdeDark!;
   if (name === DEFAULT_TERMINAL_THEME) return matched;
   return terminalThemes[name] ?? matched;
 }

@@ -11,13 +11,7 @@ import { Notice, useRepositoryQuery } from "./repository-preview";
 import type { RepositoryClient } from "./repository-request";
 
 /** A commit and its whole patch in the desktop main area. */
-export function CommitTabView({
-  tab,
-  className,
-}: {
-  tab: CommitTab;
-  className?: string;
-}) {
+export function CommitTabView({ tab, className }: { tab: CommitTab; className?: string }) {
   const client = useRelayClient();
   const status = useConnectionStore((s) => s.status);
   const closeTab = useMainTabsStore((s) => s.closeTab);
@@ -37,24 +31,15 @@ export function CommitTabView({
       )}
     >
       <div className="flex min-h-11 shrink-0 items-center gap-2 border-b ps-3 pe-1 font-chrome">
-        <GitCommitHorizontal
-          className="h-4 w-4 shrink-0 text-muted-foreground"
-          aria-hidden
-        />
+        <GitCommitHorizontal className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
         <span className="min-w-0 truncate text-[13px] font-medium" title={tab.subject}>
           {tab.subject || short}
         </span>
         {tab.subject && (
-          <span className="shrink-0 font-mono text-xs text-muted-foreground">
-            {short}
-          </span>
+          <span className="shrink-0 font-mono text-xs text-muted-foreground">{short}</span>
         )}
         <span className="flex-1" />
-        <HeaderButton
-          label="Wrap lines"
-          pressed={wrap}
-          onClick={() => setWrap(!wrap)}
-        >
+        <HeaderButton label="Wrap lines" pressed={wrap} onClick={() => setWrap(!wrap)}>
           <WrapText className={cn("h-4 w-4", wrap && "text-primary")} />
         </HeaderButton>
         <HeaderButton label="Close" onClick={() => closeTab(tab.id)}>
@@ -95,8 +80,7 @@ function CommitTabBody({
   // A tab opened from a parent link learns its subject here.
   const subject = result?.commit.subject;
   useEffect(() => {
-    if (subject !== undefined)
-      useMainTabsStore.getState().nameCommit(tab.id, subject);
+    if (subject !== undefined) useMainTabsStore.getState().nameCommit(tab.id, subject);
   }, [subject, tab.id]);
 
   if (query.error)

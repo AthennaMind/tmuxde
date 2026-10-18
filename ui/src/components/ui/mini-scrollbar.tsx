@@ -50,11 +50,7 @@ const ZERO: Metrics = { offset: 0, total: 0, visible: 0 };
  * down the edge of every list would swallow taps meant for the rows underneath,
  * which on a phone is a far worse bug than the one this fixes.
  */
-export function MiniScrollbar({
-  target,
-  orientation = "vertical",
-  className,
-}: MiniScrollbarProps) {
+export function MiniScrollbar({ target, orientation = "vertical", className }: MiniScrollbarProps) {
   const vertical = orientation === "vertical";
   const [metrics, setMetrics] = React.useState<Metrics>(ZERO);
   const [railLength, setRailLength] = React.useState(0);
@@ -158,8 +154,7 @@ export function MiniScrollbar({
       railObserver.current?.disconnect();
       railObserver.current = null;
       if (!node) return;
-      const read = () =>
-        setRailLength(vertical ? node.clientHeight : node.clientWidth);
+      const read = () => setRailLength(vertical ? node.clientHeight : node.clientWidth);
       read();
       if (typeof ResizeObserver === "undefined") return;
       const observer = new ResizeObserver(read);
@@ -173,16 +168,11 @@ export function MiniScrollbar({
 
   const scrollable = metrics.total - metrics.visible > 1;
   const thumbPx = scrollable
-    ? Math.max(
-        MIN_THUMB_PX,
-        Math.round((metrics.visible / metrics.total) * railLength),
-      )
+    ? Math.max(MIN_THUMB_PX, Math.round((metrics.visible / metrics.total) * railLength))
     : 0;
   const travelPx = Math.max(0, railLength - thumbPx);
   const maxOffset = Math.max(1, metrics.total - metrics.visible);
-  const thumbStartPx = Math.round(
-    (Math.min(metrics.offset, maxOffset) / maxOffset) * travelPx,
-  );
+  const thumbStartPx = Math.round((Math.min(metrics.offset, maxOffset) / maxOffset) * travelPx);
 
   const scrollToPointer = React.useCallback(
     (clientPos: number) => {
@@ -190,10 +180,7 @@ export function MiniScrollbar({
       if (!rail || !target || travelPx <= 0) return;
       const rect = rail.getBoundingClientRect();
       const railStart = vertical ? rect.top : rect.left;
-      const start = Math.min(
-        travelPx,
-        Math.max(0, clientPos - railStart - grabOffset.current),
-      );
+      const start = Math.min(travelPx, Math.max(0, clientPos - railStart - grabOffset.current));
       const next = (start / travelPx) * maxOffset;
       if (vertical) target.scrollTop = next;
       else target.scrollLeft = next;
@@ -208,9 +195,7 @@ export function MiniScrollbar({
       event.preventDefault();
       event.stopPropagation();
       const rect = event.currentTarget.getBoundingClientRect();
-      grabOffset.current = vertical
-        ? event.clientY - rect.top
-        : event.clientX - rect.left;
+      grabOffset.current = vertical ? event.clientY - rect.top : event.clientX - rect.left;
       setDragging(true);
       show();
     },
@@ -250,9 +235,7 @@ export function MiniScrollbar({
       aria-hidden
       className={cn(
         "pointer-events-none absolute z-10 transition-opacity duration-200",
-        vertical
-          ? "inset-y-0.5 right-0.5 w-1.5"
-          : "inset-x-0.5 bottom-0.5 h-1.5",
+        vertical ? "inset-y-0.5 right-0.5 w-1.5" : "inset-x-0.5 bottom-0.5 h-1.5",
         // Hover is a desktop-only affordance and costs touch nothing.
         visible ? "opacity-100" : "opacity-0 hover:opacity-60",
         className,
@@ -273,9 +256,7 @@ export function MiniScrollbar({
           vertical ? "inset-x-0" : "inset-y-0",
         )}
         style={
-          vertical
-            ? { top: thumbStartPx, height: thumbPx }
-            : { left: thumbStartPx, width: thumbPx }
+          vertical ? { top: thumbStartPx, height: thumbPx } : { left: thumbStartPx, width: thumbPx }
         }
       />
     </div>
@@ -289,9 +270,7 @@ export function MiniScrollbar({
  * `ref` onto the scrolling element, render `scrollbar` inside a positioned
  * ancestor of it.
  */
-export function useMiniScrollbar(
-  orientation: MiniScrollbarOrientation = "vertical",
-) {
+export function useMiniScrollbar(orientation: MiniScrollbarOrientation = "vertical") {
   const [node, setNode] = React.useState<HTMLElement | null>(null);
   return {
     ref: setNode,

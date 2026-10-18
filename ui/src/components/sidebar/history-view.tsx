@@ -38,9 +38,7 @@ export function HistoryView({ repo }: { repo: RepositoryState }) {
             onClick={() => {
               if (!paneId || !context?.root) return;
               // Keyed by root, so every folder of a repository shares one graph.
-              useMainTabsStore
-                .getState()
-                .openGraph({ paneId, contextPath: context.root });
+              useMainTabsStore.getState().openGraph({ paneId, contextPath: context.root });
             }}
             disabled={!repo.client || !paneId || !context?.root}
           />
@@ -80,10 +78,7 @@ export function HistoryView({ repo }: { repo: RepositoryState }) {
           </>
         ) : log.commits.length === 0 ? (
           <div className="px-3 py-6">
-            <History
-              className="mb-3 h-5 w-5 text-muted-foreground"
-              aria-hidden
-            />
+            <History className="mb-3 h-5 w-5 text-muted-foreground" aria-hidden />
             <p className="text-sm font-medium">No commits yet</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Commits on this branch show here after the first one.
@@ -117,9 +112,7 @@ export function HistoryView({ repo }: { repo: RepositoryState }) {
                   <RefreshCw
                     className={cn(
                       "h-3.5 w-3.5",
-                      log.loadingMore
-                        ? "animate-spin motion-reduce:animate-none"
-                        : "hidden",
+                      log.loadingMore ? "animate-spin motion-reduce:animate-none" : "hidden",
                     )}
                     aria-hidden
                   />

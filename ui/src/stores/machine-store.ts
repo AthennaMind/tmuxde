@@ -40,64 +40,71 @@ interface MachineStore {
   closeTerminal: (machineId: string, sessionName: string) => void;
 }
 
-export const useMachineStore = create<MachineStore>()(persist((set) => ({
-  machines: [],
-  inventory: {},
-  error: false,
-  loaded: false,
-  activeMachine: machineId(),
-  requested: null,
-  pendingAction: null,
-  createSession: false,
-  unlockTarget: null,
-  capture: null,
-  terminals: [],
-  update: (id, patch) =>
-    set((s) => ({
-      inventory: {
-        ...s.inventory,
-        [id]: {
-          status: "disconnected",
-          loaded: false,
-          sessions: [],
-          details: {},
-          ...s.inventory[id],
-          ...patch,
-        },
+export const useMachineStore = create<MachineStore>()(
+  persist(
+    (set) => ({
+      machines: [],
+      inventory: {},
+      error: false,
+      loaded: false,
+      activeMachine: machineId(),
+      requested: null,
+      pendingAction: null,
+      createSession: false,
+      unlockTarget: null,
+      capture: null,
+      terminals: [],
+      update: (id, patch) =>
+        set((s) => ({
+          inventory: {
+            ...s.inventory,
+            [id]: {
+              status: "disconnected",
+              loaded: false,
+              sessions: [],
+              details: {},
+              ...s.inventory[id],
+              ...patch,
+            },
+          },
+        })),
+      openTerminal: (machineId, sessionName) =>
+        set((s) =>
+          s.terminals.some((tab) => tab.machineId === machineId && tab.sessionName === sessionName)
+            ? s
+            : { terminals: [...s.terminals, { machineId, sessionName }] },
+        ),
+      closeTerminal: (machineId, sessionName) =>
+        set((s) => ({
+          terminals: s.terminals.filter(
+            (tab) => tab.machineId !== machineId || tab.sessionName !== sessionName,
+          ),
+        })),
+    }),
+    {
+      name: "tmuxde-terminal-tabs",
+      storage: createJSONStorage(() => tabStorage),
+      partialize: (state) => ({ terminals: state.terminals, activeMachine: state.activeMachine }),
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<MachineStore> | undefined;
+        const terminals = Array.isArray(saved?.terminals)
+          ? saved.terminals.filter(
+              (tab) =>
+                typeof tab?.machineId === "string" &&
+                /^[a-zA-Z0-9_-]+$/.test(tab.machineId) &&
+                typeof tab.sessionName === "string",
+            )
+          : [];
+        const restoreMachine = typeof window !== "undefined" && window.location?.pathname === "/";
+        const activeMachine =
+          restoreMachine &&
+          typeof saved?.activeMachine === "string" &&
+          /^[a-zA-Z0-9_-]+$/.test(saved.activeMachine)
+            ? saved.activeMachine
+            : current.activeMachine;
+        if (restoreMachine) setMachineId(activeMachine);
+        return { ...current, terminals, activeMachine };
       },
-    })),
-  openTerminal: (machineId, sessionName) =>
-    set((s) =>
-      s.terminals.some(
-        (tab) => tab.machineId === machineId && tab.sessionName === sessionName,
-      )
-        ? s
-        : { terminals: [...s.terminals, { machineId, sessionName }] },
-    ),
-  closeTerminal: (machineId, sessionName) =>
-    set((s) => ({
-      terminals: s.terminals.filter(
-        (tab) => tab.machineId !== machineId || tab.sessionName !== sessionName,
-      ),
-    })),
-}), {
-  name: "tmuxde-terminal-tabs",
-  storage: createJSONStorage(() => tabStorage),
-  partialize: (state) => ({ terminals: state.terminals, activeMachine: state.activeMachine }),
-  merge: (persisted, current) => {
-    const saved = persisted as Partial<MachineStore> | undefined;
-    const terminals = Array.isArray(saved?.terminals)
-      ? saved.terminals.filter((tab) =>
-          typeof tab?.machineId === "string" &&
-          /^[a-zA-Z0-9_-]+$/.test(tab.machineId) &&
-          typeof tab.sessionName === "string",
-        )
-      : [];
-    const restoreMachine = typeof window !== "undefined" && window.location?.pathname === "/";
-    const activeMachine = restoreMachine && typeof saved?.activeMachine === "string" &&
-      /^[a-zA-Z0-9_-]+$/.test(saved.activeMachine)
-      ? saved.activeMachine : current.activeMachine;
-    if (restoreMachine) setMachineId(activeMachine);
-    return { ...current, terminals, activeMachine };
-  },
-}));
+    },
+  ),
+);

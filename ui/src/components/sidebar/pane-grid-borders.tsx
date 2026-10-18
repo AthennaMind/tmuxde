@@ -198,8 +198,18 @@ export function GridBorders({
             )}
             style={
               vertical
-                ? { left: `calc(${at * 100}% - ${STRIP / 2}px)`, width: STRIP, top: from, height: to - from }
-                : { top: `calc(${at * 100}% - ${STRIP / 2}px)`, height: STRIP, left: from, width: to - from }
+                ? {
+                    left: `calc(${at * 100}% - ${STRIP / 2}px)`,
+                    width: STRIP,
+                    top: from,
+                    height: to - from,
+                  }
+                : {
+                    top: `calc(${at * 100}% - ${STRIP / 2}px)`,
+                    height: STRIP,
+                    left: from,
+                    width: to - from,
+                  }
             }
             onPointerDown={(event) => {
               if (event.button !== 0 || active.current) return;

@@ -1,12 +1,4 @@
-import {
-  memo,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useId,
-  useMemo,
-  useState,
-} from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useId, useMemo, useState } from "react";
 import { ChevronRight, Copy, Search } from "lucide-react";
 import type { RepoCommitFile, RepoResult } from "@/protocol";
 import { cn } from "@/lib/utils";
@@ -118,10 +110,7 @@ export function FileChangesDetail({
   const { files } = result;
   const id = useId();
   const lines = useMemo(() => files.map(patchLines), [files]);
-  const large = useMemo(
-    () => lines.map((count) => count > LARGE_FILE_LINES),
-    [lines],
-  );
+  const large = useMemo(() => lines.map((count) => count > LARGE_FILE_LINES), [lines]);
   // Scope and path retain open state when current changes add or remove files.
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const isOpen = (index: number) => open[fileKey(files[index]!)] ?? !large[index];
@@ -146,9 +135,7 @@ export function FileChangesDetail({
     setSeen((prev) => {
       const base = prev.files === files ? prev.indices : NONE_SEEN;
       const indices = addSeenIndices(base, visible);
-      return prev.files === files && indices === prev.indices
-        ? prev
-        : { files, indices };
+      return prev.files === files && indices === prev.indices ? prev : { files, indices };
     });
   }, [files, visible]);
   const sections = useMemo(
@@ -192,12 +179,8 @@ export function FileChangesDetail({
     <div className={cn("min-h-0 flex-1 overflow-auto", !touch && "font-chrome")}>
       {header}
       {result.truncated && (
-        <p
-          role="status"
-          className="border-b bg-warning/10 px-4 py-2 text-xs text-foreground"
-        >
-          Changes are too large to show in full. Later files are cut short or
-          missing.
+        <p role="status" className="border-b bg-warning/10 px-4 py-2 text-xs text-foreground">
+          Changes are too large to show in full. Later files are cut short or missing.
         </p>
       )}
       {result.hidden > 0 && (
@@ -209,9 +192,7 @@ export function FileChangesDetail({
       )}
       {files.length === 0 ? (
         result.hidden === 0 && (
-          <p className="px-4 py-6 text-sm text-muted-foreground">
-            {emptyMessage}
-          </p>
+          <p className="px-4 py-6 text-sm text-muted-foreground">{emptyMessage}</p>
         )
       ) : (
         <>
@@ -252,16 +233,12 @@ function CommitMeta({
 }) {
   const { commit } = result;
   const refs = parseRefs(commit.refs);
-  const committedApart =
-    commit.committer !== commit.author || commit.committerDate !== commit.date;
+  const committedApart = commit.committer !== commit.author || commit.committerDate !== commit.date;
   const copyHash = () =>
     void copyText(commit.hash).then((ok) =>
       useAlertStore
         .getState()
-        .push(
-          ok ? "success" : "error",
-          ok ? "Copied commit hash" : copyFailureReason(),
-        ),
+        .push(ok ? "success" : "error", ok ? "Copied commit hash" : copyFailureReason()),
     );
 
   return (
@@ -277,8 +254,7 @@ function CommitMeta({
       <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-4 gap-y-1.5 text-[13px]">
         <dt className="text-muted-foreground">Author</dt>
         <dd className="min-w-0 [overflow-wrap:anywhere]">
-          {commit.author}{" "}
-          <span className="text-muted-foreground">{commit.email}</span>
+          {commit.author} <span className="text-muted-foreground">{commit.email}</span>
         </dd>
         <dt className="text-muted-foreground">Date</dt>
         <dd>
@@ -289,17 +265,13 @@ function CommitMeta({
             <dt className="text-muted-foreground">Committed</dt>
             <dd className="min-w-0 [overflow-wrap:anywhere]">
               {commit.committer},{" "}
-              <time dateTime={commit.committerDate}>
-                {formatCommitDate(commit.committerDate)}
-              </time>
+              <time dateTime={commit.committerDate}>{formatCommitDate(commit.committerDate)}</time>
             </dd>
           </>
         )}
         <dt className="text-muted-foreground">Commit</dt>
         <dd className="flex min-w-0 items-center gap-1">
-          <span className="min-w-0 break-all font-mono text-xs">
-            {commit.hash}
-          </span>
+          <span className="min-w-0 break-all font-mono text-xs">{commit.hash}</span>
           <button
             type="button"
             aria-label="Copy commit hash"
@@ -318,9 +290,7 @@ function CommitMeta({
         </dt>
         <dd className="flex min-w-0 flex-wrap items-center gap-1.5">
           {commit.parents.length === 0 && (
-            <span className="text-muted-foreground">
-              None. This is the first commit.
-            </span>
+            <span className="text-muted-foreground">None. This is the first commit.</span>
           )}
           {commit.parents.map((parent) => (
             <button
@@ -338,9 +308,7 @@ function CommitMeta({
             </button>
           ))}
           {commit.parents.length > 1 && (
-            <span className="text-muted-foreground">
-              Changes compare with the first parent.
-            </span>
+            <span className="text-muted-foreground">Changes compare with the first parent.</span>
           )}
         </dd>
         {refs.length > 0 && (
@@ -365,22 +333,13 @@ function FileScope({ file }: { file: DiffFile }) {
 }
 
 function Counts({ file }: { file: Pick<RepoCommitFile, "additions" | "deletions" | "binary"> }) {
-  if (file.binary)
-    return (
-      <span className="shrink-0 text-xs text-muted-foreground">Binary</span>
-    );
+  if (file.binary) return <span className="shrink-0 text-xs text-muted-foreground">Binary</span>;
   // Output stopped before this file's counts.
   if (file.additions === null || file.deletions === null) return null;
   return <LineCounts additions={file.additions} deletions={file.deletions} />;
 }
 
-function LineCounts({
-  additions,
-  deletions,
-}: {
-  additions: number;
-  deletions: number;
-}) {
+function LineCounts({ additions, deletions }: { additions: number; deletions: number }) {
   return (
     <span className="flex shrink-0 gap-1.5 text-xs tabular-nums">
       <span className="text-term-added" aria-hidden>
@@ -421,7 +380,10 @@ const FileList = memo(function FileList({
     }),
     { additions: 0, deletions: 0 },
   );
-  const uniqueFiles = useMemo(() => [...new Map(files.map((file) => [file.path, file])).values()], [files]);
+  const uniqueFiles = useMemo(
+    () => [...new Map(files.map((file) => [file.path, file])).values()],
+    [files],
+  );
   const shownFiles = new Set(visible.map(({ file }) => file.path)).size;
   // From the full commit. A filter that changes the count must not reopen it.
   const [listOpen, setListOpen] = useState(files.length <= LIST_OPEN_FILES);
@@ -434,9 +396,7 @@ const FileList = memo(function FileList({
           touch ? "min-h-15" : "min-h-11",
         )}
       >
-        <h3 className="font-medium">
-          {filesChanged(shownFiles, uniqueFiles.length, filtering)}
-        </h3>
+        <h3 className="font-medium">{filesChanged(shownFiles, uniqueFiles.length, filtering)}</h3>
         <LineCounts {...totals} />
         {visible.length > 0 && (
           <button
@@ -451,12 +411,7 @@ const FileList = memo(function FileList({
           </button>
         )}
       </div>
-      <FileFilter
-        files={uniqueFiles}
-        shown={shownFiles}
-        filtering={filtering}
-        touch={touch}
-      />
+      <FileFilter files={uniqueFiles} shown={shownFiles} filtering={filtering} touch={touch} />
       {visible.length > 0 && (
         <details
           open={listOpen}
@@ -510,9 +465,7 @@ const FileListRow = memo(function FileListRow({
       <button
         type="button"
         onClick={() => onJump(index)}
-        title={
-          file.originalPath ? `${file.originalPath} → ${file.path}` : file.path
-        }
+        title={file.originalPath ? `${file.originalPath} → ${file.path}` : file.path}
         className={cn(
           "flex w-full items-center gap-2 px-4 text-start text-[13px] hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
           touch ? "min-h-11" : "min-h-7",
@@ -555,10 +508,7 @@ function FileFilter({
   const mode = useSettingsStore((s) => s.commitFilterMode);
   const setText = useSettingsStore((s) => s.setCommitFilterPatterns);
   const setMode = useSettingsStore((s) => s.setCommitFilterMode);
-  const chips = useMemo(
-    () => fileExtensions(files).slice(0, FILTER_CHIPS),
-    [files],
-  );
+  const chips = useMemo(() => fileExtensions(files).slice(0, FILTER_CHIPS), [files]);
   const control = touch ? "min-h-11" : "min-h-7";
   const status = !filtering
     ? ""
@@ -569,11 +519,7 @@ function FileFilter({
   return (
     <div className="px-4 pb-2">
       <div className="flex flex-wrap items-center gap-2">
-        <div
-          role="group"
-          aria-label="Filter mode"
-          className="flex shrink-0 gap-1"
-        >
+        <div role="group" aria-label="Filter mode" className="flex shrink-0 gap-1">
           {(["hide", "only"] as const).map((value) => (
             <button
               key={value}
@@ -599,10 +545,7 @@ function FileFilter({
             control,
           )}
         >
-          <Search
-            className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
+          <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
           <input
             type="text"
             aria-label="File patterns"
@@ -654,12 +597,7 @@ function FileFilter({
         </div>
       )}
       {/* Status stays mounted so screen readers hear each change. */}
-      <div
-        className={cn(
-          "flex flex-wrap items-center gap-x-3 text-xs",
-          filtering && "mt-2",
-        )}
-      >
+      <div className={cn("flex flex-wrap items-center gap-x-3 text-xs", filtering && "mt-2")}>
         <p role="status" className="text-muted-foreground">
           {status}
         </p>
@@ -767,9 +705,7 @@ const FileSection = memo(function FileSection({
           aria-expanded={open}
           aria-controls={bodyId}
           onClick={() => onToggle(index)}
-          title={
-            file.originalPath ? `${file.originalPath} → ${file.path}` : file.path
-          }
+          title={file.originalPath ? `${file.originalPath} → ${file.path}` : file.path}
           className={cn(
             "flex w-full items-center gap-2 border-b bg-background px-3 text-start text-[13px] hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
             touch ? "min-h-11" : "min-h-9",
@@ -785,9 +721,7 @@ const FileSection = memo(function FileSection({
           <ChangeCode code={file.status} />
           <RepositoryFileIcon path={file.path} className="h-3.5 w-3.5" />
           <span className="flex min-w-0 flex-1 items-baseline">
-            <span className="min-w-0 truncate text-muted-foreground">
-              {folder}
-            </span>
+            <span className="min-w-0 truncate text-muted-foreground">{folder}</span>
             <span className="shrink-0 font-medium">{name}</span>
             {file.originalPath && (
               <span className="ms-2 min-w-0 truncate text-xs text-muted-foreground">
@@ -855,22 +789,16 @@ const FileDiff = memo(function FileDiff({
   wrap: boolean;
 }) {
   const { meta, rows } = useMemo(() => parsePatch(file.patch), [file.patch]);
-  const tokens = useRepositorySyntax(
-    file.path,
-    file.binary ? "" : file.patch,
-    true,
-  );
+  const tokens = useRepositorySyntax(file.path, file.binary ? "" : file.patch, true);
   const digits = useMemo(() => {
     let max = 1;
     for (const row of rows)
-      if ("old" in row || "new" in row)
-        max = Math.max(max, row.old ?? 0, row.new ?? 0);
+      if ("old" in row || "new" in row) max = Math.max(max, row.old ?? 0, row.new ?? 0);
     return String(max).length;
   }, [rows]);
 
   if (file.error) return <Note>{file.error}</Note>;
-  if (file.binary)
-    return <Note>Binary file. Text diff is unavailable.</Note>;
+  if (file.binary) return <Note>Binary file. Text diff is unavailable.</Note>;
   if (!file.patch)
     return (
       <Note>

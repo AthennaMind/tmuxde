@@ -38,9 +38,7 @@ describe("mergeToolbarKeys", () => {
   it("takes the sequence from the default, never from the stored copy", () => {
     // So a wrong control code is fixable in a release rather than by asking
     // people to clear their site data.
-    const merged = mergeToolbarKeys([
-      { id: "tab", label: "Tab", key: "wrong", visible: true },
-    ]);
+    const merged = mergeToolbarKeys([{ id: "tab", label: "Tab", key: "wrong", visible: true }]);
     expect(merged.find((k) => k.id === "tab")?.key).toBe("\t");
   });
 
@@ -103,10 +101,7 @@ describe("mergeGestures", () => {
 
   it("gives a new toggle its default on an install that predates it", () => {
     // `dragToScroll` replaced the never-implemented `twoFingerScroll`.
-    const merged = mergeGestures(
-      { twoFingerScroll: false } as Partial<GestureSettings>,
-      current,
-    );
+    const merged = mergeGestures({ twoFingerScroll: false } as Partial<GestureSettings>, current);
     expect(merged.dragToScroll).toBe(true);
   });
 
@@ -134,10 +129,7 @@ describe("mergeCommitFilter", () => {
 
   it("keeps a stored filter", () => {
     expect(
-      mergeCommitFilter(
-        { commitFilterPatterns: "md, docs/**", commitFilterMode: "only" },
-        current,
-      ),
+      mergeCommitFilter({ commitFilterPatterns: "md, docs/**", commitFilterMode: "only" }, current),
     ).toEqual({ commitFilterPatterns: "md, docs/**", commitFilterMode: "only" });
   });
 

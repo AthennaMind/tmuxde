@@ -29,10 +29,7 @@ export const useCommandStore = create<CommandStore>()(
       snippets: [],
       addToHistory: (command) =>
         set((s) => ({
-          history: [command, ...s.history.filter((c) => c !== command)].slice(
-            0,
-            100,
-          ),
+          history: [command, ...s.history.filter((c) => c !== command)].slice(0, 100),
         })),
       clearHistory: () => set({ history: [] }),
       addSnippet: (snippet) =>
@@ -45,9 +42,7 @@ export const useCommandStore = create<CommandStore>()(
         })),
       togglePinned: (id) =>
         set((s) => ({
-          snippets: s.snippets.map((x) =>
-            x.id === id ? { ...x, pinned: !x.pinned } : x,
-          ),
+          snippets: s.snippets.map((x) => (x.id === id ? { ...x, pinned: !x.pinned } : x)),
         })),
     }),
     {

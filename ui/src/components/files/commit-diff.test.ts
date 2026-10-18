@@ -34,11 +34,7 @@ describe("parsePatch", () => {
   });
 
   it("keeps a mode change and drops what the file header shows", () => {
-    const patch = [
-      "diff --git a/run.sh b/run.sh",
-      "old mode 100644",
-      "new mode 100755",
-    ].join("\n");
+    const patch = ["diff --git a/run.sh b/run.sh", "old mode 100644", "new mode 100755"].join("\n");
     expect(parsePatch(patch)).toEqual({
       meta: ["old mode 100644", "new mode 100755"],
       rows: [],
@@ -46,14 +42,8 @@ describe("parsePatch", () => {
   });
 
   it("treats header-like text inside a hunk as content", () => {
-    const patch = ["@@ -0,0 +1,2 @@", "+--- not a header", "++++ also not"].join(
-      "\n",
-    );
-    expect(parsePatch(patch).rows.map((row) => row.kind)).toEqual([
-      "hunk",
-      "add",
-      "add",
-    ]);
+    const patch = ["@@ -0,0 +1,2 @@", "+--- not a header", "++++ also not"].join("\n");
+    expect(parsePatch(patch).rows.map((row) => row.kind)).toEqual(["hunk", "add", "add"]);
   });
 
   it("answers nothing for an empty patch", () => {
@@ -73,10 +63,17 @@ describe("splitPath", () => {
 
 it("resets at each patch header and skips final newline", () => {
   const patch = [
-    "diff --git a/old b/old", "--- a/old", "+++ /dev/null",
-    "@@ -1 +0,0 @@", "-old",
-    "diff --git a/new b/new", "--- /dev/null", "+++ b/new",
-    "@@ -0,0 +1 @@", "+new", "",
+    "diff --git a/old b/old",
+    "--- a/old",
+    "+++ /dev/null",
+    "@@ -1 +0,0 @@",
+    "-old",
+    "diff --git a/new b/new",
+    "--- /dev/null",
+    "+++ b/new",
+    "@@ -0,0 +1 @@",
+    "+new",
+    "",
   ].join("\n");
   const { rows } = parsePatch(patch);
   expect(rows.map((row) => row.kind)).toEqual(["hunk", "del", "hunk", "add"]);

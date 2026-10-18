@@ -100,10 +100,7 @@ export function VisualViewportSync() {
       if (result.state.open || !keyboard.open) {
         applyKeyboard(result.state);
       } else {
-        closeTimer = setTimeout(
-          () => applyKeyboard(result.state),
-          KEYBOARD_CLOSE_DEBOUNCE_MS,
-        );
+        closeTimer = setTimeout(() => applyKeyboard(result.state), KEYBOARD_CLOSE_DEBOUNCE_MS);
       }
     };
 

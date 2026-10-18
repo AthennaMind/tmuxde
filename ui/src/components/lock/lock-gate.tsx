@@ -45,10 +45,7 @@ export function LockGate({ children }: { children: React.ReactNode }) {
         role="status"
         aria-live="polite"
       >
-        <Loader2
-          className="h-5 w-5 animate-spin text-muted-foreground"
-          aria-hidden
-        />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
         <span className="sr-only">Checking whether this device is locked</span>
       </div>
     );

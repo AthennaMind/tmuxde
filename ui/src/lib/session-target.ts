@@ -21,10 +21,7 @@ let pending: {
 } | null = null;
 
 /** Send now when `session` is attached, otherwise attach and send after. */
-export function runInSession(
-  session: string,
-  messages: ClientMessage[],
-): boolean {
+export function runInSession(session: string, messages: ClientMessage[]): boolean {
   const client = getRelayClient();
   if (!client || client.status !== "connected") return false;
   if (useSessionTreeStore.getState().attachedSession === session) {
@@ -78,8 +75,7 @@ const lastRequest = new Map<string, number>();
  */
 export function requestSessionDetails(name: string, minInterval = 0): void {
   const now = Date.now();
-  if (minInterval > 0 && now - (lastRequest.get(name) ?? 0) < minInterval)
-    return;
+  if (minInterval > 0 && now - (lastRequest.get(name) ?? 0) < minInterval) return;
   const client = getRelayClient();
   if (!client || client.status !== "connected") return;
   lastRequest.set(name, now);

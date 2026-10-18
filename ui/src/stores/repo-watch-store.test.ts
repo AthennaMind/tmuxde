@@ -67,7 +67,14 @@ describe("repo watch store", () => {
     store.applyResult({ type: "repo:watch:result", root: "/w/b", ok: false, partial: false });
     store.forget("/w/a/");
     expect(Object.keys(useRepoWatchStore.getState().roots)).toEqual(["/w/b"]);
-    store.applyChange({ type: "repo:changed", root: "/w/b", git: true, refs: true, paths: [], truncated: false });
+    store.applyChange({
+      type: "repo:changed",
+      root: "/w/b",
+      git: true,
+      refs: true,
+      paths: [],
+      truncated: false,
+    });
     expect(useRepoWatchStore.getState().lastChange).toMatchObject({ git: true, refs: true });
     store.reset();
     expect(useRepoWatchStore.getState()).toMatchObject({ roots: {}, lastChange: null });

@@ -6,16 +6,8 @@ import { useRelayClient } from "@/hooks/use-websocket";
 import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import { sameRoot, type RepoChange } from "@/lib/repo-change";
 import { useConnectionStore } from "@/stores/connection-store";
-import {
-  commitTabId,
-  useMainTabsStore,
-  type GraphTab,
-} from "@/stores/main-tabs-store";
-import {
-  useRepoChangeCount,
-  useRepoWatch,
-  watchHealthy,
-} from "@/stores/repo-watch-store";
+import { commitTabId, useMainTabsStore, type GraphTab } from "@/stores/main-tabs-store";
+import { useRepoChangeCount, useRepoWatch, watchHealthy } from "@/stores/repo-watch-store";
 import { useCommitLog } from "./commit-log";
 import { HeaderButton } from "./file-tab-view";
 import { GraphList } from "./graph-list";
@@ -61,9 +53,7 @@ export function GraphTabView({
   // Hash last opened from this graph, while its tab stays open.
   const [opened, setOpened] = useState<string>();
   const selected = useMainTabsStore((s) =>
-    opened && s.tabs.some((t) => t.id === commitTabId(opened, tab.machineId))
-      ? opened
-      : undefined,
+    opened && s.tabs.some((t) => t.id === commitTabId(opened, tab.machineId)) ? opened : undefined,
   );
 
   // Watch first, so its pushes count from the start. The root is known once
@@ -92,19 +82,18 @@ export function GraphTabView({
   const logRoot = log.root ?? null;
   if (logRoot !== root) setRoot(logRoot);
 
-  useVisibleInterval(
-    () => setPoll((n) => n + 1),
-    watchHealthy(watch) ? WATCHED_POLL_MS : POLL_MS,
-    { enabled: active && !!root && !!usable, debounceMs: 1_000 },
-  );
+  useVisibleInterval(() => setPoll((n) => n + 1), watchHealthy(watch) ? WATCHED_POLL_MS : POLL_MS, {
+    enabled: active && !!root && !!usable,
+    debounceMs: 1_000,
+  });
 
   // Stable, so a render of this view does not render every row again.
   const open = useCallback(
     (commit: RepoCommit) => {
       setOpened(commit.hash);
       useMainTabsStore.getState().openCommit({
-          machineId: tab.machineId,
-          sessionName: tab.sessionName,
+        machineId: tab.machineId,
+        sessionName: tab.sessionName,
         paneId: tab.paneId,
         hash: commit.hash,
         subject: commit.subject,
@@ -143,10 +132,7 @@ export function GraphTabView({
         <span className="flex-1" />
         <HeaderButton label="Refresh graph" onClick={retry}>
           <RefreshCw
-            className={cn(
-              "h-4 w-4",
-              log.refreshing && "animate-spin motion-reduce:animate-none",
-            )}
+            className={cn("h-4 w-4", log.refreshing && "animate-spin motion-reduce:animate-none")}
           />
         </HeaderButton>
         <HeaderButton label="Close" onClick={() => closeTab(tab.id)}>
@@ -179,11 +165,7 @@ export function GraphTabView({
           <Notice>No commits yet.</Notice>
         ) : (
           <>
-            <GraphList
-              commits={log.commits}
-              selected={selected}
-              onOpen={open}
-            />
+            <GraphList commits={log.commits} selected={selected} onOpen={open} />
             {log.error && <Notice error>{log.error}</Notice>}
             {log.more && (
               <div className="px-2 pb-3">
@@ -196,9 +178,7 @@ export function GraphTabView({
                   <RefreshCw
                     className={cn(
                       "h-3.5 w-3.5",
-                      log.loadingMore
-                        ? "animate-spin motion-reduce:animate-none"
-                        : "hidden",
+                      log.loadingMore ? "animate-spin motion-reduce:animate-none" : "hidden",
                     )}
                     aria-hidden
                   />

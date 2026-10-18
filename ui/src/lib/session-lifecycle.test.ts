@@ -96,9 +96,7 @@ describe("findRenames", () => {
   });
 
   it("does not read a kill and a create as a rename", () => {
-    expect(
-      findRenames([session("a", "$1")], [session("c", "$7")]),
-    ).toEqual([]);
+    expect(findRenames([session("a", "$1")], [session("c", "$7")])).toEqual([]);
   });
 
   it("ignores sessions without an id", () => {

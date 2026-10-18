@@ -1,9 +1,5 @@
 import { useMemo, useRef, type ComponentProps, type ReactNode } from "react";
-import Markdown, {
-  type Components,
-  type ExtraProps,
-  type Options,
-} from "react-markdown";
+import Markdown, { type Components, type ExtraProps, type Options } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
@@ -39,11 +35,7 @@ const SANITIZE_SCHEMA = {
     li: [["className", "task-list-item"]],
     h2: [["className", "sr-only"]],
     section: [["className", "footnotes"], "dataFootnotes"],
-    a: [
-      ...(defaultSchema.attributes?.a ?? []),
-      "dataFootnoteRef",
-      "dataFootnoteBackref",
-    ],
+    a: [...(defaultSchema.attributes?.a ?? []), "dataFootnoteRef", "dataFootnoteBackref"],
   },
 } satisfies typeof defaultSchema;
 const REHYPE_PLUGINS: NonNullable<Options["rehypePlugins"]> = [
@@ -76,10 +68,7 @@ export function MarkdownPreview({
   onOpenPath?: (path: string) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
-  const { frontMatter, body } = useMemo(
-    () => splitFrontMatter(content),
-    [content],
-  );
+  const { frontMatter, body } = useMemo(() => splitFrontMatter(content), [content]);
   const components = useMemo<Components>(() => {
     const slug = createSlugger();
     // Headings keep their ids across renders of the same body, so a second
@@ -108,11 +97,7 @@ export function MarkdownPreview({
       });
     };
     const heading = (Tag: (typeof HEADINGS)[number]) =>
-      function Heading({
-        node,
-        children,
-        ...props
-      }: ComponentProps<typeof Tag> & ExtraProps) {
+      function Heading({ node, children, ...props }: ComponentProps<typeof Tag> & ExtraProps) {
         return (
           <Tag id={headingId(node)} {...props}>
             {children}
@@ -133,10 +118,7 @@ export function MarkdownPreview({
       ),
       img: ({ node: _node, src, alt, title, width, height }) => (
         <MarkdownImage
-          target={resolveMarkdownHref(
-            path,
-            typeof src === "string" ? src : "",
-          )}
+          target={resolveMarkdownHref(path, typeof src === "string" ? src : "")}
           alt={alt ?? ""}
           title={title}
           width={width}
@@ -145,8 +127,7 @@ export function MarkdownPreview({
       ),
       pre: ({ node, children }) => {
         const code = node?.children.find(
-          (child): child is HastElement =>
-            child.type === "element" && child.tagName === "code",
+          (child): child is HastElement => child.type === "element" && child.tagName === "code",
         );
         if (!code) return <pre>{children}</pre>;
         const language = codeBlockLanguage(code.properties?.className);
@@ -228,12 +209,7 @@ function MarkdownLink({
       );
     case "external":
       return (
-        <a
-          href={link.href}
-          {...props}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href={link.href} {...props} target="_blank" rel="noopener noreferrer">
           {children}
         </a>
       );
@@ -271,16 +247,12 @@ function MarkdownImage({
   title?: string;
 }) {
   if (target.kind === "file")
-    return (
-      <LocalImage path={target.path} alt={alt} title={title} {...size} />
-    );
+    return <LocalImage path={target.path} alt={alt} title={title} {...size} />;
   const label = alt || title || "Image";
   return (
     <span className="markdown-image-note" role="img" aria-label={label}>
       {label}
-      {target.kind === "external" && (
-        <span aria-hidden="true"> (remote image, not loaded)</span>
-      )}
+      {target.kind === "external" && <span aria-hidden="true"> (remote image, not loaded)</span>}
     </span>
   );
 }

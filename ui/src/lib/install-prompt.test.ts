@@ -33,9 +33,7 @@ describe("installAvailability", () => {
   it("reports installed whenever the app is already standalone", () => {
     // Even with a prompt still in hand — Chromium sometimes fires
     // beforeinstallprompt in an installed window opened from a link.
-    expect(
-      installAvailability({ ...base, standalone: true, hasPrompt: true }),
-    ).toBe("installed");
+    expect(installAvailability({ ...base, standalone: true, hasPrompt: true })).toBe("installed");
   });
 
   it("prefers the real prompt when the browser gave us one", () => {
@@ -45,15 +43,11 @@ describe("installAvailability", () => {
   it("tells an iPhone how to install even over plain http", () => {
     // The LAN self-hosted path is http, and "Add to Home Screen" works there.
     // Ordering this ahead of the secure-context check is what keeps that true.
-    expect(
-      installAvailability({ ...base, iosDevice: true, secureContext: false }),
-    ).toBe("manual");
+    expect(installAvailability({ ...base, iosDevice: true, secureContext: false })).toBe("manual");
   });
 
   it("explains an insecure origin rather than offering a dead button", () => {
-    expect(installAvailability({ ...base, secureContext: false })).toBe(
-      "insecure",
-    );
+    expect(installAvailability({ ...base, secureContext: false })).toBe("insecure");
   });
 
   it("stays silent on a secure origin that simply never offered a prompt", () => {
@@ -63,9 +57,7 @@ describe("installAvailability", () => {
 
 describe("isIosDevice", () => {
   it("recognises an iPhone", () => {
-    expect(
-      isIosDevice({ userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)" }),
-    ).toBe(true);
+    expect(isIosDevice({ userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)" })).toBe(true);
   });
 
   it("recognises an iPad behind its desktop user-agent", () => {
@@ -90,9 +82,7 @@ describe("isIosDevice", () => {
   });
 
   it("does not mistake Android for iOS", () => {
-    expect(
-      isIosDevice({ userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8)" }),
-    ).toBe(false);
+    expect(isIosDevice({ userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8)" })).toBe(false);
   });
 });
 

@@ -46,11 +46,7 @@ import { useFileStore } from "@/stores/file-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useUiStore } from "@/stores/ui-store";
 import { sendCommand } from "@/lib/send-command";
-import {
-  getRelayClient,
-  useRelayClient,
-  useRelaySubscription,
-} from "@/hooks/use-websocket";
+import { getRelayClient, useRelayClient, useRelaySubscription } from "@/hooks/use-websocket";
 
 function getFileIcon(entry: FileEntry) {
   if (entry.type === "directory") return Folder;
@@ -99,12 +95,7 @@ interface FileTreeProps {
   onNavigate?: (path: string) => void;
 }
 
-export function FileTree({
-  onFileSelect,
-  className,
-  breadcrumbPath,
-  onNavigate,
-}: FileTreeProps) {
+export function FileTree({ onFileSelect, className, breadcrumbPath, onNavigate }: FileTreeProps) {
   const {
     currentPath,
     entries,
@@ -133,9 +124,7 @@ export function FileTree({
     x: number;
     y: number;
   } | null>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
-    null,
-  );
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inlineInputRef = useRef<HTMLInputElement>(null);
@@ -301,10 +290,7 @@ export function FileTree({
         path: currentPath + "/" + inlineInput.value.trim(),
       });
     } else if (inlineInput.type === "rename" && inlineInput.path) {
-      const dir = inlineInput.path.substring(
-        0,
-        inlineInput.path.lastIndexOf("/"),
-      );
+      const dir = inlineInput.path.substring(0, inlineInput.path.lastIndexOf("/"));
       client.send({
         type: "file:rename",
         oldPath: inlineInput.path,
@@ -328,14 +314,11 @@ export function FileTree({
     setInlineInput({ type: "rename", value: entry.name, path: entry.path });
   }, []);
 
-  const handleContextMenu = useCallback(
-    (e: React.MouseEvent, entry: FileEntry) => {
-      e.preventDefault();
-      setMenuPos(null);
-      setContextMenu({ entry, x: e.clientX, y: e.clientY });
-    },
-    [],
-  );
+  const handleContextMenu = useCallback((e: React.MouseEvent, entry: FileEntry) => {
+    e.preventDefault();
+    setMenuPos(null);
+    setContextMenu({ entry, x: e.clientX, y: e.clientY });
+  }, []);
 
   // A tap near the right or bottom edge put the menu off a 375px screen. Clamp
   // once the node exists so the real menu size is known — a ref callback runs
@@ -346,14 +329,8 @@ export function FileTree({
       const { width, height } = el.getBoundingClientRect();
       const margin = 8;
       setMenuPos({
-        left: Math.max(
-          margin,
-          Math.min(contextMenu.x, window.innerWidth - width - margin),
-        ),
-        top: Math.max(
-          margin,
-          Math.min(contextMenu.y, window.innerHeight - height - margin),
-        ),
+        left: Math.max(margin, Math.min(contextMenu.x, window.innerWidth - width - margin)),
+        top: Math.max(margin, Math.min(contextMenu.y, window.innerHeight - height - margin)),
       });
     },
     [contextMenu],
@@ -379,23 +356,17 @@ export function FileTree({
     // user typed, and filling the palette's history with it buries what is.
     if (!sendCommand(`cd ${path}`, { record: false })) return;
     useUiStore.getState().setMobileTab("terminal");
-    useAlertStore
-      .getState()
-      .push("success", "Navigated to " + path.split("/").pop());
+    useAlertStore.getState().push("success", "Navigated to " + path.split("/").pop());
   }, []);
 
   const sortedEntries = [...entries]
-    .filter(
-      (e) => !filter || e.name.toLowerCase().includes(filter.toLowerCase()),
-    )
+    .filter((e) => !filter || e.name.toLowerCase().includes(filter.toLowerCase()))
     .sort((a, b) => {
       if (a.type === "directory" && b.type !== "directory") return -1;
       if (a.type !== "directory" && b.type === "directory") return 1;
       switch (sortBy) {
         case "modified":
-          return (
-            new Date(b.modified).getTime() - new Date(a.modified).getTime()
-          );
+          return new Date(b.modified).getTime() - new Date(a.modified).getTime();
         case "size":
           return b.size - a.size;
         default:
@@ -433,13 +404,9 @@ export function FileTree({
                   <button
                     className={cn(
                       "rounded px-1 py-0.5 hover:bg-accent text-xs",
-                      i === arr.length - 1
-                        ? "font-medium"
-                        : "text-muted-foreground",
+                      i === arr.length - 1 ? "font-medium" : "text-muted-foreground",
                     )}
-                    onClick={() =>
-                      onNavigate("/" + arr.slice(0, i + 1).join("/"))
-                    }
+                    onClick={() => onNavigate("/" + arr.slice(0, i + 1).join("/"))}
                   >
                     {part}
                   </button>
@@ -458,9 +425,7 @@ export function FileTree({
           size="icon"
           className="h-7 w-7 shrink-0"
           onClick={() => setViewMode(viewMode === "list" ? "grid" : "list")}
-          aria-label={
-            viewMode === "list" ? "Switch to grid view" : "Switch to list view"
-          }
+          aria-label={viewMode === "list" ? "Switch to grid view" : "Switch to list view"}
         >
           {viewMode === "list" ? (
             <Grid3x3 className="h-3.5 w-3.5" />
@@ -510,12 +475,7 @@ export function FileTree({
       </div>
 
       {/* Hidden file input for upload */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        className="hidden"
-        onChange={handleFileUpload}
-      />
+      <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} />
 
       <ScrollArea className="h-0 flex-1">
         {isLoading ? (
@@ -540,28 +500,20 @@ export function FileTree({
                 <Input
                   ref={inlineInputRef}
                   value={inlineInput.value}
-                  onChange={(e) =>
-                    setInlineInput({ ...inlineInput, value: e.target.value })
-                  }
+                  onChange={(e) => setInlineInput({ ...inlineInput, value: e.target.value })}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleInlineSubmit();
                     if (e.key === "Escape") setInlineInput(null);
                   }}
                   onBlur={handleInlineSubmit}
-                  placeholder={
-                    inlineInput.type === "folder"
-                      ? "Folder name..."
-                      : "File name..."
-                  }
+                  placeholder={inlineInput.type === "folder" ? "Folder name..." : "File name..."}
                   className="h-6 text-xs"
                 />
               </div>
             )}
             {sortedEntries.map((entry) => {
               const Icon = getFileIcon(entry);
-              const isRenaming =
-                inlineInput?.type === "rename" &&
-                inlineInput.path === entry.path;
+              const isRenaming = inlineInput?.type === "rename" && inlineInput.path === entry.path;
 
               return (
                 <div
@@ -596,10 +548,7 @@ export function FileTree({
                         onClick={() => handleEntryClick(entry)}
                       >
                         <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span
-                          className="flex-1 truncate text-left"
-                          title={entry.name}
-                        >
+                        <span className="flex-1 truncate text-left" title={entry.name}>
                           {entry.name}
                         </span>
                         <span className="text-xs text-muted-foreground shrink-0">
@@ -619,17 +568,13 @@ export function FileTree({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {entry.type === "file" && (
-                            <DropdownMenuItem
-                              onClick={() => openEditor(entry.path)}
-                            >
+                            <DropdownMenuItem onClick={() => openEditor(entry.path)}>
                               <ExternalLink className="mr-2 h-3.5 w-3.5" />
                               Open in Editor
                             </DropdownMenuItem>
                           )}
                           {entry.type === "directory" && (
-                            <DropdownMenuItem
-                              onClick={() => handleCdInTerminal(entry.path)}
-                            >
+                            <DropdownMenuItem onClick={() => handleCdInTerminal(entry.path)}>
                               <Terminal className="mr-2 h-3.5 w-3.5" />
                               cd in Terminal
                             </DropdownMenuItem>
@@ -664,9 +609,7 @@ export function FileTree({
                   onClick={() => handleEntryClick(entry)}
                 >
                   <Icon className="h-8 w-8 text-muted-foreground" />
-                  <span className="text-[10px] truncate w-full text-center">
-                    {entry.name}
-                  </span>
+                  <span className="text-[10px] truncate w-full text-center">{entry.name}</span>
                 </button>
               );
             })}
@@ -749,8 +692,7 @@ export function FileTree({
             <AlertDialogTitle>Delete {deleteTarget?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone.{" "}
-              {deleteTarget?.type === "directory" &&
-                "All contents will be deleted."}
+              {deleteTarget?.type === "directory" && "All contents will be deleted."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

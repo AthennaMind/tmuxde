@@ -23,13 +23,7 @@ import {
   tx,
   type KeyRecord,
 } from "./session-store";
-import {
-  forget,
-  isEnrolled,
-  isUnlocked,
-  masterKey,
-  subscribeLock,
-} from "./unlocked";
+import { forget, isEnrolled, isUnlocked, masterKey, subscribeLock } from "./unlocked";
 import { readSelfHostedToken } from "./storage-keys";
 
 /**
@@ -53,11 +47,8 @@ function keys(directToken = "tok-1") {
 
 async function readRaw(serverId: string): Promise<KeyRecord | undefined> {
   const db = await openDb();
-  const value = await tx<KeyRecord | undefined>(
-    db,
-    KEY_STORE,
-    "readonly",
-    (store) => store.get(serverId),
+  const value = await tx<KeyRecord | undefined>(db, KEY_STORE, "readonly", (store) =>
+    store.get(serverId),
   );
   db.close();
   return value;
@@ -128,10 +119,7 @@ describe("enrollment", () => {
       names: string | Iterable<string>,
       ...rest: unknown[]
     ) {
-      const transaction = real.apply(this, [
-        names,
-        ...rest,
-      ] as unknown as Parameters<typeof real>);
+      const transaction = real.apply(this, [names, ...rest] as unknown as Parameters<typeof real>);
       if (typeof names !== "string" && [...names].length > 1) {
         queueMicrotask(() => transaction.abort());
       }
@@ -369,9 +357,7 @@ describe("locked-device mutations", () => {
     expect(before!.wipeAfter10).toBe(false);
     forget();
 
-    await expect(updateLockSettings({ wipeAfter10: true })).rejects.toThrow(
-      /locked/i,
-    );
+    await expect(updateLockSettings({ wipeAfter10: true })).rejects.toThrow(/locked/i);
 
     expect(await readLockRecord()).toEqual(before);
   });
@@ -429,9 +415,7 @@ describe("pairing on a locked device", () => {
     await enrollPin("123456");
     forget();
 
-    await expect(saveSessionKeys("device-new", keys())).rejects.toThrow(
-      /locked/i,
-    );
+    await expect(saveSessionKeys("device-new", keys())).rejects.toThrow(/locked/i);
 
     expect(await readRaw("device-new")).toBeUndefined();
   });

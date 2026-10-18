@@ -72,15 +72,10 @@ export function PaneListPanel() {
     return (
       <Sheet open={paneListOpen} onOpenChange={onOpenChange}>
         {/* px/pt only: the sheet's own bottom padding carries the safe-area inset. */}
-        <SheetContent
-          side={side}
-          className={cn("px-4 pt-4", isMobile && "h-[30vh]")}
-        >
+        <SheetContent side={side} className={cn("px-4 pt-4", isMobile && "h-[30vh]")}>
           <SheetHeader className="pb-2">
             <SheetTitle className="text-sm">Panes</SheetTitle>
-            <SheetDescription className="sr-only">
-              Panes of the window on screen.
-            </SheetDescription>
+            <SheetDescription className="sr-only">Panes of the window on screen.</SheetDescription>
           </SheetHeader>
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <LayoutGrid className="h-10 w-10 mb-2 opacity-40" />
@@ -97,9 +92,7 @@ export function PaneListPanel() {
   const win = windows.find((w) => w.id === panes[0]?.windowId);
   const label = win ? windowPresentation(win.name, panes).label : undefined;
   const target =
-    panes.find((p) => p.id === focused) ??
-    panes.find((p) => p.id === activePaneId) ??
-    panes[0]!;
+    panes.find((p) => p.id === focused) ?? panes.find((p) => p.id === activePaneId) ?? panes[0]!;
   const targetText = paneCellText(target);
 
   const handleSelectPane = (id: string) => {
@@ -244,13 +237,10 @@ export function PaneListPanel() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {killingPane
-                ? `Kill pane ${killingPane.index}?`
-                : "Kill this pane?"}
+              {killingPane ? `Kill pane ${killingPane.index}?` : "Kill this pane?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              The pane and every process running in it are terminated. This
-              cannot be undone.
+              The pane and every process running in it are terminated. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -69,11 +69,7 @@ describe("repositoryRequest", () => {
   it("aborts stale requests and clears listeners", async () => {
     const { client, messages, statuses } = fakeClient();
     const controller = new AbortController();
-    const promise = repositoryRequest(
-      client,
-      { id: "%1", action: "context" },
-      controller.signal,
-    );
+    const promise = repositoryRequest(client, { id: "%1", action: "context" }, controller.signal);
     controller.abort();
     await expect(promise).rejects.toMatchObject({ name: "AbortError" });
     expect(messages.size).toBe(0);
@@ -86,9 +82,9 @@ describe("repositoryRequest", () => {
     for (const handler of statuses) handler("reconnecting");
     await expect(promise).rejects.toThrow("Connection lost");
     Object.defineProperty(client, "status", { value: "disconnected" });
-    await expect(
-      repositoryRequest(client, { id: "%1", action: "context" }),
-    ).rejects.toThrow("Connect");
+    await expect(repositoryRequest(client, { id: "%1", action: "context" })).rejects.toThrow(
+      "Connect",
+    );
     expect(sent).toHaveLength(1);
   });
 
@@ -143,9 +139,7 @@ describe("repositoryRequest", () => {
 
   it("keeps the given pane when none is active", () => {
     const { client, sent } = fakeClient();
-    repositoryRequest(client, { id: "%1", action: "list", path: "/one" }).catch(
-      () => {},
-    );
+    repositoryRequest(client, { id: "%1", action: "list", path: "/one" }).catch(() => {});
     expect(sent[0]).toMatchObject({ id: "%1" });
   });
 });

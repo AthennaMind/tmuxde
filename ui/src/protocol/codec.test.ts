@@ -144,30 +144,20 @@ describe("deserialize rejects malformed input", () => {
   });
 
   it("throws on an unknown discriminant type", () => {
-    expect(() =>
-      deserializeClientMessage(JSON.stringify({ type: "does:not:exist" })),
-    ).toThrow();
-    expect(() =>
-      deserializeServerMessage(JSON.stringify({ type: "does:not:exist" })),
-    ).toThrow();
+    expect(() => deserializeClientMessage(JSON.stringify({ type: "does:not:exist" }))).toThrow();
+    expect(() => deserializeServerMessage(JSON.stringify({ type: "does:not:exist" }))).toThrow();
   });
 
   it("throws when required fields are missing", () => {
     // auth requires token
-    expect(() =>
-      deserializeClientMessage(JSON.stringify({ type: "auth" })),
-    ).toThrow();
+    expect(() => deserializeClientMessage(JSON.stringify({ type: "auth" }))).toThrow();
     // error requires code + message
-    expect(() =>
-      deserializeServerMessage(JSON.stringify({ type: "error", code: "X" })),
-    ).toThrow();
+    expect(() => deserializeServerMessage(JSON.stringify({ type: "error", code: "X" }))).toThrow();
   });
 
   it("takes exactly one of direction or target on pane:swap", () => {
     const swap = (extra: object) =>
-      tryDeserializeClientMessage(
-        JSON.stringify({ type: "pane:swap", id: "%1", ...extra }),
-      ).ok;
+      tryDeserializeClientMessage(JSON.stringify({ type: "pane:swap", id: "%1", ...extra })).ok;
     expect(swap({ direction: "U" })).toBe(true);
     expect(swap({ target: "%2" })).toBe(true);
     expect(swap({})).toBe(false);
@@ -177,9 +167,7 @@ describe("deserialize rejects malformed input", () => {
   it("throws when a field has the wrong type", () => {
     // timestamp must be a number
     expect(() =>
-      deserializeClientMessage(
-        JSON.stringify({ type: "ping", timestamp: "soon" }),
-      ),
+      deserializeClientMessage(JSON.stringify({ type: "ping", timestamp: "soon" })),
     ).toThrow();
     // terminal:resize size out of range
     expect(() =>
@@ -195,9 +183,7 @@ describe("deserialize rejects malformed input", () => {
 
 describe("tryDeserialize returns a discriminated result instead of throwing", () => {
   it("returns ok:true with the parsed message on valid input", () => {
-    const res = tryDeserializeClientMessage(
-      serialize({ type: "terminal:input", data: "x" }),
-    );
+    const res = tryDeserializeClientMessage(serialize({ type: "terminal:input", data: "x" }));
     expect(res.ok).toBe(true);
     if (res.ok) {
       expect(res.message).toEqual({ type: "terminal:input", data: "x" });
@@ -212,9 +198,7 @@ describe("tryDeserialize returns a discriminated result instead of throwing", ()
       expect(clientRes.error.length).toBeGreaterThan(0);
     }
 
-    const serverRes = tryDeserializeServerMessage(
-      JSON.stringify({ type: "auth:success" }),
-    );
+    const serverRes = tryDeserializeServerMessage(JSON.stringify({ type: "auth:success" }));
     expect(serverRes.ok).toBe(false);
     if (!serverRes.ok) {
       expect(typeof serverRes.error).toBe("string");
@@ -283,9 +267,7 @@ describe("dictation messages", () => {
 
   it("refuses an empty or oversized id", () => {
     for (const id of ["", "x".repeat(65)]) {
-      const result = tryDeserializeClientMessage(
-        JSON.stringify({ type: "dictation:start", id }),
-      );
+      const result = tryDeserializeClientMessage(JSON.stringify({ type: "dictation:start", id }));
       expect(result.ok).toBe(false);
     }
   });

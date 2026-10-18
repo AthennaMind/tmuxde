@@ -27,10 +27,7 @@ export function createPhotoHistory() {
       photoPathText(path);
       if (!scopes.has(client)) scopes.set(client, ++nextScope);
       const previous = histories.get(client) || EMPTY;
-      histories.set(
-        client,
-        [path, ...previous.filter((p) => p !== path)].slice(0, 8),
-      );
+      histories.set(client, [path, ...previous.filter((p) => p !== path)].slice(0, 8));
       for (const listener of listeners) listener();
     },
     /** @param {() => void} listener */
@@ -65,10 +62,9 @@ export async function reusePhotoPath(path, context) {
     url = await context.load(path);
   } catch (error) {
     const reason = error instanceof Error ? ` ${error.message}` : "";
-    throw new Error(
-      `Photo unavailable. Choose Photo to upload it again.${reason}`,
-      { cause: error },
-    );
+    throw new Error(`Photo unavailable. Choose Photo to upload it again.${reason}`, {
+      cause: error,
+    });
   }
   try {
     if (!context.isCurrent()) throw changed();

@@ -17,27 +17,18 @@ const tabs: { id: MobileTab; label: string; icon: typeof Terminal }[] = [
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
-export function MobileNav({
-  activeTab,
-  onTabChange,
-  className,
-}: MobileNavProps) {
+export function MobileNav({ activeTab, onTabChange, className }: MobileNavProps) {
   const capabilities = useConnectionStore((s) => s.capabilities);
   // A share with no file access gets no Files tab at all. Leaving it in place
   // would open a browser whose every request comes back ACCESS_DENIED, which
   // reads as a broken app rather than as the share it is.
-  const visible = filesDisabled(capabilities)
-    ? tabs.filter((t) => t.id !== "files")
-    : tabs;
+  const visible = filesDisabled(capabilities) ? tabs.filter((t) => t.id !== "files") : tabs;
 
   // AppShell owns safe-area padding. Keep this dock inside its footer.
   return (
     <nav
       aria-label="Workspace"
-      className={cn(
-        "px-3 py-1.5 font-sans landscape:px-2 landscape:py-1",
-        className,
-      )}
+      className={cn("px-3 py-1.5 font-sans landscape:px-2 landscape:py-1", className)}
     >
       <div className="mx-auto flex max-w-lg items-stretch gap-1 rounded-2xl bg-surface-panel p-1 shadow-ambient ring-1 ring-inset ring-line-subtle">
         {visible.map(({ id, label, icon: Icon }) => {

@@ -7,13 +7,10 @@ describe("repository messages", () => {
   it("requires correlation and pane IDs on every request", () => {
     const request = { type: "repo:request", action: "context" };
     expect(ClientMessage.safeParse(request).success).toBe(false);
-    expect(
-      ClientMessage.safeParse({ ...request, id: "%1", requestId: "context-1" })
-        .success,
-    ).toBe(true);
-    expect(
-      ClientMessage.safeParse({ ...request, id: "%1", requestId: "" }).success,
-    ).toBe(false);
+    expect(ClientMessage.safeParse({ ...request, id: "%1", requestId: "context-1" }).success).toBe(
+      true,
+    );
+    expect(ClientMessage.safeParse({ ...request, id: "%1", requestId: "" }).success).toBe(false);
   });
 
   it("rejects unsupported actions and diff scopes", () => {
@@ -23,12 +20,8 @@ describe("repository messages", () => {
       requestId: "request-1",
       action: "diff",
     };
-    expect(
-      ClientMessage.safeParse({ ...request, action: "commit" }).success,
-    ).toBe(false);
-    expect(
-      ClientMessage.safeParse({ ...request, scope: "history" }).success,
-    ).toBe(false);
+    expect(ClientMessage.safeParse({ ...request, action: "commit" }).success).toBe(false);
+    expect(ClientMessage.safeParse({ ...request, scope: "history" }).success).toBe(false);
     expect(
       ClientMessage.safeParse({
         ...request,
@@ -62,8 +55,7 @@ describe("repository messages", () => {
       id: "%1",
       requestId: "request-1",
     };
-    const ok = (extra: object) =>
-      ClientMessage.safeParse({ ...request, ...extra }).success;
+    const ok = (extra: object) => ClientMessage.safeParse({ ...request, ...extra }).success;
     expect(ok({ action: "log" })).toBe(true);
     expect(ok({ action: "log", skip: 100 })).toBe(true);
     expect(ok({ action: "log", skip: -1 })).toBe(false);

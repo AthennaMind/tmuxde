@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type {
-  ClientMessage,
-  ServerMessage,
-  FileUploadMessage,
-} from "@/protocol";
+import type { ClientMessage, ServerMessage, FileUploadMessage } from "@/protocol";
 type Status = "connecting" | "connected" | "reconnecting" | "disconnected";
 import { uploadPhoto, photoPathText, clipboardImage } from "./photo-upload.js";
 
@@ -37,8 +33,7 @@ function client() {
     },
   };
 }
-const photo = (size = 1) =>
-  new File([new Uint8Array(size)], "photo.png", { type: "image/png" });
+const photo = (size = 1) => new File([new Uint8Array(size)], "photo.png", { type: "image/png" });
 
 describe("photo upload", () => {
   it("waits for each matching acknowledgement before next chunk and completion", async () => {
@@ -78,9 +73,7 @@ describe("photo upload", () => {
     });
     expect(await pending).toBe(first.path);
     expect(relay.listeners).toBe(0);
-    const bytes = Buffer.concat(
-      relay.sent.map((msg) => Buffer.from(msg.content, "base64")),
-    );
+    const bytes = Buffer.concat(relay.sent.map((msg) => Buffer.from(msg.content, "base64")));
     expect(bytes.length).toBe(200000);
   });
   it("rejects failed uploads and stops sending chunks", async () => {
@@ -110,9 +103,9 @@ describe("photo upload", () => {
   });
   it("rejects oversized files before sending anything", async () => {
     const relay = client();
-    await expect(
-      uploadPhoto(relay, photo(10 * 1024 * 1024 + 1), "/uploads"),
-    ).rejects.toThrow("10 MB");
+    await expect(uploadPhoto(relay, photo(10 * 1024 * 1024 + 1), "/uploads")).rejects.toThrow(
+      "10 MB",
+    );
     expect(relay.sent).toHaveLength(0);
   });
   it("quotes paths and never includes Return or terminal control bytes", () => {
@@ -125,11 +118,7 @@ describe("photo upload", () => {
 describe("clipboardImage", () => {
   const png = () => new File([new Uint8Array([1])], "image.png", { type: "image/png" });
 
-  function clipboard(
-    text: string,
-    files: File[],
-    { listed = true }: { listed?: boolean } = {},
-  ) {
+  function clipboard(text: string, files: File[], { listed = true }: { listed?: boolean } = {}) {
     return {
       getData: (type: string) => (type === "text/plain" ? text : ""),
       items: (listed

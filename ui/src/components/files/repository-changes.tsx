@@ -44,24 +44,18 @@ export function ChangesList({
     {
       scope: "unstaged",
       files: entries.filter(
-        (entry) =>
-          entry.worktree !== " " &&
-          entry.worktree !== "?" &&
-          entry.worktree !== "!",
+        (entry) => entry.worktree !== " " && entry.worktree !== "?" && entry.worktree !== "!",
       ),
     },
     {
       scope: "staged",
       files: entries.filter(
-        (entry) =>
-          entry.index !== " " && entry.index !== "?" && entry.index !== "!",
+        (entry) => entry.index !== " " && entry.index !== "?" && entry.index !== "!",
       ),
     },
     {
       scope: "untracked",
-      files: entries.filter(
-        (entry) => entry.index === "?" || entry.worktree === "?",
-      ),
+      files: entries.filter((entry) => entry.index === "?" || entry.worktree === "?"),
     },
   ];
   return (
@@ -69,10 +63,7 @@ export function ChangesList({
       <div
         role="group"
         aria-label="Changed file layout"
-        className={cn(
-          "flex justify-end gap-1 border-b",
-          dense ? "px-2 pb-1" : "px-3 pb-2",
-        )}
+        className={cn("flex justify-end gap-1 border-b", dense ? "px-2 pb-1" : "px-3 pb-2")}
       >
         {(["list", "tree"] as const).map((value) => {
           const Icon = value === "tree" ? ListTree : List;
@@ -115,22 +106,12 @@ export function ChangesList({
               <span className="tabular-nums">{files.length}</span>
             </h3>
             {view === "tree" ? (
-              <ChangeTree
-                files={files}
-                scope={scope}
-                onOpen={onOpen}
-                dense={dense}
-              />
+              <ChangeTree files={files} scope={scope} onOpen={onOpen} dense={dense} />
             ) : (
               <ul>
                 {files.map((entry) => (
                   <li key={entry.path}>
-                    <ChangeButton
-                      entry={entry}
-                      scope={scope}
-                      onOpen={onOpen}
-                      dense={dense}
-                    />
+                    <ChangeButton entry={entry} scope={scope} onOpen={onOpen} dense={dense} />
                   </li>
                 ))}
               </ul>
@@ -153,18 +134,12 @@ function ChangeTree({
   dense: boolean;
 }) {
   const nodes = useMemo(() => buildChangeTree(files), [files]);
-  const renderNodes = (
-    items: ChangeNode<ChangeEntry>[],
-    depth = 0,
-  ): React.ReactNode => (
+  const renderNodes = (items: ChangeNode<ChangeEntry>[], depth = 0): React.ReactNode => (
     <ul>
       {items.map((node) => (
         <li key={node.path}>
           {node.children ? (
-            <details
-              open
-              className="[&[open]>summary>svg:first-child]:rotate-90"
-            >
+            <details open className="[&[open]>summary>svg:first-child]:rotate-90">
               <summary
                 className={cn(
                   "flex cursor-pointer list-none items-center gap-2 text-sm hover:bg-muted/60 [&::-webkit-details-marker]:hidden",
@@ -179,9 +154,7 @@ function ChangeTree({
                 <span className="min-w-0 flex-1 truncate" title={node.path}>
                   {node.name}
                 </span>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {node.count}
-                </span>
+                <span className="text-xs tabular-nums text-muted-foreground">{node.count}</span>
               </summary>
               {renderNodes(node.children, depth + 1)}
             </details>
@@ -217,21 +190,12 @@ function ChangeButton({
   basename?: boolean;
   dense?: boolean;
 }) {
-  const code =
-    scope === "untracked"
-      ? "?"
-      : scope === "staged"
-        ? entry.index
-        : entry.worktree;
+  const code = scope === "untracked" ? "?" : scope === "staged" ? entry.index : entry.worktree;
   return (
     <button
       type="button"
       onClick={() => onOpen(entry.path, scope)}
-      title={
-        entry.originalPath
-          ? `${entry.originalPath} → ${entry.path}`
-          : entry.path
-      }
+      title={entry.originalPath ? `${entry.originalPath} → ${entry.path}` : entry.path}
       className={cn(
         "flex w-full items-center text-left hover:bg-muted/60 focus-visible:bg-muted",
         dense ? "min-h-7 gap-2 px-3 py-0.5" : "min-h-11 gap-3 px-4 py-2",

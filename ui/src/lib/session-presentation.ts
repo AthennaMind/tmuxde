@@ -36,12 +36,10 @@ export function windowPresentation(name: string, panes: PaneInfo[]) {
   ];
   const processes = running.length ? running.join(" + ") : undefined;
   const paths = [...new Set(panes.map((pane) => pane.path).filter(Boolean))];
-  const folder = paths.length === 1
-    ? tailPath(paths[0]!)
-    : paths.length ? `${paths.length} folders` : undefined;
-  const custom = !isShellCommand(name) &&
-    !panes.some((pane) => pane.command === name) &&
-    !/^\d+$/.test(name);
+  const folder =
+    paths.length === 1 ? tailPath(paths[0]!) : paths.length ? `${paths.length} folders` : undefined;
+  const custom =
+    !isShellCommand(name) && !panes.some((pane) => pane.command === name) && !/^\d+$/.test(name);
   return {
     label: custom ? name : (processes ?? "Terminal"),
     /** Running processes other than shells, such as "Claude Code + top". */
@@ -63,20 +61,25 @@ export interface PaneRect {
 /** tmux's saved layout keeps original splits even while a pane is zoomed. */
 export function paneLayout(layout: string, panes: PaneInfo[]): PaneRect[] {
   const leaves = [...layout.matchAll(/(\d+)x(\d+),(\d+),(\d+),(\d+)(?=[,\]}]|$)/g)];
-  const parsed = leaves.map((match) => ({
-    id: `%${match[5]}`,
-    x: Number(match[3]),
-    y: Number(match[4]),
-    width: Number(match[1]),
-    height: Number(match[2]),
-  })).filter((rect) => panes.some((pane) => pane.id === rect.id));
-  const rects = parsed.length === panes.length ? parsed : panes.map((pane) => ({
-    id: pane.id,
-    x: pane.position.x,
-    y: pane.position.y,
-    width: pane.dimensions.cols,
-    height: pane.dimensions.rows,
-  }));
+  const parsed = leaves
+    .map((match) => ({
+      id: `%${match[5]}`,
+      x: Number(match[3]),
+      y: Number(match[4]),
+      width: Number(match[1]),
+      height: Number(match[2]),
+    }))
+    .filter((rect) => panes.some((pane) => pane.id === rect.id));
+  const rects =
+    parsed.length === panes.length
+      ? parsed
+      : panes.map((pane) => ({
+          id: pane.id,
+          x: pane.position.x,
+          y: pane.position.y,
+          width: pane.dimensions.cols,
+          height: pane.dimensions.rows,
+        }));
   const width = Math.max(1, ...rects.map((rect) => rect.x + rect.width));
   const height = Math.max(1, ...rects.map((rect) => rect.y + rect.height));
   return rects.map((rect) => ({

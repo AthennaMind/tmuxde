@@ -36,7 +36,10 @@ const CATEGORY_ICONS: Record<string, typeof FileQuestion> = {
   binary: FileQuestion,
 };
 
-function DownloadLink({ path, children }: {
+function DownloadLink({
+  path,
+  children,
+}: {
   path: string;
   fileName: string;
   children: React.ReactNode;
@@ -106,9 +109,7 @@ function ImageContent({ path }: { path: string }) {
                 className={cn(actualSize ? "" : "max-w-full object-contain")}
                 style={{
                   touchAction: "pinch-zoom",
-                  ...(actualSize
-                    ? {}
-                    : { maxHeight: "calc(var(--vv-height, 100dvh) - 8rem)" }),
+                  ...(actualSize ? {} : { maxHeight: "calc(var(--vv-height, 100dvh) - 8rem)" }),
                 }}
                 onError={() => setDecodeError(true)}
               />
@@ -152,9 +153,7 @@ function VideoContent({ path }: { path: string }) {
           onError={() => setDecodeError(true)}
         />
       ) : (
-        loading && (
-          <span className="text-sm text-muted-foreground">Loading...</span>
-        )
+        loading && <span className="text-sm text-muted-foreground">Loading...</span>
       )}
     </div>
   );
@@ -203,30 +202,19 @@ function PdfContent({ path }: { path: string }) {
   const { url, loading, error } = useFileObjectUrl(path);
 
   if (error) {
-    return (
-      <MediaError
-        path={path}
-        message="Failed to load PDF — try downloading it instead."
-      />
-    );
+    return <MediaError path={path} message="Failed to load PDF — try downloading it instead." />;
   }
 
   if (!url) {
     return (
       <div className="flex h-full items-center justify-center">
-        {loading && (
-          <span className="text-sm text-muted-foreground">Loading...</span>
-        )}
+        {loading && <span className="text-sm text-muted-foreground">Loading...</span>}
       </div>
     );
   }
 
   return (
-    <iframe
-      src={url}
-      className="h-full w-full border-0"
-      title={path.split("/").pop() ?? "PDF"}
-    />
+    <iframe src={url} className="h-full w-full border-0" title={path.split("/").pop() ?? "PDF"} />
   );
 }
 
@@ -249,9 +237,7 @@ function BinaryContent({ path, size }: { path: string; size?: number }) {
           Download
         </Button>
       </DownloadLink>
-      <p className="mt-2 text-xs">
-        This file type can&apos;t be previewed in the browser
-      </p>
+      <p className="mt-2 text-xs">This file type can&apos;t be previewed in the browser</p>
     </div>
   );
 }
@@ -298,19 +284,12 @@ export function FileViewer() {
     <div className="fixed inset-0 z-[var(--z-panel)] flex flex-col bg-background pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">
-          {fileName}
-        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">{fileName}</span>
         <Badge variant="secondary" className="text-[10px]">
           {VIEW_MODE_LABELS[viewMode]}
         </Badge>
         <DownloadLink path={editorFile} fileName={fileName}>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            title="Download"
-          >
+          <Button variant="ghost" size="icon" className="h-7 w-7" title="Download">
             <Download className="h-4 w-4" />
           </Button>
         </DownloadLink>
@@ -323,13 +302,7 @@ export function FileViewer() {
         >
           <FileText className="h-4 w-4" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          title="Close"
-          onClick={closeEditor}
-        >
+        <Button variant="ghost" size="icon" className="h-7 w-7" title="Close" onClick={closeEditor}>
           <X className="h-4 w-4" />
         </Button>
       </div>
@@ -340,9 +313,7 @@ export function FileViewer() {
         {viewMode === "video" && <VideoContent path={editorFile} />}
         {viewMode === "audio" && <AudioContent path={editorFile} />}
         {viewMode === "pdf" && <PdfContent path={editorFile} />}
-        {viewMode === "binary" && (
-          <BinaryContent path={editorFile} size={fileStat?.size} />
-        )}
+        {viewMode === "binary" && <BinaryContent path={editorFile} size={fileStat?.size} />}
       </div>
 
       {/* Status bar */}

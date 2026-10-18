@@ -56,7 +56,11 @@ export function getFileUrl(path: string, download?: boolean, target = machineId(
 export async function downloadFile(
   path: string,
   fileName: string,
-  options: { machineId?: string; signal?: AbortSignal; progress?: (bytes: number, total: number) => void } = {},
+  options: {
+    machineId?: string;
+    signal?: AbortSignal;
+    progress?: (bytes: number, total: number) => void;
+  } = {},
 ): Promise<void> {
   const token = getStoredToken();
   const res = await fetch(getFileUrl(path, true, options.machineId), {
@@ -100,10 +104,7 @@ export async function downloadFile(
  * (never the URL) and return an object URL. The caller MUST revoke the
  * returned URL on cleanup/unmount to avoid leaks — see `useFileObjectUrl`.
  */
-export async function fetchFileObjectUrl(
-  path: string,
-  signal?: AbortSignal,
-): Promise<string> {
+export async function fetchFileObjectUrl(path: string, signal?: AbortSignal): Promise<string> {
   const token = getStoredToken();
   const res = await fetch(getFileUrl(path), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},

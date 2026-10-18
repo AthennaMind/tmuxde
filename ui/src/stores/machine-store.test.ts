@@ -15,7 +15,5 @@ it("opens one terminal per machine and session without name collisions", () => {
     { machineId: "beta", sessionName: "dev" },
   ]);
   store.closeTerminal("alpha", "dev");
-  expect(useMachineStore.getState().terminals).toEqual([
-    { machineId: "beta", sessionName: "dev" },
-  ]);
+  expect(useMachineStore.getState().terminals).toEqual([{ machineId: "beta", sessionName: "dev" }]);
 });

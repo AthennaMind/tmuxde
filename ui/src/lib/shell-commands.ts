@@ -10,19 +10,8 @@
  * from one list is a cosmetic wart, and missing from the other is a mangled
  * buffer in someone's editor.
  */
-export const SHELL_COMMANDS = new Set([
-  "bash",
-  "zsh",
-  "fish",
-  "sh",
-  "dash",
-  "ksh",
-  "tcsh",
-  "csh",
-]);
+export const SHELL_COMMANDS = new Set(["bash", "zsh", "fish", "sh", "dash", "ksh", "tcsh", "csh"]);
 
 export function isShell(command: string | undefined | null): boolean {
-  return (
-    command !== undefined && command !== null && SHELL_COMMANDS.has(command)
-  );
+  return command !== undefined && command !== null && SHELL_COMMANDS.has(command);
 }

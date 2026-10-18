@@ -32,8 +32,5 @@ export const MOBILE_MEDIA_QUERY =
 
 /** The same question, for the handful of places that ask it imperatively. */
 export function isMobileViewport(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia(MOBILE_MEDIA_QUERY).matches
-  );
+  return typeof window !== "undefined" && window.matchMedia(MOBILE_MEDIA_QUERY).matches;
 }

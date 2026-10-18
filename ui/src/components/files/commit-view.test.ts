@@ -11,8 +11,7 @@ const filter = vi.hoisted(() => ({
   commitFilterMode: "hide" as "hide" | "only",
 }));
 vi.mock("@/stores/settings-store", () => ({
-  useSettingsStore: (select: (state: typeof filter) => unknown) =>
-    select(filter),
+  useSettingsStore: (select: (state: typeof filter) => unknown) => select(filter),
 }));
 
 function commitFile(path: string): RepoCommitFile {
@@ -60,19 +59,13 @@ function render(patterns: string, mode: "hide" | "only", wrap = false) {
 
 /** File names of the diff sections, from their region labels. */
 function sections(markup: string): string[] {
-  return [...markup.matchAll(/aria-label="Diff of ([^"]+)"/g)].map(
-    (match) => match[1] ?? "",
-  );
+  return [...markup.matchAll(/aria-label="Diff of ([^"]+)"/g)].map((match) => match[1] ?? "");
 }
 
 describe("CommitDetail filter", () => {
   it("renders every section without a filter", () => {
     const markup = render("", "hide");
-    expect(sections(markup)).toEqual([
-      "README.md",
-      "src/app.ts",
-      "scripts/run.sh",
-    ]);
+    expect(sections(markup)).toEqual(["README.md", "src/app.ts", "scripts/run.sh"]);
     expect(markup).toContain("3 files changed");
     expect(markup).not.toContain("Clear filter");
   });
@@ -103,8 +96,7 @@ describe("CommitDetail wrap", () => {
       const codes = [...markup.matchAll(/<code class="([^"]*)"/g)];
       // Three rows per file: hunk, context and the added line.
       expect(codes).toHaveLength(9);
-      for (const [, className] of codes)
-        expect(className).not.toMatch(/whitespace|break-all/);
+      for (const [, className] of codes) expect(className).not.toMatch(/whitespace|break-all/);
       const containers = markup.match(/\[&amp;_code\]:whitespace-pre-wrap/g);
       expect(containers?.length ?? 0).toBe(wrap ? 3 : 0);
       const unwrapped = markup.match(/\[&amp;_code\]:whitespace-pre"/g);
@@ -117,18 +109,21 @@ describe("current changes detail", () => {
   it("shares filters and scoped diffs without commit metadata", () => {
     filter.commitFilterPatterns = "md";
     filter.commitFilterMode = "hide";
-    const markup = renderToStaticMarkup(createElement(FileChangesDetail, {
-      result: {
-        files: [
-          { ...commitFile("app.ts"), scope: "staged" },
-          { ...commitFile("app.ts"), scope: "unstaged" },
-          { ...commitFile("README.md"), scope: "untracked" },
-        ],
-        hidden: 0, truncated: false,
-      },
-      wrap: false,
-      header: createElement("h2", {}, "Uncommitted changes"),
-    }));
+    const markup = renderToStaticMarkup(
+      createElement(FileChangesDetail, {
+        result: {
+          files: [
+            { ...commitFile("app.ts"), scope: "staged" },
+            { ...commitFile("app.ts"), scope: "unstaged" },
+            { ...commitFile("README.md"), scope: "untracked" },
+          ],
+          hidden: 0,
+          truncated: false,
+        },
+        wrap: false,
+        header: createElement("h2", {}, "Uncommitted changes"),
+      }),
+    );
     expect(sections(markup)).toEqual(["app.ts", "app.ts"]);
     expect(markup).toContain("staged");
     expect(markup).toContain("unstaged");

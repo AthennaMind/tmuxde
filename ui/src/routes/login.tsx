@@ -92,11 +92,7 @@ export function LoginPage() {
     const hashToken = params.get("token")?.trim();
     if (!hashToken) return;
 
-    window.history.replaceState(
-      null,
-      "",
-      window.location.pathname + window.location.search,
-    );
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
     connectWithToken(hashToken);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -104,12 +100,8 @@ export function LoginPage() {
   return (
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-10">
       <div className="space-y-1 text-center">
-        <h1 className="text-xl font-semibold tracking-tight">
-          Connect with a token
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Use AUTH_TOKEN configured on your server.
-        </p>
+        <h1 className="text-xl font-semibold tracking-tight">Connect with a token</h1>
+        <p className="text-sm text-muted-foreground">Use AUTH_TOKEN configured on your server.</p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
@@ -125,12 +117,7 @@ export function LoginPage() {
             autoFocus
           />
         </div>
-        <Button
-          className="h-11 w-full"
-          type="submit"
-          disabled={isLoading}
-          aria-busy={isLoading}
-        >
+        <Button className="h-11 w-full" type="submit" disabled={isLoading} aria-busy={isLoading}>
           {isLoading ? "Connecting…" : "Connect"}
         </Button>
       </form>

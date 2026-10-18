@@ -19,45 +19,35 @@ const ScrollArea = React.forwardRef<
     /** Which axis gets an overlay bar. Defaults to vertical. */
     scrollbars?: "vertical" | "horizontal" | "both";
   }
->(
-  (
-    { className, children, type = "auto", scrollbars = "vertical", ...props },
-    ref,
-  ) => {
-    /*
-     * The viewport node, for the overlay bar below.
-     *
-     * Radix draws its own scrollbar, but only where its measurement says the
-     * content overflows — and on a touch layout that measurement is frequently
-     * "no bar", so panels that plainly scrolled showed nothing at all. The
-     * overlay reads `scrollTop`/`scrollHeight` off the viewport itself, which is
-     * the same number the browser scrolls by, so it cannot disagree with what
-     * the user is looking at.
-     */
-    const [viewport, setViewport] = React.useState<HTMLDivElement | null>(null);
+>(({ className, children, type = "auto", scrollbars = "vertical", ...props }, ref) => {
+  /*
+   * The viewport node, for the overlay bar below.
+   *
+   * Radix draws its own scrollbar, but only where its measurement says the
+   * content overflows — and on a touch layout that measurement is frequently
+   * "no bar", so panels that plainly scrolled showed nothing at all. The
+   * overlay reads `scrollTop`/`scrollHeight` off the viewport itself, which is
+   * the same number the browser scrolls by, so it cannot disagree with what
+   * the user is looking at.
+   */
+  const [viewport, setViewport] = React.useState<HTMLDivElement | null>(null);
 
-    return (
-      <ScrollAreaPrimitive.Root
-        ref={ref}
-        type={type}
-        className={cn("relative overflow-hidden", className)}
-        {...props}
-      >
-        <ScrollAreaPrimitive.Viewport
-          ref={setViewport}
-          className="h-full w-full rounded-[inherit]"
-        >
-          {children}
-        </ScrollAreaPrimitive.Viewport>
-        {scrollbars !== "horizontal" && <MiniScrollbar target={viewport} />}
-        {scrollbars !== "vertical" && (
-          <MiniScrollbar target={viewport} orientation="horizontal" />
-        )}
-        <ScrollAreaPrimitive.Corner />
-      </ScrollAreaPrimitive.Root>
-    );
-  },
-);
+  return (
+    <ScrollAreaPrimitive.Root
+      ref={ref}
+      type={type}
+      className={cn("relative overflow-hidden", className)}
+      {...props}
+    >
+      <ScrollAreaPrimitive.Viewport ref={setViewport} className="h-full w-full rounded-[inherit]">
+        {children}
+      </ScrollAreaPrimitive.Viewport>
+      {scrollbars !== "horizontal" && <MiniScrollbar target={viewport} />}
+      {scrollbars !== "vertical" && <MiniScrollbar target={viewport} orientation="horizontal" />}
+      <ScrollAreaPrimitive.Corner />
+    </ScrollAreaPrimitive.Root>
+  );
+});
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName;
 
 const ScrollBar = React.forwardRef<
@@ -69,10 +59,8 @@ const ScrollBar = React.forwardRef<
     orientation={orientation}
     className={cn(
       "flex touch-none select-none transition-colors",
-      orientation === "vertical" &&
-        "h-full w-2.5 border-l border-l-transparent p-[1px]",
-      orientation === "horizontal" &&
-        "h-2.5 flex-col border-t border-t-transparent p-[1px]",
+      orientation === "vertical" && "h-full w-2.5 border-l border-l-transparent p-[1px]",
+      orientation === "horizontal" && "h-2.5 flex-col border-t border-t-transparent p-[1px]",
       className,
     )}
     {...props}

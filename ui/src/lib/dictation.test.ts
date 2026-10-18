@@ -42,9 +42,7 @@ const { usePaneStore } = await import("@/stores/pane-store");
 const { useDictationStore } = await import("@/stores/dictation-store");
 const { useAlertStore } = await import("@/stores/alert-store");
 const { useUiStore } = await import("@/stores/ui-store");
-const { noteEnteredCopyMode, resetCopyModeBeliefForTests } = await import(
-  "./copy-mode-belief"
-);
+const { noteEnteredCopyMode, resetCopyModeBeliefForTests } = await import("./copy-mode-belief");
 
 const status = () => useDictationStore.getState().status;
 const alerts = () => useAlertStore.getState().alerts.map((a) => a.message);
@@ -90,7 +88,10 @@ afterEach(() => {
 describe("dictation", () => {
   it("cancels pending microphone request when user stops before permission arrives", async () => {
     let grant!: (value: typeof capture) => void;
-    openMicrophone = () => new Promise((resolve) => { grant = resolve; });
+    openMicrophone = () =>
+      new Promise((resolve) => {
+        grant = resolve;
+      });
     const pending = dictation.startDictation();
     expect(status()).toBe("starting");
     await dictation.stopDictation();

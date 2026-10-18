@@ -35,14 +35,11 @@ const AAD = recordAad("session-keys", "srv_abc");
  */
 const VECTORS = {
   /** derivePinKey("123456", 16×0xab, 1000) */
-  pin6at1000:
-    "fcd2e336ae72295ae541dd3b30123196336454d40c165e8703d4f00d675a8744",
+  pin6at1000: "fcd2e336ae72295ae541dd3b30123196336454d40c165e8703d4f00d675a8744",
   /** …with one more iteration: a different key entirely. */
-  pin6at1001:
-    "ee17d32accb12e93e9dbfefebf6630b4f068c9861e6eb7181ca8fd537a79d918",
+  pin6at1001: "ee17d32accb12e93e9dbfefebf6630b4f068c9861e6eb7181ca8fd537a79d918",
   /** derivePinKey("1234", 16×0xab, 1000) — RFC-style vector for a 4-digit PIN. */
-  pin4at1000:
-    "ad1782723d645e5356896630f9faef1fe922680a6c4f91f890791a6663dc129a",
+  pin4at1000: "ad1782723d645e5356896630f9faef1fe922680a6c4f91f890791a6663dc129a",
   /** wrapMasterKey(pin6at1000, MK, "pin", "factor-1") */
   wrapNonce: "4c46b6e37e9f5fab46b2c85a",
   wrapCt:
@@ -114,9 +111,7 @@ describe("seal / open", () => {
 
   it("refuses a key that is not 32 bytes", () => {
     expect(() => seal(new Uint8Array(16), SECRET, AAD)).toThrow(/32 bytes/);
-    expect(() => open(new Uint8Array(16), seal(MK, SECRET, AAD), AAD)).toThrow(
-      /32 bytes/,
-    );
+    expect(() => open(new Uint8Array(16), seal(MK, SECRET, AAD), AAD)).toThrow(/32 bytes/);
   });
 
   it("refuses an empty AAD — an unbound record is a relocatable record", () => {
@@ -129,9 +124,7 @@ describe("seal / open", () => {
       ...seal(MK, SECRET, AAD),
       v: 2,
     } as unknown as SealedRecord;
-    expect(() => open(MK, record, AAD)).toThrow(
-      /Unknown sealed record version/,
-    );
+    expect(() => open(MK, record, AAD)).toThrow(/Unknown sealed record version/);
   });
 });
 
@@ -150,43 +143,33 @@ describe("seal / open reject tampering", () => {
     expect(() => open(MK, chopped, AAD)).toThrow(/failed authentication/);
 
     // Shorter than the tag itself: caught before it ever reaches GCM.
-    expect(() =>
-      open(MK, { ...record, ct: record.ct.subarray(0, 8) }, AAD),
-    ).toThrow(/truncated/);
+    expect(() => open(MK, { ...record, ct: record.ct.subarray(0, 8) }, AAD)).toThrow(/truncated/);
   });
 
   it("fails on a flipped tag byte", () => {
     const record = seal(MK, SECRET, AAD);
     const ct = Uint8Array.from(record.ct);
     ct[ct.length - 1] = (ct[ct.length - 1] ?? 0) ^ 0x80;
-    expect(() => open(MK, { ...record, ct }, AAD)).toThrow(
-      /failed authentication/,
-    );
+    expect(() => open(MK, { ...record, ct }, AAD)).toThrow(/failed authentication/);
   });
 
   it("fails on a flipped ciphertext byte", () => {
     const record = seal(MK, SECRET, AAD);
     const ct = Uint8Array.from(record.ct);
     ct[0] = (ct[0] ?? 0) ^ 0x01;
-    expect(() => open(MK, { ...record, ct }, AAD)).toThrow(
-      /failed authentication/,
-    );
+    expect(() => open(MK, { ...record, ct }, AAD)).toThrow(/failed authentication/);
   });
 
   it("fails on a rewritten nonce", () => {
     const record = seal(MK, SECRET, AAD);
     const nonce = Uint8Array.from(record.nonce);
     nonce[0] = (nonce[0] ?? 0) ^ 0x01;
-    expect(() => open(MK, { ...record, nonce }, AAD)).toThrow(
-      /failed authentication/,
-    );
+    expect(() => open(MK, { ...record, nonce }, AAD)).toThrow(/failed authentication/);
   });
 
   it("fails on a malformed nonce length", () => {
     const record = seal(MK, SECRET, AAD);
-    expect(() =>
-      open(MK, { ...record, nonce: new Uint8Array(8) }, AAD),
-    ).toThrow(/malformed nonce/);
+    expect(() => open(MK, { ...record, nonce: new Uint8Array(8) }, AAD)).toThrow(/malformed nonce/);
   });
 
   /**
@@ -199,16 +182,16 @@ describe("seal / open reject tampering", () => {
    */
   it("refuses a record relocated into another machine's slot", () => {
     const sealedForA = seal(MK, SECRET, recordAad("session-keys", "srv_A"));
-    expect(() =>
-      open(MK, sealedForA, recordAad("session-keys", "srv_B")),
-    ).toThrow(/failed authentication/);
+    expect(() => open(MK, sealedForA, recordAad("session-keys", "srv_B"))).toThrow(
+      /failed authentication/,
+    );
   });
 
   it("refuses a record relocated into another slot on the same machine", () => {
     const sealedForKeys = seal(MK, SECRET, recordAad("session-keys", "srv_A"));
-    expect(() =>
-      open(MK, sealedForKeys, recordAad("device-key", "srv_A")),
-    ).toThrow(/failed authentication/);
+    expect(() => open(MK, sealedForKeys, recordAad("device-key", "srv_A"))).toThrow(
+      /failed authentication/,
+    );
   });
 });
 
@@ -235,9 +218,7 @@ describe("nonces", () => {
 describe("AAD construction", () => {
   it("builds the documented strings", () => {
     expect(LOCK_AAD_PREFIX).toBe("tmuxde/lock/v1");
-    expect(recordAad("session-keys", "srv_abc")).toBe(
-      "tmuxde/lock/v1|rec|session-keys|srv_abc",
-    );
+    expect(recordAad("session-keys", "srv_abc")).toBe("tmuxde/lock/v1|rec|session-keys|srv_abc");
     expect(wrapAad("pin", "factor-1")).toBe("tmuxde/lock/v1|wrap|pin|factor-1");
   });
 
@@ -272,37 +253,25 @@ describe("generateMasterKey", () => {
 
 describe("derivePinKey", () => {
   it("matches the pinned vectors", async () => {
-    expect(bytesToHex(await derivePinKey("123456", SALT, 1000))).toBe(
-      VECTORS.pin6at1000,
-    );
-    expect(bytesToHex(await derivePinKey("1234", SALT, 1000))).toBe(
-      VECTORS.pin4at1000,
-    );
+    expect(bytesToHex(await derivePinKey("123456", SALT, 1000))).toBe(VECTORS.pin6at1000);
+    expect(bytesToHex(await derivePinKey("1234", SALT, 1000))).toBe(VECTORS.pin4at1000);
   });
 
   it("changes completely with one more iteration", async () => {
-    expect(bytesToHex(await derivePinKey("123456", SALT, 1001))).toBe(
-      VECTORS.pin6at1001,
-    );
+    expect(bytesToHex(await derivePinKey("123456", SALT, 1001))).toBe(VECTORS.pin6at1001);
     expect(VECTORS.pin6at1001).not.toBe(VECTORS.pin6at1000);
   });
 
   it("changes with the salt", async () => {
     const other = new Uint8Array(16).fill(0xcd);
-    expect(bytesToHex(await derivePinKey("123456", other, 1000))).not.toBe(
-      VECTORS.pin6at1000,
-    );
+    expect(bytesToHex(await derivePinKey("123456", other, 1000))).not.toBe(VECTORS.pin6at1000);
   });
 
   it("rejects an empty PIN, a bad iteration count and a missing salt", async () => {
-    await expect(derivePinKey("", SALT, 1000)).rejects.toThrow(
-      /cannot be empty/,
-    );
+    await expect(derivePinKey("", SALT, 1000)).rejects.toThrow(/cannot be empty/);
     await expect(derivePinKey("1234", SALT, 0)).rejects.toThrow(/positive/);
     await expect(derivePinKey("1234", SALT, 1.5)).rejects.toThrow(/positive/);
-    await expect(derivePinKey("1234", new Uint8Array(), 1000)).rejects.toThrow(
-      /salt/,
-    );
+    await expect(derivePinKey("1234", new Uint8Array(), 1000)).rejects.toThrow(/salt/);
   });
 
   /**
@@ -319,9 +288,7 @@ describe("derivePinKey", () => {
       ["0000", 1],
     ] as const) {
       const web = await derivePinKey(pin, SALT, iterations);
-      const noble = await withoutSubtle(() =>
-        derivePinKey(pin, SALT, iterations),
-      );
+      const noble = await withoutSubtle(() => derivePinKey(pin, SALT, iterations));
       expect(bytesToHex(noble)).toBe(bytesToHex(web));
     }
   });
@@ -362,29 +329,29 @@ describe("wrapMasterKey / unwrapMasterKey", () => {
     const right = await derivePinKey("123456", SALT, 1000);
     const wrong = await derivePinKey("123457", SALT, 1000);
     const wrapped = await wrapMasterKey(right, MK, "pin", "factor-1");
-    await expect(
-      unwrapMasterKey(wrong, wrapped, "pin", "factor-1"),
-    ).rejects.toThrow(/failed authentication/);
+    await expect(unwrapMasterKey(wrong, wrapped, "pin", "factor-1")).rejects.toThrow(
+      /failed authentication/,
+    );
   });
 
   it("fails when the iteration count differs from enrollment", async () => {
     const enrolled = await derivePinKey("123456", SALT, 1000);
     const wrapped = await wrapMasterKey(enrolled, MK, "pin", "factor-1");
     const guessed = await derivePinKey("123456", SALT, 1001);
-    await expect(
-      unwrapMasterKey(guessed, wrapped, "pin", "factor-1"),
-    ).rejects.toThrow(/failed authentication/);
+    await expect(unwrapMasterKey(guessed, wrapped, "pin", "factor-1")).rejects.toThrow(
+      /failed authentication/,
+    );
   });
 
   it("refuses a blob wrapped for a different factor", async () => {
     const fk = await derivePinKey("123456", SALT, 1000);
     const wrapped = await wrapMasterKey(fk, MK, "pin", "factor-1");
-    await expect(
-      unwrapMasterKey(fk, wrapped, "pin", "factor-2"),
-    ).rejects.toThrow(/failed authentication/);
-    await expect(
-      unwrapMasterKey(fk, wrapped, "passkey", "factor-1"),
-    ).rejects.toThrow(/failed authentication/);
+    await expect(unwrapMasterKey(fk, wrapped, "pin", "factor-2")).rejects.toThrow(
+      /failed authentication/,
+    );
+    await expect(unwrapMasterKey(fk, wrapped, "passkey", "factor-1")).rejects.toThrow(
+      /failed authentication/,
+    );
   });
 
   it("wraps two factors over one master key, either of which unlocks it", async () => {
@@ -392,12 +359,10 @@ describe("wrapMasterKey / unwrapMasterKey", () => {
     const prf = new Uint8Array(32).fill(0x5a); // stand-in for a WebAuthn PRF
     const byPin = await wrapMasterKey(pin, MK, "pin", "f1");
     const byPasskey = await wrapMasterKey(prf, MK, "passkey", "cred_1");
-    expect(bytesToHex(await unwrapMasterKey(pin, byPin, "pin", "f1"))).toBe(
+    expect(bytesToHex(await unwrapMasterKey(pin, byPin, "pin", "f1"))).toBe(bytesToHex(MK));
+    expect(bytesToHex(await unwrapMasterKey(prf, byPasskey, "passkey", "cred_1"))).toBe(
       bytesToHex(MK),
     );
-    expect(
-      bytesToHex(await unwrapMasterKey(prf, byPasskey, "passkey", "cred_1")),
-    ).toBe(bytesToHex(MK));
   });
 
   /**
@@ -411,16 +376,12 @@ describe("wrapMasterKey / unwrapMasterKey", () => {
       nonce: hexToBytes(VECTORS.wrapNonce),
       ct: hexToBytes(VECTORS.wrapCt),
     };
-    expect(
-      bytesToHex(await unwrapMasterKey(fk, wrapped, "pin", "factor-1")),
-    ).toBe(bytesToHex(MK));
+    expect(bytesToHex(await unwrapMasterKey(fk, wrapped, "pin", "factor-1"))).toBe(bytesToHex(MK));
   });
 
   it("refuses to wrap anything that is not a 32-byte key", async () => {
     const fk = await derivePinKey("123456", SALT, 1000);
-    await expect(
-      wrapMasterKey(fk, new Uint8Array(16), "pin", "f1"),
-    ).rejects.toThrow(/32 bytes/);
+    await expect(wrapMasterKey(fk, new Uint8Array(16), "pin", "f1")).rejects.toThrow(/32 bytes/);
   });
 });
 

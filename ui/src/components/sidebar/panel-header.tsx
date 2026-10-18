@@ -20,15 +20,8 @@ export function PanelHeader({
 }) {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   return (
-    <div
-      className={cn(
-        "flex min-h-11 shrink-0 items-center gap-1 border-b ps-3 pe-1",
-        className,
-      )}
-    >
-      <h2 className="min-w-0 flex-1 truncate font-chrome text-[13px] font-medium">
-        {title}
-      </h2>
+    <div className={cn("flex min-h-11 shrink-0 items-center gap-1 border-b ps-3 pe-1", className)}>
+      <h2 className="min-w-0 flex-1 truncate font-chrome text-[13px] font-medium">{title}</h2>
       {children}
       <PanelIconButton
         label="Hide sidebar (Ctrl+B)"
@@ -67,12 +60,7 @@ export function PanelIconButton({
         pressed && "bg-accent text-foreground",
       )}
     >
-      <Icon
-        className={cn(
-          "h-4 w-4",
-          spinning && "animate-spin motion-reduce:animate-none",
-        )}
-      />
+      <Icon className={cn("h-4 w-4", spinning && "animate-spin motion-reduce:animate-none")} />
     </button>
   );
 }

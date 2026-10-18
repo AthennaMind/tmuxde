@@ -72,9 +72,7 @@ export function PinPad({
             key={i}
             className={cn(
               "h-3.5 w-3.5 rounded-full border transition-colors",
-              i < value.length
-                ? "border-primary bg-primary"
-                : "border-border bg-transparent",
+              i < value.length ? "border-primary bg-primary" : "border-border bg-transparent",
             )}
           />
         ))}

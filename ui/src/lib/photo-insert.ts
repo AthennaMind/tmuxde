@@ -37,8 +37,7 @@ export function canUploadPhotos(
 /** Why a photo cannot go into the terminal right now, or null when it can. */
 export function photoInsertBlocker(): string | null {
   const connection = useConnectionStore.getState();
-  if (!canUploadPhotos(connection))
-    return "This connection cannot upload photos";
+  if (!canUploadPhotos(connection)) return "This connection cannot upload photos";
   if (connection.status !== "connected") return "Not connected";
   const session = useSessionStore.getState().activeSessionId;
   if (!session || !getTerminalHandle()) return "Open a session first";
@@ -56,21 +55,12 @@ export type PhotoInsertResult = { path: string; inserted: boolean };
  * saved and says where. Feedback goes through alerts, so callers only need the
  * result for their own UI.
  */
-export async function insertPhoto(
-  file: File,
-): Promise<PhotoInsertResult | null> {
+export async function insertPhoto(file: File): Promise<PhotoInsertResult | null> {
   const client = getRelayClient();
   const terminal = getTerminalHandle();
   const session = useSessionStore.getState().activeSessionId;
   const directory = useConnectionStore.getState().defaultPath;
-  if (
-    !client ||
-    client.status !== "connected" ||
-    !session ||
-    !terminal ||
-    !directory
-  )
-    return null;
+  if (!client || client.status !== "connected" || !session || !terminal || !directory) return null;
 
   const pane = usePaneStore.getState().activePaneId;
   let changed = false;
@@ -96,24 +86,15 @@ export async function insertPhoto(
       getTerminalHandle() !== terminal ||
       believedInCopyMode(session)
     ) {
-      alerts.push(
-        "info",
-        `Photo saved: ${path}. Terminal changed, so path was not inserted.`,
-      );
+      alerts.push("info", `Photo saved: ${path}. Terminal changed, so path was not inserted.`);
       return { path, inserted: false };
     }
     useTerminalInput.getState().reset();
     terminal.paste(photoPathText(path));
-    alerts.push(
-      "success",
-      "Photo path inserted. Add your question, then press Enter.",
-    );
+    alerts.push("success", "Photo path inserted. Add your question, then press Enter.");
     return { path, inserted: true };
   } catch (error) {
-    alerts.push(
-      "error",
-      error instanceof Error ? error.message : "Photo upload failed",
-    );
+    alerts.push("error", error instanceof Error ? error.message : "Photo upload failed");
     return null;
   } finally {
     offSession();

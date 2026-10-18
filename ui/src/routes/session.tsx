@@ -40,10 +40,9 @@ export function SessionPage() {
       return;
     }
     if (isGone(sessionId)) {
-      navigate(
-        activeSessionId ? `/s/${encodeURIComponent(activeSessionId)}` : "/",
-        { replace: true },
-      );
+      navigate(activeSessionId ? `/s/${encodeURIComponent(activeSessionId)}` : "/", {
+        replace: true,
+      });
     }
   }, [sessionId, activeSessionId, navigate]);
 

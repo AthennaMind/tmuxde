@@ -13,12 +13,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,12 +55,7 @@ function isRecentlyActive(dateStr: string): boolean {
   return Date.now() - new Date(dateStr).getTime() < 30_000;
 }
 
-export function SessionCard({
-  session,
-  isActive,
-  onAttach,
-  onKill,
-}: SessionCardProps) {
+export function SessionCard({ session, isActive, onAttach, onKill }: SessionCardProps) {
   const recentlyActive = isRecentlyActive(session.activity);
   const connectionStatus = useConnectionStore((s) => s.status);
   // Pending: user picked this session but the WS is still working through
@@ -149,13 +139,10 @@ export function SessionCard({
   }, []);
 
   // Group panes by window
-  const panesByWindow = detailPanes?.reduce<Record<string, PaneInfo[]>>(
-    (acc, pane) => {
-      (acc[pane.windowId] ??= []).push(pane);
-      return acc;
-    },
-    {},
-  );
+  const panesByWindow = detailPanes?.reduce<Record<string, PaneInfo[]>>((acc, pane) => {
+    (acc[pane.windowId] ??= []).push(pane);
+    return acc;
+  }, {});
 
   return (
     <div className="relative overflow-hidden rounded-lg">
@@ -198,11 +185,7 @@ export function SessionCard({
                   />
                 </TooltipTrigger>
                 <TooltipContent side="right" className="text-xs">
-                  {session.attached
-                    ? "Attached"
-                    : recentlyActive
-                      ? "Recently active"
-                      : "Detached"}
+                  {session.attached ? "Attached" : recentlyActive ? "Recently active" : "Detached"}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -222,9 +205,7 @@ export function SessionCard({
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
-                <span className="block truncate font-medium text-xs">
-                  {session.name}
-                </span>
+                <span className="block truncate font-medium text-xs">{session.name}</span>
               )}
             </div>
 
@@ -294,10 +275,7 @@ export function SessionCard({
 
         {/* Expanded windows/panes tree */}
         {expanded && (
-          <div
-            className="border-t px-2.5 py-1.5"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="border-t px-2.5 py-1.5" onClick={(e) => e.stopPropagation()}>
             {detailLoading ? (
               <div className="space-y-1">
                 {Array.from({ length: 2 }).map((_, i) => (
@@ -325,12 +303,8 @@ export function SessionCard({
                         key={pane.id}
                         className="flex items-center gap-1 pl-6 border-l border-border ml-[14px] text-[11px] text-muted-foreground py-px"
                       >
-                        <span className="font-mono text-[10px]">
-                          {pane.index}
-                        </span>
-                        <span className="truncate">
-                          {formatPaneName(pane.command, pane.path)}
-                        </span>
+                        <span className="font-mono text-[10px]">{pane.index}</span>
+                        <span className="truncate">{formatPaneName(pane.command, pane.path)}</span>
                       </div>
                     ))}
                   </div>
@@ -343,12 +317,10 @@ export function SessionCard({
       <AlertDialog open={showKillConfirm} onOpenChange={setShowKillConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              Kill session &quot;{session.name}&quot;?
-            </AlertDialogTitle>
+            <AlertDialogTitle>Kill session &quot;{session.name}&quot;?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently terminate the session and all its processes.
-              This action cannot be undone.
+              This will permanently terminate the session and all its processes. This action cannot
+              be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

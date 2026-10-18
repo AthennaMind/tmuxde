@@ -1,9 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-import {
-  believedInCopyMode,
-  subscribeCopyModeBelief,
-} from "@/lib/copy-mode-belief";
+import { believedInCopyMode, subscribeCopyModeBelief } from "@/lib/copy-mode-belief";
 
 /**
  * Whether this session is believed to be in tmux's copy mode, reactively.

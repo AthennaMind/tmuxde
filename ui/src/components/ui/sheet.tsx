@@ -62,8 +62,7 @@ function visualViewportStyle(
       left: "var(--vv-offset-left, 0px)",
       width: "var(--vv-width, 100%)",
       right: "auto",
-      bottom:
-        "max(0px, calc(100vh - var(--vv-height, 100vh) - var(--vv-offset-top, 0px)))",
+      bottom: "max(0px, calc(100vh - var(--vv-height, 100vh) - var(--vv-offset-top, 0px)))",
     };
   }
   if (side === "top") {
@@ -99,29 +98,17 @@ const SheetContent = React.forwardRef<
 ));
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 
-const SheetHeader = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
+const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn(
-      "flex flex-col space-y-2 pr-10 text-center sm:text-left",
-      className,
-    )}
+    className={cn("flex flex-col space-y-2 pr-10 text-center sm:text-left", className)}
     {...props}
   />
 );
 SheetHeader.displayName = "SheetHeader";
 
-const SheetFooter = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
+const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
-      className,
-    )}
+    className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)}
     {...props}
   />
 );

@@ -25,9 +25,10 @@ describe("isMarkdownPath", () => {
 
 describe("splitFrontMatter", () => {
   it("splits yaml fences off the body", () => {
-    expect(splitFrontMatter("---\ntitle: Hi\ntags: [a]\n---\n# Body\n")).toEqual(
-      { frontMatter: "title: Hi\ntags: [a]", body: "# Body\n" },
-    );
+    expect(splitFrontMatter("---\ntitle: Hi\ntags: [a]\n---\n# Body\n")).toEqual({
+      frontMatter: "title: Hi\ntags: [a]",
+      body: "# Body\n",
+    });
   });
   it("accepts a yaml document end marker and CRLF", () => {
     expect(splitFrontMatter("---\r\na: 1\r\n...\r\ntext")).toEqual({
@@ -60,22 +61,10 @@ describe("resolveMarkdownHref", () => {
     ["https://example.com/x", { kind: "external", href: "https://example.com/x" }],
     ["HTTP://EXAMPLE.COM", { kind: "external", href: "HTTP://EXAMPLE.COM" }],
     ["mailto:a@b.c", { kind: "external", href: "mailto:a@b.c" }],
-    [
-      "intro.md",
-      { kind: "file", path: "/home/u/repo/docs/intro.md", fragment: null },
-    ],
-    [
-      "./img/a%20b.png",
-      { kind: "file", path: "/home/u/repo/docs/img/a b.png", fragment: null },
-    ],
-    [
-      "../README.md#usage",
-      { kind: "file", path: "/home/u/repo/README.md", fragment: "usage" },
-    ],
-    [
-      "/home/u/other/file.md?x=1",
-      { kind: "file", path: "/home/u/other/file.md", fragment: null },
-    ],
+    ["intro.md", { kind: "file", path: "/home/u/repo/docs/intro.md", fragment: null }],
+    ["./img/a%20b.png", { kind: "file", path: "/home/u/repo/docs/img/a b.png", fragment: null }],
+    ["../README.md#usage", { kind: "file", path: "/home/u/repo/README.md", fragment: "usage" }],
+    ["/home/u/other/file.md?x=1", { kind: "file", path: "/home/u/other/file.md", fragment: null }],
     ["../../../../../etc/passwd", { kind: "unsupported" }],
     ["javascript:alert(1)", { kind: "unsupported" }],
     ["JavaScript:alert(1)", { kind: "unsupported" }],

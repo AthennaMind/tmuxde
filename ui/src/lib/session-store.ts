@@ -80,13 +80,7 @@ export function openDb(): Promise<IDBDatabase> {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
-      for (const name of [
-        KEY_STORE,
-        DESCRIPTOR_STORE,
-        LOCK_STORE,
-        CENSUS_STORE,
-        MACHINE_STORE,
-      ]) {
+      for (const name of [KEY_STORE, DESCRIPTOR_STORE, LOCK_STORE, CENSUS_STORE, MACHINE_STORE]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
       }
     };
@@ -116,10 +110,8 @@ export function txMulti(
     const stores: Record<string, IDBObjectStore> = {};
     for (const name of storeNames) stores[name] = transaction.objectStore(name);
     transaction.oncomplete = () => resolve();
-    transaction.onerror = () =>
-      reject(transaction.error ?? new Error("indexedDB"));
-    transaction.onabort = () =>
-      reject(transaction.error ?? new Error("indexedDB: aborted"));
+    transaction.onerror = () => reject(transaction.error ?? new Error("indexedDB"));
+    transaction.onabort = () => reject(transaction.error ?? new Error("indexedDB: aborted"));
     try {
       run(stores);
     } catch (err) {
@@ -207,17 +199,12 @@ function sealKeysIfUnlocked(serverId: string, plain: StoredKeys): KeyRecord {
   if (!isEnrolled()) return plain;
   const mk = masterKey();
   if (!mk) {
-    throw new Error(
-      "This device is locked. Unlock it before pairing, or erase it and start over.",
-    );
+    throw new Error("This device is locked. Unlock it before pairing, or erase it and start over.");
   }
   return sealJson(mk, toSealedKeys(plain), keysAad(serverId));
 }
 
-export async function saveSessionKeys(
-  serverId: string,
-  keys: SessionKeys,
-): Promise<void> {
+export async function saveSessionKeys(serverId: string, keys: SessionKeys): Promise<void> {
   const db = await openDb();
   const plain: StoredKeys = {
     c2s: keys.c2s,
@@ -241,18 +228,13 @@ export async function saveSessionKeys(
  * has never paired with that machine". The lock screen is rendered by
  * `LockGate` on the enrolled-but-locked state, not by anything here.
  */
-export async function loadSessionKeys(
-  serverId: string,
-): Promise<SessionKeys | null> {
+export async function loadSessionKeys(serverId: string): Promise<SessionKeys | null> {
   const cached = cachedKeys(serverId);
   if (cached) return cached;
   try {
     const db = await openDb();
-    const stored = await tx<KeyRecord | undefined>(
-      db,
-      KEY_STORE,
-      "readonly",
-      (store) => store.get(serverId),
+    const stored = await tx<KeyRecord | undefined>(db, KEY_STORE, "readonly", (store) =>
+      store.get(serverId),
     );
     db.close();
     if (!stored) return null;
@@ -260,9 +242,7 @@ export async function loadSessionKeys(
     if (isSealed(stored)) {
       const mk = masterKey();
       if (!mk) return null;
-      const opened = fromSealedKeys(
-        openJson<SealedKeys>(mk, stored, keysAad(serverId)),
-      );
+      const opened = fromSealedKeys(openJson<SealedKeys>(mk, stored, keysAad(serverId)));
       cacheKeys(serverId, opened);
       return {
         c2s: opened.c2s,

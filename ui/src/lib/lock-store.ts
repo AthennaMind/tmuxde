@@ -11,12 +11,7 @@ import {
   wipe,
   wrapMasterKey,
 } from "@/crypto";
-import {
-  LAST_SESSION_KEY,
-  TOKEN_KEY,
-  clearStored,
-  readStored,
-} from "./storage-keys";
+import { LAST_SESSION_KEY, TOKEN_KEY, clearStored, readStored } from "./storage-keys";
 import {
   CENSUS_STORE,
   DESCRIPTOR_STORE,
@@ -149,11 +144,8 @@ export async function readLockRecord(): Promise<LockRecord | null> {
   if (typeof indexedDB === "undefined") return null;
   try {
     const db = await openDb();
-    const record = await tx<LockRecord | undefined>(
-      db,
-      LOCK_STORE,
-      "readonly",
-      (store) => store.get(LOCK_KEY),
+    const record = await tx<LockRecord | undefined>(db, LOCK_STORE, "readonly", (store) =>
+      store.get(LOCK_KEY),
     );
     db.close();
     return record ?? null;
@@ -191,10 +183,7 @@ export async function hydrateLockState(): Promise<boolean> {
  * device bricked by a badly timed reload. `txMulti` resolves on `oncomplete`,
  * not on the last request, because those are different moments.
  */
-export async function enrollPin(
-  pin: string,
-  options: { label?: string } = {},
-): Promise<void> {
+export async function enrollPin(pin: string, options: { label?: string } = {}): Promise<void> {
   if (await isEnrolledOnDisk()) {
     throw new Error("This device already has a lock.");
   }
@@ -233,11 +222,7 @@ export async function enrollPin(
     const sealedNow: [string, SealedRecord, StoredKeys][] = [];
     for (const [serverId, value] of existing) {
       if (isSealed(value)) continue;
-      sealedNow.push([
-        serverId,
-        sealJson(mk, toSealedKeys(value), keysAad(serverId)),
-        value,
-      ]);
+      sealedNow.push([serverId, sealJson(mk, toSealedKeys(value), keysAad(serverId)), value]);
     }
 
     const plainLocalToken = readLocalStorageToken();
@@ -326,9 +311,7 @@ export async function removeFactor(id: string): Promise<void> {
   // Removing the last factor would seal the keys under a master key nothing
   // can unwrap, which is indistinguishable from erasing them.
   if (factors.length === 0) {
-    throw new Error(
-      "That is the only way into this device. Erase the device instead.",
-    );
+    throw new Error("That is the only way into this device. Erase the device instead.");
   }
   await writeLockRecord({ ...record, factors });
 }
@@ -364,12 +347,7 @@ export async function unlockWithPin(pin: string): Promise<UnlockOutcome> {
   for (const factor of pinFactors) {
     const factorKey = await derivePinKey(pin, factor.salt, factor.iterations);
     try {
-      const mk = await unwrapMasterKey(
-        factorKey,
-        factor.wrapped,
-        factor.kind,
-        factor.id,
-      );
+      const mk = await unwrapMasterKey(factorKey, factor.wrapped, factor.kind, factor.id);
       await writeLockRecord({
         ...record,
         failedAttempts: 0,
@@ -410,12 +388,7 @@ export async function unlockWithFactorKey(
   if (!factor) return { ok: false, reason: "no-lock" };
 
   try {
-    const mk = await unwrapMasterKey(
-      factorKey,
-      factor.wrapped,
-      factor.kind,
-      factor.id,
-    );
+    const mk = await unwrapMasterKey(factorKey, factor.wrapped, factor.kind, factor.id);
     // A passkey is not throttled — `userVerification: "required"` means the
     // authenticator already refused an unauthorised holder, and there is
     // nothing to guess.
@@ -439,9 +412,7 @@ export async function unlockWithFactorKey(
  * timer to "Never" is the quieter version of the same problem.
  */
 export async function updateLockSettings(
-  patch: Partial<
-    Pick<LockRecord, "wipeAfter10" | "idleMinutes" | "lockOnBackground">
-  >,
+  patch: Partial<Pick<LockRecord, "wipeAfter10" | "idleMinutes" | "lockOnBackground">>,
 ): Promise<void> {
   const record = await readLockRecord();
   if (!record) return;
@@ -478,10 +449,7 @@ export function sessionLocks(serverId: string): Record<string, true> {
   return cachedKeys(serverId)?.sessionLocks ?? {};
 }
 
-export function isSessionLocked(
-  serverId: string,
-  sessionName: string,
-): boolean {
+export function isSessionLocked(serverId: string, sessionName: string): boolean {
   return sessionLocks(serverId)[sessionName] === true;
 }
 
@@ -493,11 +461,8 @@ export async function setSessionLock(
   const mk = requireMasterKey();
   const db = await openDb();
   try {
-    const stored = await tx<KeyRecord | undefined>(
-      db,
-      KEY_STORE,
-      "readonly",
-      (store) => store.get(serverId),
+    const stored = await tx<KeyRecord | undefined>(db, KEY_STORE, "readonly", (store) =>
+      store.get(serverId),
     );
     if (!stored || !isSealed(stored)) {
       throw new Error("Set a device PIN before locking a session.");
@@ -602,9 +567,7 @@ export async function forgetSealedLocalToken(): Promise<void> {
   try {
     const db = await openDb();
     try {
-      await tx(db, LOCK_STORE, "readwrite", (store) =>
-        store.delete(LOCAL_TOKEN_KEY),
-      );
+      await tx(db, LOCK_STORE, "readwrite", (store) => store.delete(LOCAL_TOKEN_KEY));
     } finally {
       db.close();
     }
@@ -617,11 +580,8 @@ export async function forgetSealedLocalToken(): Promise<void> {
 async function restoreLocalToken(mk: Uint8Array): Promise<void> {
   try {
     const db = await openDb();
-    const sealed = await tx<SealedRecord | undefined>(
-      db,
-      LOCK_STORE,
-      "readonly",
-      (store) => store.get(LOCAL_TOKEN_KEY),
+    const sealed = await tx<SealedRecord | undefined>(db, LOCK_STORE, "readonly", (store) =>
+      store.get(LOCAL_TOKEN_KEY),
     );
     db.close();
     if (!sealed) return;
@@ -662,9 +622,7 @@ export function lockoutUntil(attempts: number, now: number): number | null {
   return now + delay;
 }
 
-async function readAllKeyRecords(
-  db: IDBDatabase,
-): Promise<[string, KeyRecord][]> {
+async function readAllKeyRecords(db: IDBDatabase): Promise<[string, KeyRecord][]> {
   const store = db.transaction(KEY_STORE, "readonly").objectStore(KEY_STORE);
   const [values, keys] = await Promise.all([
     request<KeyRecord[]>(store.getAll()),

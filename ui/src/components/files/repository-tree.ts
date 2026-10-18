@@ -6,9 +6,7 @@ export type ChangeNode<T> = {
   children?: ChangeNode<T>[];
 };
 
-export function buildChangeTree<T extends { path: string }>(
-  entries: T[],
-): ChangeNode<T>[] {
+export function buildChangeTree<T extends { path: string }>(entries: T[]): ChangeNode<T>[] {
   type Branch = { node: ChangeNode<T>; folders: Map<string, Branch> };
   const root: Branch = {
     node: { name: "", path: "", count: 0, children: [] },
@@ -46,8 +44,7 @@ export function buildChangeTree<T extends { path: string }>(
   const sort = (nodes: ChangeNode<T>[]): ChangeNode<T>[] => {
     nodes.sort(
       (a, b) =>
-        Number(Boolean(b.children)) - Number(Boolean(a.children)) ||
-        a.name.localeCompare(b.name),
+        Number(Boolean(b.children)) - Number(Boolean(a.children)) || a.name.localeCompare(b.name),
     );
     nodes.forEach((node) => {
       if (node.children) sort(node.children);

@@ -45,14 +45,16 @@ export async function acquireMicrophone(signal: AbortSignal) {
   }
 
   try {
-    const acquired = stream ?? await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+    const acquired =
+      stream ??
+      (await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      }));
     // Permission can arrive after Cancel, lock, or another recording starts.
     if (signal.aborted || current !== generation) {
       for (const track of acquired.getTracks()) track.stop();
@@ -64,7 +66,10 @@ export async function acquireMicrophone(signal: AbortSignal) {
       stream: acquired,
       activate() {
         signal.throwIfAborted();
-        if (current !== generation || !acquired.getAudioTracks().some((track) => track.readyState === "live")) {
+        if (
+          current !== generation ||
+          !acquired.getAudioTracks().some((track) => track.readyState === "live")
+        ) {
           throw new DOMException("Microphone no longer available", "AbortError");
         }
         for (const track of acquired.getAudioTracks()) track.enabled = true;

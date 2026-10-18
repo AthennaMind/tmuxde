@@ -6,11 +6,7 @@ import { useSessionStore } from "@/stores/session-store";
 import { useBelievedInCopyMode } from "@/hooks/use-copy-mode";
 import { usePhotoHistory } from "@/hooks/use-photo-history";
 import { PhotoThumbnail } from "@/components/terminal/photo-thumbnail";
-import {
-  canUploadPhotos,
-  insertPhoto,
-  usePhotoUploads,
-} from "@/lib/photo-insert";
+import { canUploadPhotos, insertPhoto, usePhotoUploads } from "@/lib/photo-insert";
 
 export function PhotoUpload({
   className,
@@ -43,16 +39,14 @@ export function PhotoUpload({
     };
   }, []);
 
-  if (!canUploadPhotos({ features, defaultPath: directory, capabilities }))
-    return null;
+  if (!canUploadPhotos({ features, defaultPath: directory, capabilities })) return null;
 
   const upload = async (file: File) => {
     if (mounted.current) setSavedPath(null);
     const result = await insertPhoto(file);
     // Not inserted means the terminal changed mid-upload. Keep the path
     // where it can be copied.
-    if (result && !result.inserted && mounted.current)
-      setSavedPath(result.path);
+    if (result && !result.inserted && mounted.current) setSavedPath(result.path);
   };
 
   return (
@@ -80,9 +74,7 @@ export function PhotoUpload({
         aria-label="Upload photo"
         aria-busy={uploading}
         disabled={uploading || status !== "connected" || !session || inCopyMode}
-        title={
-          inCopyMode ? "Leave copy mode to upload a photo" : "Upload photo"
-        }
+        title={inCopyMode ? "Leave copy mode to upload a photo" : "Upload photo"}
         className={cn(
           "flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
           compact && "w-full min-w-0 px-1",

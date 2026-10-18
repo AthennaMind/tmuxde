@@ -2,21 +2,14 @@ import { create } from "zustand";
 import type { MobileTab } from "@/components/mobile/mobile-nav";
 
 /** Views the desktop sidebar rail switches between. */
-export type SidebarView =
-  | "sessions"
-  | "files"
-  | "changes"
-  | "history"
-  | "photos";
+export type SidebarView = "sessions" | "files" | "changes" | "history" | "photos";
 
 export const SIDEBAR_MIN_WIDTH = 220;
 export const SIDEBAR_MAX_WIDTH = 480;
 export const SIDEBAR_DEFAULT_WIDTH = 288;
 
 export function clampSidebarWidth(width: number): number {
-  return Math.round(
-    Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width)),
-  );
+  return Math.round(Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width)));
 }
 
 interface UiStore {
@@ -106,8 +99,7 @@ export const useUiStore = create<UiStore>((set) => ({
         : { copyModeOpen, capturedPaneId: null, capturedContent: null },
     ),
   setTerminalSearchOpen: (terminalSearchOpen) => set({ terminalSearchOpen }),
-  setCapturedPane: (capturedPaneId, capturedContent) =>
-    set({ capturedPaneId, capturedContent }),
+  setCapturedPane: (capturedPaneId, capturedContent) => set({ capturedPaneId, capturedContent }),
   setPaneMenuId: (paneMenuId) => set({ paneMenuId }),
   // `null` means closed and `""` means open-and-empty, which is why this is a
   // nullable draft rather than a boolean beside a string.

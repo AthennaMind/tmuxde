@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
-import type {
-  RepoChangedMessage,
-  RepoWatchResultMessage,
-} from "@/protocol";
+import type { RepoChangedMessage, RepoWatchResultMessage } from "@/protocol";
 import type { RepositoryClient } from "@/components/files/repository-request";
 import { trimSlash, type RepoChange } from "@/lib/repo-change";
 import { useConnectionStore } from "@/stores/connection-store";
@@ -190,9 +187,7 @@ export function useRepoWatch(
  * Count the pushes that `match` accepts. The count starts at 0 and only
  * grows, so it can be added to a refresh key to reload quietly.
  */
-export function useRepoChangeCount(
-  match: ((change: RepoChange) => boolean) | null,
-): number {
+export function useRepoChangeCount(match: ((change: RepoChange) => boolean) | null): number {
   const [count, setCount] = useState(0);
   const held = useRef(match);
   held.current = match;

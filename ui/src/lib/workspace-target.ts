@@ -23,15 +23,23 @@ export function openMachineSession(
 }
 
 export function openWorkspace(target: WorkspaceTarget, unlocked = false): boolean {
-  const alreadyAttached = target.machineId === machineId() &&
+  const alreadyAttached =
+    target.machineId === machineId() &&
     useSessionTreeStore.getState().attachedSession === target.sessionName;
-  if (!unlocked && target.sessionName && !alreadyAttached &&
-    isSessionLocked(target.machineId, target.sessionName)) {
+  if (
+    !unlocked &&
+    target.sessionName &&
+    !alreadyAttached &&
+    isSessionLocked(target.machineId, target.sessionName)
+  ) {
     useMachineStore.setState({ unlockTarget: target });
     return false;
   }
-  if (target.messages.length && target.machineId !== machineId() &&
-    useMachineStore.getState().inventory[target.machineId]?.status !== "connected") {
+  if (
+    target.messages.length &&
+    target.machineId !== machineId() &&
+    useMachineStore.getState().inventory[target.machineId]?.status !== "connected"
+  ) {
     return false;
   }
   if (target.machineId === machineId()) {

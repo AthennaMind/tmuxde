@@ -4,10 +4,7 @@ import type { RepoCommit } from "@/protocol";
 import { cn } from "@/lib/utils";
 import { useTreeKeyboard } from "@/components/sidebar/tree-row";
 import { useSessionTreeStore } from "@/stores/session-tree-store";
-import {
-  repositoryRequest,
-  type RepositoryClient,
-} from "./repository-request";
+import { repositoryRequest, type RepositoryClient } from "./repository-request";
 
 export interface CommitLog {
   commits: RepoCommit[];
@@ -44,8 +41,7 @@ export function keepOlderPages(
   if (at < 0) return null;
   const overlap = next.length - at;
   if (prev.length <= overlap) return null;
-  for (let i = 0; i < overlap; i++)
-    if (prev[i]!.hash !== next[at + i]!.hash) return null;
+  for (let i = 0; i < overlap; i++) if (prev[i]!.hash !== next[at + i]!.hash) return null;
   const shown = new Set(next.map((c) => c.hash));
   return [...next, ...prev.slice(overlap).filter((c) => !shown.has(c.hash))];
 }
@@ -134,10 +130,7 @@ export function useCommitLog({
   active?: boolean;
 }): CommitLog {
   const attached = useSessionTreeStore((s) => s.attachedSession !== null);
-  const key =
-    client && paneId && path && root && attached
-      ? `${all ? "all" : "head"}:${root}`
-      : "";
+  const key = client && paneId && path && root && attached ? `${all ? "all" : "head"}:${root}` : "";
   // Latest request target. A pane switch inside one repository asks nothing.
   const target = useRef({ client, paneId, path });
   target.current = { client, paneId, path };
@@ -160,9 +153,7 @@ export function useCommitLog({
   const pending = useRef<AbortController | null>(null);
 
   // The first page request in flight, if any, and when to send the next.
-  const flight = useRef<{ key: string; controller: AbortController } | null>(
-    null,
-  );
+  const flight = useRef<{ key: string; controller: AbortController } | null>(null);
   const [gate] = useState(() => new FirstPageGate());
   // Key of the last answer, so a remount asks again.
   const loaded = useRef("");
@@ -188,19 +179,14 @@ export function useCommitLog({
         if (controller.signal.aborted || result.kind !== "log") return;
         const { root, branch } = result;
         setState((prev) => {
-          const kept =
-            prev?.key === key
-              ? keepOlderPages(prev.commits, result.commits)
-              : null;
-          if (kept && prev)
-            return { key, commits: kept, more: prev.more, root, branch };
+          const kept = prev?.key === key ? keepOlderPages(prev.commits, result.commits) : null;
+          if (kept && prev) return { key, commits: kept, more: prev.more, root, branch };
           return { key, commits: result.commits, more: result.more, root, branch };
         });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
-        const message =
-          error instanceof Error ? error.message : "Could not load history.";
+        const message = error instanceof Error ? error.message : "Could not load history.";
         setState((prev) =>
           prev?.key === key
             ? { ...prev, error: message }
@@ -232,12 +218,7 @@ export function useCommitLog({
     // Nothing answered for this key and nothing on the way, as after a
     // remount.
     const unanswered = loaded.current !== key && flight.current?.key !== key;
-    if (
-      last.key !== key ||
-      last.refresh !== refresh ||
-      last.poll !== poll ||
-      unanswered
-    )
+    if (last.key !== key || last.refresh !== refresh || last.poll !== poll || unanswered)
       gate.mark();
     if (gate.take(active) && !send()) gate.settle();
   }, [key, refresh, poll, active, send, gate]);
@@ -263,8 +244,7 @@ export function useCommitLog({
   const current = state?.key === key ? state : undefined;
   const loadMore = useCallback(() => {
     const { client, paneId, path } = target.current;
-    if (!current?.more || pending.current || !client || !paneId || !path)
-      return;
+    if (!current?.more || pending.current || !client || !paneId || !path) return;
     const controller = new AbortController();
     pending.current = controller;
     setLoadingMore(true);
@@ -286,10 +266,7 @@ export function useCommitLog({
           const seen = new Set(prev.commits.map((c) => c.hash));
           return {
             ...prev,
-            commits: [
-              ...prev.commits,
-              ...result.commits.filter((c) => !seen.has(c.hash)),
-            ],
+            commits: [...prev.commits, ...result.commits.filter((c) => !seen.has(c.hash))],
             more: result.more,
             error: undefined,
           };
@@ -301,10 +278,7 @@ export function useCommitLog({
           prev?.key === key
             ? {
                 ...prev,
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : "Could not load older commits.",
+                error: error instanceof Error ? error.message : "Could not load older commits.",
               }
             : prev,
         );
@@ -335,8 +309,7 @@ export type CommitRef = { name: string; kind: "head" | "branch" | "tag" };
 export function parseRefs(refs: string[]): CommitRef[] {
   return refs.flatMap((ref): CommitRef[] => {
     if (ref === "HEAD") return [{ name: "HEAD", kind: "head" }];
-    if (ref.startsWith("HEAD -> "))
-      return [{ name: ref.slice(8), kind: "head" }];
+    if (ref.startsWith("HEAD -> ")) return [{ name: ref.slice(8), kind: "head" }];
     if (ref.startsWith("tag: ")) return [{ name: ref.slice(5), kind: "tag" }];
     if (ref.endsWith("/HEAD")) return [];
     return [{ name: ref, kind: "branch" }];
@@ -352,14 +325,10 @@ export function RefChip({ commitRef }: { commitRef: CommitRef }) {
       title={label}
       className={cn(
         "inline-flex min-w-0 max-w-40 shrink items-center gap-1 rounded-sm bg-muted px-1 text-[11px] leading-4 whitespace-nowrap",
-        commitRef.kind === "head"
-          ? "font-medium text-foreground"
-          : "text-muted-foreground",
+        commitRef.kind === "head" ? "font-medium text-foreground" : "text-muted-foreground",
       )}
     >
-      {commitRef.kind === "tag" && (
-        <Tag className="h-3 w-3 shrink-0" aria-hidden />
-      )}
+      {commitRef.kind === "tag" && <Tag className="h-3 w-3 shrink-0" aria-hidden />}
       <span className="sr-only">{REF_LABEL[commitRef.kind]} </span>
       <span className="truncate">{commitRef.name}</span>
     </span>
@@ -420,17 +389,9 @@ export function CommitList({
   // Stable for the memoized rows. Callers pass a fresh arrow each render.
   const latestOpen = useRef(onOpen);
   latestOpen.current = onOpen;
-  const open = useCallback(
-    (commit: RepoCommit) => latestOpen.current(commit),
-    [],
-  );
-  const has = (hash: string | null | undefined) =>
-    !!hash && commits.some((c) => c.hash === hash);
-  const tabStop = has(focused)
-    ? focused
-    : has(selected)
-      ? selected
-      : commits[0]?.hash;
+  const open = useCallback((commit: RepoCommit) => latestOpen.current(commit), []);
+  const has = (hash: string | null | undefined) => !!hash && commits.some((c) => c.hash === hash);
+  const tabStop = has(focused) ? focused : has(selected) ? selected : commits[0]?.hash;
 
   return (
     <div ref={ref} onKeyDown={onKeyDown} data-tree="">
@@ -442,9 +403,7 @@ export function CommitList({
             // lays out the dozen on screen, not every loaded page.
             className={cn(
               "[content-visibility:auto]",
-              dense
-                ? "[contain-intrinsic-size:auto_3rem]"
-                : "[contain-intrinsic-size:auto_3.5rem]",
+              dense ? "[contain-intrinsic-size:auto_3rem]" : "[contain-intrinsic-size:auto_3.5rem]",
             )}
           >
             <CommitRow
@@ -496,9 +455,7 @@ const CommitRow = memo(function CommitRow({
         dense
           ? "rounded-md px-2 py-1.5"
           : "min-h-14 justify-center px-4 py-2 focus-visible:ring-inset",
-        selected
-          ? "bg-accent text-accent-foreground"
-          : "text-foreground hover:bg-accent/50",
+        selected ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent/50",
       )}
     >
       <span
@@ -509,10 +466,7 @@ const CommitRow = memo(function CommitRow({
       >
         {merge && (
           <>
-            <GitMerge
-              className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
+            <GitMerge className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
             <span className="sr-only">Merge commit: </span>
           </>
         )}
@@ -523,16 +477,11 @@ const CommitRow = memo(function CommitRow({
           <RefChip key={`${ref.kind}:${ref.name}`} commitRef={ref} />
         ))}
         {refs.length > shown.length && (
-          <span className="shrink-0 tabular-nums">
-            +{refs.length - shown.length}
-          </span>
+          <span className="shrink-0 tabular-nums">+{refs.length - shown.length}</span>
         )}
         <span className="shrink-0 font-mono tabular-nums">{short}</span>
         <span className="min-w-0 truncate">{commit.author}</span>
-        <time
-          dateTime={commit.date}
-          className="ms-auto shrink-0 ps-1 tabular-nums"
-        >
+        <time dateTime={commit.date} className="ms-auto shrink-0 ps-1 tabular-nums">
           {commitAge(commit.date)}
         </time>
       </span>

@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  ceremonyInProgress,
-  listenForCrossTabLock,
-  lockNow,
-} from "@/lib/lock-controller";
+import { ceremonyInProgress, listenForCrossTabLock, lockNow } from "@/lib/lock-controller";
 import { readLockRecord, type LockRecord } from "@/lib/lock-store";
 import { isEnrolled, isUnlocked, subscribeLock } from "@/lib/unlocked";
 
@@ -25,12 +21,7 @@ import { isEnrolled, isUnlocked, subscribeLock } from "@/lib/unlocked";
  * behind you without any attacker involved.
  */
 
-const ACTIVITY_EVENTS = [
-  "pointerdown",
-  "keydown",
-  "wheel",
-  "touchstart",
-] as const;
+const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
 
 /** How long after backgrounding to actually lock, so an app-switch flick is free. */
 const BACKGROUND_GRACE_MS = 8_000;
@@ -76,11 +67,7 @@ export function useLockLifecycle(): void {
   // Explicit lock.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        e.shiftKey &&
-        e.key.toLowerCase() === "l"
-      ) {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "l") {
         e.preventDefault();
         lockNow("manual");
       }

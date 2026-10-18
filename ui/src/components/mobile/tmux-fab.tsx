@@ -14,12 +14,7 @@ import {
   LogOut,
   Trash2,
 } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,9 +63,7 @@ export function TmuxFab() {
   const setResizeModeActive = useUiStore((s) => s.setResizeModeActive);
   const connected = useConnectionStore((s) => s.status === "connected");
   const [activeTab, setActiveTab] = useState<FabTab>("panes");
-  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(
-    null,
-  );
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   // Show whenever a session is attached (any mobile tab)
@@ -153,8 +146,7 @@ export function TmuxFab() {
           description:
             "The pane and every process running in it are terminated. This cannot be undone.",
           confirmLabel: "Kill Pane",
-          run: () =>
-            getRelayClient()?.send({ type: "pane:kill", id: activePaneId }),
+          run: () => getRelayClient()?.send({ type: "pane:kill", id: activePaneId }),
         });
       },
     },
@@ -183,8 +175,7 @@ export function TmuxFab() {
           description:
             "The window, all of its panes and every process in them are terminated. This cannot be undone.",
           confirmLabel: "Kill Window",
-          run: () =>
-            getRelayClient()?.send({ type: "window:kill", id: activeWindowId }),
+          run: () => getRelayClient()?.send({ type: "window:kill", id: activeWindowId }),
         });
       },
     },
@@ -195,9 +186,7 @@ export function TmuxFab() {
         const { activeWindowId, windows } = usePaneStore.getState();
         setFabOpen(false);
         if (!activeWindowId) return;
-        setRenameValue(
-          windows.find((w) => w.id === activeWindowId)?.name ?? "",
-        );
+        setRenameValue(windows.find((w) => w.id === activeWindowId)?.name ?? "");
         setRenameOpen(true);
       },
     },
@@ -258,11 +247,7 @@ export function TmuxFab() {
   ];
 
   const currentActions =
-    activeTab === "panes"
-      ? paneActions
-      : activeTab === "windows"
-        ? windowActions
-        : advancedActions;
+    activeTab === "panes" ? paneActions : activeTab === "windows" ? windowActions : advancedActions;
 
   return (
     <>
@@ -296,11 +281,7 @@ export function TmuxFab() {
             {currentActions.map((item) => (
               <Button
                 key={item.label}
-                variant={
-                  "variant" in item
-                    ? (item.variant as "destructive")
-                    : "outline"
-                }
+                variant={"variant" in item ? (item.variant as "destructive") : "outline"}
                 className="flex h-auto items-center gap-2 px-3 py-2.5 text-xs justify-start"
                 disabled={!connected}
                 onClick={item.action}
@@ -324,9 +305,7 @@ export function TmuxFab() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{pendingConfirm?.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingConfirm?.description}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{pendingConfirm?.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -359,10 +338,7 @@ export function TmuxFab() {
             <Button variant="outline" onClick={() => setRenameOpen(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleRenameSubmit}
-              disabled={!connected || !renameValue.trim()}
-            >
+            <Button onClick={handleRenameSubmit} disabled={!connected || !renameValue.trim()}>
               Rename
             </Button>
           </DialogFooter>

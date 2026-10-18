@@ -1,7 +1,6 @@
 // @ts-check
 
-export const DEFAULT_TERMINAL_FONT =
-  '"Cascadia Code", "IBM Plex Mono", monospace';
+export const DEFAULT_TERMINAL_FONT = '"Cascadia Code", "IBM Plex Mono", monospace';
 
 /** Earlier defaults, stored by persisted settings. None was a user choice. */
 const RETIRED_DEFAULTS = new Set([
@@ -12,9 +11,7 @@ const RETIRED_DEFAULTS = new Set([
 // This face contains only symbols. Text still uses the user's preferred font.
 /** @param {string} preferred */
 export function terminalFontFamily(preferred) {
-  const textFont = RETIRED_DEFAULTS.has(preferred)
-    ? DEFAULT_TERMINAL_FONT
-    : preferred;
+  const textFont = RETIRED_DEFAULTS.has(preferred) ? DEFAULT_TERMINAL_FONT : preferred;
   return `"Symbols Nerd Font Mono", ${textFont}`;
 }
 
@@ -23,11 +20,7 @@ export function terminalFontFamily(preferred) {
  * @param {Pick<FontFaceSet, "load">} fonts
  * @param {() => void} onReady
  */
-export async function refreshWhenFontLoads(
-  terminal,
-  fonts = document.fonts,
-  onReady = () => {},
-) {
+export async function refreshWhenFontLoads(terminal, fonts = document.fonts, onReady = () => {}) {
   try {
     const results = await Promise.allSettled([
       fonts.load('16px "Symbols Nerd Font Mono"', "\ue0b0"),

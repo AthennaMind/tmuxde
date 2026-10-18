@@ -1,10 +1,9 @@
 {
   "name": "tmuxde-ui",
-  "license": "MIT",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@12.11.2",
   "scripts": {
     "dev": "vite --configLoader native --host 0.0.0.0 --port 24100",
     "build": "vite build --configLoader native",
@@ -79,5 +78,6 @@
   "engines": {
     "node": "26.11.1",
     "pnpm": "12.11.2"
-  }
+  },
+  "packageManager": "pnpm@12.11.2"
 }

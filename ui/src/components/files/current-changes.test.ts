@@ -8,31 +8,51 @@ const request = vi.mocked(repositoryRequest);
 const client = { status: "connected" } as RepositoryClient;
 const entry = (path: string, index = " ", worktree = "M") => ({ path, index, worktree });
 const status = (entries: ReturnType<typeof entry>[]): Extract<RepoResult, { kind: "status" }> => ({
-  kind: "status", root: "/repo", branch: "main", entries, truncated: false,
+  kind: "status",
+  root: "/repo",
+  branch: "main",
+  entries,
+  truncated: false,
 });
 const patch = "diff --git a/file b/file\n--- a/file\n+++ b/file\n@@ -1 +1 @@\n-old\n+new\n";
 const diff = (content = patch, binary = false): Extract<RepoResult, { kind: "diff" }> => ({
-  kind: "diff", path: "file", scope: "unstaged", content, binary, truncated: false,
+  kind: "diff",
+  path: "file",
+  scope: "unstaged",
+  content,
+  binary,
+  truncated: false,
 });
-const load = (signal = new AbortController().signal) => loadCurrentChanges(client, "%1", "/repo", signal);
+const load = (signal = new AbortController().signal) =>
+  loadCurrentChanges(client, "%1", "/repo", signal);
 
-beforeEach(() => { request.mockReset(); });
+beforeEach(() => {
+  request.mockReset();
+});
 
 describe("current changes", () => {
   it("keeps partially staged files in both scopes and untracked files once", () => {
-    expect(currentChangeFiles([
-      entry("both.ts", "M", "M"), entry("new.md", "?", "?"),
-      entry("removed", "D", " "), entry("ignored", "!", "!"),
-      entry("conflict", "U", "U"),
-    ]).map(({ path, scope, status }) => [path, scope, status])).toEqual([
-      ["both.ts", "unstaged", "M"], ["conflict", "unstaged", "U"],
-      ["both.ts", "staged", "M"], ["removed", "staged", "D"],
-      ["conflict", "staged", "U"], ["new.md", "untracked", "?"],
+    expect(
+      currentChangeFiles([
+        entry("both.ts", "M", "M"),
+        entry("new.md", "?", "?"),
+        entry("removed", "D", " "),
+        entry("ignored", "!", "!"),
+        entry("conflict", "U", "U"),
+      ]).map(({ path, scope, status }) => [path, scope, status]),
+    ).toEqual([
+      ["both.ts", "unstaged", "M"],
+      ["conflict", "unstaged", "U"],
+      ["both.ts", "staged", "M"],
+      ["removed", "staged", "D"],
+      ["conflict", "staged", "U"],
+      ["new.md", "untracked", "?"],
     ]);
   });
 
   it("pins each diff to returned root and counts patch rows", async () => {
-    request.mockResolvedValueOnce(status([entry("both.ts", "M", "M"), entry("new.md", "?", "?")]))
+    request
+      .mockResolvedValueOnce(status([entry("both.ts", "M", "M"), entry("new.md", "?", "?")]))
       .mockResolvedValue(diff());
     const result = await load();
     expect(result.files).toHaveLength(3);
@@ -51,12 +71,15 @@ describe("current changes", () => {
     expect(result.files[0]?.originalPath).toBeUndefined();
     expect(result.files[1]).toMatchObject({ originalPath: "old.ts", additions: 2, deletions: 2 });
     expect(request.mock.calls.slice(1).map(([, query]) => [query.file, query.scope])).toEqual([
-      ["next.ts", "unstaged"], ["old.ts", "staged"], ["next.ts", "staged"],
+      ["next.ts", "unstaged"],
+      ["old.ts", "staged"],
+      ["next.ts", "staged"],
     ]);
   });
 
   it("shows per-file errors while retaining successful and binary files", async () => {
-    request.mockResolvedValueOnce(status([entry("denied"), entry("good"), entry("image")]))
+    request
+      .mockResolvedValueOnce(status([entry("denied"), entry("good"), entry("image")]))
       .mockRejectedValueOnce(new Error("Access denied"))
       .mockResolvedValueOnce(diff())
       .mockResolvedValueOnce(diff("", true));
@@ -68,10 +91,16 @@ describe("current changes", () => {
 
   it("limits simultaneous requests and stops scheduling after cancellation", async () => {
     const controller = new AbortController();
-    request.mockResolvedValueOnce(status(Array.from({ length: 12 }, (_, i) => entry(`${i}.ts`))))
-      .mockImplementation((_client, _query, signal) => new Promise((_resolve, reject) => {
-        signal?.addEventListener("abort", () => reject(new DOMException("Cancelled", "AbortError")));
-      }));
+    request
+      .mockResolvedValueOnce(status(Array.from({ length: 12 }, (_, i) => entry(`${i}.ts`))))
+      .mockImplementation(
+        (_client, _query, signal) =>
+          new Promise((_resolve, reject) => {
+            signal?.addEventListener("abort", () =>
+              reject(new DOMException("Cancelled", "AbortError")),
+            );
+          }),
+      );
     const pending = load(controller.signal);
     await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(5));
     controller.abort();
@@ -80,7 +109,8 @@ describe("current changes", () => {
   });
 
   it("retains file list but marks omitted patches when request limit is reached", async () => {
-    request.mockResolvedValueOnce(status(Array.from({ length: 205 }, (_, i) => entry(`${i}.ts`))))
+    request
+      .mockResolvedValueOnce(status(Array.from({ length: 205 }, (_, i) => entry(`${i}.ts`))))
       .mockResolvedValue(diff());
     const result = await load();
     expect(request).toHaveBeenCalledTimes(201);

@@ -30,10 +30,8 @@ export function RepositoryNavigationSurface({
       drag = null;
       suppressClick = false;
       clearTimeout(clickTimer);
-      if (event.touches.length !== 1 || !(event.target instanceof Element))
-        return;
-      if (event.target.closest("input,textarea,select,[contenteditable=true]"))
-        return;
+      if (event.touches.length !== 1 || !(event.target instanceof Element)) return;
+      if (event.target.closest("input,textarea,select,[contenteditable=true]")) return;
       // Keep native horizontal panning in breadcrumbs, images and wide code.
       for (
         let node: Element | null = event.target;
@@ -41,11 +39,7 @@ export function RepositoryNavigationSurface({
         node = node.parentElement
       ) {
         const overflow = getComputedStyle(node).overflowX;
-        if (
-          /auto|scroll/.test(overflow) &&
-          node.scrollWidth > node.clientWidth + 1
-        )
-          return;
+        if (/auto|scroll/.test(overflow) && node.scrollWidth > node.clientWidth + 1) return;
       }
       const touch = event.touches[0]!;
       // Browser edge gestures use the viewer's native history entries.
@@ -64,19 +58,15 @@ export function RepositoryNavigationSurface({
         drag = null;
         return;
       }
-      const touch = Array.from(event.touches).find(
-        (touch) => touch.identifier === drag!.id,
-      );
+      const touch = Array.from(event.touches).find((touch) => touch.identifier === drag!.id);
       if (!touch) return;
       const dx = touch.clientX - drag.x;
       const dy = touch.clientY - drag.y;
       drag.lastX = touch.clientX;
       if (drag.axis === "pending" && Math.hypot(dx, dy) >= 10) {
-        drag.axis =
-          Math.abs(dx) > Math.abs(dy) * 1.5 ? "horizontal" : "vertical";
+        drag.axis = Math.abs(dx) > Math.abs(dy) * 1.5 ? "horizontal" : "vertical";
       }
-      if (drag.axis === "horizontal" && event.cancelable)
-        event.preventDefault();
+      if (drag.axis === "horizontal" && event.cancelable) event.preventDefault();
     };
     const end = (event: TouchEvent) => {
       const current = drag;
@@ -122,11 +112,7 @@ export function RepositoryNavigationSurface({
   }, []);
 
   return (
-    <div
-      ref={ref}
-      className="flex min-h-0 flex-1 flex-col"
-      data-repository-navigation
-    >
+    <div ref={ref} className="flex min-h-0 flex-1 flex-col" data-repository-navigation>
       {children}
     </div>
   );

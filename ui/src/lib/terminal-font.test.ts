@@ -12,11 +12,7 @@ function terminal() {
 
 describe("terminal icon font", () => {
   it("replaces old unbundled default with bundled reading font", () => {
-    expect(
-      terminalFontFamily(
-        "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-      ),
-    ).toBe(
+    expect(terminalFontFamily("'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace")).toBe(
       '"Symbols Nerd Font Mono", "Cascadia Code", "IBM Plex Mono", monospace',
     );
   });
@@ -27,9 +23,7 @@ describe("terminal icon font", () => {
   });
   it("supports saved text fonts without replacing their preference", () => {
     const saved = "'JetBrains Mono', monospace";
-    expect(terminalFontFamily(saved)).toBe(
-      '"Symbols Nerd Font Mono", ' + saved,
-    );
+    expect(terminalFontFamily(saved)).toBe('"Symbols Nerd Font Mono", ' + saved);
   });
 
   it("invalidates cached missing glyphs after font download completes", async () => {
@@ -44,10 +38,7 @@ describe("terminal icon font", () => {
     const remeasure = vi.fn();
     const ready = refreshWhenFontLoads(view, { load }, remeasure);
     expect(view.clearTextureAtlas).not.toHaveBeenCalled();
-    expect(load).toHaveBeenCalledWith(
-      '16px "Symbols Nerd Font Mono"',
-      "\ue0b0",
-    );
+    expect(load).toHaveBeenCalledWith('16px "Symbols Nerd Font Mono"', "\ue0b0");
     expect(load).toHaveBeenCalledWith('400 16px "Cascadia Code"', "W");
     finish[0]!([]);
     await Promise.resolve();
@@ -73,10 +64,7 @@ describe("terminal icon font", () => {
   it("remeasures text when icon font fails but text fonts load", async () => {
     const view = terminal();
     const remeasure = vi.fn();
-    const load = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("offline"))
-      .mockResolvedValue([]);
+    const load = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue([]);
     await refreshWhenFontLoads(view, { load }, remeasure);
     expect(remeasure).toHaveBeenCalledOnce();
     expect(view.refresh).toHaveBeenCalledWith(0, 23);

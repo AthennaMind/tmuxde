@@ -1,15 +1,6 @@
 import type { SessionInfo } from "@/protocol";
-import {
-  believedInCopyMode,
-  noteEnteredCopyMode,
-  noteLeftCopyMode,
-} from "@/lib/copy-mode-belief";
-import {
-  LAST_SESSION_KEY,
-  clearStored,
-  readStored,
-  writeStored,
-} from "@/lib/storage-keys";
+import { believedInCopyMode, noteEnteredCopyMode, noteLeftCopyMode } from "@/lib/copy-mode-belief";
+import { LAST_SESSION_KEY, clearStored, readStored, writeStored } from "@/lib/storage-keys";
 import { usePaneStore } from "@/stores/pane-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useSessionTreeStore } from "@/stores/session-tree-store";
@@ -58,10 +49,7 @@ export function sessionNotFoundText(name: string): string {
  * is called. A name missing from `next` whose id shows up there under a name
  * `prev` did not have was renamed.
  */
-export function findRenames(
-  prev: SessionInfo[],
-  next: SessionInfo[],
-): [string, string][] {
+export function findRenames(prev: SessionInfo[], next: SessionInfo[]): [string, string][] {
   const prevNames = new Set(prev.map((s) => s.name));
   const nextNames = new Set(next.map((s) => s.name));
   const fresh = new Map<string, string>();

@@ -16,8 +16,7 @@ import { sendCommand } from "./send-command";
 import { useCommandStore } from "@/stores/command-store";
 import { usePaneStore } from "@/stores/pane-store";
 
-const pane = (command: string) =>
-  ({ id: "%1", active: true, command }) as never;
+const pane = (command: string) => ({ id: "%1", active: true, command }) as never;
 
 beforeEach(() => {
   sent.length = 0;

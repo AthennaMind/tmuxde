@@ -9,24 +9,53 @@ const fixture = vi.hoisted(() => ({
   disconnect: () => {},
 }));
 vi.mock("@/lib/lock-store", () => ({ sessionLocks: (id: string) => fixture.locks[id] ?? {} }));
-vi.mock("./machine-store", () => ({ useMachineStore: { getState: () => ({ machines: fixture.machines }) } }));
+vi.mock("./machine-store", () => ({
+  useMachineStore: { getState: () => ({ machines: fixture.machines }) },
+}));
 vi.mock("@/lib/relay-registry", () => ({
   get: (key: string) => fixture.clients.get(key),
-  onDisconnectAll: (handler: () => void) => { fixture.disconnect = handler; },
+  onDisconnectAll: (handler: () => void) => {
+    fixture.disconnect = handler;
+  },
 }));
 
 import {
-  receiveTerminalSearch, resetTerminalSearch, searchTerminals,
-  terminalSearchDisconnected, useTerminalSearchStore,
+  receiveTerminalSearch,
+  resetTerminalSearch,
+  searchTerminals,
+  terminalSearchDisconnected,
+  useTerminalSearchStore,
 } from "./terminal-search-store";
 
 const machine = (id: string): MachineInfo => ({
-  id, name: id, online: true, hostname: id, platform: "linux",
-  defaultPath: "/repo", version: "test", features: ["terminal:search"],
+  id,
+  name: id,
+  online: true,
+  hostname: id,
+  platform: "linux",
+  defaultPath: "/repo",
+  version: "test",
+  features: ["terminal:search"],
 });
 const reply = (requestId: string, text: string): TerminalSearchResultMessage => ({
-  type: "terminal:search:result", requestId, searchedPanes: 1, skippedPanes: 0, partial: false,
-  matches: [{ sessionName: "same", windowId: "@0", paneId: "%0", command: "sh", path: "/repo", line: 1, text, before: "", after: "" }],
+  type: "terminal:search:result",
+  requestId,
+  searchedPanes: 1,
+  skippedPanes: 0,
+  partial: false,
+  matches: [
+    {
+      sessionName: "same",
+      windowId: "@0",
+      paneId: "%0",
+      command: "sh",
+      path: "/repo",
+      line: 1,
+      text,
+      before: "",
+      after: "",
+    },
+  ],
 });
 
 beforeEach(() => {
@@ -35,9 +64,13 @@ beforeEach(() => {
   fixture.machines = [machine("alpha"), machine("beta")];
   fixture.clients.clear();
   fixture.locks = {};
-  for (const item of fixture.machines) fixture.clients.set(`inventory:${item.id}`, { status: "connected", send: vi.fn() });
+  for (const item of fixture.machines)
+    fixture.clients.set(`inventory:${item.id}`, { status: "connected", send: vi.fn() });
 });
-afterEach(() => { resetTerminalSearch(); vi.useRealTimers(); });
+afterEach(() => {
+  resetTerminalSearch();
+  vi.useRealTimers();
+});
 
 describe("global terminal search", () => {
   it("uses inventory clients, excludes locked sessions and keeps identical pane IDs on different machines separate", () => {
@@ -46,10 +79,18 @@ describe("global terminal search", () => {
     const requestId = useTerminalSearchStore.getState().requestId!;
     for (const id of ["alpha", "beta"]) {
       const sent = fixture.clients.get(`inventory:${id}`)!.send.mock.calls[0]![0] as ClientMessage;
-      expect(sent).toEqual({ type: "terminal:search", requestId, query: "literal [x]", caseSensitive: false, excludeSessions: id === "alpha" ? ["private"] : [] });
+      expect(sent).toEqual({
+        type: "terminal:search",
+        requestId,
+        query: "literal [x]",
+        caseSensitive: false,
+        excludeSessions: id === "alpha" ? ["private"] : [],
+      });
       receiveTerminalSearch(id, reply(requestId, id));
     }
-    expect(useTerminalSearchStore.getState().machines.map((m) => m.result?.matches[0]?.text)).toEqual(["alpha", "beta"]);
+    expect(
+      useTerminalSearchStore.getState().machines.map((m) => m.result?.matches[0]?.text),
+    ).toEqual(["alpha", "beta"]);
   });
 
   it("ignores stale replies, duplicate responses and replies after lock", () => {
@@ -65,13 +106,25 @@ describe("global terminal search", () => {
     expect(useTerminalSearchStore.getState().machines[0]?.result?.matches[0]?.text).toBe("new");
     fixture.disconnect();
     receiveTerminalSearch("beta", reply(next, "secret"));
-    expect(useTerminalSearchStore.getState()).toMatchObject({ query: "", requestId: null, machines: [] });
+    expect(useTerminalSearchStore.getState()).toMatchObject({
+      query: "",
+      requestId: null,
+      machines: [],
+    });
   });
 
   it("reports offline, unsupported and reconnecting machines without sending requests", () => {
-    fixture.machines = [{ ...machine("alpha"), online: false }, { ...machine("beta"), features: [] }, machine("gamma")];
+    fixture.machines = [
+      { ...machine("alpha"), online: false },
+      { ...machine("beta"), features: [] },
+      machine("gamma"),
+    ];
     searchTerminals("error", false);
-    expect(useTerminalSearchStore.getState().machines.map((m) => m.state)).toEqual(["offline", "unsupported", "error"]);
+    expect(useTerminalSearchStore.getState().machines.map((m) => m.state)).toEqual([
+      "offline",
+      "unsupported",
+      "error",
+    ]);
     for (const client of fixture.clients.values()) expect(client.send).not.toHaveBeenCalled();
   });
 
@@ -83,7 +136,10 @@ describe("global terminal search", () => {
     terminalSearchDisconnected("alpha");
     receiveTerminalSearch("alpha", reply(requestId, "late"));
     vi.advanceTimersByTime(15_000);
-    expect(useTerminalSearchStore.getState().machines.map((m) => m.state)).toEqual(["error", "error"]);
+    expect(useTerminalSearchStore.getState().machines.map((m) => m.state)).toEqual([
+      "error",
+      "error",
+    ]);
     expect(useTerminalSearchStore.getState().machines.every((m) => !m.result)).toBe(true);
   });
 });

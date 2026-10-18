@@ -1,9 +1,5 @@
 import { z } from "zod";
-import {
-  RepoRequest,
-  RepoUnwatchMessage,
-  RepoWatchMessage,
-} from "./repository";
+import { RepoRequest, RepoUnwatchMessage, RepoWatchMessage } from "./repository";
 import { TerminalSizeSchema } from "./types";
 
 import { PreviewTarget } from "./terminal-preview";
@@ -19,7 +15,12 @@ export const TerminalPreviewMessage = z.object({
 export const TerminalSearchMessage = z.object({
   type: z.literal("terminal:search"),
   requestId: z.string().min(1).max(128),
-  query: z.string().min(1).max(256).regex(/[^\s]/).regex(/^[^\r\n\x00]*$/),
+  query: z
+    .string()
+    .min(1)
+    .max(256)
+    .regex(/[^\s]/)
+    .regex(/^[^\r\n\x00]*$/),
   caseSensitive: z.boolean(),
   excludeSessions: z.array(z.string()).max(1024),
 });
@@ -297,13 +298,7 @@ export const WindowRenameMessage = z.object({
 
 export const WindowLayoutMessage = z.object({
   type: z.literal("window:layout"),
-  preset: z.enum([
-    "even-horizontal",
-    "even-vertical",
-    "main-horizontal",
-    "main-vertical",
-    "tiled",
-  ]),
+  preset: z.enum(["even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled"]),
 });
 
 export const LayoutRotateMessage = z.object({

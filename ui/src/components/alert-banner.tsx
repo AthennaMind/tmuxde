@@ -34,10 +34,7 @@ export function AlertBanner() {
         typeStyles[latest.type],
       )}
     >
-      <span
-        className="truncate max-w-[200px] sm:max-w-[300px]"
-        title={latest.message}
-      >
+      <span className="truncate max-w-[200px] sm:max-w-[300px]" title={latest.message}>
         {latest.message}
       </span>
       {extraCount > 0 && (

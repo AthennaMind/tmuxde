@@ -87,9 +87,7 @@ export type EnrollResult =
  * immediately following `get()`. The UI must warn "you will be asked twice"
  * before starting, or the second prompt reads as a bug and people cancel it.
  */
-export async function enrollPasskeyFactor(
-  userLabel: string,
-): Promise<EnrollResult> {
+export async function enrollPasskeyFactor(userLabel: string): Promise<EnrollResult> {
   if (prfSupport() !== "available") {
     return { ok: false, reason: "unsupported" };
   }
@@ -138,16 +136,12 @@ export async function enrollPasskeyFactor(
 }
 
 /** The second ceremony, and every later unlock: read the PRF secret. */
-export async function evaluatePrf(
-  credentialId: string,
-): Promise<Uint8Array | null> {
+export async function evaluatePrf(credentialId: string): Promise<Uint8Array | null> {
   try {
     const assertion = (await navigator.credentials.get({
       publicKey: {
         challenge: challenge(),
-        allowCredentials: [
-          { type: "public-key", id: fromBase64Url(credentialId) },
-        ],
+        allowCredentials: [{ type: "public-key", id: fromBase64Url(credentialId) }],
         userVerification: "required",
         timeout: 60_000,
         extensions: {
@@ -168,10 +162,7 @@ function toBase64Url(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 function fromBase64Url(value: string): Uint8Array<ArrayBuffer> {

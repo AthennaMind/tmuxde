@@ -33,9 +33,7 @@ const MAX_ENTRIES = 100;
 let nextId = 0;
 const sessions = new Map<string, RepositoryHistory>();
 
-export function createRepositoryHistory(
-  view: RepositoryView = INITIAL_VIEW,
-): RepositoryHistory {
+export function createRepositoryHistory(view: RepositoryView = INITIAL_VIEW): RepositoryHistory {
   return {
     session: `${Date.now()}:${++nextId}`,
     entries: [{ id: ++nextId, view }],
@@ -63,10 +61,9 @@ export function navigateRepositoryHistory(
 ): RepositoryHistory {
   if (sameView(history.entries[history.index]!.view, view)) return history;
   nextId = Math.max(nextId, ...history.entries.map((entry) => entry.id));
-  const entries = [
-    ...history.entries.slice(0, history.index + 1),
-    { id: ++nextId, view },
-  ].slice(-MAX_ENTRIES);
+  const entries = [...history.entries.slice(0, history.index + 1), { id: ++nextId, view }].slice(
+    -MAX_ENTRIES,
+  );
   return { ...history, entries, index: entries.length - 1 };
 }
 
@@ -85,16 +82,10 @@ export function moveRepositoryHistory(
   direction: -1 | 1,
 ): RepositoryHistory {
   const index = history.index + direction;
-  return index < 0 || index >= history.entries.length
-    ? history
-    : { ...history, index };
+  return index < 0 || index >= history.entries.length ? history : { ...history, index };
 }
 
-export function repositoryHistoryState(
-  state: unknown,
-  paneId: string,
-  history: RepositoryHistory,
-) {
+export function repositoryHistoryState(state: unknown, paneId: string, history: RepositoryHistory) {
   return {
     ...(state && typeof state === "object" ? state : {}),
     mobileTab: "files",
@@ -109,7 +100,8 @@ function isView(value: unknown): value is RepositoryView {
     !["files", "changes", "history"].includes(view.tab) ||
     (view.directory !== null && typeof view.directory !== "string") ||
     typeof view.filter !== "string" ||
-    (view.changesPath != null && (typeof view.changesPath !== "string" || !view.changesPath.startsWith("/")))
+    (view.changesPath != null &&
+      (typeof view.changesPath !== "string" || !view.changesPath.startsWith("/")))
   )
     return false;
   const commit = view.commit;
@@ -128,15 +120,11 @@ function isView(value: unknown): value is RepositoryView {
       typeof preview.path === "string" &&
       (preview.scope === undefined ||
         ["staged", "unstaged", "untracked"].includes(preview.scope)) &&
-      (preview.size === undefined ||
-        (Number.isFinite(preview.size) && preview.size >= 0)))
+      (preview.size === undefined || (Number.isFinite(preview.size) && preview.size >= 0)))
   );
 }
 
-export function readRepositoryHistory(
-  state: unknown,
-  paneId: string,
-): RepositoryHistory | null {
+export function readRepositoryHistory(state: unknown, paneId: string): RepositoryHistory | null {
   if (!state || typeof state !== "object") return null;
   const value = state as {
     mobileTab?: string;
@@ -154,9 +142,7 @@ export function readRepositoryHistory(
     !Number.isInteger(history.index) ||
     history.index < 0 ||
     history.index >= history.entries.length ||
-    !history.entries.every(
-      (entry) => entry && Number.isInteger(entry.id) && isView(entry.view),
-    )
+    !history.entries.every((entry) => entry && Number.isInteger(entry.id) && isView(entry.view))
   )
     return null;
   return history;
@@ -177,9 +163,7 @@ function restore(saved: RepositoryHistory) {
 
 export function useRepositoryHistory(paneId: string) {
   const [history, setHistory] = useState(() => {
-    const saved = isMobileViewport()
-      ? readRepositoryHistory(window.history.state, paneId)
-      : null;
+    const saved = isMobileViewport() ? readRepositoryHistory(window.history.state, paneId) : null;
     return saved ? restore(saved) : createRepositoryHistory();
   });
   const current = useRef(history);
@@ -223,8 +207,7 @@ export function useRepositoryHistory(paneId: string) {
     const saved = readRepositoryHistory(window.history.state, paneId);
     return (
       saved?.session === current.current.session &&
-      saved.entries[saved.index]?.id ===
-        current.current.entries[current.current.index]?.id
+      saved.entries[saved.index]?.id === current.current.entries[current.current.index]?.id
     );
   };
 

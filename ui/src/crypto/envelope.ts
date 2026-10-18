@@ -135,22 +135,14 @@ function aadBytes(aad: string): Uint8Array {
  * There is no nonce parameter, on purpose — see the note at the top of the
  * file. Every call gets its own random nonce, so no caller can reuse one.
  */
-export function seal(
-  mk: Uint8Array,
-  plaintext: Uint8Array,
-  aad: string,
-): SealedRecord {
+export function seal(mk: Uint8Array, plaintext: Uint8Array, aad: string): SealedRecord {
   assertKey(mk, "The master key");
   const nonce = randomBytes(NONCE_BYTES);
   return { v: 1, nonce, ct: gcm(mk, nonce, aadBytes(aad)).encrypt(plaintext) };
 }
 
 /** Open a sealed record. Throws if the tag, the key or the AAD is wrong. */
-export function open(
-  mk: Uint8Array,
-  record: SealedRecord,
-  aad: string,
-): Uint8Array {
+export function open(mk: Uint8Array, record: SealedRecord, aad: string): Uint8Array {
   assertKey(mk, "The master key");
   const info = aadBytes(aad);
 
@@ -177,11 +169,7 @@ export function open(
   }
 }
 
-export function sealJson<T>(
-  mk: Uint8Array,
-  value: T,
-  aad: string,
-): SealedRecord {
+export function sealJson<T>(mk: Uint8Array, value: T, aad: string): SealedRecord {
   const json = JSON.stringify(value);
   if (json === undefined) {
     throw new Error("sealJson: value is not representable as JSON");
@@ -189,11 +177,7 @@ export function sealJson<T>(
   return seal(mk, utf8ToBytes(json), aad);
 }
 
-export function openJson<T>(
-  mk: Uint8Array,
-  record: SealedRecord,
-  aad: string,
-): T {
+export function openJson<T>(mk: Uint8Array, record: SealedRecord, aad: string): T {
   return JSON.parse(new TextDecoder().decode(open(mk, record, aad))) as T;
 }
 
@@ -246,11 +230,7 @@ type SubtleLike = {
     extractable: boolean,
     usages: string[],
   ): Promise<OpaqueKey>;
-  deriveBits(
-    algorithm: Pbkdf2Params,
-    key: OpaqueKey,
-    length: number,
-  ): Promise<ArrayBuffer>;
+  deriveBits(algorithm: Pbkdf2Params, key: OpaqueKey, length: number): Promise<ArrayBuffer>;
 };
 
 function subtleOrNull(): SubtleLike | null {
@@ -306,9 +286,7 @@ export async function derivePinKey(
   const password = utf8ToBytes(pin);
   const subtle = subtleOrNull();
   if (subtle) {
-    const key = await subtle.importKey("raw", password, "PBKDF2", false, [
-      "deriveBits",
-    ]);
+    const key = await subtle.importKey("raw", password, "PBKDF2", false, ["deriveBits"]);
     const bits = await subtle.deriveBits(
       { name: "PBKDF2", hash: "SHA-256", salt, iterations },
       key,
@@ -334,19 +312,9 @@ export async function derivePinKey(
  * factors that happened to derive the same FK still get different WKs, and a
  * blob wrapped for one factor is not openable as another.
  */
-function wrappingKey(
-  factorKey: Uint8Array,
-  kind: string,
-  id: string,
-): Uint8Array {
+function wrappingKey(factorKey: Uint8Array, kind: string, id: string): Uint8Array {
   const info = `${LOCK_AAD_PREFIX} wrap|${field(kind, "factor kind")}|${field(id, "factor id")}`;
-  return hkdf(
-    sha256,
-    factorKey,
-    undefined,
-    utf8ToBytes(info),
-    MASTER_KEY_BYTES,
-  );
+  return hkdf(sha256, factorKey, undefined, utf8ToBytes(info), MASTER_KEY_BYTES);
 }
 
 /**

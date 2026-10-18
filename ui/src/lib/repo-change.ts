@@ -70,9 +70,5 @@ export function changeTouchesDiff(
   followsGit: boolean,
 ): boolean {
   if (!sameRoot(change, root)) return false;
-  return (
-    change.truncated ||
-    (followsGit && change.git) ||
-    change.paths.includes(file)
-  );
+  return change.truncated || (followsGit && change.git) || change.paths.includes(file);
 }

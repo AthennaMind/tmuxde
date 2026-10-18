@@ -66,12 +66,7 @@ export function MobileCommandBar({ className }: MobileCommandBarProps) {
   );
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-1.5 border-t bg-background px-2 py-1.5",
-        className,
-      )}
-    >
+    <div className={cn("flex items-center gap-1.5 border-t bg-background px-2 py-1.5", className)}>
       <button
         onClick={() => openComposer(command)}
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground transition-transform focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:scale-95"

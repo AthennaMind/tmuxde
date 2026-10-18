@@ -2,10 +2,23 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Command } from "cmdk";
 import { ChevronRight, FileSearch, Loader2, TextSearch, X } from "lucide-react";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogClose, DialogContentRaw, DialogOverlay, DialogPortal, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContentRaw,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
 import { cn } from "@/lib/utils";
 import { isMobileViewport } from "@/lib/mobile-query";
@@ -20,10 +33,38 @@ import { CommandsMode } from "./commands-mode";
 import { FilesMode } from "./files-mode";
 import { TerminalsMode } from "./terminals-mode";
 
-const MODES: { id: PaletteMode; label: string; icon: typeof ChevronRight; keys: string; title: string; placeholder: string }[] = [
-  { id: "commands", label: "Commands", icon: ChevronRight, keys: "K", title: "Command palette", placeholder: "Type a command or search…" },
-  { id: "files", label: "Files", icon: FileSearch, keys: "P", title: "Find files", placeholder: "Find a file…" },
-  { id: "terminals", label: "Terminals", icon: TextSearch, keys: "⇧F", title: "Search terminals", placeholder: "Search terminal history…" },
+const MODES: {
+  id: PaletteMode;
+  label: string;
+  icon: typeof ChevronRight;
+  keys: string;
+  title: string;
+  placeholder: string;
+}[] = [
+  {
+    id: "commands",
+    label: "Commands",
+    icon: ChevronRight,
+    keys: "K",
+    title: "Command palette",
+    placeholder: "Type a command or search…",
+  },
+  {
+    id: "files",
+    label: "Files",
+    icon: FileSearch,
+    keys: "P",
+    title: "Find files",
+    placeholder: "Find a file…",
+  },
+  {
+    id: "terminals",
+    label: "Terminals",
+    icon: TextSearch,
+    keys: "⇧F",
+    title: "Search terminals",
+    placeholder: "Search terminal history…",
+  },
 ];
 
 /**
@@ -37,7 +78,12 @@ export function Palette() {
   const open = usePaletteStore((s) => s.open);
   return (
     <>
-      <Dialog open={open} onOpenChange={(next) => { if (!next) closePalette(); }}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) closePalette();
+        }}
+      >
         {open && <PaletteDialog />}
       </Dialog>
       <PaletteConfirm />
@@ -48,13 +94,19 @@ export function Palette() {
 function PaletteDialog() {
   const mode = usePaletteStore((s) => s.mode);
   const prompt = usePaletteStore((s) => s.prompt);
-  const [query, setQuery] = useState(() => mode === "terminals" ? useTerminalSearchStore.getState().query : "");
-  const [caseSensitive, setCaseSensitive] = useState(() => useTerminalSearchStore.getState().caseSensitive);
+  const [query, setQuery] = useState(() =>
+    mode === "terminals" ? useTerminalSearchStore.getState().query : "",
+  );
+  const [caseSensitive, setCaseSensitive] = useState(
+    () => useTerminalSearchStore.getState().caseSensitive,
+  );
   const [promptValue, setPromptValue] = useState("");
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   // Read at mount, before any focus moves into the dialog.
-  const [opener] = useState(() => document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  const [opener] = useState(() =>
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
   const after = useRef<"terminal" | null>(null);
   const [seenMode, setSeenMode] = useState(mode);
   const [seenPrompt, setSeenPrompt] = useState(prompt);
@@ -115,7 +167,8 @@ function PaletteDialog() {
     if (event.key !== "Enter") return;
     if (mode === "terminals" && !event.ctrlKey && !event.metaKey) {
       const search = useTerminalSearchStore.getState();
-      const stale = !search.requestId || search.query !== query || search.caseSensitive !== caseSensitive;
+      const stale =
+        !search.requestId || search.query !== query || search.caseSensitive !== caseSensitive;
       if (stale && query.trim()) {
         event.preventDefault();
         searchTerminals(query, caseSensitive);
@@ -174,9 +227,14 @@ function PaletteDialog() {
             <div className="shrink-0 border-b border-foreground/10">
               <div className="flex h-14 items-center gap-3 pe-2 ps-4">
                 {prompt ? (
-                  <span className="shrink-0 rounded-md bg-accent px-2 py-1 text-xs font-medium text-accent-foreground">{prompt.label}</span>
+                  <span className="shrink-0 rounded-md bg-accent px-2 py-1 text-xs font-medium text-accent-foreground">
+                    {prompt.label}
+                  </span>
                 ) : busy ? (
-                  <Loader2 className="size-5 shrink-0 animate-spin text-primary motion-reduce:animate-none" aria-hidden />
+                  <Loader2
+                    className="size-5 shrink-0 animate-spin text-primary motion-reduce:animate-none"
+                    aria-hidden
+                  />
                 ) : (
                   <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                 )}
@@ -199,11 +257,16 @@ function PaletteDialog() {
                     aria-pressed={caseSensitive}
                     aria-label="Match case"
                     title="Match case"
-                    onClick={() => { setCaseSensitive((value) => !value); input.current?.focus(); }}
+                    onClick={() => {
+                      setCaseSensitive((value) => !value);
+                      input.current?.focus();
+                    }}
                     className={cn(
                       "flex size-10 shrink-0 items-center justify-center rounded-xl font-mono text-sm",
                       CONTROL_CLASS,
-                      caseSensitive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      caseSensitive
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
                     )}
                   >
                     Aa
@@ -212,13 +275,20 @@ function PaletteDialog() {
                 <Kbd className="hidden sm:inline-flex">esc</Kbd>
                 <DialogClose
                   aria-label="Close"
-                  className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground sm:hidden", CONTROL_CLASS)}
+                  className={cn(
+                    "flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground sm:hidden",
+                    CONTROL_CLASS,
+                  )}
                 >
                   <X className="size-5" aria-hidden />
                 </DialogClose>
               </div>
               {!prompt && (
-                <div role="group" aria-label="Search in" className="flex items-center gap-1 px-3 pb-2.5">
+                <div
+                  role="group"
+                  aria-label="Search in"
+                  className="flex items-center gap-1 px-3 pb-2.5"
+                >
                   {MODES.map((entry) => {
                     const active = entry.id === mode;
                     return (
@@ -231,12 +301,16 @@ function PaletteDialog() {
                         className={cn(
                           "flex min-h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium",
                           CONTROL_CLASS,
-                          active ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                          active
+                            ? "bg-accent text-accent-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
                         )}
                       >
                         <entry.icon className="size-3.5" aria-hidden />
                         {entry.label}
-                        <Kbd aria-hidden className="hidden sm:inline-flex">{modKey(entry.keys)}</Kbd>
+                        <Kbd aria-hidden className="hidden sm:inline-flex">
+                          {modKey(entry.keys)}
+                        </Kbd>
                       </button>
                     );
                   })}
@@ -248,7 +322,12 @@ function PaletteDialog() {
                 <Command.List className="min-h-0 flex-1">
                   <p className="px-4 py-6 text-sm text-muted-foreground">{prompt.hint}</p>
                 </Command.List>
-                <PaletteFooter right={[["↵", prompt.label.toLowerCase()], ["esc", "back"]]} />
+                <PaletteFooter
+                  right={[
+                    ["↵", prompt.label.toLowerCase()],
+                    ["esc", "back"],
+                  ]}
+                />
               </>
             ) : mode === "commands" ? (
               <CommandsMode />
@@ -266,14 +345,23 @@ function PaletteDialog() {
 
 function canType(): boolean {
   const connection = useConnectionStore.getState();
-  return connection.status === "connected" && !isReadOnly(connection.capabilities) && !!useSessionStore.getState().activeSessionId;
+  return (
+    connection.status === "connected" &&
+    !isReadOnly(connection.capabilities) &&
+    !!useSessionStore.getState().activeSessionId
+  );
 }
 
 function PaletteConfirm() {
   const confirm = usePaletteStore((s) => s.confirm);
   const clear = () => usePaletteStore.setState({ confirm: null });
   return (
-    <AlertDialog open={confirm !== null} onOpenChange={(open) => { if (!open) clear(); }}>
+    <AlertDialog
+      open={confirm !== null}
+      onOpenChange={(open) => {
+        if (!open) clear();
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{confirm?.title}</AlertDialogTitle>
@@ -283,7 +371,10 @@ function PaletteConfirm() {
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={() => { confirm?.run(); clear(); }}
+            onClick={() => {
+              confirm?.run();
+              clear();
+            }}
           >
             {confirm?.label}
           </AlertDialogAction>

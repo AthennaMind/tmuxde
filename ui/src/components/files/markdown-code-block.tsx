@@ -5,13 +5,7 @@ import { useAlertStore } from "@/stores/alert-store";
 import { RepositorySyntaxLine, useCodeSyntax } from "./repository-syntax";
 
 /** A fenced block in a Markdown preview: language label, copy, Shiki colors. */
-export function MarkdownCodeBlock({
-  language,
-  source,
-}: {
-  language?: string;
-  source: string;
-}) {
+export function MarkdownCodeBlock({ language, source }: { language?: string; source: string }) {
   const text = source.replace(/\n$/, "");
   const lines = text.split("\n");
   const tokens = useCodeSyntax(language, text);
@@ -31,8 +25,7 @@ export function MarkdownCodeBlock({
             void copyText(text).then((ok) => {
               setCopied(ok);
               // The button says nothing on failure. The alert says why.
-              if (!ok)
-                useAlertStore.getState().push("error", copyFailureReason());
+              if (!ok) useAlertStore.getState().push("error", copyFailureReason());
             });
           }}
           aria-label={copied ? "Copied code" : "Copy code"}

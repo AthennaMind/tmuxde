@@ -2,10 +2,7 @@ import { MachineContent } from "@/components/machine-workspace";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useStableMediaQuery } from "@/hooks/use-media-query";
 import { MOBILE_MEDIA_QUERY } from "@/lib/mobile-query";
-import {
-  TerminalView,
-  type TerminalViewHandle,
-} from "@/components/terminal/terminal-view";
+import { TerminalView, type TerminalViewHandle } from "@/components/terminal/terminal-view";
 import { FloatingAlerts } from "@/components/alert-banner";
 import { TerminalSearch } from "@/components/terminal/terminal-search";
 import { TerminalScrollRail } from "@/components/terminal/terminal-scroll-rail";
@@ -33,11 +30,7 @@ import { getFileViewMode } from "@/lib/file-utils";
 import { useSessionStore } from "@/stores/session-store";
 import { useFileStore } from "@/stores/file-store";
 import { useUiStore } from "@/stores/ui-store";
-import {
-  TERMINAL_TAB,
-  isMachineTab,
-  useMainTabsStore,
-} from "@/stores/main-tabs-store";
+import { TERMINAL_TAB, isMachineTab, useMainTabsStore } from "@/stores/main-tabs-store";
 import { useWheelScroll } from "@/hooks/use-wheel-scroll";
 import { lazyComponent } from "@/lib/lazy-component";
 import { leaveCopyMode } from "@/lib/terminal-scroll";
@@ -102,9 +95,7 @@ export function TerminalWorkspace() {
   const mainTabs = useMainTabsStore((s) => s.tabs);
   const mainTab = useMainTabsStore((s) => s.active);
   const selectedTab =
-    mainTab === TERMINAL_TAB
-      ? undefined
-      : mainTabs.find((tab) => tab.id === mainTab);
+    mainTab === TERMINAL_TAB ? undefined : mainTabs.find((tab) => tab.id === mainTab);
   // Settings and the overview belong to no machine. Other tabs show once
   // their machine and session are the attached ones.
   const activeTab =
@@ -170,8 +161,7 @@ export function TerminalWorkspace() {
    */
   const handleTerminalClick = useCallback((event: React.MouseEvent) => {
     if (event.button !== 0) return;
-    if (!(event.target instanceof Element) || !event.target.closest(".xterm"))
-      return;
+    if (!(event.target instanceof Element) || !event.target.closest(".xterm")) return;
     if (getTerminalHandle()?.getSelection()) return;
     leaveCopyMode();
   }, []);
@@ -192,33 +182,26 @@ export function TerminalWorkspace() {
   // through a machine switch. Mounted only while in front: hidden, it would
   // still render on every inventory update of every machine.
   const overview =
-    activeTab?.kind === "overview" ? (
-      <OverviewView className="absolute inset-0" />
-    ) : null;
+    activeTab?.kind === "overview" ? <OverviewView className="absolute inset-0" /> : null;
 
   const tabContent = (
     <MachineContent>
       {selectedTab && !activeTab && (
-        <div role="status" className="absolute inset-0 grid place-items-center bg-background text-sm text-muted-foreground">
+        <div
+          role="status"
+          className="absolute inset-0 grid place-items-center bg-background text-sm text-muted-foreground"
+        >
           Waiting for session on this machine
         </div>
       )}
       {activeTab?.kind === "file" && (
-        <FileTabView
-          key={activeTab.id}
-          tab={activeTab}
-          className="absolute inset-0"
-        />
+        <FileTabView key={activeTab.id} tab={activeTab} className="absolute inset-0" />
       )}
       {activeTab?.kind === "changes" && (
         <ChangesTabView key={activeTab.id} tab={activeTab} className="absolute inset-0" />
       )}
       {activeTab?.kind === "commit" && (
-        <CommitTabView
-          key={activeTab.id}
-          tab={activeTab}
-          className="absolute inset-0"
-        />
+        <CommitTabView key={activeTab.id} tab={activeTab} className="absolute inset-0" />
       )}
       {/* Graphs stay mounted while hidden, so loaded pages, scroll and
           the last opened commit survive a trip to a commit tab. */}
@@ -230,10 +213,7 @@ export function TerminalWorkspace() {
             key={tab.id}
             tab={tab}
             active={activeTab?.id === tab.id}
-            className={cn(
-              "absolute inset-0",
-              activeTab?.id !== tab.id && "hidden",
-            )}
+            className={cn("absolute inset-0", activeTab?.id !== tab.id && "hidden")}
           />
         ) : null,
       )}
@@ -251,8 +231,7 @@ export function TerminalWorkspace() {
         <div
           className={cn(
             "h-full flex flex-col",
-            mobileTab !== "terminal" &&
-              "invisible absolute inset-0 pointer-events-none",
+            mobileTab !== "terminal" && "invisible absolute inset-0 pointer-events-none",
           )}
         >
           <div className="flex h-full flex-col">
@@ -267,10 +246,7 @@ export function TerminalWorkspace() {
                   to be split across two stacked components that fought each
                   other. See lib/touch-gestures.ts. */}
               <TerminalGestureSurface
-                className={cn(
-                  "absolute inset-0",
-                  selectedTab && "invisible pointer-events-none",
-                )}
+                className={cn("absolute inset-0", selectedTab && "invisible pointer-events-none")}
               >
                 <MachineContent>
                   <TerminalView
@@ -307,35 +283,20 @@ export function TerminalWorkspace() {
             </div>
           </div>
         </div>
-        <div
-          className={cn(
-            "h-full flex-col",
-            mobileTab === "sessions" ? "flex" : "hidden",
-          )}
-        >
+        <div className={cn("h-full flex-col", mobileTab === "sessions" ? "flex" : "hidden")}>
           <MachinesTree
             onCreateSession={() => setShowCreateDialog(true)}
             visible={mobileTab === "sessions"}
           />
         </div>
-        <div
-          className={cn(
-            "h-full flex-col",
-            mobileTab === "files" ? "flex" : "hidden",
-          )}
-        >
+        <div className={cn("h-full flex-col", mobileTab === "files" ? "flex" : "hidden")}>
           {mobileTab === "files" && (
             <MachineContent>
               <RepositoryBrowser className="min-h-0 flex-1" />
             </MachineContent>
           )}
         </div>
-        <div
-          className={cn(
-            "h-full flex-col",
-            mobileTab === "settings" ? "flex" : "hidden",
-          )}
-        >
+        <div className={cn("h-full flex-col", mobileTab === "settings" ? "flex" : "hidden")}>
           <SettingsPanel className="h-full" />
         </div>
         {/* Outside the terminal tab, which turns invisible on the others, and
@@ -369,10 +330,7 @@ export function TerminalWorkspace() {
           <PaneResizeControls />
         </MachineContent>
         <MachineContent>
-          <SessionCreateDialog
-            open={showCreateDialog}
-            onOpenChange={setShowCreateDialog}
-          />
+          <SessionCreateDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
         </MachineContent>
       </div>
     );
@@ -454,10 +412,7 @@ export function TerminalWorkspace() {
         ))}
 
       <MachineContent>
-        <SessionCreateDialog
-          open={showCreateDialog}
-          onOpenChange={setShowCreateDialog}
-        />
+        <SessionCreateDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
       </MachineContent>
     </div>
   );

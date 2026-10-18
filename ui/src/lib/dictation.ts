@@ -7,18 +7,10 @@ import { useDictationStore } from "@/stores/dictation-store";
 import { usePaneStore } from "@/stores/pane-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useUiStore } from "@/stores/ui-store";
-import {
-  getTerminalHandle,
-  type TerminalHandle,
-} from "@/components/terminal/terminal-handle";
+import { getTerminalHandle, type TerminalHandle } from "@/components/terminal/terminal-handle";
 import { believedInCopyMode } from "@/lib/copy-mode-belief";
 import { useTerminalInput } from "@/lib/terminal-input.js";
-import {
-  startCapture,
-  pcmToBase64,
-  MicrophoneError,
-  type Capture,
-} from "@/lib/dictation-audio";
+import { startCapture, pcmToBase64, MicrophoneError, type Capture } from "@/lib/dictation-audio";
 import {
   insertIntoField,
   isTextField,
@@ -109,10 +101,7 @@ function captureTarget(): Target | null {
   };
 }
 
-function terminalStillThere(
-  current: Run,
-  target: Extract<Target, { kind: "terminal" }>,
-): boolean {
+function terminalStillThere(current: Run, target: Extract<Target, { kind: "terminal" }>): boolean {
   return (
     getRelayClient() === current.client &&
     current.client.status === "connected" &&
@@ -254,17 +243,20 @@ export async function startDictation(): Promise<void> {
 
   let capture: Capture;
   try {
-    capture = await startCapture({
-      onFrame: (pcm) => sendFrame(current, pcm),
-      onLevel: (level) => {
-        if (run === current) useDictationStore.setState({ level });
+    capture = await startCapture(
+      {
+        onFrame: (pcm) => sendFrame(current, pcm),
+        onLevel: (level) => {
+          if (run === current) useDictationStore.setState({ level });
+        },
+        onEnded: () => {
+          if (run !== current) return;
+          alert("error", "Microphone disconnected");
+          void stopDictation();
+        },
       },
-      onEnded: () => {
-        if (run !== current) return;
-        alert("error", "Microphone disconnected");
-        void stopDictation();
-      },
-    }, current.microphoneRequest.signal);
+      current.microphoneRequest.signal,
+    );
   } catch (error) {
     if (run === current) {
       abortDictation(

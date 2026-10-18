@@ -49,17 +49,13 @@ describe("lvCat", () => {
   });
 
   it("handles empty values", () => {
-    expect([...lvCat(new Uint8Array(), Uint8Array.from([9]))]).toEqual([
-      0, 1, 9,
-    ]);
+    expect([...lvCat(new Uint8Array(), Uint8Array.from([9]))]).toEqual([0, 1, 9]);
   });
 });
 
 describe("constantTimeEqual", () => {
   it("matches identical buffers", () => {
-    expect(
-      constantTimeEqual(Uint8Array.from([1, 2, 3]), Uint8Array.from([1, 2, 3])),
-    ).toBe(true);
+    expect(constantTimeEqual(Uint8Array.from([1, 2, 3]), Uint8Array.from([1, 2, 3]))).toBe(true);
   });
 
   it("rejects a single differing byte anywhere", () => {
@@ -72,9 +68,7 @@ describe("constantTimeEqual", () => {
   });
 
   it("rejects differing lengths", () => {
-    expect(
-      constantTimeEqual(Uint8Array.from([1, 2]), Uint8Array.from([1, 2, 3])),
-    ).toBe(false);
+    expect(constantTimeEqual(Uint8Array.from([1, 2]), Uint8Array.from([1, 2, 3]))).toBe(false);
   });
 
   it("treats two empty buffers as equal", () => {

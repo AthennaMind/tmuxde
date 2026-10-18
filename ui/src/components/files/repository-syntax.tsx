@@ -1,11 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { RepositorySyntaxToken } from "./repository-syntax-tokens";
 
-export function useRepositorySyntax(
-  path: string,
-  content: string,
-  isDiff: boolean,
-) {
+export function useRepositorySyntax(path: string, content: string, isDiff: boolean) {
   const [state, setState] = useState<{
     path: string;
     content: string;
@@ -18,9 +14,7 @@ export function useRepositorySyntax(
     const timer = window.setTimeout(() => {
       void import("./repository-syntax-tokens")
         .then(({ highlightRepositoryCode }) =>
-          cancelled
-            ? undefined
-            : highlightRepositoryCode(path, content, isDiff),
+          cancelled ? undefined : highlightRepositoryCode(path, content, isDiff),
         )
         .then((tokens) => {
           if (!cancelled) setState({ path, content, isDiff, tokens });
@@ -34,9 +28,7 @@ export function useRepositorySyntax(
       window.clearTimeout(timer);
     };
   }, [path, content, isDiff]);
-  return state?.path === path &&
-    state.content === content &&
-    state.isDiff === isDiff
+  return state?.path === path && state.content === content && state.isDiff === isDiff
     ? state.tokens
     : undefined;
 }
@@ -68,9 +60,7 @@ export function useCodeSyntax(language: string | undefined, source: string) {
       window.clearTimeout(timer);
     };
   }, [language, source]);
-  return state !== undefined &&
-    state.language === language &&
-    state.source === source
+  return state !== undefined && state.language === language && state.source === source
     ? state.tokens
     : undefined;
 }

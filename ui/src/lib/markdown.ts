@@ -20,10 +20,7 @@ export function splitFrontMatter(content: string): {
   frontMatter: string | null;
   body: string;
 } {
-  const match =
-    /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/.exec(
-      content,
-    );
+  const match = /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/.exec(content);
   if (!match) return { frontMatter: null, body: content };
   return { frontMatter: match[1] ?? "", body: content.slice(match[0].length) };
 }
@@ -43,10 +40,7 @@ const EXTERNAL_SCHEMES = new Set(["http:", "https:", "mailto:"]);
  * external set, protocol relative URLs and paths that escape the root are
  * unsupported and render as plain text.
  */
-export function resolveMarkdownHref(
-  filePath: string,
-  href: string,
-): MarkdownTarget {
+export function resolveMarkdownHref(filePath: string, href: string): MarkdownTarget {
   const value = href.trim();
   if (!value) return { kind: "unsupported" };
   if (value.startsWith("#")) {
@@ -66,9 +60,7 @@ export function resolveMarkdownHref(
   const fragment = hash >= 0 ? safeDecode(value.slice(hash + 1)) || null : null;
   const beforeHash = hash >= 0 ? value.slice(0, hash) : value;
   const query = beforeHash.indexOf("?");
-  const rawPath = safeDecode(
-    query >= 0 ? beforeHash.slice(0, query) : beforeHash,
-  );
+  const rawPath = safeDecode(query >= 0 ? beforeHash.slice(0, query) : beforeHash);
   if (!rawPath) {
     return fragment ? { kind: "anchor", id: fragment } : { kind: "unsupported" };
   }

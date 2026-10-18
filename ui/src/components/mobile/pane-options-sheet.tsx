@@ -146,9 +146,7 @@ export function PaneOptionsSheet() {
       ].filter((a) => !a.hidden)
     : [];
 
-  const title = pane
-    ? `Pane ${pane.index + 1}${pane.command ? ` · ${pane.command}` : ""}`
-    : "Pane";
+  const title = pane ? `Pane ${pane.index + 1}${pane.command ? ` · ${pane.command}` : ""}` : "Pane";
 
   return (
     <>
@@ -206,8 +204,7 @@ export function PaneOptionsSheet() {
           <AlertDialogHeader>
             <AlertDialogTitle>Kill {title.toLowerCase()}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Whatever is running in it is killed with it. This cannot be
-              undone.
+              Whatever is running in it is killed with it. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

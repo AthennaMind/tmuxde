@@ -58,12 +58,7 @@ export function RepositoryFileIcon({
   type?: FileEntry["type"];
   className?: string;
 }) {
-  const kind =
-    type === "file"
-      ? repositoryFileKind(path)
-      : type === "other"
-        ? "file"
-        : type;
+  const kind = type === "file" ? repositoryFileKind(path) : type === "other" ? "file" : type;
   const Icon = icons[kind];
   return (
     <Icon

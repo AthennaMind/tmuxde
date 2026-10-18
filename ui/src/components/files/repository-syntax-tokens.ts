@@ -69,7 +69,10 @@ const names: Record<string, Language> = {
 
 /** Shiki language for a fenced block info string such as `ts` or `bash {1}`. */
 export function resolveCodeLanguage(info: string | undefined): Language | undefined {
-  const word = info?.trim().toLowerCase().split(/[\s{:,]/)[0];
+  const word = info
+    ?.trim()
+    .toLowerCase()
+    .split(/[\s{:,]/)[0];
   return word ? names[word] : undefined;
 }
 
@@ -97,12 +100,7 @@ function getHighlighter() {
             settings: { foreground: "var(--term-value)" },
           },
           {
-            scope: [
-              "entity",
-              "support",
-              "variable.parameter",
-              "markup.heading",
-            ],
+            scope: ["entity", "support", "variable.parameter", "markup.heading"],
             settings: { foreground: "var(--term-path)" },
           },
           {
@@ -131,30 +129,22 @@ export async function highlightRepositoryCode(
   if (!withinBounds(content, lines)) return undefined;
   try {
     const highlighter = await loadLanguage(language);
-    const tokenize = (source: string) =>
-      tokenizeWith(highlighter, language, source);
+    const tokenize = (source: string) => tokenizeWith(highlighter, language, source);
     if (!isDiff) {
       const tokens = tokenize(content);
       // TextMate normalizes line endings. Keep original preview text exact.
       return lines.map((line, index) => restoreLine(line, tokens[index]));
     }
-    const result = lines.map(
-      (content) => [{ content }] as RepositorySyntaxToken[],
-    );
+    const result = lines.map((content) => [{ content }] as RepositorySyntaxToken[]);
     let oldLines: { index: number; content: string }[] = [];
     let newLines: { index: number; content: string }[] = [];
     const flush = () => {
       for (const entries of [oldLines, newLines]) {
         if (!entries.length) continue;
-        const tokens = tokenize(
-          entries.map((entry) => entry.content).join("\n"),
-        );
+        const tokens = tokenize(entries.map((entry) => entry.content).join("\n"));
         entries.forEach((entry, index) => {
           const marker = lines[entry.index]!.slice(0, 1);
-          result[entry.index] = [
-            { content: marker },
-            ...restoreLine(entry.content, tokens[index]),
-          ];
+          result[entry.index] = [{ content: marker }, ...restoreLine(entry.content, tokens[index])];
         });
       }
       oldLines = [];
@@ -201,9 +191,7 @@ export async function highlightCodeByLanguage(
 
 function withinBounds(content: string, lines: string[]) {
   return (
-    content.length <= 200_000 &&
-    lines.length <= 4_000 &&
-    !lines.some((line) => line.length > 2_000)
+    content.length <= 200_000 && lines.length <= 4_000 && !lines.some((line) => line.length > 2_000)
   );
 }
 
@@ -222,15 +210,10 @@ function tokenizeWith(
 ): RepositorySyntaxToken[][] {
   return highlighter
     .codeToTokens(source, { lang: language, theme: "repository" })
-    .tokens.map((line) =>
-      line.map(({ content, color }) => ({ content, color })),
-    );
+    .tokens.map((line) => line.map(({ content, color }) => ({ content, color })));
 }
 
-function restoreLine(
-  line: string,
-  tokens?: RepositorySyntaxToken[],
-): RepositorySyntaxToken[] {
+function restoreLine(line: string, tokens?: RepositorySyntaxToken[]): RepositorySyntaxToken[] {
   const text = tokens?.map((token) => token.content).join("");
   if (text === line) return tokens!;
   if (text === line.replace(/\r$/, "")) return [...tokens!, { content: "\r" }];

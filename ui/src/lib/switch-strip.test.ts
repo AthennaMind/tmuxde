@@ -1,11 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { PaneInfo, SessionInfo, WindowInfo } from "@/protocol";
-import {
-  resolveStep,
-  resolveStrip,
-  stepTarget,
-  type StripInput,
-} from "./switch-strip";
+import { resolveStep, resolveStrip, stepTarget, type StripInput } from "./switch-strip";
 
 /**
  * The precedence table, exhaustively.
@@ -111,9 +106,7 @@ describe("resolveStrip — windows first", () => {
   });
 
   it("reports activeIndex -1 rather than guessing when nothing matches", () => {
-    const strip = resolveStrip(
-      input({ ...threeWindows, activeWindowId: "@nope" }),
-    );
+    const strip = resolveStrip(input({ ...threeWindows, activeWindowId: "@nope" }));
     expect(strip.activeIndex).toBe(-1);
   });
 });
@@ -122,18 +115,12 @@ describe("resolveStrip — panes only when zoomed", () => {
   const oneWindowThreePanes = {
     windows: [win("@1", 0, true)],
     activeWindowId: "@1",
-    panes: [
-      pane("%1", 0, "@1", true),
-      pane("%2", 1, "@1"),
-      pane("%3", 2, "@1"),
-    ],
+    panes: [pane("%1", 0, "@1", true), pane("%2", 1, "@1"), pane("%3", 2, "@1")],
     activePaneId: "%1",
   };
 
   it("shows panes when one is zoomed", () => {
-    const strip = resolveStrip(
-      input({ ...oneWindowThreePanes, zoomedPaneId: "%1" }),
-    );
+    const strip = resolveStrip(input({ ...oneWindowThreePanes, zoomedPaneId: "%1" }));
     expect(strip.kind).toBe("pane");
     expect(strip.entries.map((e) => e.key)).toEqual(["%1", "%2", "%3"]);
     expect(strip.activeIndex).toBe(0);
@@ -227,9 +214,7 @@ describe("stepTarget", () => {
 
   it("wraps backwards", () => {
     expect(stepTarget(strip, -1)?.key).toBe("@1");
-    const atStart = resolveStrip(
-      input({ ...threeWindows, activeWindowId: "@1" }),
-    );
+    const atStart = resolveStrip(input({ ...threeWindows, activeWindowId: "@1" }));
     expect(stepTarget(atStart, -1)?.key).toBe("@3");
   });
 
@@ -245,9 +230,7 @@ describe("stepTarget", () => {
   });
 
   it("refuses to step when nothing is active", () => {
-    const lost = resolveStrip(
-      input({ ...threeWindows, activeWindowId: null }),
-    );
+    const lost = resolveStrip(input({ ...threeWindows, activeWindowId: null }));
     expect(stepTarget(lost, 1)).toBeNull();
   });
 });

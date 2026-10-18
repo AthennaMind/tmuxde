@@ -22,16 +22,18 @@ export function currentChangeFiles(entries: Status["entries"]): DiffFile[] {
       const status = scope === "staged" ? entry.index : entry.worktree;
       if (scope === "untracked" ? !untracked : untracked || [" ", "!", "?"].includes(status))
         return [];
-      return [{
-        path: entry.path,
-        originalPath: status === "R" || status === "C" ? entry.originalPath : undefined,
-        status: scope === "untracked" ? "?" : status,
-        scope,
-        additions: null,
-        deletions: null,
-        binary: false,
-        patch: "",
-      }];
+      return [
+        {
+          path: entry.path,
+          originalPath: status === "R" || status === "C" ? entry.originalPath : undefined,
+          status: scope === "untracked" ? "?" : status,
+          scope,
+          additions: null,
+          deletions: null,
+          binary: false,
+          patch: "",
+        },
+      ];
     }),
   );
 }
@@ -63,17 +65,23 @@ export async function loadCurrentChanges(
       const file = files[index]!;
       try {
         // Diff requests disable rename detection. Read both paths of a rename.
-        const paths = file.status === "R" && file.originalPath
-          ? [file.originalPath, file.path]
-          : [file.path];
+        const paths =
+          file.status === "R" && file.originalPath ? [file.originalPath, file.path] : [file.path];
         let patch = "";
         let binary = false;
         let truncated = false;
         for (const name of paths) {
-          const diff = await repositoryRequest(client, {
-            id: paneId, action: "diff", path: contextPath,
-            file: name, scope: file.scope,
-          }, signal);
+          const diff = await repositoryRequest(
+            client,
+            {
+              id: paneId,
+              action: "diff",
+              path: contextPath,
+              file: name,
+              scope: file.scope,
+            },
+            signal,
+          );
           if (diff.kind !== "diff") throw new Error("Unexpected diff response.");
           patch += diff.content;
           binary ||= diff.binary;
@@ -90,14 +98,20 @@ export async function loadCurrentChanges(
         if (truncated) result.truncated = true;
         const rows = binary || truncated ? [] : parsePatch(patch).rows;
         files[index] = {
-          ...file, patch, binary, truncated,
+          ...file,
+          patch,
+          binary,
+          truncated,
           additions: binary || truncated ? null : rows.filter((row) => row.kind === "add").length,
           deletions: binary || truncated ? null : rows.filter((row) => row.kind === "del").length,
         };
       } catch (error) {
         signal.throwIfAborted();
         if (client.status !== "connected") throw error;
-        files[index] = { ...file, error: error instanceof Error ? error.message : "Could not load diff." };
+        files[index] = {
+          ...file,
+          error: error instanceof Error ? error.message : "Could not load diff.",
+        };
       }
     }
   }

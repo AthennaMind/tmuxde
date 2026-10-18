@@ -89,9 +89,7 @@ export function LockEnrollDialog({
     try {
       // The visibility events fired by the platform's own prompt must not be
       // read as "the user backgrounded the app".
-      const result = await duringCeremony(() =>
-        enrollPasskeyFactor("tmuxde device lock"),
-      );
+      const result = await duringCeremony(() => enrollPasskeyFactor("tmuxde device lock"));
       if (result.ok) {
         await addFactor("passkey", result.secret, { label: "Passkey" });
         wipe(result.secret);
@@ -137,17 +135,15 @@ export function LockEnrollDialog({
             <DialogHeader>
               <DialogTitle>Lock this device</DialogTitle>
               <DialogDescription>
-                Your keys are encrypted with this PIN and only decrypted while
-                you are using them.
+                Your keys are encrypted with this PIN and only decrypted while you are using them.
               </DialogDescription>
             </DialogHeader>
 
             <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-foreground">
               <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <span>
-                <strong>There is no way to reset this PIN.</strong> Forget it
-                and this browser has to sign in again with the relay token.
-                Nothing on the machine is lost.
+                <strong>There is no way to reset this PIN.</strong> Forget it and this browser has
+                to sign in again with the relay token. Nothing on the machine is lost.
               </span>
             </p>
 
@@ -168,12 +164,8 @@ export function LockEnrollDialog({
                       : "border-border hover:bg-accent",
                   )}
                 >
-                  <span className="text-sm font-medium">
-                    {option.digits} digits
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {option.note}
-                  </span>
+                  <span className="text-sm font-medium">{option.digits} digits</span>
+                  <span className="text-xs text-muted-foreground">{option.note}</span>
                 </button>
               ))}
             </div>
@@ -193,9 +185,7 @@ export function LockEnrollDialog({
           <>
             <DialogHeader>
               <DialogTitle>Type it again</DialogTitle>
-              <DialogDescription>
-                So a slip now does not lock you out later.
-              </DialogDescription>
+              <DialogDescription>So a slip now does not lock you out later.</DialogDescription>
             </DialogHeader>
             <PinPad
               length={length}
@@ -220,21 +210,18 @@ export function LockEnrollDialog({
             <DialogHeader>
               <DialogTitle>Add a passkey too?</DialogTitle>
               <DialogDescription>
-                A PIN stops someone picking up your phone. A passkey is the only
-                factor that also stops someone who copies this browser&apos;s
-                storage and takes it away — its secret has 256 bits of entropy
-                and never leaves your device.
+                A PIN stops someone picking up your phone. A passkey is the only factor that also
+                stops someone who copies this browser&apos;s storage and takes it away — its secret
+                has 256 bits of entropy and never leaves your device.
               </DialogDescription>
             </DialogHeader>
 
             {support === "available" ? (
               <>
                 <p className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-                  <strong className="text-foreground">
-                    You will be asked twice.
-                  </strong>{" "}
-                  Creating the passkey and reading its key are two separate
-                  prompts — that is how the standard works, not a bug.
+                  <strong className="text-foreground">You will be asked twice.</strong> Creating the
+                  passkey and reading its key are two separate prompts — that is how the standard
+                  works, not a bug.
                 </p>
                 <DialogFooter className="gap-2 sm:justify-between">
                   <Button variant="ghost" onClick={finish} disabled={busy}>

@@ -16,11 +16,7 @@
  */
 
 import { getRelayClient } from "@/hooks/use-websocket";
-import {
-  believedInCopyMode,
-  noteEnteredCopyMode,
-  noteLeftCopyMode,
-} from "@/lib/copy-mode-belief";
+import { believedInCopyMode, noteEnteredCopyMode, noteLeftCopyMode } from "@/lib/copy-mode-belief";
 import { useSessionStore } from "@/stores/session-store";
 
 /** Longest a burst waits before the accumulated lines go on the wire. */

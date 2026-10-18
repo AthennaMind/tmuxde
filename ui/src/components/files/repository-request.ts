@@ -27,9 +27,7 @@ export function isPaneFree(query: RepositoryQuery): boolean {
  * left over from before a switch, may be gone.
  */
 function carrier(query: RepositoryQuery): string {
-  return isPaneFree(query)
-    ? (usePaneStore.getState().activePaneId ?? query.id)
-    : query.id;
+  return isPaneFree(query) ? (usePaneStore.getState().activePaneId ?? query.id) : query.id;
 }
 
 export function repositoryRequest(
@@ -37,10 +35,8 @@ export function repositoryRequest(
   query: RepositoryQuery,
   signal?: AbortSignal,
 ): Promise<Exclude<RepoResult, { kind: "error" }>> {
-  if (signal?.aborted)
-    return Promise.reject(new DOMException("Request cancelled", "AbortError"));
-  if (client.status !== "connected")
-    return Promise.reject(new Error("Connect to browse files."));
+  if (signal?.aborted) return Promise.reject(new DOMException("Request cancelled", "AbortError"));
+  if (client.status !== "connected") return Promise.reject(new Error("Connect to browse files."));
   return new Promise((resolve, reject) => {
     const requestId = `repo-${Date.now().toString(36)}-${++nextRequestId}`;
     let unsubscribeMessage = () => {};
@@ -55,23 +51,19 @@ export function repositoryRequest(
       cleanup();
       reject(error);
     };
-    const abort = () =>
-      fail(new DOMException("Request cancelled", "AbortError"));
+    const abort = () => fail(new DOMException("Request cancelled", "AbortError"));
     const timeout = setTimeout(
       () => fail(new Error("Request timed out. Refresh to try again.")),
       20_000,
     );
     unsubscribeMessage = client.onMessage((message) => {
-      if (message.type !== "repo:result" || message.requestId !== requestId)
-        return;
+      if (message.type !== "repo:result" || message.requestId !== requestId) return;
       cleanup();
-      if (message.result.kind === "error")
-        reject(new Error(message.result.message));
+      if (message.result.kind === "error") reject(new Error(message.result.message));
       else resolve(message.result);
     });
     unsubscribeStatus = client.onStatusChange((status) => {
-      if (status !== "connected")
-        fail(new Error("Connection lost. Reconnect to browse files."));
+      if (status !== "connected") fail(new Error("Connection lost. Reconnect to browse files."));
     });
     signal?.addEventListener("abort", abort, { once: true });
     try {
@@ -82,9 +74,7 @@ export function repositoryRequest(
         id: carrier(query),
       });
     } catch (error) {
-      fail(
-        error instanceof Error ? error : new Error("Could not send request."),
-      );
+      fail(error instanceof Error ? error : new Error("Could not send request."));
     }
   });
 }

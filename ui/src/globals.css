@@ -93,10 +93,8 @@
   --term-added: oklch(0.48 0.13 150);
   --term-removed: oklch(0.51 0.2 27);
 
-  --shadow-ambient:
-    0 1px 2px oklch(0 0 0 / 0.06), 0 8px 24px -12px oklch(0 0 0 / 0.12);
-  --shadow-float:
-    0 2px 4px oklch(0 0 0 / 0.06), 0 24px 60px -24px oklch(0 0 0 / 0.18);
+  --shadow-ambient: 0 1px 2px oklch(0 0 0 / 0.06), 0 8px 24px -12px oklch(0 0 0 / 0.12);
+  --shadow-float: 0 2px 4px oklch(0 0 0 / 0.06), 0 24px 60px -24px oklch(0 0 0 / 0.18);
 
   --radius: 0.625rem;
 
@@ -154,10 +152,8 @@
   --term-added: oklch(0.8627 0.1721 132.3);
   --term-removed: oklch(0.6994 0.1572 21.96);
 
-  --shadow-ambient:
-    0 1px 2px oklch(0 0 0 / 0.4), 0 8px 24px -12px oklch(0 0 0 / 0.6);
-  --shadow-float:
-    0 2px 4px oklch(0 0 0 / 0.4), 0 24px 60px -24px oklch(0 0 0 / 0.9);
+  --shadow-ambient: 0 1px 2px oklch(0 0 0 / 0.4), 0 8px 24px -12px oklch(0 0 0 / 0.6);
+  --shadow-float: 0 2px 4px oklch(0 0 0 / 0.4), 0 24px 60px -24px oklch(0 0 0 / 0.9);
 
   color-scheme: dark;
 }
@@ -273,10 +269,8 @@
      defined no font tokens at all before this. */
   --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono:
-    var(--font-cascadia-code), var(--font-plex-mono), ui-monospace,
-    SFMono-Regular, monospace;
-  --font-display:
-    var(--font-martian-mono), var(--font-plex-mono), ui-monospace, monospace;
+    var(--font-cascadia-code), var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-display: var(--font-martian-mono), var(--font-plex-mono), ui-monospace, monospace;
   --font-heading: var(--font-display);
 
   /* Surfaces */
@@ -602,11 +596,7 @@
 
 /* Radial brand wash behind hero and CTA sections. */
 @utility glow-brand {
-  background-image: radial-gradient(
-    ellipse at center,
-    var(--brand-glow),
-    transparent 70%
-  );
+  background-image: radial-gradient(ellipse at center, var(--brand-glow), transparent 70%);
 }
 
 /* Faint grid used as a backdrop. */
@@ -918,11 +908,7 @@ html[data-keyboard="open"] .tmuxde-terminal-shell {
     color: var(--color-primary);
     text-decoration: underline;
     text-underline-offset: 0.15em;
-    text-decoration-color: color-mix(
-      in oklab,
-      var(--color-primary) 40%,
-      transparent
-    );
+    text-decoration-color: color-mix(in oklab, var(--color-primary) 40%, transparent);
   }
   .markdown-body a:hover,
   .markdown-body .markdown-file-link:hover {

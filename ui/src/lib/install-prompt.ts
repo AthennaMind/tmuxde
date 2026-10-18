@@ -89,10 +89,7 @@ let snapshot: InstallSnapshot = EMPTY;
 const listeners = new Set<() => void>();
 
 function publish(next: InstallSnapshot) {
-  if (
-    next.hasPrompt === snapshot.hasPrompt &&
-    next.installed === snapshot.installed
-  ) {
+  if (next.hasPrompt === snapshot.hasPrompt && next.installed === snapshot.installed) {
     return;
   }
   snapshot = Object.freeze(next);

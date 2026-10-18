@@ -61,7 +61,8 @@ const MOCKUP =
   "b6a2,81x24,0,0[81x16,0,0{48x16,0,0,0,32x16,49,0[32x8,49,0,1,32x7,49,9,2]},81x7,0,17,3]";
 
 // Two rows of two. The vertical borders line up on screen but sit in different containers.
-const TWO_ROWS = "c0de,81x25,0,0[81x12,0,0{40x12,0,0,0,40x12,41,0,1},81x12,0,13{40x12,0,13,2,40x12,41,13,3}]";
+const TWO_ROWS =
+  "c0de,81x25,0,0[81x12,0,0{40x12,0,0,0,40x12,41,0,1},81x12,0,13{40x12,0,13,2,40x12,41,13,3}]";
 
 describe("grid aspect and height", () => {
   it("draws the window at an 8x16 cell", () => {
@@ -83,7 +84,8 @@ describe("grid aspect and height", () => {
 
   it("counts the panes stacked in one column", () => {
     const side = "aaaa,200x50,0,0{100x50,0,0,0,99x50,101,0,1}";
-    const tile = "bbbb,200x50,0,0{100x50,0,0[100x25,0,0,0,100x24,0,26,2],99x50,101,0[99x25,101,0,1,99x24,101,26,3]}";
+    const tile =
+      "bbbb,200x50,0,0{100x50,0,0[100x25,0,0,0,100x24,0,26,2],99x50,101,0[99x25,101,0,1,99x24,101,26,3]}";
     const six =
       "cccc,200x50,0,0[200x16,0,0{99x16,0,0,0,100x16,100,0,1},200x16,0,17{99x16,0,17,2,100x16,100,17,3},200x16,0,34{99x16,0,34,4,100x16,100,34,5}]";
     expect(stackDepth(paneLayout("aaaa,200x50,0,0,0", panes(1)))).toBe(1);
@@ -156,7 +158,10 @@ describe("cell text", () => {
   });
 
   it("falls back to Terminal for a shell without a folder", () => {
-    expect(paneCellText(pane(0, { path: undefined }))).toEqual({ kind: "terminal", label: "Terminal" });
+    expect(paneCellText(pane(0, { path: undefined }))).toEqual({
+      kind: "terminal",
+      label: "Terminal",
+    });
   });
 
   it("shows the process with the folder second for anything else", () => {
@@ -183,9 +188,9 @@ describe("cell text", () => {
 
   it("names the cell with index, process, full folder and state", () => {
     expect(paneCellName(pane(1), { focused: true })).toBe("Pane 1, shell in ~/workspace, focused");
-    expect(paneCellName(pane(0, { command: "claude", path: "/home/dev/a/b/c" }), { zoomed: true })).toBe(
-      "Pane 0, Claude Code in ~/a/b/c, zoomed",
-    );
+    expect(
+      paneCellName(pane(0, { command: "claude", path: "/home/dev/a/b/c" }), { zoomed: true }),
+    ).toBe("Pane 0, Claude Code in ~/a/b/c, zoomed");
     expect(paneCellName(pane(3, { command: "top", path: undefined }))).toBe("Pane 3, top");
   });
 });
@@ -251,7 +256,11 @@ describe("nearest cell", () => {
 
   it("breaks ties in reading order", () => {
     // From the left pane, 1 and 2 sit at the same distance. The upper one wins.
-    const even = [rect(0, 0, 0, 0.5, 1), rect(1, 0.51, 0, 0.49, 0.495), rect(2, 0.51, 0.505, 0.49, 0.495)];
+    const even = [
+      rect(0, 0, 0, 0.5, 1),
+      rect(1, 0.51, 0, 0.49, 0.495),
+      rect(2, 0.51, 0.505, 0.49, 0.495),
+    ];
     expect(nearestCell(even, "%0", "right")).toBe("%1");
     expect(nearestCell(even, "%1", "left")).toBe("%0");
   });
@@ -295,7 +304,13 @@ describe("layout tree", () => {
   });
 
   it("returns null for broken layouts", () => {
-    for (const layout of ["", "abcd,", "abcd,80x24,0,0", "abcd,80x24,0,0{40x24,0,0,1", "abcd,80x24,0,0,1junk"]) {
+    for (const layout of [
+      "",
+      "abcd,",
+      "abcd,80x24,0,0",
+      "abcd,80x24,0,0{40x24,0,0,1",
+      "abcd,80x24,0,0,1junk",
+    ]) {
       expect(parseLayout(layout)).toBeNull();
     }
   });
@@ -341,7 +356,9 @@ describe("shared borders", () => {
   });
 
   it("lists every pane along a border between containers", () => {
-    const horizontal = sharedBorders(TWO_ROWS, panes(4)).find((b) => b.orientation === "horizontal");
+    const horizontal = sharedBorders(TWO_ROWS, panes(4)).find(
+      (b) => b.orientation === "horizontal",
+    );
     expect(horizontal).toMatchObject({
       before: ["%0", "%1"],
       after: ["%2", "%3"],

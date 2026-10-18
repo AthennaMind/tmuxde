@@ -27,7 +27,11 @@ describe("file downloads", () => {
   it("captures explicit machine and authenticates only in headers", async () => {
     const { anchor, objectUrl } = browser();
     setMachineId("beta");
-    const fetch = vi.fn().mockResolvedValue(new Response(new Uint8Array([0, 255, 3]), { headers: { "Content-Length": "3" } }));
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(new Uint8Array([0, 255, 3]), { headers: { "Content-Length": "3" } }),
+      );
     vi.stubGlobal("fetch", fetch);
     const progress = vi.fn();
     await downloadFile("/same path/你好.bin", "你好.bin", { machineId: "alpha", progress });
@@ -37,7 +41,9 @@ describe("file downloads", () => {
     expect(new URL(url).searchParams.get("download")).toBe("1");
     expect(url).not.toContain("token");
     expect(options.headers.Authorization).toBe("Bearer test-token");
-    expect(new Uint8Array(await (objectUrl.mock.calls[0]![0] as Blob).arrayBuffer())).toEqual(new Uint8Array([0, 255, 3]));
+    expect(new Uint8Array(await (objectUrl.mock.calls[0]![0] as Blob).arrayBuffer())).toEqual(
+      new Uint8Array([0, 255, 3]),
+    );
     expect(anchor.download).toBe("你好.bin");
     expect(progress).toHaveBeenLastCalledWith(3, 3);
   });
@@ -51,7 +57,10 @@ describe("file downloads", () => {
 
   it("refuses incomplete bodies and cancelled downloads", async () => {
     const { click } = browser();
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("x", { headers: { "Content-Length": "10" } })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("x", { headers: { "Content-Length": "10" } })),
+    );
     await expect(downloadFile("/x", "x")).rejects.toThrow("interrupted");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("x")));
     await expect(downloadFile("/x", "x", { signal: AbortSignal.abort() })).rejects.toThrow();

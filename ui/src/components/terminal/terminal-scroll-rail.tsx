@@ -46,10 +46,7 @@ interface TerminalScrollRailProps {
  * of truth, because output arriving mid-drag really does move the view and a
  * locally predicted position would drift away from it.
  */
-export function TerminalScrollRail({
-  sessionName,
-  className,
-}: TerminalScrollRailProps) {
+export function TerminalScrollRail({ sessionName, className }: TerminalScrollRailProps) {
   const position = useScrollStore((s) => s.position);
   const historySize = useScrollStore((s) => s.historySize);
   const paneHeight = useScrollStore((s) => s.paneHeight);
@@ -131,9 +128,7 @@ export function TerminalScrollRail({
     if (!node) return;
     setTrackHeight(node.clientHeight);
     if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() =>
-      setTrackHeight(node.clientHeight),
-    );
+    const observer = new ResizeObserver(() => setTrackHeight(node.clientHeight));
     observer.observe(node);
     observerRef.current = observer;
   }, []);
@@ -154,10 +149,7 @@ export function TerminalScrollRail({
       const track = trackRef.current;
       if (!track || !hasHistory || travelPx <= 0) return 0;
       const rect = track.getBoundingClientRect();
-      const top = Math.min(
-        travelPx,
-        Math.max(0, clientY - rect.top - thumbPx / 2),
-      );
+      const top = Math.min(travelPx, Math.max(0, clientY - rect.top - thumbPx / 2));
       return Math.round((1 - top / travelPx) * historySize);
     },
     [hasHistory, historySize, thumbPx, travelPx],

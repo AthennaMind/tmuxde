@@ -25,9 +25,7 @@ export type RepositoryFileKind =
 
 const extensionKinds = new Map<string, RepositoryFileKind>(
   Object.entries(extensions).flatMap(([kind, values]) =>
-    values
-      .split(" ")
-      .map((extension) => [extension, kind as RepositoryFileKind]),
+    values.split(" ").map((extension) => [extension, kind as RepositoryFileKind]),
   ),
 );
 const packageFiles = new Set([
@@ -64,18 +62,10 @@ export function repositoryFileKind(path: string): RepositoryFileKind {
     /^(docker-)?compose([.-].*)?\.ya?ml$/.test(name)
   )
     return "container";
-  if (
-    [".gitignore", ".gitattributes", ".gitmodules", ".gitkeep"].includes(name)
-  )
-    return "git";
+  if ([".gitignore", ".gitattributes", ".gitmodules", ".gitkeep"].includes(name)) return "git";
   if (/^readme(\.|$)/.test(name)) return "readme";
-  if (
-    /^\.env(\.|$)/.test(name) ||
-    /^\.(.*rc|.*rc\..*|editorconfig)$/.test(name)
-  )
-    return "config";
+  if (/^\.env(\.|$)/.test(name) || /^\.(.*rc|.*rc\..*|editorconfig)$/.test(name)) return "config";
   if (["makefile", "justfile", "taskfile"].includes(name)) return "shell";
-  if (["license", "licence", "changelog", "authors", "notice"].includes(name))
-    return "document";
+  if (["license", "licence", "changelog", "authors", "notice"].includes(name)) return "document";
   return extensionKinds.get(name.split(".").pop() ?? "") ?? "file";
 }

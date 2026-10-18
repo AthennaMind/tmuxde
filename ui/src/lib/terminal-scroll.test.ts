@@ -153,10 +153,7 @@ describe("requestScrollState", () => {
     sent.length = 0;
     requestScrollState();
     scrollToPosition(40);
-    expect(sent).toEqual([
-      { type: "tmux:scroll-state" },
-      { type: "tmux:scroll-to", position: 40 },
-    ]);
+    expect(sent).toEqual([{ type: "tmux:scroll-state" }, { type: "tmux:scroll-to", position: 40 }]);
   });
 
   it("still scrolls an old relay by lines, which it has always understood", () => {

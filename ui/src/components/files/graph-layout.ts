@@ -69,8 +69,7 @@ export const GRAPH_COLORS = 6;
  */
 export function graphOrder<T extends GraphCommit>(commits: readonly T[]): readonly T[] {
   const byHash = new Map<string, T>();
-  for (const commit of commits)
-    if (!byHash.has(commit.hash)) byHash.set(commit.hash, commit);
+  for (const commit of commits) if (!byHash.has(commit.hash)) byHash.set(commit.hash, commit);
   // Loaded children each commit still waits for.
   const waiting = new Map<string, number>();
   for (const commit of byHash.values())
@@ -103,8 +102,7 @@ export function graphOrder<T extends GraphCommit>(commits: readonly T[]): readon
     if ((waiting.get(commit.hash) ?? 0) > 0) held.add(commit.hash);
     else emit(commit);
   }
-  const same =
-    out.length === commits.length && out.every((c, i) => c === commits[i]);
+  const same = out.length === commits.length && out.every((c, i) => c === commits[i]);
   return same ? commits : out;
 }
 
@@ -201,8 +199,7 @@ export function layoutGraph(commits: readonly GraphCommit[]): GraphRow[] {
     before.forEach((slot, i) => {
       if (slot === null || i === lane) return;
       const into = joined.get(i);
-      if (into !== undefined)
-        edges.push({ from: i, to: into, color: colors[i]!, kind: "merge" });
+      if (into !== undefined) edges.push({ from: i, to: into, color: colors[i]!, kind: "merge" });
       else edges.push({ from: i, to: i, color: colors[i]!, kind: "pass" });
     });
     // Colors of joined lanes were read above. Now the gaps can go.

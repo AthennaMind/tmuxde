@@ -8,10 +8,7 @@ import {
   type Strip,
   type StripEntry,
 } from "@/lib/switch-strip";
-import {
-  supportsStep,
-  useConnectionStore,
-} from "@/stores/connection-store";
+import { supportsStep, useConnectionStore } from "@/stores/connection-store";
 import { usePaneStore } from "@/stores/pane-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -55,9 +52,7 @@ export function currentStrip(): Strip {
 
 function entryLabel(strip: Strip, entry: StripEntry): string {
   if (strip.kind === "session") return entry.label;
-  return entry.index === undefined
-    ? entry.label
-    : `${entry.index} · ${entry.label}`;
+  return entry.index === undefined ? entry.label : `${entry.index} · ${entry.label}`;
 }
 
 function showHud(text: string) {

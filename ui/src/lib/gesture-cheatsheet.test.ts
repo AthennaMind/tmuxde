@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { cheatsheetFor } from "./gesture-cheatsheet";
-import {
-  useSettingsStore,
-  type GestureSettings,
-} from "@/stores/settings-store";
+import { useSettingsStore, type GestureSettings } from "@/stores/settings-store";
 
 const allOn = (): GestureSettings => ({
   swipeToSwitchSessions: true,
@@ -15,9 +12,7 @@ const allOn = (): GestureSettings => ({
 });
 
 function entries(gestures: GestureSettings): string[] {
-  return cheatsheetFor(gestures).flatMap((s) =>
-    s.entries.map((e) => e.gesture),
-  );
+  return cheatsheetFor(gestures).flatMap((s) => s.entries.map((e) => e.gesture));
 }
 
 describe("cheatsheetFor", () => {
@@ -39,9 +34,7 @@ describe("cheatsheetFor", () => {
   });
 
   it("keeps swipe while either of its two switches is on", () => {
-    expect(entries({ ...allOn(), swipeToSwitchPanes: false })).toContain(
-      "Swipe left or right",
-    );
+    expect(entries({ ...allOn(), swipeToSwitchPanes: false })).toContain("Swipe left or right");
     expect(
       entries({
         ...allOn(),

@@ -66,8 +66,8 @@ export function DisconnectSection() {
           <AlertDialogHeader>
             <AlertDialogTitle>Disconnect this browser?</AlertDialogTitle>
             <AlertDialogDescription>
-              The relay token is removed from this browser. You need it to
-              sign in again. Your tmux sessions keep running.
+              The relay token is removed from this browser. You need it to sign in again. Your tmux
+              sessions keep running.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

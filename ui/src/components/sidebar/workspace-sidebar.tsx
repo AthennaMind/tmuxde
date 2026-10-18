@@ -16,11 +16,7 @@ import { usePhotoHistory } from "@/hooks/use-photo-history";
 import { readStored, writeStored } from "@/lib/storage-keys";
 import { DictationButton } from "@/components/dictation/dictation-button";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
-import {
-  OVERVIEW_TAB,
-  SETTINGS_TAB,
-  useMainTabsStore,
-} from "@/stores/main-tabs-store";
+import { OVERVIEW_TAB, SETTINGS_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
 import {
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH,
@@ -36,13 +32,7 @@ import { PhotosView } from "./photos-view";
 import { useRepositoryState } from "./use-repository-state";
 
 const PREFS_KEY = "tmuxde-sidebar";
-const VIEWS: SidebarView[] = [
-  "sessions",
-  "files",
-  "changes",
-  "history",
-  "photos",
-];
+const VIEWS: SidebarView[] = ["sessions", "files", "changes", "history", "photos"];
 /** Views that read the active pane's repository. */
 const REPO_VIEWS: SidebarView[] = ["files", "changes", "history"];
 
@@ -99,11 +89,7 @@ function useSidebarPrefs() {
  * The panel shows one view at a time at full height and can be resized from
  * its trailing edge.
  */
-export function WorkspaceSidebar({
-  onCreateSession,
-}: {
-  onCreateSession: () => void;
-}) {
+export function WorkspaceSidebar({ onCreateSession }: { onCreateSession: () => void }) {
   useSidebarPrefs();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const view = useUiStore((s) => s.sidebarView);
@@ -207,11 +193,7 @@ export function WorkspaceSidebar({
             />
           </div>
           <MachineContent>
-            <RepositoryViews
-              view={view}
-              noFiles={noFiles}
-              onChangeCount={setChangeCount}
-            />
+            <RepositoryViews view={view} noFiles={noFiles} onChangeCount={setChangeCount} />
             {view === "photos" && <PhotosView />}
           </MachineContent>
         </SidebarPanel>

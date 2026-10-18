@@ -34,11 +34,7 @@ export function renderMermaid(source: string, theme: "light" | "dark") {
     container.setAttribute("aria-hidden", "true");
     document.body.append(container);
     try {
-      const { svg } = await mermaid.render(
-        `markdown-mermaid-${++nextId}`,
-        source,
-        container,
-      );
+      const { svg } = await mermaid.render(`markdown-mermaid-${++nextId}`, source, container);
       // SVG images cannot run scripts, load external assets or style app UI.
       return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     } finally {

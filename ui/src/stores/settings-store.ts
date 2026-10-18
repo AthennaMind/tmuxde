@@ -287,10 +287,7 @@ interface SettingsStore {
   setToolbarKeys: (keys: ToolbarKey[]) => void;
   toggleToolbarKey: (id: string) => void;
   resetToolbarKeys: () => void;
-  setGesture: <K extends keyof GestureSettings>(
-    key: K,
-    value: GestureSettings[K],
-  ) => void;
+  setGesture: <K extends keyof GestureSettings>(key: K, value: GestureSettings[K]) => void;
   setHapticEnabled: (enabled: boolean) => void;
   setAutoZoom: (enabled: boolean) => void;
   setWrapLines: (enabled: boolean) => void;
@@ -315,9 +312,7 @@ interface SettingsStore {
  * dropped; there is no way to author a custom one, so a leftover id is a
  * removed key rather than something of the user's.
  */
-export function mergeToolbarKeys(
-  stored: readonly Partial<ToolbarKey>[] | undefined,
-): ToolbarKey[] {
+export function mergeToolbarKeys(stored: readonly Partial<ToolbarKey>[] | undefined): ToolbarKey[] {
   const seen = new Map(
     (stored ?? [])
       .filter((k): k is Partial<ToolbarKey> & { id: string } => !!k?.id)
@@ -353,10 +348,7 @@ export function mergeGestures(
   return merged;
 }
 
-type CommitFilterSettings = Pick<
-  SettingsStore,
-  "commitFilterPatterns" | "commitFilterMode"
->;
+type CommitFilterSettings = Pick<SettingsStore, "commitFilterPatterns" | "commitFilterMode">;
 
 /**
  * Keep the stored commit filter only when it has the right shape. A blob
@@ -369,10 +361,8 @@ export function mergeCommitFilter(
   const patterns = stored?.commitFilterPatterns;
   const mode = stored?.commitFilterMode;
   return {
-    commitFilterPatterns:
-      typeof patterns === "string" ? patterns : current.commitFilterPatterns,
-    commitFilterMode:
-      mode === "hide" || mode === "only" ? mode : current.commitFilterMode,
+    commitFilterPatterns: typeof patterns === "string" ? patterns : current.commitFilterPatterns,
+    commitFilterMode: mode === "hide" || mode === "only" ? mode : current.commitFilterMode,
   };
 }
 
@@ -397,19 +387,15 @@ export const useSettingsStore = create<SettingsStore>()(
       setToolbarKeys: (toolbarKeys) => set({ toolbarKeys }),
       toggleToolbarKey: (id) =>
         set((s) => ({
-          toolbarKeys: s.toolbarKeys.map((k) =>
-            k.id === id ? { ...k, visible: !k.visible } : k,
-          ),
+          toolbarKeys: s.toolbarKeys.map((k) => (k.id === id ? { ...k, visible: !k.visible } : k)),
         })),
       resetToolbarKeys: () => set({ toolbarKeys: defaultToolbarKeys }),
-      setGesture: (key, value) =>
-        set((s) => ({ gestures: { ...s.gestures, [key]: value } })),
+      setGesture: (key, value) => set((s) => ({ gestures: { ...s.gestures, [key]: value } })),
       setHapticEnabled: (hapticEnabled) => set({ hapticEnabled }),
       setAutoZoom: (autoZoom) => set({ autoZoom }),
       setWrapLines: (wrapLines) => set({ wrapLines }),
       setMarkdownPreview: (markdownPreview) => set({ markdownPreview }),
-      setCommitFilterPatterns: (commitFilterPatterns) =>
-        set({ commitFilterPatterns }),
+      setCommitFilterPatterns: (commitFilterPatterns) => set({ commitFilterPatterns }),
       setCommitFilterMode: (commitFilterMode) => set({ commitFilterMode }),
       setShowPaneIndexes: (showPaneIndexes) => set({ showPaneIndexes }),
     }),

@@ -79,12 +79,15 @@ export function MainTabs() {
     }
   };
 
-  const order = useMemo(() => reconcileTabOrder(savedOrder, [
-    ...terminals.map(terminalId),
-    ...tabs.map((tab) => tab.id),
-  ]), [savedOrder, terminals, tabs]);
+  const order = useMemo(
+    () =>
+      reconcileTabOrder(savedOrder, [...terminals.map(terminalId), ...tabs.map((tab) => tab.id)]),
+    [savedOrder, terminals, tabs],
+  );
   const { navProps, dragging, target, announcement } = useTabReorder(order, setOrder);
-  useEffect(() => { setOrder(order); }, [order, setOrder]);
+  useEffect(() => {
+    setOrder(order);
+  }, [order, setOrder]);
   const reorderProps = (id: string) => ({
     id,
     reorderHelp,
@@ -104,121 +107,129 @@ export function MainTabs() {
           aria-label="Open views"
           className="flex min-h-11 shrink-0 items-end gap-0.5 overflow-x-auto border-b px-1.5 font-chrome scrollbar-none"
         >
-          {[...terminals.map((terminal) => (
-            <Tab
-              key={terminalId(terminal)}
-              {...reorderProps(terminalId(terminal))}
-              label={terminal.sessionName}
-              detail={machineName(terminal.machineId)}
-              title={`${terminal.sessionName} on ${machineName(terminal.machineId)}`}
-              icon={<SquareTerminal className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-              active={active === TERMINAL_TAB && terminal.machineId === activeMachine && terminal.sessionName === session}
-              onSelect={() => openMachineSession(terminal.machineId, terminal.sessionName)}
-              onClose={() => closeTerminal(terminal.machineId, terminal.sessionName)}
-            />
-          )), ...tabs.map((tab) =>
-            tab.kind === "commit" ? (
+          {[
+            ...terminals.map((terminal) => (
               <Tab
-                key={tab.id}
-                {...reorderProps(tab.id)}
-                label={tab.subject || tab.hash.slice(0, 7)}
-                detail={[tab.subject ? tab.hash.slice(0, 7) : undefined, originName(tab)].filter(Boolean).join(" · ")}
-                title={`${tab.hash.slice(0, 7)} ${tab.subject} (${machineName(tab.machineId ?? "local")})`.trim()}
-                icon={
-                  <GitCommitHorizontal
-                    className="h-3.5 w-3.5 shrink-0"
-                    aria-hidden
-                  />
+                key={terminalId(terminal)}
+                {...reorderProps(terminalId(terminal))}
+                label={terminal.sessionName}
+                detail={machineName(terminal.machineId)}
+                title={`${terminal.sessionName} on ${machineName(terminal.machineId)}`}
+                icon={<SquareTerminal className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                active={
+                  active === TERMINAL_TAB &&
+                  terminal.machineId === activeMachine &&
+                  terminal.sessionName === session
                 }
-                active={active === tab.id}
-                onSelect={() => activate(tab.id)}
-                onClose={() => {
-                  closeTab(tab.id);
-                  activateView(useMainTabsStore.getState().active);
-                }}
+                onSelect={() => openMachineSession(terminal.machineId, terminal.sessionName)}
+                onClose={() => closeTerminal(terminal.machineId, terminal.sessionName)}
               />
-            ) : tab.kind === "graph" || tab.kind === "changes" ? (
-              <Tab
-                key={tab.id}
-                {...reorderProps(tab.id)}
-                label={tab.kind === "graph" ? "Graph" : "Current changes"}
-                detail={
-                  [tab.contextPath.replace(/\/+$/, "").split("/").pop() ||
-                    tab.contextPath, originName(tab)].filter(Boolean).join(" · ")
-                }
-                title={`${tab.kind === "graph" ? "Graph" : "Current changes"} of ${tab.contextPath}`}
-                icon={tab.kind === "graph" ? <GitGraph className="h-3.5 w-3.5 shrink-0" aria-hidden /> : <GitCompareArrows className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-                active={active === tab.id}
-                onSelect={() => activate(tab.id)}
-                onClose={() => {
-                  closeTab(tab.id);
-                  activateView(useMainTabsStore.getState().active);
-                }}
-              />
-            ) : tab.kind === "settings" ? (
-              <Tab
-                key={tab.id}
-                {...reorderProps(tab.id)}
-                label="Settings"
-                icon={<Settings className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-                active={active === tab.id}
-                onSelect={() => activate(tab.id)}
-                onClose={() => {
-                  closeTab(tab.id);
-                  activateView(useMainTabsStore.getState().active);
-                }}
-              />
-            ) : tab.kind === "overview" ? (
-              <Tab
-                key={tab.id}
-                {...reorderProps(tab.id)}
-                label="Overview"
-                icon={<LayoutGrid className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-                active={active === tab.id}
-                onSelect={() => activate(tab.id)}
-                onClose={() => {
-                  closeTab(tab.id);
-                  activateView(useMainTabsStore.getState().active);
-                }}
-              />
-            ) : (
-              <Tab
-                key={tab.id}
-                {...reorderProps(tab.id)}
-                label={tabLabel(tab)}
-                detail={[tab.scope ? SCOPE_SHORT[tab.scope] : undefined, originName(tab)].filter(Boolean).join(" · ")}
-                title={tab.scope ? `${tab.path} (${tab.scope} changes)` : tab.path}
-                icon={
-                  <RepositoryFileIcon path={tab.path} className="h-3.5 w-3.5" />
-                }
-                active={active === tab.id}
-                onSelect={() => activate(tab.id)}
-                onClose={() => {
-                  closeTab(tab.id);
-                  activateView(useMainTabsStore.getState().active);
-                }}
-              />
+            )),
+            ...tabs.map((tab) =>
+              tab.kind === "commit" ? (
+                <Tab
+                  key={tab.id}
+                  {...reorderProps(tab.id)}
+                  label={tab.subject || tab.hash.slice(0, 7)}
+                  detail={[tab.subject ? tab.hash.slice(0, 7) : undefined, originName(tab)]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  title={`${tab.hash.slice(0, 7)} ${tab.subject} (${machineName(tab.machineId ?? "local")})`.trim()}
+                  icon={<GitCommitHorizontal className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                  active={active === tab.id}
+                  onSelect={() => activate(tab.id)}
+                  onClose={() => {
+                    closeTab(tab.id);
+                    activateView(useMainTabsStore.getState().active);
+                  }}
+                />
+              ) : tab.kind === "graph" || tab.kind === "changes" ? (
+                <Tab
+                  key={tab.id}
+                  {...reorderProps(tab.id)}
+                  label={tab.kind === "graph" ? "Graph" : "Current changes"}
+                  detail={[
+                    tab.contextPath.replace(/\/+$/, "").split("/").pop() || tab.contextPath,
+                    originName(tab),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  title={`${tab.kind === "graph" ? "Graph" : "Current changes"} of ${tab.contextPath}`}
+                  icon={
+                    tab.kind === "graph" ? (
+                      <GitGraph className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    ) : (
+                      <GitCompareArrows className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    )
+                  }
+                  active={active === tab.id}
+                  onSelect={() => activate(tab.id)}
+                  onClose={() => {
+                    closeTab(tab.id);
+                    activateView(useMainTabsStore.getState().active);
+                  }}
+                />
+              ) : tab.kind === "settings" ? (
+                <Tab
+                  key={tab.id}
+                  {...reorderProps(tab.id)}
+                  label="Settings"
+                  icon={<Settings className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                  active={active === tab.id}
+                  onSelect={() => activate(tab.id)}
+                  onClose={() => {
+                    closeTab(tab.id);
+                    activateView(useMainTabsStore.getState().active);
+                  }}
+                />
+              ) : tab.kind === "overview" ? (
+                <Tab
+                  key={tab.id}
+                  {...reorderProps(tab.id)}
+                  label="Overview"
+                  icon={<LayoutGrid className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                  active={active === tab.id}
+                  onSelect={() => activate(tab.id)}
+                  onClose={() => {
+                    closeTab(tab.id);
+                    activateView(useMainTabsStore.getState().active);
+                  }}
+                />
+              ) : (
+                <Tab
+                  key={tab.id}
+                  {...reorderProps(tab.id)}
+                  label={tabLabel(tab)}
+                  detail={[tab.scope ? SCOPE_SHORT[tab.scope] : undefined, originName(tab)]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  title={tab.scope ? `${tab.path} (${tab.scope} changes)` : tab.path}
+                  icon={<RepositoryFileIcon path={tab.path} className="h-3.5 w-3.5" />}
+                  active={active === tab.id}
+                  onSelect={() => activate(tab.id)}
+                  onClose={() => {
+                    closeTab(tab.id);
+                    activateView(useMainTabsStore.getState().active);
+                  }}
+                />
+              ),
             ),
-          )].sort((a, b) => order.indexOf(String(a.key)) - order.indexOf(String(b.key)))}
-          <span id={reorderHelp} className="sr-only">Drag to reorder, or press Alt+ArrowLeft or Alt+ArrowRight.</span>
-          <span className="sr-only" role="status">{announcement}</span>
+          ].sort((a, b) => order.indexOf(String(a.key)) - order.indexOf(String(b.key)))}
+          <span id={reorderHelp} className="sr-only">
+            Drag to reorder, or press Alt+ArrowLeft or Alt+ArrowRight.
+          </span>
+          <span className="sr-only" role="status">
+            {announcement}
+          </span>
         </nav>
       </ContextMenuTrigger>
       {/* Portalled out of the row, so it does not inherit the face. */}
       <ContextMenuContent className="min-w-40 font-chrome text-[13px]">
-        <ContextMenuItem onSelect={() => closeTabs("all")}>
-          Close all
-        </ContextMenuItem>
-        <ContextMenuItem
-          disabled={!has("diffs")}
-          onSelect={() => closeTabs("diffs")}
-        >
+        <ContextMenuItem onSelect={() => closeTabs("all")}>Close all</ContextMenuItem>
+        <ContextMenuItem disabled={!has("diffs")} onSelect={() => closeTabs("diffs")}>
           Close diffs
         </ContextMenuItem>
-        <ContextMenuItem
-          disabled={!has("files")}
-          onSelect={() => closeTabs("files")}
-        >
+        <ContextMenuItem disabled={!has("files")} onSelect={() => closeTabs("files")}>
           Close files
         </ContextMenuItem>
       </ContextMenuContent>
@@ -257,8 +268,10 @@ function Tab({
       className={cn(
         "group relative -mb-px flex h-9 max-w-64 shrink-0 items-center rounded-t-md border border-b-0 text-[13px]",
         dragging && "opacity-40",
-        dropSide === "before" && "before:absolute before:inset-y-0 before:-left-px before:w-0.5 before:bg-primary",
-        dropSide === "after" && "after:absolute after:inset-y-0 after:-right-px after:w-0.5 after:bg-primary",
+        dropSide === "before" &&
+          "before:absolute before:inset-y-0 before:-left-px before:w-0.5 before:bg-primary",
+        dropSide === "after" &&
+          "after:absolute after:inset-y-0 after:-right-px after:w-0.5 after:bg-primary",
         active
           ? "border-border bg-background text-foreground"
           : "border-transparent text-muted-foreground hover:bg-accent/50 hover:text-foreground",

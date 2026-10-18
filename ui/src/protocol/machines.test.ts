@@ -2,9 +2,9 @@ import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import { MachineListSchema } from "./machines";
 
-const fixture = JSON.parse(fs.readFileSync(
-  new URL("./fixtures/http/machines.json", import.meta.url), "utf8",
-));
+const fixture = JSON.parse(
+  fs.readFileSync(new URL("./fixtures/http/machines.json", import.meta.url), "utf8"),
+);
 
 describe("machine inventory", () => {
   it("matches shared Go fixture without dropping fields", () => {

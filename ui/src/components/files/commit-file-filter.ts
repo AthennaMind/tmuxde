@@ -125,8 +125,7 @@ export function filterCommitFiles<F extends FilterableFile>(
   const matchers = filter.patterns.map(compileFilePattern);
   const matches = (path: string) => matchers.some((test) => test(path));
   return all.filter(({ file }) => {
-    const hit =
-      matches(file.path) || (!!file.originalPath && matches(file.originalPath));
+    const hit = matches(file.path) || (!!file.originalPath && matches(file.originalPath));
     return filter.mode === "only" ? hit : !hit;
   });
 }
@@ -143,9 +142,7 @@ export function fileExtension(path: string): string | undefined {
 }
 
 /** Extensions in a commit with their file counts, most common first. */
-export function fileExtensions(
-  files: readonly FilterableFile[],
-): { ext: string; count: number }[] {
+export function fileExtensions(files: readonly FilterableFile[]): { ext: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const file of files) {
     const ext = fileExtension(file.path);
@@ -230,19 +227,12 @@ export function sameSectionProps<P extends { hidden: boolean }>(
   if (prev.hidden && next.hidden) return true;
   const keys = Object.keys(next) as (keyof P)[];
   return (
-    keys.length === Object.keys(prev).length &&
-    keys.every((key) => Object.is(prev[key], next[key]))
+    keys.length === Object.keys(prev).length && keys.every((key) => Object.is(prev[key], next[key]))
   );
 }
 
 /** Header count. A filter shows the full count too, so it never undercounts. */
-export function filesChanged(
-  shown: number,
-  total: number,
-  filtering: boolean,
-): string {
+export function filesChanged(shown: number, total: number, filtering: boolean): string {
   const noun = total === 1 ? "file" : "files";
-  return filtering
-    ? `${shown} of ${total} ${noun} changed`
-    : `${total} ${noun} changed`;
+  return filtering ? `${shown} of ${total} ${noun} changed` : `${total} ${noun} changed`;
 }

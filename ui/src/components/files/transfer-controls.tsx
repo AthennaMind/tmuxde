@@ -24,13 +24,7 @@ import {
   useTransferStore,
 } from "@/stores/transfer-store";
 
-export function DownloadButton({
-  path,
-  target = machineId(),
-}: {
-  path: string;
-  target?: string;
-}) {
+export function DownloadButton({ path, target = machineId() }: { path: string; target?: string }) {
   return (
     <Button
       variant="ghost"
@@ -59,11 +53,12 @@ export function UploadControl({
   const destination = useRef({ path: directory, machine: machineId(), name: "" });
   const [files, setFiles] = useState<File[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const allowed = useConnectionStore((connection) =>
-    connection.status === "connected" &&
-    connection.features.has("file:upload:ack") &&
-    !connection.capabilities?.readOnly &&
-    (!connection.capabilities || connection.capabilities.files === "write"),
+  const allowed = useConnectionStore(
+    (connection) =>
+      connection.status === "connected" &&
+      connection.features.has("file:upload:ack") &&
+      !connection.capabilities?.readOnly &&
+      (!connection.capabilities || connection.capabilities.files === "write"),
   );
   const open = (path = directory) => {
     if (!allowed) return;
@@ -103,20 +98,19 @@ export function UploadControl({
           event.target.value = "";
         }}
       />
-      <AlertDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-      >
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
               Upload {files.length} {files.length === 1 ? "file" : "files"}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Destination: {destination.current.name}<br />
-              <span className="break-all font-mono">{destination.current.path}</span><br />
-              Existing files with matching names will be replaced after upload
-              completes. Limit: {limitLabel} per file.
+              Destination: {destination.current.name}
+              <br />
+              <span className="break-all font-mono">{destination.current.path}</span>
+              <br />
+              Existing files with matching names will be replaced after upload completes. Limit:{" "}
+              {limitLabel} per file.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <ul className="max-h-48 overflow-auto text-sm">
@@ -128,7 +122,9 @@ export function UploadControl({
             ))}
           </ul>
           {oversized && (
-            <p role="alert" className="text-sm text-destructive">Choose files no larger than {limitLabel}.</p>
+            <p role="alert" className="text-sm text-destructive">
+              Choose files no larger than {limitLabel}.
+            </p>
           )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -152,7 +148,9 @@ export function TransferPanel() {
   const transfers = useTransferStore((state) => state.transfers);
   const [expanded, setExpanded] = useState(true);
   if (!transfers.length) return null;
-  const active = transfers.filter((item) => item.state === "running" || item.state === "queued").length;
+  const active = transfers.filter(
+    (item) => item.state === "running" || item.state === "queued",
+  ).length;
 
   return (
     <section
@@ -168,7 +166,9 @@ export function TransferPanel() {
         >
           Transfers{active ? ` (${active} active)` : ""}
         </button>
-        <Button variant="ghost" size="sm" onClick={clearFinishedTransfers}>Clear finished</Button>
+        <Button variant="ghost" size="sm" onClick={clearFinishedTransfers}>
+          Clear finished
+        </Button>
       </div>
       {expanded && (
         <ul className="max-h-64 overflow-auto border-t">
@@ -176,14 +176,19 @@ export function TransferPanel() {
             const busy = item.state === "running" || item.state === "queued";
             const name = item.path.split("/").pop();
             const Icon = item.direction === "upload" ? Upload : Download;
-            const status = item.state === "done"
-              ? item.direction === "download" ? "Sent to browser" : "Uploaded"
-              : item.state;
+            const status =
+              item.state === "done"
+                ? item.direction === "download"
+                  ? "Sent to browser"
+                  : "Uploaded"
+                : item.state;
             return (
               <li key={item.id} className="border-b px-3 py-2 last:border-0">
                 <div className="flex items-center gap-2">
                   <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate text-sm" title={item.path}>{name}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm" title={item.path}>
+                    {name}
+                  </span>
                   {busy && (
                     <Button
                       variant="ghost"
@@ -196,7 +201,10 @@ export function TransferPanel() {
                     </Button>
                   )}
                 </div>
-                <p className="truncate text-xs text-muted-foreground" title={`${item.machineName}: ${item.path}`}>
+                <p
+                  className="truncate text-xs text-muted-foreground"
+                  title={`${item.machineName}: ${item.path}`}
+                >
                   {item.machineName} · <span role="status">{status}</span>
                 </p>
                 {busy && (
@@ -208,12 +216,15 @@ export function TransferPanel() {
                       value={item.total ? item.bytes : undefined}
                     />
                     <p className="text-xs tabular-nums text-muted-foreground">
-                      {formatFileSize(item.bytes)}{item.total ? ` / ${formatFileSize(item.total)}` : ""}
+                      {formatFileSize(item.bytes)}
+                      {item.total ? ` / ${formatFileSize(item.total)}` : ""}
                     </p>
                   </>
                 )}
                 {item.state === "failed" && (
-                  <p role="alert" className="mt-1 text-xs text-destructive">{item.error}</p>
+                  <p role="alert" className="mt-1 text-xs text-destructive">
+                    {item.error}
+                  </p>
                 )}
                 {item.state === "cancelled" && item.direction === "upload" && (
                   <p className="mt-1 text-xs text-muted-foreground">

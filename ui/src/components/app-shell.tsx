@@ -25,12 +25,7 @@ interface AppShellProps {
  * that fix applied where the footer actually lives. On Chromium the two agree,
  * because `--vv-height` and the shrunk `100dvh` are the same number.
  */
-export function AppShell({
-  header,
-  toolbar,
-  children,
-  className,
-}: AppShellProps) {
+export function AppShell({ header, toolbar, children, className }: AppShellProps) {
   return (
     <div
       className={cn(
@@ -51,9 +46,7 @@ export function AppShell({
           {header}
         </header>
       )}
-      <main className="relative min-h-0 flex-1 overflow-hidden">
-        {children}
-      </main>
+      <main className="relative min-h-0 flex-1 overflow-hidden">{children}</main>
       {toolbar && (
         <footer className="shrink-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           {toolbar}

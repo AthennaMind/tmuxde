@@ -8,9 +8,7 @@ export function setMachineId(id: string | null): void {
 export function machineId(): string {
   if (selectedMachine) return selectedMachine;
   if (typeof window === "undefined") return "local";
-  const match = /^\/m\/([a-zA-Z0-9_-]+)(?:\/|$)/.exec(
-    window.location?.pathname ?? "",
-  );
+  const match = /^\/m\/([a-zA-Z0-9_-]+)(?:\/|$)/.exec(window.location?.pathname ?? "");
   return match?.[1] ?? "local";
 }
 

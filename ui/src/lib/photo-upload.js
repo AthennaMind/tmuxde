@@ -15,9 +15,7 @@ export function photoPathText(path) {
   if (!path.startsWith("/") || /[\x00-\x1f\x7f]/.test(path)) {
     throw new Error("Invalid photo path");
   }
-  const quoted = /^[a-zA-Z0-9_./-]+$/.test(path)
-    ? path
-    : `'${path.replaceAll("'", "'\\''")}'`;
+  const quoted = /^[a-zA-Z0-9_./-]+$/.test(path) ? path : `'${path.replaceAll("'", "'\\''")}'`;
   return ` ${quoted} `;
 }
 
@@ -48,8 +46,7 @@ export function clipboardImage(data) {
 /** @param {File} file */
 export async function preparePhoto(file) {
   if (!file.size) throw new Error("Photo is empty");
-  if (file.size > MAX_PHOTO_SIZE)
-    throw new Error("Choose a photo smaller than 10 MB");
+  if (file.size > MAX_PHOTO_SIZE) throw new Error("Choose a photo smaller than 10 MB");
   if (PHOTO_TYPES.has(file.type)) return file;
   if (!file.type.startsWith("image/") && !/\.(heic|heif)$/i.test(file.name)) {
     throw new Error("Choose a PNG, JPEG, WebP, or GIF photo");
@@ -60,10 +57,7 @@ export async function preparePhoto(file) {
     const image = new Image();
     image.src = url;
     await image.decode();
-    const scale = Math.min(
-      1,
-      4096 / Math.max(image.naturalWidth, image.naturalHeight),
-    );
+    const scale = Math.min(1, 4096 / Math.max(image.naturalWidth, image.naturalHeight));
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
     canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
@@ -72,15 +66,11 @@ export async function preparePhoto(file) {
     context.fillStyle = "white";
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.92),
-    );
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
     if (!blob) throw new Error("Image conversion failed");
     return new File([blob], "photo.jpg", { type: "image/jpeg" });
   } catch {
-    throw new Error(
-      "Cannot read this photo. Choose a JPEG, PNG, or screenshot instead.",
-    );
+    throw new Error("Cannot read this photo. Choose a JPEG, PNG, or screenshot instead.");
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -94,8 +84,7 @@ export async function preparePhoto(file) {
  */
 export async function uploadPhoto(client, file, directory) {
   if (!file.size) throw new Error("Photo is empty");
-  if (file.size > MAX_PHOTO_SIZE)
-    throw new Error("Choose a photo smaller than 10 MB");
+  if (file.size > MAX_PHOTO_SIZE) throw new Error("Choose a photo smaller than 10 MB");
   const extension = PHOTO_TYPES.get(file.type);
   if (!extension) throw new Error("Unsupported photo format");
   const path = `${directory.replace(/\/$/, "")}/photo-${crypto.randomUUID()}.${extension}`;
@@ -143,28 +132,17 @@ function sendPhotoChunk(client, message) {
       if (error) reject(error);
       else resolve(undefined);
     };
-    const timer = setTimeout(
-      () => finish(new Error("Upload timed out. Try again.")),
-      20000,
-    );
+    const timer = setTimeout(() => finish(new Error("Upload timed out. Try again.")), 20000);
     offMessage = client.onMessage((reply) => {
-      if (
-        reply.type === "file:op:result" &&
-        reply.op === "upload" &&
-        reply.path === message.path
-      ) {
+      if (reply.type === "file:op:result" && reply.op === "upload" && reply.path === message.path) {
         if (!reply.success) finish(new Error(reply.error ?? "Upload failed"));
         else if (reply.final === message.final) finish();
-      } else if (
-        reply.type === "error" &&
-        ["ACCESS_DENIED", "RATE_LIMITED"].includes(reply.code)
-      ) {
+      } else if (reply.type === "error" && ["ACCESS_DENIED", "RATE_LIMITED"].includes(reply.code)) {
         finish(new Error(reply.message));
       }
     });
     offStatus = client.onStatusChange((status) => {
-      if (status !== "connected")
-        finish(new Error("Connection lost. Upload photo again."));
+      if (status !== "connected") finish(new Error("Connection lost. Upload photo again."));
     });
     try {
       client.send(message);

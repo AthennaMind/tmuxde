@@ -18,20 +18,12 @@ const fixtureFileName = (type: string) => `${type.replaceAll(":", ".")}.json`;
 // Union members come from the schemas, never from a hand written list.
 // ClientMessage wraps its union in a refinement for rules across fields.
 const clientUnion = ClientMessage.innerType();
-const clientTypes = clientUnion.options.map(
-  (option) => option.shape.type.value,
-);
-const serverTypes = ServerMessage.options.map(
-  (option) => option.shape.type.value,
-);
+const clientTypes = clientUnion.options.map((option) => option.shape.type.value);
+const serverTypes = ServerMessage.options.map((option) => option.shape.type.value);
 
 // Top level keys of every union member, in union order.
-const clientKeys = clientUnion.options.map((option) =>
-  Object.keys(option.shape).sort(),
-);
-const serverKeys = ServerMessage.options.map((option) =>
-  Object.keys(option.shape).sort(),
-);
+const clientKeys = clientUnion.options.map((option) => Object.keys(option.shape).sort());
+const serverKeys = ServerMessage.options.map((option) => Object.keys(option.shape).sort());
 
 const sides = [
   {
@@ -73,9 +65,7 @@ const formatPath = (issuePath: (string | number)[]) =>
 describe.each(sides)("$side fixtures", ({ side, schema, types, keys }) => {
   const sideDir = path.join(fixturesDir, side);
   const names = readFixtureNames(sideDir);
-  const typeByFileName = new Map(
-    types.map((type) => [fixtureFileName(type), type]),
-  );
+  const typeByFileName = new Map(types.map((type) => [fixtureFileName(type), type]));
   const keysByType = new Map<string, string[] | undefined>(
     types.map((type, index) => [type, keys[index]]),
   );
@@ -86,9 +76,7 @@ describe.each(sides)("$side fixtures", ({ side, schema, types, keys }) => {
   });
 
   it("has a fixture for every union type", () => {
-    const missing = types.filter(
-      (type) => !names.includes(fixtureFileName(type)),
-    );
+    const missing = types.filter((type) => !names.includes(fixtureFileName(type)));
     expect(missing).toEqual([]);
   });
 
@@ -108,17 +96,13 @@ describe.each(sides)("$side fixtures", ({ side, schema, types, keys }) => {
       const label = `${side}/${name}[${index}]`;
       expect(
         result.success,
-        result.success
-          ? label
-          : `${label}: ${JSON.stringify(result.error.issues)}`,
+        result.success ? label : `${label}: ${JSON.stringify(result.error.issues)}`,
       ).toBe(true);
       if (result.success) {
         expect(result.data.type, label).toBe(expectedType);
         // Zod strips unknown keys, at every depth. A key it drops is a key
         // the schema does not have.
-        expect(result.data, `${label} has keys the schema strips`).toEqual(
-          sample,
-        );
+        expect(result.data, `${label} has keys the schema strips`).toEqual(sample);
       }
     });
 
@@ -128,24 +112,19 @@ describe.each(sides)("$side fixtures", ({ side, schema, types, keys }) => {
     // target, cannot share one sample.
     const seen = new Set<string>();
     samples.forEach((sample, index) => {
-      expect(isRecord(sample), `${side}/${name}[${index}] is not an object`).toBe(
-        true,
-      );
+      expect(isRecord(sample), `${side}/${name}[${index}] is not an object`).toBe(true);
       Object.keys(sample as object).forEach((key) => seen.add(key));
     });
-    expect(
-      [...seen].sort(),
-      `${side}/${name} must set every schema key in some sample`,
-    ).toEqual(keysByType.get(expectedType ?? ""));
+    expect([...seen].sort(), `${side}/${name} must set every schema key in some sample`).toEqual(
+      keysByType.get(expectedType ?? ""),
+    );
   });
 });
 
 describe.each(sides)("$side invalid fixtures", ({ side, schema, types }) => {
   const sideDir = path.join(invalidDir, side);
   const names = readFixtureNames(sideDir);
-  const typeByFileName = new Map(
-    types.map((type) => [fixtureFileName(type), type]),
-  );
+  const typeByFileName = new Map(types.map((type) => [fixtureFileName(type), type]));
 
   it("has files", () => {
     expect(names.length).toBeGreaterThan(0);
@@ -158,9 +137,7 @@ describe.each(sides)("$side invalid fixtures", ({ side, schema, types }) => {
 
   it.each(names)("%s is rejected for the named field", (name) => {
     const entries = readSamples(sideDir, name);
-    expect(entries.length, `invalid/${side}/${name} is empty`).toBeGreaterThan(
-      0,
-    );
+    expect(entries.length, `invalid/${side}/${name} is empty`).toBeGreaterThan(0);
     const expectedType = typeByFileName.get(name);
 
     entries.forEach((entry, index) => {
@@ -175,9 +152,7 @@ describe.each(sides)("$side invalid fixtures", ({ side, schema, types }) => {
       const result = schema.safeParse(message);
       expect(result.success, `${label} parses`).toBe(false);
       if (!result.success) {
-        const paths = result.error.issues.map((issue) =>
-          formatPath(issue.path),
-        );
+        const paths = result.error.issues.map((issue) => formatPath(issue.path));
         expect(paths, `${label} fails on other fields`).toContain(field);
       }
     });

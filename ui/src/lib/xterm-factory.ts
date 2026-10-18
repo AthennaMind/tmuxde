@@ -10,11 +10,7 @@ import { brightenDimText } from "./terminal-dim.js";
 import { isFontZoomKey } from "./font-zoom-key.js";
 import { isDictationKey } from "./dictation-key";
 
-import {
-  getTerminalTheme,
-  terminalThemeToXterm,
-  type ColorScheme,
-} from "@/lib/terminal-themes";
+import { getTerminalTheme, terminalThemeToXterm, type ColorScheme } from "@/lib/terminal-themes";
 
 /**
  * Construct an xterm instance the way this app needs one.
@@ -125,12 +121,8 @@ export function createXterm(options: XtermOptions): XtermBundle {
     allowProposedApi: true,
     macOptionIsMeta: true,
     ...(options.cursorStyle ? { cursorStyle: options.cursorStyle } : {}),
-    ...(options.cursorBlink !== undefined
-      ? { cursorBlink: options.cursorBlink }
-      : {}),
-    ...(options.scrollback !== undefined
-      ? { scrollback: options.scrollback }
-      : {}),
+    ...(options.cursorBlink !== undefined ? { cursorBlink: options.cursorBlink } : {}),
+    ...(options.scrollback !== undefined ? { scrollback: options.scrollback } : {}),
     ...(options.disableStdin ? { disableStdin: true } : {}),
     ...(options.cols ? { cols: options.cols } : {}),
     ...(options.rows ? { rows: options.rows } : {}),

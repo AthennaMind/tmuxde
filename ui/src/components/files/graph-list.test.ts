@@ -3,25 +3,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { RepoCommit } from "@/protocol";
 import { layoutGraph, type GraphRow } from "./graph-layout";
-import {
-  GraphCell,
-  GraphList,
-  MAX_LANES,
-  laneX,
-  sameRowProps,
-} from "./graph-list";
+import { GraphCell, GraphList, MAX_LANES, laneX, sameRowProps } from "./graph-list";
 
 function render(row: GraphRow, head = false) {
-  return renderToStaticMarkup(
-    createElement(GraphCell, { row, merge: false, head }),
-  );
+  return renderToStaticMarkup(createElement(GraphCell, { row, merge: false, head }));
 }
 
 /** The x of every circle in the markup. */
 function circles(html: string): number[] {
-  return [...html.matchAll(/<circle[^>]*\scx="([\d.]+)"/g)].map((m) =>
-    Number(m[1]),
-  );
+  return [...html.matchAll(/<circle[^>]*\scx="([\d.]+)"/g)].map((m) => Number(m[1]));
 }
 
 describe("GraphCell", () => {
@@ -84,9 +74,7 @@ describe("row rendering", () => {
   });
 
   it("is memoized, so a render of the tab view skips the list", () => {
-    expect((GraphList as unknown as { $$typeof: symbol }).$$typeof).toBe(
-      Symbol.for("react.memo"),
-    );
+    expect((GraphList as unknown as { $$typeof: symbol }).$$typeof).toBe(Symbol.for("react.memo"));
   });
 
   it("skips rows that a new first page left as they were", () => {
@@ -108,11 +96,11 @@ describe("row rendering", () => {
     expect(sameRowProps(base, { ...base, selected: true })).toBe(false);
     expect(sameRowProps(base, { ...base, tabStop: true })).toBe(false);
     expect(sameRowProps(base, { ...base, onOpen: () => {} })).toBe(false);
-    expect(
-      sameRowProps(base, { ...base, commit: { ...base.commit, refs: ["tag: v1"] } }),
-    ).toBe(false);
-    expect(
-      sameRowProps(base, { ...base, commit: { ...base.commit, subject: "Other" } }),
-    ).toBe(false);
+    expect(sameRowProps(base, { ...base, commit: { ...base.commit, refs: ["tag: v1"] } })).toBe(
+      false,
+    );
+    expect(sameRowProps(base, { ...base, commit: { ...base.commit, subject: "Other" } })).toBe(
+      false,
+    );
   });
 });

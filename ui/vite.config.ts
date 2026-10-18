@@ -85,8 +85,7 @@ export default defineConfig({
             {
               name: "shiki",
               test: (id) =>
-                /[\\/]node_modules[\\/](shiki|@shikijs)[\\/]/.test(id) &&
-                !lazyShiki.test(id),
+                /[\\/]node_modules[\\/](shiki|@shikijs)[\\/]/.test(id) && !lazyShiki.test(id),
             },
             {
               name: "xterm",

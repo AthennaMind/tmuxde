@@ -36,7 +36,10 @@ describe("renderMermaid", () => {
     const { renderMermaid } = await import("./mermaid");
     let finish!: (value: { svg: string }) => void;
     mermaid.render.mockImplementationOnce(
-      () => new Promise((resolve) => { finish = resolve; }),
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
     );
     mermaid.render.mockResolvedValueOnce({ svg: "<svg>light</svg>" });
     const dark = renderMermaid("flowchart LR\nA --> B", "dark");
@@ -49,7 +52,10 @@ describe("renderMermaid", () => {
         securityLevel: "strict",
         htmlLabels: false,
         secure: expect.arrayContaining([
-          "securityLevel", "dompurifyConfig", "themeCSS", "htmlLabels",
+          "securityLevel",
+          "dompurifyConfig",
+          "themeCSS",
+          "htmlLabels",
         ]),
       }),
     );
@@ -61,9 +67,7 @@ describe("renderMermaid", () => {
     expect(mermaid.initialize).toHaveBeenLastCalledWith(
       expect.objectContaining({ theme: "default" }),
     );
-    expect(mermaid.render.mock.calls[0]?.[0]).not.toBe(
-      mermaid.render.mock.calls[1]?.[0],
-    );
+    expect(mermaid.render.mock.calls[0]?.[0]).not.toBe(mermaid.render.mock.calls[1]?.[0]);
     expect(containers).toHaveLength(2);
     for (const container of containers) {
       expect(container.remove).toHaveBeenCalledOnce();
@@ -76,9 +80,7 @@ describe("renderMermaid", () => {
     mermaid.render.mockRejectedValueOnce(new Error("Invalid syntax"));
     mermaid.render.mockResolvedValueOnce({ svg: "<svg/>" });
     await expect(renderMermaid("invalid", "dark")).rejects.toThrow("Invalid syntax");
-    await expect(renderMermaid("graph TD; A-->B", "dark")).resolves.toContain(
-      "data:image/svg+xml",
-    );
+    await expect(renderMermaid("graph TD; A-->B", "dark")).resolves.toContain("data:image/svg+xml");
     for (const container of containers) {
       expect(container.remove).toHaveBeenCalledOnce();
     }

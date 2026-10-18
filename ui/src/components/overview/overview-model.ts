@@ -1,16 +1,8 @@
-import type {
-  ConnectionState,
-  PaneInfo,
-  SessionInfo,
-  WindowInfo,
-} from "@/protocol";
+import type { ConnectionState, PaneInfo, SessionInfo, WindowInfo } from "@/protocol";
 import type { MachineInfo } from "@/protocol/machines";
 import type { MachineSessions } from "@/stores/machine-store";
 import type { SessionDetails } from "@/stores/session-tree-store";
-import {
-  processPresentation,
-  windowPresentation,
-} from "@/lib/session-presentation";
+import { processPresentation, windowPresentation } from "@/lib/session-presentation";
 import { shortenPath, timeAgo } from "@/lib/tmux-labels";
 
 /**
@@ -221,9 +213,7 @@ export function buildMachine(
     status,
     sessionCount: state === "ready" ? sessions.length : 0,
     sessions:
-      state === "ready"
-        ? sessions.map((session) => buildSession(session, details, selected))
-        : [],
+      state === "ready" ? sessions.map((session) => buildSession(session, details, selected)) : [],
   };
 }
 
@@ -305,10 +295,7 @@ export interface FilteredOverview {
  * the windows that match by name, process or folder, and goes when none do.
  * A machine with nothing left goes too. No query keeps everything.
  */
-export function filterOverview(
-  machines: OverviewMachine[],
-  rawQuery: string,
-): FilteredOverview {
+export function filterOverview(machines: OverviewMachine[], rawQuery: string): FilteredOverview {
   const query = normalizeQuery(rawQuery);
   const kept = query
     ? machines.flatMap((machine) => {
@@ -369,14 +356,35 @@ export interface OverviewPane {
 
 export function overviewPanes(machines: OverviewMachine[], rawQuery = ""): OverviewPane[] {
   const query = normalizeQuery(rawQuery);
-  return machines.flatMap((machine) => machine.sessions.flatMap((session) =>
-    session.windows.flatMap((window) => window.panes.flatMap((pane) => {
-      const matches = !query || [machine.machine.name, machine.machine.hostname,
-        session.session.name, window.window.name, pane.command, pane.path,
-        processPresentation(pane.command).label, pane.path && shortenPath(pane.path)]
-        .some((value) => has(value, query));
-      return matches ? [{ key: JSON.stringify([machine.machine.id, session.session.name, pane.id]),
-        machine, session, window, pane }] : [];
-    })),
-  ));
+  return machines.flatMap((machine) =>
+    machine.sessions.flatMap((session) =>
+      session.windows.flatMap((window) =>
+        window.panes.flatMap((pane) => {
+          const matches =
+            !query ||
+            [
+              machine.machine.name,
+              machine.machine.hostname,
+              session.session.name,
+              window.window.name,
+              pane.command,
+              pane.path,
+              processPresentation(pane.command).label,
+              pane.path && shortenPath(pane.path),
+            ].some((value) => has(value, query));
+          return matches
+            ? [
+                {
+                  key: JSON.stringify([machine.machine.id, session.session.name, pane.id]),
+                  machine,
+                  session,
+                  window,
+                  pane,
+                },
+              ]
+            : [];
+        }),
+      ),
+    ),
+  );
 }

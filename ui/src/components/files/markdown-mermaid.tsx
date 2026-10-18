@@ -25,8 +25,7 @@ export function MarkdownMermaid({ source }: { source: string }) {
       cancelled = true;
     };
   }, [source, theme]);
-  const current =
-    result?.source === source && result.theme === theme ? result : undefined;
+  const current = result?.source === source && result.theme === theme ? result : undefined;
 
   return (
     <figure className="overflow-hidden rounded-md border bg-surface-sunken">
@@ -43,9 +42,7 @@ export function MarkdownMermaid({ source }: { source: string }) {
       )}
       {current?.url ? (
         <details className="px-3 pb-3">
-          <summary className="cursor-pointer text-sm text-muted-foreground">
-            Diagram source
-          </summary>
+          <summary className="cursor-pointer text-sm text-muted-foreground">Diagram source</summary>
           <MarkdownCodeBlock language="mermaid" source={source} />
         </details>
       ) : (

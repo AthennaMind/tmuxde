@@ -29,15 +29,12 @@ export function RootError() {
         gap: "0.75rem",
         padding: "2rem 1rem",
         textAlign: "center",
-        fontFamily:
-          "ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif",
+        fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif",
         background: "#0a0b0a",
         color: "#f4f6f2",
       }}
     >
-      <h1 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }}>
-        tmuxde failed to start
-      </h1>
+      <h1 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }}>tmuxde failed to start</h1>
       <p
         style={{
           margin: 0,
@@ -46,8 +43,7 @@ export function RootError() {
           opacity: 0.75,
         }}
       >
-        Nothing on your machines was affected. This is the browser app, and
-        reloading it is safe.
+        Nothing on your machines was affected. This is the browser app, and reloading it is safe.
       </p>
       <button
         type="button"

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { fontZoomStep, isFontZoomKey } from "./font-zoom-key.js";
 
-const key = (
-  k: string,
-  mods: Partial<Record<"ctrlKey" | "metaKey" | "altKey", boolean>> = {},
-) => ({ key: k, ctrlKey: false, metaKey: false, altKey: false, ...mods });
+const key = (k: string, mods: Partial<Record<"ctrlKey" | "metaKey" | "altKey", boolean>> = {}) => ({
+  key: k,
+  ctrlKey: false,
+  metaKey: false,
+  altKey: false,
+  ...mods,
+});
 
 describe("fontZoomStep", () => {
   it("reads Ctrl and Cmd zoom keys as steps", () => {
@@ -23,8 +26,6 @@ describe("fontZoomStep", () => {
   });
 
   it("ignores Alt combinations", () => {
-    expect(isFontZoomKey(key("-", { ctrlKey: true, altKey: true }))).toBe(
-      false,
-    );
+    expect(isFontZoomKey(key("-", { ctrlKey: true, altKey: true }))).toBe(false);
   });
 });

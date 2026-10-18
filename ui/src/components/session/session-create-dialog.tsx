@@ -18,10 +18,7 @@ interface SessionCreateDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function SessionCreateDialog({
-  open,
-  onOpenChange,
-}: SessionCreateDialogProps) {
+export function SessionCreateDialog({ open, onOpenChange }: SessionCreateDialogProps) {
   const [name, setName] = useState("");
   const [cwd, setCwd] = useState("");
   const [command, setCommand] = useState("");

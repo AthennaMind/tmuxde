@@ -12,7 +12,13 @@ import { relativeFile, useQuickOpenStore } from "@/stores/quick-open-store";
 import { useSessionTreeStore } from "@/stores/session-tree-store";
 import { useUiStore } from "@/stores/ui-store";
 import {
-  ContextLine, GROUP_CLASS, LIST_CLASS, PaletteEmpty, PaletteFooter, ROW_CLASS, usePalette,
+  ContextLine,
+  GROUP_CLASS,
+  LIST_CLASS,
+  PaletteEmpty,
+  PaletteFooter,
+  ROW_CLASS,
+  usePalette,
 } from "./palette-primitives";
 
 /** Workspace context resets the queries. The typed query lives above. */
@@ -23,40 +29,87 @@ export function FilesMode() {
   const attached = useSessionTreeStore((s) => s.attachedSession);
   const attachCount = useSessionTreeStore((s) => s.attachCount);
   const scope = JSON.stringify([machine, pane, folder, attached, attachCount]);
-  return <FilesModeContent key={scope} machine={machine} pane={pane} attached={attached !== null} />;
+  return (
+    <FilesModeContent key={scope} machine={machine} pane={pane} attached={attached !== null} />
+  );
 }
 
-function FilesModeContent({ machine, pane, attached }: { machine: string; pane: string | null; attached: boolean }) {
+function FilesModeContent({
+  machine,
+  pane,
+  attached,
+}: {
+  machine: string;
+  pane: string | null;
+  attached: boolean;
+}) {
   const { query, finish, setBusy } = usePalette();
   const client = useRelayClient();
   const connection = useConnectionStore((s) => s.status);
   const supported = useConnectionStore((s) => s.features.has("repo:search"));
   const disabled = useConnectionStore((s) => filesDisabled(s.capabilities));
-  const machineName = useMachineStore((s) => s.machines.find((m) => m.id === machine)?.name ?? machine);
+  const machineName = useMachineStore(
+    (s) => s.machines.find((m) => m.id === machine)?.name ?? machine,
+  );
   const recent = useQuickOpenStore((s) => s.recent);
   const [refresh, setRefresh] = useState(0);
-  const unavailable = disabled ? "File access is off for this connection."
-    : connection !== "connected" || !client ? "Reconnect to search files."
-    : !supported ? "Update TmuxDE on this machine to search files."
-    : !pane || !attached ? "Select a terminal session to search its workspace." : null;
-  const context = useQuickOpenQuery(client, !unavailable && pane ? { id: pane, action: "context" } : null, refresh);
-  const root = context.result?.kind === "context" ? context.result.root ?? context.result.path : undefined;
+  const unavailable = disabled
+    ? "File access is off for this connection."
+    : connection !== "connected" || !client
+      ? "Reconnect to search files."
+      : !supported
+        ? "Update TmuxDE on this machine to search files."
+        : !pane || !attached
+          ? "Select a terminal session to search its workspace."
+          : null;
+  const context = useQuickOpenQuery(
+    client,
+    !unavailable && pane ? { id: pane, action: "context" } : null,
+    refresh,
+  );
+  const root =
+    context.result?.kind === "context" ? (context.result.root ?? context.result.path) : undefined;
   const term = query.trim();
-  const search = useQuickOpenQuery(client, root && pane && term && !unavailable
-    ? { id: pane, action: "search", path: root, query: term } : null, refresh, 180);
+  const search = useQuickOpenQuery(
+    client,
+    root && pane && term && !unavailable
+      ? { id: pane, action: "search", path: root, query: term }
+      : null,
+    refresh,
+    180,
+  );
   const result = search.result?.kind === "search" ? search.result : undefined;
   const searchRoot = result?.path ?? root;
-  const paths = unavailable ? [] : term ? result?.files ?? [] : root ? recent
-    .filter((file) => file.machineId === machine)
-    .map((file) => relativeFile(root, file.path))
-    .filter((path): path is string => path !== null).slice(0, 12) : [];
+  const paths = unavailable
+    ? []
+    : term
+      ? (result?.files ?? [])
+      : root
+        ? recent
+            .filter((file) => file.machineId === machine)
+            .map((file) => relativeFile(root, file.path))
+            .filter((path): path is string => path !== null)
+            .slice(0, 12)
+        : [];
   const busy = !unavailable && (context.loading || search.loading);
   const error = context.error ?? search.error;
-  const message = unavailable ?? error ?? (busy && !paths.length ? (root ? "Searching…" : "Finding workspace…")
-    : paths.length ? ""
-    : term ? result?.truncated ? "No matches in scanned files. Narrow the search." : `No files match “${term}”.`
-    : "Type to find a file. Files you open appear here.");
-  const count = paths.length ? `${paths.length} ${term ? (paths.length === 1 ? "match" : "matches") : "recent"}${result?.truncated ? " · partial" : ""}` : "";
+  const message =
+    unavailable ??
+    error ??
+    (busy && !paths.length
+      ? root
+        ? "Searching…"
+        : "Finding workspace…"
+      : paths.length
+        ? ""
+        : term
+          ? result?.truncated
+            ? "No matches in scanned files. Narrow the search."
+            : `No files match “${term}”.`
+          : "Type to find a file. Files you open appear here.");
+  const count = paths.length
+    ? `${paths.length} ${term ? (paths.length === 1 ? "match" : "matches") : "recent"}${result?.truncated ? " · partial" : ""}`
+    : "";
 
   useEffect(() => {
     setBusy(busy);
@@ -80,8 +133,17 @@ function FilesModeContent({ machine, pane, attached }: { machine: string; pane: 
             {paths.map((path) => {
               const slash = path.lastIndexOf("/");
               return (
-                <Command.Item key={path} value={path} onSelect={() => openFile(path)} title={path} className={ROW_CLASS}>
-                  <span aria-hidden className="flex size-[18px] shrink-0 items-center justify-center [&_svg]:size-[18px]">
+                <Command.Item
+                  key={path}
+                  value={path}
+                  onSelect={() => openFile(path)}
+                  title={path}
+                  className={ROW_CLASS}
+                >
+                  <span
+                    aria-hidden
+                    className="flex size-[18px] shrink-0 items-center justify-center [&_svg]:size-[18px]"
+                  >
                     <RepositoryFileIcon path={path} />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -98,16 +160,26 @@ function FilesModeContent({ machine, pane, attached }: { machine: string; pane: 
           </Command.Group>
         )}
         {message && (
-          <PaletteEmpty action={error ? { label: "Try again", onClick: () => setRefresh((n) => n + 1) } : undefined}>
+          <PaletteEmpty
+            action={
+              error ? { label: "Try again", onClick: () => setRefresh((n) => n + 1) } : undefined
+            }
+          >
             {message}
           </PaletteEmpty>
         )}
       </Command.List>
       <PaletteFooter
         left={<ContextLine parts={[machineName, root, count]} />}
-        right={[["↑↓", "move"], ["↵", "open"], ["esc", "close"]]}
+        right={[
+          ["↑↓", "move"],
+          ["↵", "open"],
+          ["esc", "close"],
+        ]}
       />
-      <div role="status" aria-live="polite" className="sr-only">{message || count}</div>
+      <div role="status" aria-live="polite" className="sr-only">
+        {message || count}
+      </div>
     </>
   );
 }

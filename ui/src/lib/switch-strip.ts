@@ -54,9 +54,7 @@ export interface StripInput {
 }
 
 /** What a swipe should actually do. Dispatch lives at the call site. */
-export type StripAction =
-  | { send: ClientMessage }
-  | { setSession: string };
+export type StripAction = { send: ClientMessage } | { setSession: string };
 
 const EMPTY: Strip = { kind: "window", entries: [], activeIndex: -1 };
 
@@ -122,9 +120,7 @@ export function resolveStrip(input: StripInput): Strip {
         key: s.name,
         label: s.name,
       })),
-      activeIndex: input.sessions.findIndex(
-        (s) => s.name === input.activeSessionId,
-      ),
+      activeIndex: input.sessions.findIndex((s) => s.name === input.activeSessionId),
     };
   }
 
@@ -132,10 +128,7 @@ export function resolveStrip(input: StripInput): Strip {
 }
 
 /** The entry a step in `direction` would land on, or null if it cannot move. */
-export function stepTarget(
-  strip: Strip,
-  direction: 1 | -1,
-): StripEntry | null {
+export function stepTarget(strip: Strip, direction: 1 | -1): StripEntry | null {
   const n = strip.entries.length;
   if (n < 2 || strip.activeIndex < 0) return null;
   const next = (strip.activeIndex + direction + n) % n;

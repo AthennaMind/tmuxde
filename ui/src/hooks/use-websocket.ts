@@ -173,9 +173,7 @@ export function useWebSocket(url: string, token: string) {
           forgetSession(msg.name);
           if (!handledExits.has(msg.name)) {
             markHandledExit(msg.name);
-            useAlertStore
-              .getState()
-              .push("info", `Session "${msg.name}" exited`);
+            useAlertStore.getState().push("info", `Session "${msg.name}" exited`);
           }
           break;
         case "pane:list":
@@ -233,17 +231,12 @@ export function useWebSocket(url: string, token: string) {
           if (msg.success) {
             useAlertStore
               .getState()
-              .push(
-                "success",
-                `${msg.op} succeeded: ${msg.path.split("/").pop()}`,
-              );
+              .push("success", `${msg.op} succeeded: ${msg.path.split("/").pop()}`);
             // Refresh current directory listing
             const { currentPath: dirPath } = useFileStore.getState();
             client?.send({ type: "file:list", path: dirPath });
           } else {
-            useAlertStore
-              .getState()
-              .push("error", msg.error ?? `${msg.op} failed`);
+            useAlertStore.getState().push("error", msg.error ?? `${msg.op} failed`);
           }
           break;
         }
@@ -281,14 +274,16 @@ export function useWebSocket(url: string, token: string) {
           break;
         case "pane:captured": {
           const capture = useMachineStore.getState().capture;
-          if (capture?.machineId === serverId && capture.paneId === msg.id &&
-            capture.expires > Date.now()) {
+          if (
+            capture?.machineId === serverId &&
+            capture.paneId === msg.id &&
+            capture.expires > Date.now()
+          ) {
             useMachineStore.setState({ capture: null });
             void copyText(msg.content).then((ok) => {
-              useAlertStore.getState().push(
-                ok ? "success" : "error",
-                ok ? "Copied pane contents" : copyFailureReason(),
-              );
+              useAlertStore
+                .getState()
+                .push(ok ? "success" : "error", ok ? "Copied pane contents" : copyFailureReason());
             });
           } else {
             useUiStore.getState().setCapturedPane(msg.id, msg.content);

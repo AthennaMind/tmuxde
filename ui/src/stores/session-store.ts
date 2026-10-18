@@ -50,15 +50,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           .filter((x) => x.name !== to)
           .map((x) => (x.name === from ? { ...x, name: to } : x)),
         openedSessions,
-        activeSessionId:
-          s.activeSessionId === from ? to : s.activeSessionId,
+        activeSessionId: s.activeSessionId === from ? to : s.activeSessionId,
       };
     }),
   updateSessionActivity: (name, activity) =>
     set((s) => ({
-      sessions: s.sessions.map((x) =>
-        x.name === name ? { ...x, activity } : x,
-      ),
+      sessions: s.sessions.map((x) => (x.name === name ? { ...x, activity } : x)),
     })),
   setActiveSession: (name) => {
     if (name) {
@@ -70,8 +67,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
   openSession: (name) =>
     set((s) =>
-      s.openedSessions.includes(name)
-        ? s
-        : { openedSessions: [...s.openedSessions, name] },
+      s.openedSessions.includes(name) ? s : { openedSessions: [...s.openedSessions, name] },
     ),
 }));

@@ -66,9 +66,7 @@ export function LockSettings() {
   async function addPasskey() {
     setBusy(true);
     try {
-      const result = await duringCeremony(() =>
-        enrollPasskeyFactor("tmuxde device lock"),
-      );
+      const result = await duringCeremony(() => enrollPasskeyFactor("tmuxde device lock"));
       if (!result.ok) {
         toast.error(
           result.reason === "no-prf"
@@ -138,11 +136,7 @@ export function LockSettings() {
       >
         <SettingsRow label="PIN" hint="Not set" textLabel>
           {() => (
-            <Button
-              size="sm"
-              className="pointer-coarse:h-11"
-              onClick={() => setEnrolling(true)}
-            >
+            <Button size="sm" className="pointer-coarse:h-11" onClick={() => setEnrolling(true)}>
               Set a PIN
             </Button>
           )}
@@ -288,9 +282,9 @@ export function LockSettings() {
           <AlertDialogHeader>
             <AlertDialogTitle>Erase this device?</AlertDialogTitle>
             <AlertDialogDescription>
-              Every key and cached session list in this browser goes, along
-              with the lock itself. There is no recovery. You sign in again
-              with the relay token. Your tmux sessions keep running.
+              Every key and cached session list in this browser goes, along with the lock itself.
+              There is no recovery. You sign in again with the relay token. Your tmux sessions keep
+              running.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">

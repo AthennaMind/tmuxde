@@ -25,7 +25,11 @@ export function MachinesTree({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PanelHeader title="Sessions">
-        <PanelIconButton label="Search terminals" icon={Search} onClick={() => openPalette("terminals")} />
+        <PanelIconButton
+          label="Search terminals"
+          icon={Search}
+          onClick={() => openPalette("terminals")}
+        />
         <PanelIconButton
           label="Overview (Ctrl+O)"
           icon={LayoutGrid}
@@ -38,9 +42,19 @@ export function MachinesTree({
         />
       </PanelHeader>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {error && <p role="status" className="px-3 py-2 text-sm text-muted-foreground">Server unavailable</p>}
-        {!loaded && !error && <p role="status" className="px-3 py-2 text-sm text-muted-foreground">Loading machines</p>}
-        {loaded && !machines.length && <p className="px-3 py-2 text-sm text-muted-foreground">No machines registered</p>}
+        {error && (
+          <p role="status" className="px-3 py-2 text-sm text-muted-foreground">
+            Server unavailable
+          </p>
+        )}
+        {!loaded && !error && (
+          <p role="status" className="px-3 py-2 text-sm text-muted-foreground">
+            Loading machines
+          </p>
+        )}
+        {loaded && !machines.length && (
+          <p className="px-3 py-2 text-sm text-muted-foreground">No machines registered</p>
+        )}
         {machines.map((machine) => (
           <SessionTree
             key={machine.id}
@@ -49,12 +63,14 @@ export function MachinesTree({
             onCreateSession={() => {
               if (machine.id === useMachineStore.getState().activeMachine) {
                 onCreateSession();
-              } else if (openWorkspace({
-                machineId: machine.id,
-                sessionName: "",
-                tabId: TERMINAL_TAB,
-                messages: [],
-              })) {
+              } else if (
+                openWorkspace({
+                  machineId: machine.id,
+                  sessionName: "",
+                  tabId: TERMINAL_TAB,
+                  messages: [],
+                })
+              ) {
                 useMachineStore.setState({ createSession: true });
               }
             }}

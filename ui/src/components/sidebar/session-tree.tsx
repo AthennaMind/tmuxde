@@ -56,11 +56,7 @@ import {
 } from "@/components/overview/overview-model";
 import { cn } from "@/lib/utils";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
-import {
-  filesDisabled,
-  isReadOnly,
-  useConnectionStore,
-} from "@/stores/connection-store";
+import { filesDisabled, isReadOnly, useConnectionStore } from "@/stores/connection-store";
 import { OVERVIEW_TAB, useMainTabsStore } from "@/stores/main-tabs-store";
 import { usePaneStore } from "@/stores/pane-store";
 import { useSessionStore } from "@/stores/session-store";
@@ -70,12 +66,7 @@ import { useUiStore } from "@/stores/ui-store";
 import { PanelIconButton } from "./panel-header";
 import { LAYOUTS } from "./layout-glyph";
 import { PaneGrid, type PaneDragEvent, type PaneGridProps } from "./pane-grid";
-import {
-  TreeRow,
-  useTreeKeyboard,
-  type TreeAction,
-  type TreeRowModel,
-} from "./tree-row";
+import { TreeRow, useTreeKeyboard, type TreeAction, type TreeRowModel } from "./tree-row";
 
 /** Busy sessions report activity on every burst of output. */
 const ACTIVITY_REFRESH_MS = 3000;
@@ -163,7 +154,7 @@ export function SessionTree({
   const selectedMachine = useMachineStore((s) => s.activeMachine);
   const inventory = useMachineStore((s) => s.inventory[machine.id]);
   const selected = selectedMachine === machine.id;
-  const sendClient = () => selected ? getRelayClient() : getClient(`inventory:${machine.id}`);
+  const sendClient = () => (selected ? getRelayClient() : getClient(`inventory:${machine.id}`));
   // The local stores hold the selected machine only. Every other tree reads
   // stable empty values from them, so their writes do not render it.
   const localSessions = useSessionStore((s) => (selected ? s.sessions : EMPTY_SESSIONS));
@@ -206,9 +197,7 @@ export function SessionTree({
     () => new Set(sessions.map((session) => session.name)),
   );
   // Windows with several panes start open. This holds the ones closed by hand.
-  const [collapsedWindows, setCollapsedWindows] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [collapsedWindows, setCollapsedWindows] = useState<Set<string>>(() => new Set());
   const [collapsed, setCollapsed] = useState(false);
   const bodyId = useId();
   const [focusKey, setFocusKey] = useState<string | null>(null);
@@ -270,9 +259,7 @@ export function SessionTree({
   // `pane-store` only carries the window on screen.
   const layoutKey = useMemo(
     () =>
-      liveWindows
-        .map((w) => `${w.id}:${w.name}:${w.paneCount}:${w.active ? 1 : 0}`)
-        .join("|") +
+      liveWindows.map((w) => `${w.id}:${w.name}:${w.paneCount}:${w.active ? 1 : 0}`).join("|") +
       "#" +
       livePanes.map((p) => `${p.id}:${p.windowId}`).join(","),
     [liveWindows, livePanes],
@@ -345,12 +332,7 @@ export function SessionTree({
       useUiStore.getState().showSidebarView("files"),
     );
 
-  const toggleZoom = (
-    session: string,
-    pane: PaneInfo,
-    live: boolean,
-    zoomed: boolean,
-  ) => {
+  const toggleZoom = (session: string, pane: PaneInfo, live: boolean, zoomed: boolean) => {
     if (live && pane.windowId === activeWindowId) {
       useMainTabsStore.getState().showTerminal();
       zoomPane({ id: pane.id, zoomed: !zoomed });
@@ -384,9 +366,7 @@ export function SessionTree({
     inSession(session, [{ type: "pane:break", id: pane.id }]);
   /** Focus a row of this tree by key, such as `w:@3`. */
   const focusRow = (key: string) =>
-    sectionRef.current
-      ?.querySelector<HTMLElement>(`[data-tree-row="${CSS.escape(key)}"]`)
-      ?.focus();
+    sectionRef.current?.querySelector<HTMLElement>(`[data-tree-row="${CSS.escape(key)}"]`)?.focus();
 
   /**
    * Drop target under the pointer. A cell of the same window swaps. A window
@@ -446,7 +426,8 @@ export function SessionTree({
     if (event.phase === "drop") {
       setPaneDrag(null);
       if (target?.kind === "swap") swap(session, event.pane, target.paneId);
-      else if (target?.kind === "join") join(session, event.pane, target.windowId, target.direction);
+      else if (target?.kind === "join")
+        join(session, event.pane, target.windowId, target.direction);
       else if (target?.kind === "break") breakOut(session, event.pane);
       return;
     }
@@ -527,8 +508,7 @@ export function SessionTree({
                   description:
                     "The session and every process in it are terminated. This cannot be undone.",
                   action: "Kill session",
-                  run: () =>
-                    sendClient()?.send({ type: "session:kill", name }),
+                  run: () => sendClient()?.send({ type: "session:kill", name }),
                 }),
             },
           ]),
@@ -565,10 +545,7 @@ export function SessionTree({
         <>
           {locked && <Lock className="h-3 w-3" aria-label="Requires unlock" />}
           {!isActive && session.attached && (
-            <Monitor
-              className="h-3 w-3"
-              aria-label="Open in another client"
-            />
+            <Monitor className="h-3 w-3" aria-label="Open in another client" />
           )}
           <span className="flex items-center gap-0.5">
             <AppWindow className="h-3 w-3" aria-hidden />
@@ -640,7 +617,9 @@ export function SessionTree({
       // A name someone set leads, so the processes follow it. A single pane
       // shows where it is instead of a grid.
       const secondary = multi
-        ? presentation.custom ? presentation.processes : undefined
+        ? presentation.custom
+          ? presentation.processes
+          : undefined
         : presentation.custom && presentation.processes
           ? [presentation.processes, presentation.folder].filter(Boolean).join(" · ")
           : presentation.folder;
@@ -727,8 +706,7 @@ export function SessionTree({
                     description:
                       "The window, its panes and every process in them are terminated. This cannot be undone.",
                     action: "Kill window",
-                    run: () =>
-                      inSession(name, [{ type: "window:kill", id: w.id }]),
+                    run: () => inSession(name, [{ type: "window:kill", id: w.id }]),
                   }),
               },
             ]),
@@ -741,9 +719,10 @@ export function SessionTree({
         prefix: String(w.index),
         label: presentation.label,
         secondary,
-        peek: !locked && !multi && sole
-          ? { pane: sole, machineId: machine.id, session: name }
-          : undefined,
+        peek:
+          !locked && !multi && sole
+            ? { pane: sole, machineId: machine.id, session: name }
+            : undefined,
         title: [
           `${w.index}: ${w.name}`,
           presentation.processes,
@@ -765,9 +744,7 @@ export function SessionTree({
           : {
               value: w.name,
               submit: (newName) =>
-                inSession(name, [
-                  { type: "window:rename", id: w.id, name: newName },
-                ]),
+                inSession(name, [{ type: "window:rename", id: w.id, name: newName }]),
             },
         remove: readOnly ? undefined : windowMenu.at(-1)?.onSelect,
         meta: (
@@ -778,9 +755,7 @@ export function SessionTree({
                 {paneCount} panes
               </span>
             )}
-            {windowZoomed && (
-              <Maximize2 className="h-3 w-3" role="img" aria-label="Zoomed" />
-            )}
+            {windowZoomed && <Maximize2 className="h-3 w-3" role="img" aria-label="Zoomed" />}
             {w.activity && !windowActive && (
               <span
                 role="img"
@@ -857,7 +832,8 @@ export function SessionTree({
                         .filter((other) => other.w.id !== w.id)
                         .map((other) => {
                           const beside = other.panes.find((p) => p.id === other.focusId)?.index;
-                          const target = beside === undefined ? "the active pane" : `pane ${beside}`;
+                          const target =
+                            beside === undefined ? "the active pane" : `pane ${beside}`;
                           return {
                             label: `${other.w.index} ${other.presentation.label}`,
                             onSelect: () => {},
@@ -910,9 +886,7 @@ export function SessionTree({
                   onSelect: () => inSession(name, [selectPane]),
                 },
               ]),
-          ...(grid.peek
-            ? [{ label: "Peek", icon: Eye, shortcut: "P", onSelect: grid.peek }]
-            : []),
+          ...(grid.peek ? [{ label: "Peek", icon: Eye, shortcut: "P", onSelect: grid.peek }] : []),
           ...(readOnly
             ? []
             : [
@@ -985,23 +959,26 @@ export function SessionTree({
           active: windowActive,
           pendingId: pendingKey,
           label: `Panes of window ${w.index} ${presentation.label}`,
-          onSelect: (pane) =>
-            inSession(name, [{ type: "pane:select", id: pane.id }]),
+          onSelect: (pane) => inSession(name, [{ type: "pane:select", id: pane.id }]),
           onZoom: readOnly
             ? undefined
             : (pane) => toggleZoom(name, pane, live, pane.id === zoomedId),
           onKill: readOnly ? undefined : (pane) => killPane(name, pane),
           onSplit: readOnly
             ? undefined
-            : (pane, direction) =>
-                split(name, { type: "pane:select", id: pane.id }, direction),
+            : (pane, direction) => split(name, { type: "pane:select", id: pane.id }, direction),
           // The attached session takes each step of a drag. Any other has to
           // attach first, and attaching keeps one queued batch, so it gets
           // one resize on release.
           onResize: readOnly
             ? undefined
             : (pane, direction, amount) => {
-                const message: ClientMessage = { type: "pane:resize", id: pane.id, direction, amount };
+                const message: ClientMessage = {
+                  type: "pane:resize",
+                  id: pane.id,
+                  direction,
+                  amount,
+                };
                 if (live) sendClient()?.send(message);
                 else inSession(name, [message]);
               },
@@ -1057,13 +1034,9 @@ export function SessionTree({
     ...cellKeys,
   ];
   const tabStop =
-    (focusKey && focusable.includes(focusKey) && focusKey) ||
-    selectedKey ||
-    focusable[0] ||
-    null;
+    (focusKey && focusable.includes(focusKey) && focusKey) || selectedKey || focusable[0] || null;
 
-  const unreachable =
-    !sessionsLoaded && (status === "disconnected" || status === "reconnecting");
+  const unreachable = !sessionsLoaded && (status === "disconnected" || status === "reconnecting");
   // The overview's words for the same states. A socket that dropped is not a
   // machine that is off.
   const machineStatus = machineStatusLabel(
@@ -1161,11 +1134,7 @@ export function SessionTree({
                 Sessions keep running in tmux while the connection is down.
               </p>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => sendClient()?.connect()}
-            >
+            <Button size="sm" variant="outline" onClick={() => sendClient()?.connect()}>
               <RefreshCw className="me-1 h-3.5 w-3.5" aria-hidden />
               Try again
             </Button>
@@ -1175,10 +1144,7 @@ export function SessionTree({
             className="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground"
             role="status"
           >
-            <Loader2
-              className="h-4 w-4 animate-spin motion-reduce:animate-none"
-              aria-hidden
-            />
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden />
             Loading sessions
           </div>
         ) : sessions.length === 0 ? (

@@ -140,18 +140,13 @@ describe("baselines", () => {
   it("claims nothing on a first sample that is already focused", () => {
     // Nothing to measure a drop against, so seed and say nothing rather than
     // guess — an app opened straight into a focused field is a real case.
-    const { state, baselines } = play([
-      sample({ visualHeight: 480, hasFocusedInput: true }),
-    ]);
+    const { state, baselines } = play([sample({ visualHeight: 480, hasFocusedInput: true })]);
     expect(state.open).toBe(false);
     expect(baselines.portrait).toBe(480);
   });
 
   it("never reports a keyboard while nothing is focused", () => {
-    const { state } = play([
-      sample({ visualHeight: 800 }),
-      sample({ visualHeight: 400 }),
-    ]);
+    const { state } = play([sample({ visualHeight: 800 }), sample({ visualHeight: 400 })]);
     expect(state).toEqual({ open: false, inset: 0 });
   });
 });

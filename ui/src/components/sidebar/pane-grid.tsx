@@ -202,15 +202,9 @@ export function PaneGrid({
     size === "sidebar" && typeof maxHeight === "number"
       ? Math.min(maxHeight, stackedMaxHeight(depth))
       : maxHeight;
-  const boxes = useMemo(
-    () => new Map(cellBoxes(rects).map((cell) => [cell.id, cell])),
-    [rects],
-  );
+  const boxes = useMemo(() => new Map(cellBoxes(rects).map((cell) => [cell.id, cell])), [rects]);
   // DOM order is index order, so the tree walks cells the way tmux counts them.
-  const ordered = useMemo(
-    () => [...panes].sort((a, b) => a.index - b.index),
-    [panes],
-  );
+  const ordered = useMemo(() => [...panes].sort((a, b) => a.index - b.index), [panes]);
   const resizable = !!onResize;
   const cells = useMemo(() => layoutSize(layout), [layout]);
   const borders = useMemo(
@@ -232,9 +226,7 @@ export function PaneGrid({
           : (ordered[0]?.id ?? null);
 
   const focusCell = (id: string) =>
-    ref.current
-      ?.querySelector<HTMLElement>(`[data-pane-cell="${CSS.escape(id)}"]`)
-      ?.focus();
+    ref.current?.querySelector<HTMLElement>(`[data-pane-cell="${CSS.escape(id)}"]`)?.focus();
 
   const focusBorder = (border: PaneBorder, from: string) => {
     borderOrigin.current = from;
@@ -257,8 +249,7 @@ export function PaneGrid({
     const rows = Array.from(tree.querySelectorAll<HTMLElement>("[data-tree-row]"));
     const own = rows.filter((row) => grid.contains(row));
     if (!own.length) return false;
-    const index =
-      step < 0 ? rows.indexOf(own[0]!) - 1 : rows.indexOf(own[own.length - 1]!) + 1;
+    const index = step < 0 ? rows.indexOf(own[0]!) - 1 : rows.indexOf(own[own.length - 1]!) + 1;
     const target = rows[index];
     target?.focus();
     return !!target;
@@ -771,9 +762,7 @@ function CellContent({
   cornerButton: boolean;
 }) {
   if (tier === "box") return null;
-  const icon = (
-    <ProcessIcon command={pane.command} active={focused} className="h-3.5 w-3.5" />
-  );
+  const icon = <ProcessIcon command={pane.command} active={focused} className="h-3.5 w-3.5" />;
   if (tier === "icon") {
     return zoomed ? <Maximize2 className="h-3.5 w-3.5" aria-hidden /> : icon;
   }
@@ -786,9 +775,7 @@ function CellContent({
       ) : (
         <span className="min-w-0 truncate text-xs leading-4">{text.label}</span>
       )}
-      {tier === "label" && zoomed && (
-        <Maximize2 className="h-3 w-3 shrink-0" aria-hidden />
-      )}
+      {tier === "label" && zoomed && <Maximize2 className="h-3 w-3 shrink-0" aria-hidden />}
     </span>
   );
   if (tier === "label") {
@@ -884,9 +871,7 @@ function useElementSize(ref: React.RefObject<HTMLElement | null>) {
     const apply = (width: number, height: number) => {
       const next = { width: Math.round(width), height: Math.round(height) };
       setSize((previous) =>
-        previous.width === next.width && previous.height === next.height
-          ? previous
-          : next,
+        previous.width === next.width && previous.height === next.height ? previous : next,
       );
     };
     const initial = element.getBoundingClientRect();

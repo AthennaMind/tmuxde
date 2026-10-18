@@ -51,11 +51,7 @@ export function RecentPhotoList({
 
   const canRead = capabilities?.files !== "none";
   const canReuse =
-    status === "connected" &&
-    !!session &&
-    !capabilities?.readOnly &&
-    canRead &&
-    !inCopyMode;
+    status === "connected" && !!session && !capabilities?.readOnly && canRead && !inCopyMode;
 
   const reuse = async (path: string) => {
     if (!client || !canReuse || controller.current) return;
@@ -101,10 +97,7 @@ export function RecentPhotoList({
       onReused?.();
       useAlertStore
         .getState()
-        .push(
-          "success",
-          "Photo path inserted. Add your question, then press Enter.",
-        );
+        .push("success", "Photo path inserted. Add your question, then press Enter.");
     } catch (reason) {
       if (!abort.signal.aborted) {
         setError(
@@ -130,9 +123,7 @@ export function RecentPhotoList({
         </p>
       )}
       {inCopyMode && (
-        <p className="text-sm text-muted-foreground">
-          Leave copy mode to reuse a photo.
-        </p>
+        <p className="text-sm text-muted-foreground">Leave copy mode to reuse a photo.</p>
       )}
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -151,9 +142,7 @@ export function RecentPhotoList({
               className="flex items-center gap-3 rounded-md border border-border p-2"
             >
               <PhotoThumbnail path={path} className="h-14 w-14" />
-              <span className="min-w-0 flex-1 break-all text-xs text-muted-foreground">
-                {path}
-              </span>
+              <span className="min-w-0 flex-1 break-all text-xs text-muted-foreground">{path}</span>
               <button
                 type="button"
                 disabled={!canReuse || !!pending || !filesAvailable()}
@@ -215,8 +204,7 @@ export function RecentPhotos({
         <DialogHeader>
           <DialogTitle>Recent photos</DialogTitle>
           <DialogDescription>
-            Reuse a photo saved on this machine. Its path is inserted without
-            pressing Enter.
+            Reuse a photo saved on this machine. Its path is inserted without pressing Enter.
           </DialogDescription>
         </DialogHeader>
         {/* Unmounts on close, which aborts a reuse still in flight. */}

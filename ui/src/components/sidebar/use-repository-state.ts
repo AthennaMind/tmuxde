@@ -3,18 +3,11 @@ import type { RepoResult } from "@/protocol";
 import { useRelayClient } from "@/hooks/use-websocket";
 import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import { sameRoot } from "@/lib/repo-change";
-import {
-  useRepoWatch,
-  useRepoWatchStore,
-  watchHealthy,
-} from "@/stores/repo-watch-store";
+import { useRepoWatch, useRepoWatchStore, watchHealthy } from "@/stores/repo-watch-store";
 import { usePaneStore } from "@/stores/pane-store";
 import { filesDisabled, useConnectionStore } from "@/stores/connection-store";
 import { useSessionTreeStore } from "@/stores/session-tree-store";
-import {
-  repositoryRequest,
-  type RepositoryClient,
-} from "@/components/files/repository-request";
+import { repositoryRequest, type RepositoryClient } from "@/components/files/repository-request";
 
 export type RepositoryContext = Extract<RepoResult, { kind: "context" }>;
 export type RepositoryStatus = Extract<RepoResult, { kind: "status" }>;
@@ -110,11 +103,7 @@ export function useRepositoryState(watching: boolean): RepositoryState {
     const paneId = usePaneStore.getState().activePaneId;
     if (!contextKey || !client || !paneId) return;
     const controller = new AbortController();
-    repositoryRequest(
-      client,
-      { id: paneId, action: "context" },
-      controller.signal,
-    )
+    repositoryRequest(client, { id: paneId, action: "context" }, controller.signal)
       .then((result) => {
         if (!controller.signal.aborted && result.kind === "context")
           setContext({ key: contextKey, paneId, value: result });
@@ -124,10 +113,7 @@ export function useRepositoryState(watching: boolean): RepositoryState {
           setContext({
             key: contextKey,
             paneId,
-            error:
-              error instanceof Error
-                ? error.message
-                : "Could not find the pane folder.",
+            error: error instanceof Error ? error.message : "Could not find the pane folder.",
           });
       });
     return () => controller.abort();
@@ -140,10 +126,7 @@ export function useRepositoryState(watching: boolean): RepositoryState {
   const currentContext = available ? context : undefined;
   const contextPath = currentContext?.value?.path;
   const contextPane = currentContext?.paneId;
-  const statusBase =
-    ready && contextPath
-      ? `${contextPath}:${refreshKey}:${statusKey}:`
-      : "";
+  const statusBase = ready && contextPath ? `${contextPath}:${refreshKey}:${statusKey}:` : "";
   const statusRequestKey = statusBase ? `${statusBase}${pollKey}` : "";
   // A status request in flight, and a push that came in meanwhile. Pushes
   // never start a second request. One more runs after the answer instead.
@@ -182,8 +165,7 @@ export function useRepositoryState(watching: boolean): RepositoryState {
         setStatus({
           key: statusRequestKey,
           path: contextPath,
-          error:
-            error instanceof Error ? error.message : "Could not load changes.",
+          error: error instanceof Error ? error.message : "Could not load changes.",
         });
         settle();
       });
@@ -208,8 +190,7 @@ export function useRepositoryState(watching: boolean): RepositoryState {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const unsubscribe = useRepoWatchStore.subscribe((s, prev) => {
       const change = s.lastChange;
-      if (!change || change === prev.lastChange || !sameRoot(change, root))
-        return;
+      if (!change || change === prev.lastChange || !sameRoot(change, root)) return;
       clearTimeout(timer);
       timer = setTimeout(() => {
         if (statusBusy.current) statusAgain.current = true;
@@ -222,8 +203,7 @@ export function useRepositoryState(watching: boolean): RepositoryState {
     };
   }, [root]);
 
-  const currentStatus =
-    status && status.path === contextPath ? status : undefined;
+  const currentStatus = status && status.path === contextPath ? status : undefined;
 
   const refresh = useCallback(() => setRefreshKey((n) => n + 1), []);
   const refreshStatus = useCallback(() => setStatusKey((n) => n + 1), []);
@@ -242,8 +222,7 @@ export function useRepositoryState(watching: boolean): RepositoryState {
 
   const attaching = available && !attached;
   const contextPending = !!ready && context?.key !== contextKey;
-  const statusPending =
-    !!statusBase && !(status?.key.startsWith(statusBase) ?? false);
+  const statusPending = !!statusBase && !(status?.key.startsWith(statusBase) ?? false);
 
   return {
     client: available ? client : null,

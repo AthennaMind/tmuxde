@@ -39,8 +39,7 @@ export function zoomPane(opts: { id?: string; zoomed?: boolean } = {}): void {
   // Without an explicit wish, the wish is "the other state from now" — asked
   // about this pane, not about the window, so tapping an unzoomed pane while a
   // different one is zoomed moves the zoom rather than turning it off.
-  const zoomed =
-    opts.zoomed ?? (id ? zoomedPaneId !== id : zoomedPaneId === null);
+  const zoomed = opts.zoomed ?? (id ? zoomedPaneId !== id : zoomedPaneId === null);
 
   client.send({ type: "pane:zoom", ...(id ? { id } : {}), zoomed });
   usePaneStore.getState().setZoomedPane(zoomed ? (id ?? null) : null);

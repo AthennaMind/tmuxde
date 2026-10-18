@@ -404,8 +404,7 @@ export function sharedBorders(
       const firstEnd = vertical ? first.x + first.width : first.y + first.height;
       const secondStart = vertical ? second.x : second.y;
       const isLast = index + 1 === cell.cells.length - 1;
-      const owner =
-        reach(first, cell.type) ?? (isLast ? reach(second, cell.type) : null);
+      const owner = reach(first, cell.type) ?? (isLast ? reach(second, cell.type) : null);
       const byReadingOrder = (
         a: Extract<LayoutCell, { type: "pane" }>,
         b: Extract<LayoutCell, { type: "pane" }>,
@@ -414,9 +413,7 @@ export function sharedBorders(
         orientation: vertical ? "vertical" : "horizontal",
         position: (firstEnd + 0.5) / (vertical ? width : height),
         start: vertical ? cell.y / height : cell.x / width,
-        end: vertical
-          ? (cell.y + cell.height) / height
-          : (cell.x + cell.width) / width,
+        end: vertical ? (cell.y + cell.height) / height : (cell.x + cell.width) / width,
         cell: firstEnd,
         min: vertical ? first.x : first.y,
         max: vertical ? second.x + second.width : second.y + second.height,

@@ -29,9 +29,7 @@ export const LAST_SESSION_KEY = "tmuxde-last-session";
 
 const LEGACY = {
   [TOKEN_KEY]: "ccremote-token",
-  ...(machineId() === "local"
-    ? { [LAST_SESSION_KEY]: "ccremote-last-session" }
-    : {}),
+  ...(machineId() === "local" ? { [LAST_SESSION_KEY]: "ccremote-last-session" } : {}),
 } as const;
 
 /**

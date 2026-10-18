@@ -91,9 +91,7 @@ export function useTreeKeyboard() {
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
     const target = event.target as HTMLElement;
     if (!target.dataset.treeRow || !ref.current) return;
-    const rows = Array.from(
-      ref.current.querySelectorAll<HTMLElement>("[data-tree-row]"),
-    );
+    const rows = Array.from(ref.current.querySelectorAll<HTMLElement>("[data-tree-row]"));
     const index = rows.indexOf(target);
     const next =
       event.key === "Home"
@@ -111,9 +109,7 @@ export function useTreeKeyboard() {
 
 function focusRow(from: HTMLElement, key: string) {
   const tree = from.closest("[data-tree]");
-  tree
-    ?.querySelector<HTMLElement>(`[data-tree-row="${CSS.escape(key)}"]`)
-    ?.focus();
+  tree?.querySelector<HTMLElement>(`[data-tree-row="${CSS.escape(key)}"]`)?.focus();
 }
 
 /**
@@ -154,7 +150,15 @@ export function TreeRow({
     switch (event.key) {
       case "p":
       case "P":
-        if (!peek.enabled || !preview || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        if (
+          !peek.enabled ||
+          !preview ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey
+        )
+          return;
         event.preventDefault();
         peek.toggleKey(preview.pane, event.currentTarget);
         break;
@@ -197,9 +201,7 @@ export function TreeRow({
         "group/row relative flex items-center gap-0.5 rounded-md pe-0.5 text-[13px]",
         row.description ? "min-h-11 py-1" : "h-7",
         "has-[[data-tree-row]:focus-visible]:ring-2 has-[[data-tree-row]:focus-visible]:ring-ring",
-        row.selected
-          ? "bg-accent text-accent-foreground"
-          : "text-foreground hover:bg-accent/50",
+        row.selected ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent/50",
         row.muted && !row.selected && "text-muted-foreground",
         row.pending && "opacity-70",
       )}
@@ -208,10 +210,16 @@ export function TreeRow({
       {...(preview ? peek.hover(preview.pane) : {})}
       onPointerDownCapture={(event) => {
         const target = event.target as Node;
-        if (event.currentTarget.contains(target) && !mainRef.current?.contains(target)) peek.close();
+        if (event.currentTarget.contains(target) && !mainRef.current?.contains(target))
+          peek.close();
       }}
       onContextMenu={(event) => {
-        if (preview && mainRef.current?.contains(event.target as Node) && peek.contextMenu(event, preview.pane)) return;
+        if (
+          preview &&
+          mainRef.current?.contains(event.target as Node) &&
+          peek.contextMenu(event, preview.pane)
+        )
+          return;
         if (!menu.length) return;
         event.preventDefault();
         peek.close();
@@ -243,8 +251,7 @@ export function TreeRow({
           onDone={(value) => {
             onRenameEnd();
             const trimmed = value?.trim();
-            if (trimmed && trimmed !== row.rename?.value)
-              row.rename?.submit(trimmed);
+            if (trimmed && trimmed !== row.rename?.value) row.rename?.submit(trimmed);
           }}
         />
       ) : (
@@ -255,7 +262,7 @@ export function TreeRow({
           tabIndex={tabStop ? 0 : -1}
           aria-current={row.selected ? "true" : undefined}
           aria-expanded={row.expandable ? row.expanded : undefined}
-          title={peek.enabled ? undefined : row.title ?? row.label}
+          title={peek.enabled ? undefined : (row.title ?? row.label)}
           aria-keyshortcuts={peek.enabled ? "P" : undefined}
           onFocus={() => onFocusRow(row.key)}
           onPointerDown={(event) => {
@@ -277,10 +284,10 @@ export function TreeRow({
             </span>
           )}
           {row.icon}
-          <span className={cn("min-w-0", row.description ? "flex flex-1 flex-col gap-0.5" : "shrink")}>
-            <span className={cn("block truncate", row.current && "font-medium")}>
-              {row.label}
-            </span>
+          <span
+            className={cn("min-w-0", row.description ? "flex flex-1 flex-col gap-0.5" : "shrink")}
+          >
+            <span className={cn("block truncate", row.current && "font-medium")}>{row.label}</span>
             {row.description && (
               <span className="truncate text-[11px] leading-4 text-muted-foreground">
                 {row.description}
@@ -395,7 +402,9 @@ function DropFeedback({ drop }: { drop: RowDrop }) {
   const lit =
     "bg-primary/15 outline outline-1 -outline-offset-1 outline-primary forced-colors:outline-[Highlight]";
   if (drop.kind === "break") {
-    return <span aria-hidden className={cn("pointer-events-none absolute inset-0 rounded-md", lit)} />;
+    return (
+      <span aria-hidden className={cn("pointer-events-none absolute inset-0 rounded-md", lit)} />
+    );
   }
   return (
     <span aria-hidden dir="ltr" className="pointer-events-none absolute inset-0 flex gap-px">
@@ -419,11 +428,7 @@ export function TreeMenuItem({ action }: { action: TreeAction }) {
   const Icon = action.icon;
   const content = (
     <>
-      {Icon ? (
-        <Icon className="me-2 h-3.5 w-3.5" />
-      ) : (
-        <span className="me-2 w-3.5" />
-      )}
+      {Icon ? <Icon className="me-2 h-3.5 w-3.5" /> : <span className="me-2 w-3.5" />}
       {action.label}
       {action.shortcut && (
         <DropdownMenuShortcut className="ps-4 font-mono tracking-normal text-muted-foreground opacity-100">
@@ -448,9 +453,7 @@ export function TreeMenuItem({ action }: { action: TreeAction }) {
       ) : (
         <DropdownMenuItem
           onSelect={action.onSelect}
-          className={cn(
-            action.destructive && "text-destructive focus:text-destructive",
-          )}
+          className={cn(action.destructive && "text-destructive focus:text-destructive")}
         >
           {content}
         </DropdownMenuItem>

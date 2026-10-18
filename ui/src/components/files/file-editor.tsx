@@ -41,8 +41,7 @@ function parentFolder(path: string): string {
 }
 
 export function FileEditor() {
-  const { editorFile, editorTruncated, isSaving, closeEditor, setIsSaving } =
-    useFileStore();
+  const { editorFile, editorTruncated, isSaving, closeEditor, setIsSaving } = useFileStore();
   const { activeSessionId } = useSessionStore();
   const connectionStatus = useConnectionStore((s) => s.status);
 
@@ -64,9 +63,7 @@ export function FileEditor() {
   const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isModified =
-    savedContent !== null &&
-    currentContent !== null &&
-    savedContent !== currentContent;
+    savedContent !== null && currentContent !== null && savedContent !== currentContent;
 
   // The message handler below lives as long as the file is open. It reads
   // the edit state through refs, so it never sees the state of the render
@@ -304,9 +301,7 @@ export function FileEditor() {
             title="Toggle word wrap"
             aria-label="Toggle word wrap"
           >
-            <WrapText
-              className={cn("h-3.5 w-3.5", wordWrap === "on" && "text-primary")}
-            />
+            <WrapText className={cn("h-3.5 w-3.5", wordWrap === "on" && "text-primary")} />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -323,10 +318,7 @@ export function FileEditor() {
               <DropdownMenuItem onClick={handleOpenInNewSession}>
                 Open in new session
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={handleSendToTerminal}
-                disabled={!activeSessionId}
-              >
+              <DropdownMenuItem onClick={handleSendToTerminal} disabled={!activeSessionId}>
                 Send to current session (vim)
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -359,12 +351,7 @@ export function FileEditor() {
           <div className="flex items-center gap-2 border-b bg-warning/10 px-3 py-1.5 text-xs">
             <AlertTriangle className="h-3.5 w-3.5 text-warning" />
             <span>File changed on disk.</span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 text-xs"
-              onClick={handleReload}
-            >
+            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={handleReload}>
               Reload
             </Button>
           </div>
@@ -424,8 +411,7 @@ export function FileEditor() {
           <AlertDialogHeader>
             <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to {fileName}. Are you sure you want to
-              close?
+              You have unsaved changes to {fileName}. Are you sure you want to close?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

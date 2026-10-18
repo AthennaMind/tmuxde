@@ -18,10 +18,7 @@ interface ErrorBoundaryState {
   copyResult: string | null;
 }
 
-export class ErrorBoundary extends React.Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
@@ -62,8 +59,7 @@ export class ErrorBoundary extends React.Component<
     if (!error) return;
     const text = `${error.message}\n\n${error.stack ?? ""}`;
     void copyText(text).then(
-      (ok) =>
-        this.setState({ copyResult: ok ? "Copied" : copyFailureReason() }),
+      (ok) => this.setState({ copyResult: ok ? "Copied" : copyFailureReason() }),
       () => this.setState({ copyResult: copyFailureReason() }),
     );
   };
@@ -122,11 +118,7 @@ export class ErrorBoundary extends React.Component<
             </Button>
           </div>
           {this.state.copyResult && (
-            <p
-              className="max-w-sm text-xs text-muted-foreground"
-              role="status"
-              aria-live="polite"
-            >
+            <p className="max-w-sm text-xs text-muted-foreground" role="status" aria-live="polite">
               {this.state.copyResult}
             </p>
           )}

@@ -99,11 +99,7 @@ export function CopyModeOverlay() {
         <div className="flex-1" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1 text-xs max-w-[180px]"
-            >
+            <Button variant="outline" size="sm" className="h-8 gap-1 text-xs max-w-[180px]">
               <span className="truncate">
                 {currentPane
                   ? `${currentPane.index}: ${formatPaneName(currentPane.command, currentPane.path)}`
@@ -113,30 +109,28 @@ export function CopyModeOverlay() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {Array.from(panesByWindow.entries()).map(
-              ([windowId, windowPanes], i) => {
-                const win = windows.find((w) => w.id === windowId);
-                return (
-                  <div key={windowId}>
-                    {i > 0 && <DropdownMenuSeparator />}
-                    {windows.length > 1 && (
-                      <DropdownMenuLabel className="text-xs">
-                        {win?.name ?? windowId}
-                      </DropdownMenuLabel>
-                    )}
-                    {windowPanes.map((pane) => (
-                      <DropdownMenuItem
-                        key={pane.id}
-                        className="text-xs"
-                        onClick={() => handlePaneSwitch(pane.id)}
-                      >
-                        {pane.index}: {formatPaneName(pane.command, pane.path)}
-                      </DropdownMenuItem>
-                    ))}
-                  </div>
-                );
-              },
-            )}
+            {Array.from(panesByWindow.entries()).map(([windowId, windowPanes], i) => {
+              const win = windows.find((w) => w.id === windowId);
+              return (
+                <div key={windowId}>
+                  {i > 0 && <DropdownMenuSeparator />}
+                  {windows.length > 1 && (
+                    <DropdownMenuLabel className="text-xs">
+                      {win?.name ?? windowId}
+                    </DropdownMenuLabel>
+                  )}
+                  {windowPanes.map((pane) => (
+                    <DropdownMenuItem
+                      key={pane.id}
+                      className="text-xs"
+                      onClick={() => handlePaneSwitch(pane.id)}
+                    >
+                      {pane.index}: {formatPaneName(pane.command, pane.path)}
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              );
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -161,12 +155,7 @@ export function CopyModeOverlay() {
 
       {/* Bottom action bar — thumb-reachable actions */}
       <div className="flex items-center gap-2 border-t px-3 py-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-11 gap-1 text-xs"
-          onClick={handleClose}
-        >
+        <Button variant="ghost" size="sm" className="h-11 gap-1 text-xs" onClick={handleClose}>
           <X className="h-4 w-4" />
           Close
         </Button>

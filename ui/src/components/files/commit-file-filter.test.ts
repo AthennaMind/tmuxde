@@ -85,9 +85,7 @@ describe("compileFilePattern", () => {
     expect(compileFilePattern("docs/**.md")("docs/api/index.md")).toBe(true);
     expect(compileFilePattern("docs/**")("docs/api/index.md")).toBe(true);
     expect(compileFilePattern("docs/**/index.md")("docs/index.md")).toBe(true);
-    expect(compileFilePattern("docs/**/index.md")("docs/a/b/index.md")).toBe(
-      true,
-    );
+    expect(compileFilePattern("docs/**/index.md")("docs/a/b/index.md")).toBe(true);
     expect(compileFilePattern("**/api/*")("docs/api/index.md")).toBe(true);
   });
 
@@ -164,24 +162,18 @@ describe("filterCommitFiles", () => {
   it("matches a rename by its new or old path", () => {
     const renamed = [file("docs/new.txt", "notes/old.md"), file("a.ts")];
     const only = (patterns: string[]) =>
-      filterCommitFiles(renamed, { patterns, mode: "only" }).map(
-        ({ index }) => index,
-      );
+      filterCommitFiles(renamed, { patterns, mode: "only" }).map(({ index }) => index);
     expect(only(["md"])).toEqual([0]);
     expect(only(["txt"])).toEqual([0]);
     expect(only(["notes/"])).toEqual([0]);
     expect(
-      filterCommitFiles(renamed, { patterns: ["md"], mode: "hide" }).map(
-        ({ index }) => index,
-      ),
+      filterCommitFiles(renamed, { patterns: ["md"], mode: "hide" }).map(({ index }) => index),
     ).toEqual([1]);
   });
 
   it("treats a null original path as no rename", () => {
     const files = [{ path: "a.md", originalPath: null }];
-    expect(
-      filterCommitFiles(files, { patterns: ["md"], mode: "hide" }),
-    ).toEqual([]);
+    expect(filterCommitFiles(files, { patterns: ["md"], mode: "hide" })).toEqual([]);
   });
 });
 
@@ -195,14 +187,7 @@ describe("fileExtensions", () => {
   });
 
   it("counts extensions and sorts by count then name", () => {
-    expect(
-      fileExtensions([
-        ...FILES,
-        file("a.sh"),
-        file("b.ts"),
-        file("c.ts"),
-      ]),
-    ).toEqual([
+    expect(fileExtensions([...FILES, file("a.sh"), file("b.ts"), file("c.ts")])).toEqual([
       { ext: "md", count: 3 },
       { ext: "sh", count: 2 },
       { ext: "ts", count: 2 },
@@ -226,15 +211,11 @@ describe("extension chips", () => {
 
   it("adds the extension as *.ext", () => {
     expect(toggleExtensionPattern("", "md")).toBe("*.md");
-    expect(toggleExtensionPattern("docs/** sh", "md")).toBe(
-      "docs/**, sh, *.md",
-    );
+    expect(toggleExtensionPattern("docs/** sh", "md")).toBe("docs/**, sh, *.md");
   });
 
   it("removes every spelling of the extension", () => {
-    expect(toggleExtensionPattern("md, docs/**, .md, *.MD", "md")).toBe(
-      "docs/**",
-    );
+    expect(toggleExtensionPattern("md, docs/**, .md, *.MD", "md")).toBe("docs/**");
     expect(toggleExtensionPattern("*.md", "md")).toBe("");
   });
 });
@@ -296,20 +277,14 @@ describe("sameSectionProps", () => {
   });
 
   it("renders a shown section when wrap changes", () => {
-    expect(sameSectionProps(props(false, false), props(false, true))).toBe(
-      false,
-    );
+    expect(sameSectionProps(props(false, false), props(false, true))).toBe(false);
     expect(sameSectionProps(props(false, true), props(false, true))).toBe(true);
   });
 
   it("renders when the filter hides or shows the section", () => {
     // Showing again picks up the wrap set while it was hidden.
-    expect(sameSectionProps(props(true, false), props(false, true))).toBe(
-      false,
-    );
-    expect(sameSectionProps(props(false, false), props(true, false))).toBe(
-      false,
-    );
+    expect(sameSectionProps(props(true, false), props(false, true))).toBe(false);
+    expect(sameSectionProps(props(false, false), props(true, false))).toBe(false);
   });
 
   it("compares every prop by identity", () => {

@@ -46,8 +46,7 @@ export function joinSegment(before: string, next: string): string {
   ) {
     return next;
   }
-  const space =
-    (WORD_CHAR.test(last) || SPACE_AFTER.test(last)) && WORD_CHAR.test(first);
+  const space = (WORD_CHAR.test(last) || SPACE_AFTER.test(last)) && WORD_CHAR.test(first);
   return space ? ` ${next}` : next;
 }
 
@@ -65,8 +64,7 @@ export function isTextField(el: Element | null): el is TextField {
   if (!el || el.classList.contains("xterm-helper-textarea")) return false;
   const editable =
     el.tagName === "TEXTAREA" ||
-    (el.tagName === "INPUT" &&
-      TEXT_INPUT_TYPES.has((el as HTMLInputElement).type));
+    (el.tagName === "INPUT" && TEXT_INPUT_TYPES.has((el as HTMLInputElement).type));
   if (!editable) return false;
   const field = el as TextField;
   return !field.readOnly && !field.disabled;

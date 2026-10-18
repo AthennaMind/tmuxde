@@ -32,12 +32,7 @@ import { changeTouchesFolder } from "@/lib/repo-change";
 import { useRepoChangeCount } from "@/stores/repo-watch-store";
 import type { RepositoryClient } from "@/components/files/repository-request";
 import { PanelHeader, PanelIconButton } from "./panel-header";
-import {
-  TreeRow,
-  useTreeKeyboard,
-  type TreeAction,
-  type TreeRowModel,
-} from "./tree-row";
+import { TreeRow, useTreeKeyboard, type TreeAction, type TreeRowModel } from "./tree-row";
 import type { RepositoryState } from "./use-repository-state";
 
 type ChangeCode = { code: string; label: string };
@@ -120,9 +115,7 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
   useEffect(() => {
     if (!root || !contextPath) return;
     const path = ancestors(root, contextPath);
-    setExpanded((prev) =>
-      prev.has(root) ? new Set([...prev, ...path]) : new Set(path),
-    );
+    setExpanded((prev) => (prev.has(root) ? new Set([...prev, ...path]) : new Set(path)));
     setFocusKey(null);
   }, [root, contextPath]);
 
@@ -176,8 +169,18 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
   };
 
   const actionsFor = (entry: FileEntry): TreeAction[] => [
-    ...(entry.type === "file" ? [{ label: "Download", icon: Download, onSelect: () => startDownload(entry.path) }] : []),
-    ...(entry.type === "directory" && !readOnly && (!capabilities || capabilities.files === "write") ? [{ label: "Upload files here", icon: Upload, onSelect: () => uploadPicker.current?.choose(entry.path) }] : []),
+    ...(entry.type === "file"
+      ? [{ label: "Download", icon: Download, onSelect: () => startDownload(entry.path) }]
+      : []),
+    ...(entry.type === "directory" && !readOnly && (!capabilities || capabilities.files === "write")
+      ? [
+          {
+            label: "Upload files here",
+            icon: Upload,
+            onSelect: () => uploadPicker.current?.choose(entry.path),
+          },
+        ]
+      : []),
     ...(entry.type === "directory"
       ? []
       : [
@@ -194,10 +197,7 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
         void copyText(entry.path).then((ok) =>
           useAlertStore
             .getState()
-            .push(
-              ok ? "success" : "error",
-              ok ? "Copied path" : copyFailureReason(),
-            ),
+            .push(ok ? "success" : "error", ok ? "Copied path" : copyFailureReason()),
         ),
     },
     ...(readOnly
@@ -232,10 +232,7 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
     });
   };
 
-  const branch =
-    status?.branch ??
-    context?.branch ??
-    (context?.root ? "Detached HEAD" : null);
+  const branch = status?.branch ?? context?.branch ?? (context?.root ? "Detached HEAD" : null);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -312,10 +309,7 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
         <>
           <div className="shrink-0 px-2 py-2">
             <label className="flex h-8 items-center gap-2 rounded-md border border-input bg-background px-2 focus-within:ring-1 focus-within:ring-ring">
-              <Search
-                className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                aria-hidden
-              />
+              <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
               <input
                 aria-label="Filter open folders"
                 placeholder="Filter open folders"
@@ -386,9 +380,7 @@ function FolderChildren({
 }) {
   // A push that touches this folder lists it again, quietly. Both counts
   // only grow, so their sum changes whenever either does.
-  const pushed = useRepoChangeCount((change) =>
-    changeTouchesFolder(change, path),
-  );
+  const pushed = useRepoChangeCount((change) => changeTouchesFolder(change, path));
   // Another pane or a refresh asks again for the same folder. The old rows
   // stay until the answer lands instead of collapsing to "Loading".
   const listing = useRepositoryQuery(
@@ -470,8 +462,7 @@ function FolderChildren({
           expandable: isDir,
           expanded: open,
           toggle: isDir ? () => state.toggle(entry.path) : undefined,
-          activate: () =>
-            isDir ? state.toggle(entry.path) : state.open(entry),
+          activate: () => (isDir ? state.toggle(entry.path) : state.open(entry)),
           meta: change ? (
             <span
               className={cn("w-3 text-center font-mono font-semibold", codeClass(change.code))}
@@ -535,31 +526,17 @@ function FileTreeEntry({
         onRenameEnd={() => {}}
       />
       {open && (
-        <FolderChildren
-          path={row.key}
-          depth={row.depth + 1}
-          parentKey={row.key}
-          state={state}
-        />
+        <FolderChildren path={row.key} depth={row.depth + 1} parentKey={row.key} state={state} />
       )}
     </>
   );
 }
 
-function Note({
-  children,
-  error = false,
-}: {
-  children: React.ReactNode;
-  error?: boolean;
-}) {
+function Note({ children, error = false }: { children: React.ReactNode; error?: boolean }) {
   return (
     <p
       role={error ? "alert" : "status"}
-      className={cn(
-        "px-3 py-4 text-sm",
-        error ? "text-destructive" : "text-muted-foreground",
-      )}
+      className={cn("px-3 py-4 text-sm", error ? "text-destructive" : "text-muted-foreground")}
     >
       {children}
     </p>

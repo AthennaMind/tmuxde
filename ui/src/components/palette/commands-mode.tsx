@@ -4,9 +4,21 @@ import { matchPalette, type Range } from "@/lib/palette-match";
 import { modKey } from "@/lib/palette-key";
 import { sendCommand } from "@/lib/send-command";
 import {
-  ContextLine, GROUP_CLASS, LIST_CLASS, PaletteEmpty, PaletteFooter, PaletteRow, usePalette, type PaletteItem,
+  ContextLine,
+  GROUP_CLASS,
+  LIST_CLASS,
+  PaletteEmpty,
+  PaletteFooter,
+  PaletteRow,
+  usePalette,
+  type PaletteItem,
 } from "./palette-primitives";
-import { useCanType, usePaletteCommands, useWorkspaceContext, type PaletteGroup } from "./use-palette-commands";
+import {
+  useCanType,
+  usePaletteCommands,
+  useWorkspaceContext,
+  type PaletteGroup,
+} from "./use-palette-commands";
 
 interface Visible {
   group: PaletteGroup;
@@ -36,25 +48,34 @@ export function CommandsMode() {
   const visible = filterGroups(groups, query);
   const total = visible.reduce((sum, entry) => sum + entry.items.length, 0);
   const command = query.trim();
-  const run: PaletteItem | null = canType && command ? {
-    id: "shell:run",
-    label: `Run ${command}`,
-    detail: "Send to the active terminal",
-    icon: <Terminal />,
-    mono: true,
-    shortcut: [modKey("↵")],
-    run: () => { if (sendCommand(command)) finish("terminal"); },
-  } : null;
+  const run: PaletteItem | null =
+    canType && command
+      ? {
+          id: "shell:run",
+          label: `Run ${command}`,
+          detail: "Send to the active terminal",
+          icon: <Terminal />,
+          mono: true,
+          shortcut: [modKey("↵")],
+          run: () => {
+            if (sendCommand(command)) finish("terminal");
+          },
+        }
+      : null;
 
   return (
     <>
       <Command.List className={LIST_CLASS} aria-label="Commands">
         {total === 0 && !run && (
-          <PaletteEmpty>{command ? `No commands match “${command}”.` : "Nothing to do here yet."}</PaletteEmpty>
+          <PaletteEmpty>
+            {command ? `No commands match “${command}”.` : "Nothing to do here yet."}
+          </PaletteEmpty>
         )}
         {visible.map(({ group, items }) => (
           <Command.Group key={group.id} heading={group.heading} className={GROUP_CLASS}>
-            {items.map(({ item, ranges }) => <PaletteRow key={item.id} item={item} ranges={ranges} />)}
+            {items.map(({ item, ranges }) => (
+              <PaletteRow key={item.id} item={item} ranges={ranges} />
+            ))}
           </Command.Group>
         ))}
         {run && (
@@ -65,7 +86,18 @@ export function CommandsMode() {
       </Command.List>
       <PaletteFooter
         left={<ContextLine parts={[context.machine, context.session, context.folder]} />}
-        right={run ? [["↵", "select"], [modKey("↵"), "run"]] : [["↑↓", "move"], ["↵", "select"], ["esc", "close"]]}
+        right={
+          run
+            ? [
+                ["↵", "select"],
+                [modKey("↵"), "run"],
+              ]
+            : [
+                ["↑↓", "move"],
+                ["↵", "select"],
+                ["esc", "close"],
+              ]
+        }
       />
       <div role="status" aria-live="polite" className="sr-only">
         {command ? `${total + (run ? 1 : 0)} results` : ""}

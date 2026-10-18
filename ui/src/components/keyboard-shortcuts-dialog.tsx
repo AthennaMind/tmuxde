@@ -1,11 +1,6 @@
 import { useEffect } from "react";
 import { create } from "zustand";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 /** Opened by `?` and by the command palette. */
 export const useShortcutsDialog = create<{ open: boolean }>(() => ({ open: false }));
@@ -75,13 +70,8 @@ export function KeyboardShortcutsDialog() {
             Agent CLIs
           </p>
           {agentKeys.map(({ keys, description }) => (
-            <div
-              key={description}
-              className="flex items-center justify-between py-1"
-            >
-              <span className="text-sm text-muted-foreground">
-                {description}
-              </span>
+            <div key={description} className="flex items-center justify-between py-1">
+              <span className="text-sm text-muted-foreground">{description}</span>
               <div className="flex items-center gap-1">
                 {keys.map((key) => (
                   <kbd
@@ -98,13 +88,8 @@ export function KeyboardShortcutsDialog() {
             This app
           </p>
           {shortcuts.map(({ keys, description }) => (
-            <div
-              key={description}
-              className="flex items-center justify-between gap-4 py-1"
-            >
-              <span className="text-sm text-muted-foreground">
-                {description}
-              </span>
+            <div key={description} className="flex items-center justify-between gap-4 py-1">
+              <span className="text-sm text-muted-foreground">{description}</span>
               <div className="flex shrink-0 items-center gap-1">
                 {keys.map((key) => (
                   <kbd

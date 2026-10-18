@@ -1,4 +1,8 @@
-import { receiveTerminalPreview, previewConnectionChanged, resetPreviews } from "@/stores/terminal-preview-store";
+import {
+  receiveTerminalPreview,
+  previewConnectionChanged,
+  resetPreviews,
+} from "@/stores/terminal-preview-store";
 import { useEffect } from "react";
 import { MachineListSchema } from "@/protocol/machines";
 import { RelayClient } from "@/lib/ws-client";
@@ -7,7 +11,11 @@ import { findRenames } from "@/lib/session-lifecycle";
 import { isMachineTab, useMainTabsStore } from "@/stores/main-tabs-store";
 import { useMachineStore } from "@/stores/machine-store";
 import * as registry from "@/lib/relay-registry";
-import { receiveTerminalSearch, resetTerminalSearch, terminalSearchDisconnected } from "@/stores/terminal-search-store";
+import {
+  receiveTerminalSearch,
+  resetTerminalSearch,
+  terminalSearchDisconnected,
+} from "@/stores/terminal-search-store";
 
 /** Read-only subscriptions keep every machine live without attaching a PTY. */
 export function useMachines(token: string) {
@@ -19,67 +27,73 @@ export function useMachines(token: string) {
 
     const connect = (id: string) => {
       const key = `inventory:${id}`;
-      const client = registry.acquire(key, () => new RelayClient({
-        url: resolveRelayWsUrl(id),
-        token,
-        onStatusChange: (status) => {
-          useMachineStore.getState().update(id, { status });
-          previewConnectionChanged(id);
-          if (status !== "connected") terminalSearchDisconnected(id);
-        },
-        onMessage: (message) => {
-          if (controller.signal.aborted) return;
-          const store = useMachineStore.getState();
-          if (message.type === "terminal:preview:frame") {
-            receiveTerminalPreview(id, message);
-          } else if (message.type === "terminal:search:result") {
-            receiveTerminalSearch(id, message);
-          } else if (message.type === "auth:success") {
-            client.send({ type: "session:list" });
-          } else if (message.type === "session:list") {
-            const previous = store.inventory[id]?.sessions ?? [];
-            const renames = new Map(findRenames(previous, message.sessions));
-            if (renames.size) {
-              useMainTabsStore.setState((state) => ({
-                tabs: state.tabs.map((tab) =>
-                  isMachineTab(tab) && (tab.machineId ?? "local") === id &&
-                    tab.sessionName && renames.has(tab.sessionName)
-                    ? { ...tab, sessionName: renames.get(tab.sessionName)! }
-                    : tab,
-                ),
-              }));
-            }
-            useMachineStore.setState((state) => ({
-              terminals: state.terminals.flatMap((tab) => {
-                if (tab.machineId !== id) return [tab];
-                const name = renames.get(tab.sessionName) ?? tab.sessionName;
-                return message.sessions.some((session) => session.name === name)
-                  ? [{ ...tab, sessionName: name }]
-                  : [];
-              }),
-            }));
-            store.update(id, { sessions: message.sessions, loaded: true });
-            for (const session of message.sessions) {
-              client.send({ type: "session:windows", name: session.name });
-            }
-          } else if (message.type === "session:windows") {
-            store.update(id, {
-              details: {
-                ...store.inventory[id]?.details,
-                [message.name]: { windows: message.windows, panes: message.panes },
-              },
-            });
-          } else if (message.type === "session:activity") {
-            store.update(id, {
-              sessions: (store.inventory[id]?.sessions ?? []).map((session) =>
-                session.name === message.name
-                  ? { ...session, activity: message.activity }
-                  : session,
-              ),
-            });
-          }
-        },
-      }));
+      const client = registry.acquire(
+        key,
+        () =>
+          new RelayClient({
+            url: resolveRelayWsUrl(id),
+            token,
+            onStatusChange: (status) => {
+              useMachineStore.getState().update(id, { status });
+              previewConnectionChanged(id);
+              if (status !== "connected") terminalSearchDisconnected(id);
+            },
+            onMessage: (message) => {
+              if (controller.signal.aborted) return;
+              const store = useMachineStore.getState();
+              if (message.type === "terminal:preview:frame") {
+                receiveTerminalPreview(id, message);
+              } else if (message.type === "terminal:search:result") {
+                receiveTerminalSearch(id, message);
+              } else if (message.type === "auth:success") {
+                client.send({ type: "session:list" });
+              } else if (message.type === "session:list") {
+                const previous = store.inventory[id]?.sessions ?? [];
+                const renames = new Map(findRenames(previous, message.sessions));
+                if (renames.size) {
+                  useMainTabsStore.setState((state) => ({
+                    tabs: state.tabs.map((tab) =>
+                      isMachineTab(tab) &&
+                      (tab.machineId ?? "local") === id &&
+                      tab.sessionName &&
+                      renames.has(tab.sessionName)
+                        ? { ...tab, sessionName: renames.get(tab.sessionName)! }
+                        : tab,
+                    ),
+                  }));
+                }
+                useMachineStore.setState((state) => ({
+                  terminals: state.terminals.flatMap((tab) => {
+                    if (tab.machineId !== id) return [tab];
+                    const name = renames.get(tab.sessionName) ?? tab.sessionName;
+                    return message.sessions.some((session) => session.name === name)
+                      ? [{ ...tab, sessionName: name }]
+                      : [];
+                  }),
+                }));
+                store.update(id, { sessions: message.sessions, loaded: true });
+                for (const session of message.sessions) {
+                  client.send({ type: "session:windows", name: session.name });
+                }
+              } else if (message.type === "session:windows") {
+                store.update(id, {
+                  details: {
+                    ...store.inventory[id]?.details,
+                    [message.name]: { windows: message.windows, panes: message.panes },
+                  },
+                });
+              } else if (message.type === "session:activity") {
+                store.update(id, {
+                  sessions: (store.inventory[id]?.sessions ?? []).map((session) =>
+                    session.name === message.name
+                      ? { ...session, activity: message.activity }
+                      : session,
+                  ),
+                });
+              }
+            },
+          }),
+      );
       clients.set(id, client);
       client.connect();
     };
@@ -108,7 +122,8 @@ export function useMachines(token: string) {
             const client = clients.get(machine.id)!;
             if (client.status === "connected") {
               // Refresh folders and commands even when a pane is idle.
-              for (const session of useMachineStore.getState().inventory[machine.id]?.sessions ?? []) {
+              for (const session of useMachineStore.getState().inventory[machine.id]?.sessions ??
+                []) {
                 client.send({ type: "session:windows", name: session.name });
               }
             }

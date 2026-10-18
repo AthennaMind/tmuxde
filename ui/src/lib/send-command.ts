@@ -25,10 +25,7 @@ export type SendCommandOptions = {
   record?: boolean;
 };
 
-export function sendCommand(
-  text: string,
-  { record = true }: SendCommandOptions = {},
-): boolean {
+export function sendCommand(text: string, { record = true }: SendCommandOptions = {}): boolean {
   const command = text.trim();
   if (!command) return false;
 

@@ -125,9 +125,7 @@ describe("serverAttached", () => {
   });
 
   it("ignores an ack when nothing is in flight", () => {
-    expect(reduceAttach(IDLE, { type: "serverAttached", name: "work" })).toBe(
-      IDLE,
-    );
+    expect(reduceAttach(IDLE, { type: "serverAttached", name: "work" })).toBe(IDLE);
   });
 });
 

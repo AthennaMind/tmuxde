@@ -11,10 +11,11 @@
  * @param {unknown} terminal
  */
 export function brightenDimText(terminal) {
-  const core = /** @type {{ _core?: { _renderService?: { _renderer?: { value?: {
-   * _injectCss?: (...args: unknown[]) => void,
-   * _themeStyleElement?: { textContent: string | null }
-   * } } } } }} */ (terminal);
+  const core =
+    /** @type {{ _core?: { _renderService?: { _renderer?: { value?: {
+     * _injectCss?: (...args: unknown[]) => void,
+     * _themeStyleElement?: { textContent: string | null }
+     * } } } } }} */ (terminal);
   const renderer = core?._core?._renderService?._renderer?.value;
   const injectCss = renderer?._injectCss;
   if (!renderer?._themeStyleElement || typeof injectCss !== "function") return;

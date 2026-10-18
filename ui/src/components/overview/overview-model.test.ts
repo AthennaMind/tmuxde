@@ -36,7 +36,12 @@ const session = (name: string, windows = 1): SessionInfo => ({
   activity: new Date().toISOString(),
 });
 
-const window = (id: string, index: number, name: string, extra: Partial<WindowInfo> = {}): WindowInfo => ({
+const window = (
+  id: string,
+  index: number,
+  name: string,
+  extra: Partial<WindowInfo> = {},
+): WindowInfo => ({
   id,
   index,
   name,
@@ -73,10 +78,7 @@ function beta(): MachineSessions {
     sessions: [session("dev", 2), session("notes")],
     details: {
       dev: {
-        windows: [
-          window("@1", 0, "agents", { paneCount: 2 }),
-          window("@2", 1, "zsh"),
-        ],
+        windows: [window("@1", 0, "agents", { paneCount: 2 }), window("@2", 1, "zsh")],
         panes: [
           pane("%1", "@1", { command: "claude", index: 0 }),
           pane("%2", "@1", { index: 1, active: false, path: "/home/me/workspace/web" }),
@@ -95,9 +97,19 @@ describe("buildMachine", () => {
   it("prefers refreshed inventory over cached details for unattached sessions", () => {
     const fresh = beta();
     const live: LiveState = {
-      machineId: "beta", status: "connected", sessions: fresh.sessions, sessionsLoaded: true,
-      activeSessionId: null, attachedSession: null, details: { dev: { windows: [window("@99", 0, "stale")], panes: [] } },
-      windows: [], panes: [], activeWindowId: null, activePaneId: null, zoomedPaneId: null, pendingKey: null,
+      machineId: "beta",
+      status: "connected",
+      sessions: fresh.sessions,
+      sessionsLoaded: true,
+      activeSessionId: null,
+      attachedSession: null,
+      details: { dev: { windows: [window("@99", 0, "stale")], panes: [] } },
+      windows: [],
+      panes: [],
+      activeWindowId: null,
+      activePaneId: null,
+      zoomedPaneId: null,
+      pendingKey: null,
     };
     const view = buildMachine(machine("beta"), fresh, live);
     expect(view.sessions[0]!.windows.map((item) => item.window.id)).toEqual(["@1", "@2"]);
@@ -134,11 +146,7 @@ describe("buildMachine", () => {
   });
 
   it("marks a session whose windows are not in yet", () => {
-    const view = buildMachine(
-      machine("a"),
-      inventory({ sessions: [session("fresh", 3)] }),
-      null,
-    );
+    const view = buildMachine(machine("a"), inventory({ sessions: [session("fresh", 3)] }), null);
     expect(view.sessions[0]).toMatchObject({ loading: true, windowCount: 3, windows: [] });
   });
 
@@ -263,10 +271,7 @@ describe("liveWindowsOf", () => {
 
 describe("windowFocus", () => {
   const w = window("@1", 0, "agents", { paneCount: 2 });
-  const panes = [
-    pane("%1", "@1", { active: false }),
-    pane("%2", "@1", { index: 1, active: true }),
-  ];
+  const panes = [pane("%1", "@1", { active: false }), pane("%2", "@1", { index: 1, active: true })];
 
   it("reads the window on screen from the pane store", () => {
     expect(windowFocus(w, panes, { activePaneId: "%1", zoomedPaneId: "%1" })).toEqual({
@@ -298,9 +303,19 @@ describe("windowPanes", () => {
 describe("filterOverview", () => {
   const machines = () => [
     buildMachine(machine("beta"), beta(), null),
-    buildMachine(machine("alpha"), inventory({ sessions: [session("ops")], details: {
-      ops: { windows: [window("@9", 0, "logs")], panes: [pane("%9", "@9", { command: "tail" })] },
-    } }), null),
+    buildMachine(
+      machine("alpha"),
+      inventory({
+        sessions: [session("ops")],
+        details: {
+          ops: {
+            windows: [window("@9", 0, "logs")],
+            panes: [pane("%9", "@9", { command: "tail" })],
+          },
+        },
+      }),
+      null,
+    ),
   ];
 
   it("keeps everything without a query", () => {
@@ -341,9 +356,7 @@ describe("filterOverview", () => {
 describe("labels", () => {
   it("names a card for screen readers", () => {
     const [agents] = buildMachine(machine("beta"), beta(), null).sessions[0]!.windows;
-    expect(windowCardName(agents!)).toBe(
-      "Window 0 agents, Claude Code · 2 folders, 2 panes",
-    );
+    expect(windowCardName(agents!)).toBe("Window 0 agents, Claude Code · 2 folders, 2 panes");
     expect(windowCardName({ ...agents!, zoomed: true, showing: true })).toBe(
       "Window 0 agents, Claude Code · 2 folders, 2 panes, zoomed, on screen",
     );
@@ -375,12 +388,16 @@ describe("labels", () => {
   });
 });
 
-
 describe("overviewPanes", () => {
   it("flattens splits and sessions while retaining navigation context", () => {
     const cards = overviewPanes([buildMachine(machine("beta"), beta(), null)]);
-    expect(cards.map((card) => [card.session.session.name, card.window.window.id, card.pane.id])).toEqual([
-      ["dev", "@1", "%1"], ["dev", "@1", "%2"], ["dev", "@2", "%3"], ["notes", "@3", "%4"],
+    expect(
+      cards.map((card) => [card.session.session.name, card.window.window.id, card.pane.id]),
+    ).toEqual([
+      ["dev", "@1", "%1"],
+      ["dev", "@1", "%2"],
+      ["dev", "@2", "%3"],
+      ["notes", "@3", "%4"],
     ]);
   });
   it("matches only the pane process or path, while location matches keep its panes", () => {
@@ -392,7 +409,10 @@ describe("overviewPanes", () => {
     expect(overviewPanes(machines, "notes").map((card) => card.pane.id)).toEqual(["%4"]);
   });
   it("keeps identical pane IDs on different machines distinct", () => {
-    const cards = overviewPanes([buildMachine(machine("alpha"), beta(), null), buildMachine(machine("beta"), beta(), null)]);
+    const cards = overviewPanes([
+      buildMachine(machine("alpha"), beta(), null),
+      buildMachine(machine("beta"), beta(), null),
+    ]);
     expect(new Set(cards.map((card) => card.key)).size).toBe(8);
     expect(cards[4]!.machine.machine.id).toBe("beta");
   });

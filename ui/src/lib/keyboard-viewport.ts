@@ -61,9 +61,7 @@ export const SCALE_TOLERANCE = 0.05;
  * data, so a test can drive a whole session — rotate, focus, zoom, blur —
  * without the previous test's phone leaking into it.
  */
-export type KeyboardBaselines = Partial<
-  Record<ViewportSample["orientation"], number>
->;
+export type KeyboardBaselines = Partial<Record<ViewportSample["orientation"], number>>;
 
 export function computeKeyboardState(
   sample: ViewportSample,
@@ -125,9 +123,7 @@ export function isTextEntry(el: Element | null): boolean {
   if (tag === "INPUT") {
     const type = (el as HTMLInputElement).type;
     // `button`, `checkbox`, `submit` and friends never raise a keyboard.
-    return !["button", "checkbox", "radio", "submit", "reset", "file"].includes(
-      type,
-    );
+    return !["button", "checkbox", "radio", "submit", "reset", "file"].includes(type);
   }
   return (el as HTMLElement).isContentEditable === true;
 }

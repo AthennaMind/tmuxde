@@ -7,11 +7,16 @@ import { useConnectionStore } from "@/stores/connection-store";
 class Track extends EventTarget {
   enabled = true;
   readyState = "live";
-  stop = vi.fn(() => { this.readyState = "ended"; });
+  stop = vi.fn(() => {
+    this.readyState = "ended";
+  });
 }
 function device() {
   const track = new Track();
-  const stream = { getTracks: () => [track], getAudioTracks: () => [track] } as unknown as MediaStream;
+  const stream = {
+    getTracks: () => [track],
+    getAudioTracks: () => [track],
+  } as unknown as MediaStream;
   return { track, stream };
 }
 const getUserMedia = vi.fn<() => Promise<MediaStream>>();
@@ -25,7 +30,9 @@ class Context {
   close = vi.fn(async () => {});
   source = { connect: vi.fn(), disconnect: vi.fn() };
   createMediaStreamSource = vi.fn(() => this.source);
-  constructor() { contexts.push(this); }
+  constructor() {
+    contexts.push(this);
+  }
 }
 class Worklet {
   port = {
@@ -34,7 +41,9 @@ class Worklet {
   };
   connect = vi.fn();
   disconnect = vi.fn();
-  constructor() { nodes.push(this); }
+  constructor() {
+    nodes.push(this);
+  }
 }
 let documentEvents: EventTarget & { visibilityState: string };
 let windowEvents: EventTarget;
@@ -106,23 +115,30 @@ describe("microphone lifecycle", () => {
     expect(nodes[0]!.port.onmessage).toBeNull();
   });
 
-  it.each(["hidden", "pagehide", "disconnect", "lock"])("releases idle microphone on %s", async (event) => {
-    const { track, stream } = device();
-    getUserMedia.mockResolvedValue(stream);
-    await (await start()).stop();
-    if (event === "hidden") {
-      documentEvents.visibilityState = "hidden";
-      documentEvents.dispatchEvent(new Event("visibilitychange"));
-    } else if (event === "pagehide") windowEvents.dispatchEvent(new Event("pagehide"));
-    else if (event === "lock") disconnectAll();
-    else useConnectionStore.setState({ status: "reconnecting" });
-    expect(track.stop).toHaveBeenCalledTimes(1);
-  });
+  it.each(["hidden", "pagehide", "disconnect", "lock"])(
+    "releases idle microphone on %s",
+    async (event) => {
+      const { track, stream } = device();
+      getUserMedia.mockResolvedValue(stream);
+      await (await start()).stop();
+      if (event === "hidden") {
+        documentEvents.visibilityState = "hidden";
+        documentEvents.dispatchEvent(new Event("visibilitychange"));
+      } else if (event === "pagehide") windowEvents.dispatchEvent(new Event("pagehide"));
+      else if (event === "lock") disconnectAll();
+      else useConnectionStore.setState({ status: "reconnecting" });
+      expect(track.stop).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("drops late permission grant after cancellation and closes pending context immediately", async () => {
     const { track, stream } = device();
     let grant!: (value: MediaStream) => void;
-    getUserMedia.mockReturnValue(new Promise((resolve) => { grant = resolve; }));
+    getUserMedia.mockReturnValue(
+      new Promise((resolve) => {
+        grant = resolve;
+      }),
+    );
     const request = new AbortController();
     const pending = start(request.signal);
     request.abort();
@@ -137,7 +153,13 @@ describe("microphone lifecycle", () => {
     const old = device();
     const next = device();
     let grant!: (value: MediaStream) => void;
-    getUserMedia.mockReturnValueOnce(new Promise((resolve) => { grant = resolve; })).mockResolvedValue(next.stream);
+    getUserMedia
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          grant = resolve;
+        }),
+      )
+      .mockResolvedValue(next.stream);
     const pending = acquireMicrophone(new AbortController().signal);
     windowEvents.dispatchEvent(new Event("pagehide"));
     const lease = await acquireMicrophone(new AbortController().signal);
@@ -174,7 +196,9 @@ describe("microphone lifecycle", () => {
   });
 
   it("does not cache denied permission", async () => {
-    getUserMedia.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError")).mockResolvedValue(device().stream);
+    getUserMedia
+      .mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"))
+      .mockResolvedValue(device().stream);
     await expect(start()).rejects.toThrow("Microphone blocked");
     (await start()).abort();
     expect(getUserMedia).toHaveBeenCalledTimes(2);

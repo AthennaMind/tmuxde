@@ -47,10 +47,7 @@ export function GestureHelpSheet({
                 </h3>
                 <ul className="space-y-2">
                   {section.entries.map((entry) => (
-                    <li
-                      key={entry.gesture}
-                      className="flex items-baseline gap-3"
-                    >
+                    <li key={entry.gesture} className="flex items-baseline gap-3">
                       {/*
                         A fixed column for the gesture, so the effects line up
                         into something scannable. It wraps rather than
@@ -61,9 +58,7 @@ export function GestureHelpSheet({
                       <span className="w-28 shrink-0 text-xs font-medium text-foreground">
                         {entry.gesture}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {entry.effect}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{entry.effect}</span>
                     </li>
                   ))}
                 </ul>

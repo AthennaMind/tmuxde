@@ -1,21 +1,11 @@
 import { describe, expect, it } from "vitest";
-import {
-  insertIntoField,
-  isTextField,
-  joinSegment,
-  sanitizeDictation,
-} from "./dictation-text";
+import { insertIntoField, isTextField, joinSegment, sanitizeDictation } from "./dictation-text";
 import { isDictationKey } from "./dictation-key";
-import {
-  Downsampler,
-  FRAME_SAMPLES,
-} from "../../public/dictation-worklet.js";
+import { Downsampler, FRAME_SAMPLES } from "../../public/dictation-worklet.js";
 
 describe("sanitizeDictation", () => {
   it("keeps words in any script", () => {
-    expect(sanitizeDictation("Пусни тестовете в relay-а")).toBe(
-      "Пусни тестовете в relay-а",
-    );
+    expect(sanitizeDictation("Пусни тестовете в relay-а")).toBe("Пусни тестовете в relay-а");
   });
 
   it("removes anything a terminal would act on", () => {
@@ -23,9 +13,7 @@ describe("sanitizeDictation", () => {
   });
 
   it("turns line breaks into spaces so nothing runs", () => {
-    expect(sanitizeDictation("first line\nsecond\r\nthird")).toBe(
-      "first line second third",
-    );
+    expect(sanitizeDictation("first line\nsecond\r\nthird")).toBe("first line second third");
   });
 
   it("collapses to nothing for silence", () => {
@@ -121,7 +109,11 @@ describe("Downsampler", () => {
     const frames: Int16Array[] = [];
     const levels: number[] = [];
     const downsampler = new Downsampler(rate);
-    downsampler.push(input, (f: Int16Array) => frames.push(f), (l: number) => levels.push(l));
+    downsampler.push(
+      input,
+      (f: Int16Array) => frames.push(f),
+      (l: number) => levels.push(l),
+    );
     return { frames, levels, rest: downsampler.flush() };
   }
 
@@ -158,7 +150,11 @@ describe("Downsampler", () => {
 
   it("returns the partial frame on flush, once", () => {
     const downsampler = new Downsampler(16000);
-    downsampler.push(new Float32Array(100), () => {}, () => {});
+    downsampler.push(
+      new Float32Array(100),
+      () => {},
+      () => {},
+    );
     expect(downsampler.flush()).toHaveLength(100);
     expect(downsampler.flush()).toBeNull();
   });

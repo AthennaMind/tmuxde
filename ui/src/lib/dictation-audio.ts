@@ -48,7 +48,10 @@ function describe(error: unknown): string {
  * created and resumed inside one, which is why both happen before the first
  * await.
  */
-export async function startCapture(handlers: CaptureHandlers, signal: AbortSignal): Promise<Capture> {
+export async function startCapture(
+  handlers: CaptureHandlers,
+  signal: AbortSignal,
+): Promise<Capture> {
   signal.throwIfAborted();
   if (!navigator.mediaDevices?.getUserMedia || typeof AudioWorkletNode === "undefined") {
     throw new MicrophoneError("This browser cannot record audio here");
@@ -60,7 +63,10 @@ export async function startCapture(handlers: CaptureHandlers, signal: AbortSigna
   };
   signal.addEventListener("abort", closeContext, { once: true });
   // Observe rejection immediately, even while permission prompt is pending.
-  const resumed = context.resume().then(() => true, () => false);
+  const resumed = context.resume().then(
+    () => true,
+    () => false,
+  );
 
   let microphone: Awaited<ReturnType<typeof acquireMicrophone>>;
   try {
@@ -78,7 +84,7 @@ export async function startCapture(handlers: CaptureHandlers, signal: AbortSigna
 
   let node: AudioWorkletNode;
   try {
-    if (!await resumed) throw new Error("Audio context did not resume");
+    if (!(await resumed)) throw new Error("Audio context did not resume");
     signal.throwIfAborted();
     await context.audioWorklet.addModule("/dictation-worklet.js");
     node = new AudioWorkletNode(context, "dictation-capture", {
@@ -143,7 +149,10 @@ export async function startCapture(handlers: CaptureHandlers, signal: AbortSigna
       microphone.pause();
       await new Promise<void>((resolve) => {
         const timer = setTimeout(resolve, FLUSH_TIMEOUT_MS);
-        flushed = () => { clearTimeout(timer); resolve(); };
+        flushed = () => {
+          clearTimeout(timer);
+          resolve();
+        };
         node.port.postMessage({ type: "flush" });
       });
       disconnect(true);

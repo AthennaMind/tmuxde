@@ -47,13 +47,11 @@ export const useSessionTreeStore = create<SessionTreeStore>((set) => ({
       details: { ...s.details, [name]: details },
       loading: { ...s.loading, [name]: false },
     })),
-  setLoading: (name, loading) =>
-    set((s) => ({ loading: { ...s.loading, [name]: loading } })),
+  setLoading: (name, loading) => set((s) => ({ loading: { ...s.loading, [name]: loading } })),
   setAttachedSession: (attachedSession) =>
     set((s) => ({
       attachedSession,
-      attachCount:
-        attachedSession === null ? s.attachCount : s.attachCount + 1,
+      attachCount: attachedSession === null ? s.attachCount : s.attachCount + 1,
     })),
   forget: (name) =>
     set((s) => {

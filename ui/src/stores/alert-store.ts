@@ -48,7 +48,6 @@ export const useAlertStore = create<AlertStore>((set, get) => ({
       set((s) => ({ alerts: s.alerts.filter((a) => a.id !== id) }));
     }, AUTO_DISMISS_MS[type]);
   },
-  dismiss: (id) =>
-    set((s) => ({ alerts: s.alerts.filter((a) => a.id !== id) })),
+  dismiss: (id) => set((s) => ({ alerts: s.alerts.filter((a) => a.id !== id) })),
   dismissAll: () => set({ alerts: [] }),
 }));

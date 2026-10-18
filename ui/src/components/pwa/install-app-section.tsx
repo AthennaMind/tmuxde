@@ -37,8 +37,7 @@ function useEnvironment() {
           standaloneQuery.matches ||
           window.matchMedia("(display-mode: minimal-ui)").matches ||
           // iOS predates the display-mode media query and still needs this.
-          (navigator as Navigator & { standalone?: boolean }).standalone ===
-            true,
+          (navigator as Navigator & { standalone?: boolean }).standalone === true,
         iosDevice: isIosDevice(navigator),
         secureContext: window.isSecureContext,
         resolved: true,
@@ -87,11 +86,7 @@ export function InstallAppSection() {
   return (
     <SettingsSection title="Install">
       {availability === "installed" && (
-        <SettingsRow
-          label="Installed"
-          hint="tmuxde is running as an installed app."
-          textLabel
-        >
+        <SettingsRow label="Installed" hint="tmuxde is running as an installed app." textLabel>
           {() => <Check className="h-4 w-4 text-primary" aria-hidden />}
         </SettingsRow>
       )}
@@ -112,10 +107,7 @@ export function InstallAppSection() {
                 if (outcome === "unavailable") {
                   useAlertStore
                     .getState()
-                    .push(
-                      "info",
-                      "Your browser did not offer an install prompt",
-                    );
+                    .push("info", "Your browser did not offer an install prompt");
                 }
               }}
             >
@@ -131,14 +123,10 @@ export function InstallAppSection() {
           label="Add to Home Screen"
           hint={
             <>
-              Tap{" "}
-              <Share className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden />{" "}
-              <strong className="font-medium text-foreground">Share</strong>,
-              then{" "}
-              <strong className="font-medium text-foreground">
-                Add to Home Screen
-              </strong>
-              . You get a full height terminal with no browser chrome.
+              Tap <Share className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden />{" "}
+              <strong className="font-medium text-foreground">Share</strong>, then{" "}
+              <strong className="font-medium text-foreground">Add to Home Screen</strong>. You get a
+              full height terminal with no browser chrome.
             </>
           }
         />

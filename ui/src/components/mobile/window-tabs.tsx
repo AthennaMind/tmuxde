@@ -74,8 +74,7 @@ export function WindowTabs({ className }: WindowTabsProps) {
     gestures,
   });
 
-  const activeKey =
-    pendingKey ?? strip.entries[strip.activeIndex]?.key ?? undefined;
+  const activeKey = pendingKey ?? strip.entries[strip.activeIndex]?.key ?? undefined;
   const showStrip = strip.entries.length > 1;
   // Labels change width without changing the list box, so they rerun this too.
   const entriesKey = strip.entries.map((e) => `${e.key}:${e.label}`).join("|");
@@ -83,17 +82,13 @@ export function WindowTabs({ className }: WindowTabsProps) {
   useEffect(() => {
     const list = listRef.current;
     if (!list) {
-      setOverflow((prev) =>
-        prev.start || prev.end ? { start: false, end: false } : prev,
-      );
+      setOverflow((prev) => (prev.start || prev.end ? { start: false, end: false } : prev));
       return;
     }
     const update = () => {
       const start = list.scrollLeft > 1;
       const end = list.scrollLeft + list.clientWidth < list.scrollWidth - 1;
-      setOverflow((prev) =>
-        prev.start === start && prev.end === end ? prev : { start, end },
-      );
+      setOverflow((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
     };
     update();
     list.addEventListener("scroll", update, { passive: true });
@@ -174,19 +169,10 @@ export function WindowTabs({ className }: WindowTabsProps) {
    * for two years, on every window tab in the app.
    */
   const stripLabel =
-    strip.kind === "window"
-      ? "Windows"
-      : strip.kind === "pane"
-        ? "Panes"
-        : "Sessions";
+    strip.kind === "window" ? "Windows" : strip.kind === "pane" ? "Panes" : "Sessions";
 
   return (
-    <div
-      className={cn(
-        "flex min-h-11 shrink-0 items-center gap-1 px-2 border-b",
-        className,
-      )}
-    >
+    <div className={cn("flex min-h-11 shrink-0 items-center gap-1 px-2 border-b", className)}>
       {showStrip ? (
         <div
           ref={listRef}
@@ -232,27 +218,17 @@ export function WindowTabs({ className }: WindowTabsProps) {
                   )}
                 >
                   {entry.index !== undefined && (
-                    <span className="text-[11px] opacity-60">
-                      {entry.index}
-                    </span>
+                    <span className="text-[11px] opacity-60">{entry.index}</span>
                   )}
                   <span className="max-w-[80px] truncate">{entry.label}</span>
-                  {entry.zoomed && (
-                    <Maximize2 className="h-2.5 w-2.5" aria-label="Zoomed" />
-                  )}
+                  {entry.zoomed && <Maximize2 className="h-2.5 w-2.5" aria-label="Zoomed" />}
                   {entry.paneCount !== undefined && entry.paneCount > 1 && (
-                    <span
-                      className="text-[11px] opacity-60"
-                      title={`${entry.paneCount} panes`}
-                    >
+                    <span className="text-[11px] opacity-60" title={`${entry.paneCount} panes`}>
                       ·{entry.paneCount}
                     </span>
                   )}
                   {entry.activity && !isActive && (
-                    <span
-                      className="h-1.5 w-1.5 rounded-full bg-primary"
-                      aria-label="Activity"
-                    />
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-label="Activity" />
                   )}
                 </span>
               </button>
@@ -260,10 +236,7 @@ export function WindowTabs({ className }: WindowTabsProps) {
           })}
         </div>
       ) : soleWindow ? (
-        <span
-          className="flex-1 truncate text-xs text-muted-foreground"
-          title={soleWindow.name}
-        >
+        <span className="flex-1 truncate text-xs text-muted-foreground" title={soleWindow.name}>
           {soleWindow.name}
         </span>
       ) : (

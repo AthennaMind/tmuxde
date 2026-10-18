@@ -144,8 +144,8 @@ export function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
         </span>
         <h1 className="text-lg font-medium text-foreground">Locked</h1>
         <p className="max-w-xs text-sm text-muted-foreground">
-          Your keys are encrypted on this device. Nothing on the machine was
-          stopped — your sessions are still running.
+          Your keys are encrypted on this device. Nothing on the machine was stopped — your sessions
+          are still running.
         </p>
       </div>
 
@@ -166,12 +166,8 @@ export function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
           </p>
         )}
         {throttled && (
-          <p
-            role="status"
-            className="text-center text-sm text-muted-foreground"
-          >
-            Too many attempts. Try again in{" "}
-            {Math.ceil((waitUntil - now) / 1000)}s.
+          <p role="status" className="text-center text-sm text-muted-foreground">
+            Too many attempts. Try again in {Math.ceil((waitUntil - now) / 1000)}s.
           </p>
         )}
       </div>
@@ -196,8 +192,7 @@ export function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
       */}
       <div className="max-w-xs space-y-2 text-center">
         <p className="text-xs text-muted-foreground">
-          Forgotten it? There is no reset — the PIN is the key, and nothing else
-          can unwrap it.
+          Forgotten it? There is no reset — the PIN is the key, and nothing else can unwrap it.
         </p>
         <Button
           variant="ghost"
@@ -220,9 +215,8 @@ export function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Erase this device?</AlertDialogTitle>
             <AlertDialogDescription>
-              This browser forgets its token, and the lock goes with it.
-              Nothing on the machine changes. Your sessions keep running, and
-              signing in again takes only the token.
+              This browser forgets its token, and the lock goes with it. Nothing on the machine
+              changes. Your sessions keep running, and signing in again takes only the token.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">

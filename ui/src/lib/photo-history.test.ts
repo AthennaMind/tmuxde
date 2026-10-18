@@ -80,9 +80,7 @@ describe("reuse photo path", () => {
       context.isCurrent.mockReturnValue(false);
       return "blob:photo";
     });
-    await expect(reusePhotoPath("/photo.png", context)).rejects.toThrow(
-      "Terminal changed",
-    );
+    await expect(reusePhotoPath("/photo.png", context)).rejects.toThrow("Terminal changed");
     expect(context.paste).not.toHaveBeenCalled();
     expect(context.release).toHaveBeenCalledWith("blob:photo");
   });
@@ -90,14 +88,10 @@ describe("reuse photo path", () => {
   it("rejects stale connection before fetching and unsafe path before paste", async () => {
     const context = reuseContext();
     context.isCurrent.mockReturnValue(false);
-    await expect(reusePhotoPath("/photo.png", context)).rejects.toThrow(
-      "Terminal changed",
-    );
+    await expect(reusePhotoPath("/photo.png", context)).rejects.toThrow("Terminal changed");
     expect(context.load).not.toHaveBeenCalled();
     context.isCurrent.mockReturnValue(true);
-    await expect(reusePhotoPath("/photo\n.png", context)).rejects.toThrow(
-      "Invalid photo path",
-    );
+    await expect(reusePhotoPath("/photo\n.png", context)).rejects.toThrow("Invalid photo path");
     expect(context.paste).not.toHaveBeenCalled();
   });
 });

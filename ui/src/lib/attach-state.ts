@@ -42,10 +42,7 @@ export function resetAttachIds(): void {
   attachCounter = 0;
 }
 
-export function reduceAttach(
-  state: AttachState,
-  event: AttachEvent,
-): AttachState {
+export function reduceAttach(state: AttachState, event: AttachEvent): AttachState {
   switch (event.type) {
     case "requestAttach":
       // Only a settled attach to the *same* session is a no-op. An attach in

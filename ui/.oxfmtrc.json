@@ -5,10 +5,5 @@
   "singleQuote": false,
   "tabWidth": 2,
   "trailingComma": "all",
-  "ignorePatterns": [
-    "public/",
-    "src/protocol/fixtures/",
-    "pnpm-workspace.yaml",
-    "**/*.md"
-  ]
+  "ignorePatterns": ["public/", "src/protocol/fixtures/", "pnpm-workspace.yaml", "**/*.md"]
 }

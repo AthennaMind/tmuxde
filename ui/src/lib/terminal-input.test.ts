@@ -47,16 +47,14 @@ describe("live terminal modifiers", () => {
     expect(consumeTerminalInput("d")).toBe("d");
   });
 
-  it.each([
-    "\x1b[12;40R",
-    "\x1b[?1;2c",
-    "\x1b]10;rgb:ffff/ffff/ffff\x1b\\",
-    "\x1b[I",
-  ])("does not apply or consume modifiers for terminal reply %j", (reply) => {
-    useTerminalInput.getState().toggle("alt");
-    expect(consumeTerminalInput(reply)).toBe(reply);
-    expect(consumeTerminalInput("b")).toBe("\x1bb");
-  });
+  it.each(["\x1b[12;40R", "\x1b[?1;2c", "\x1b]10;rgb:ffff/ffff/ffff\x1b\\", "\x1b[I"])(
+    "does not apply or consume modifiers for terminal reply %j",
+    (reply) => {
+      useTerminalInput.getState().toggle("alt");
+      expect(consumeTerminalInput(reply)).toBe(reply);
+      expect(consumeTerminalInput("b")).toBe("\x1bb");
+    },
+  );
 
   it("clears modifiers on bracketed paste without altering text", () => {
     useTerminalInput.getState().toggle("ctrl");

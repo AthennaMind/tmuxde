@@ -17,9 +17,7 @@ export const ZOOM_SURFACE = "data-zoom-surface";
 let lastPointerTarget: Element | null = null;
 
 function asElement(target: EventTarget | null): Element | null {
-  return target && typeof (target as Element).closest === "function"
-    ? (target as Element)
-    : null;
+  return target && typeof (target as Element).closest === "function" ? (target as Element) : null;
 }
 
 export function notePointerTarget(target: EventTarget | null): void {
@@ -62,7 +60,5 @@ export function applyFontZoom(surface: ZoomSurface, step: -1 | 0 | 1): void {
     store.setCodeZoom(step === 0 ? 1 : store.codeZoom + step * CODE_ZOOM_STEP);
     return;
   }
-  store.setFontSize(
-    step === 0 ? getDefaultFontSize() : clampFontSize(store.fontSize + step),
-  );
+  store.setFontSize(step === 0 ? getDefaultFontSize() : clampFontSize(store.fontSize + step));
 }

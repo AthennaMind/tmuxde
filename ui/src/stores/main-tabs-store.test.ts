@@ -225,9 +225,7 @@ describe("main tabs", () => {
     tabs.openFile(file("/a.ts"));
     tabs.openCommit(commit());
     tabs.closeTabs("files");
-    expect(useMainTabsStore.getState().tabs.map((t) => t.id)).toEqual([
-      commitTabId(HASH),
-    ]);
+    expect(useMainTabsStore.getState().tabs.map((t) => t.id)).toEqual([commitTabId(HASH)]);
     tabs.closeTabs("diffs");
     expect(useMainTabsStore.getState()).toMatchObject({
       tabs: [],
@@ -304,8 +302,7 @@ describe("main tabs", () => {
 
   it("keeps three graphs while commits opened from one fill the strip", () => {
     const tabs = useMainTabsStore.getState();
-    for (const root of ["/a", "/b", "/c"])
-      tabs.openGraph({ paneId: "%1", contextPath: root });
+    for (const root of ["/a", "/b", "/c"]) tabs.openGraph({ paneId: "%1", contextPath: root });
     for (let i = 0; i < 10; i++) {
       tabs.activate(graphTabId("/a"));
       tabs.openCommit(commit(`c${i}`, i.toString(16).padStart(40, "0")));
@@ -331,8 +328,7 @@ describe("main tabs", () => {
 
   it("drops a graph only when nothing else can go", () => {
     const tabs = useMainTabsStore.getState();
-    for (let i = 0; i < 13; i++)
-      tabs.openGraph({ paneId: "%1", contextPath: `/r${i}` });
+    for (let i = 0; i < 13; i++) tabs.openGraph({ paneId: "%1", contextPath: `/r${i}` });
     const ids = useMainTabsStore.getState().tabs.map((t) => t.id);
     expect(ids).toHaveLength(12);
     expect(ids).not.toContain(graphTabId("/r0"));
@@ -452,8 +448,12 @@ describe("tab order", () => {
   it("moves views across terminal and file boundaries in either direction", () => {
     const moved = moveTabInOrder(initial, SETTINGS_TAB, terminalA, "before");
     expect(moved).toEqual([SETTINGS_TAB, terminalA, terminalB, "file:/a.ts"]);
-    expect(moveTabInOrder(moved, terminalA, "file:/a.ts", "after"))
-      .toEqual([SETTINGS_TAB, terminalB, "file:/a.ts", terminalA]);
+    expect(moveTabInOrder(moved, terminalA, "file:/a.ts", "after")).toEqual([
+      SETTINGS_TAB,
+      terminalB,
+      "file:/a.ts",
+      terminalA,
+    ]);
     expect(initial).toEqual([terminalA, terminalB, SETTINGS_TAB, "file:/a.ts"]);
   });
 
@@ -466,15 +466,25 @@ describe("tab order", () => {
   it("keeps saved order while removing closed tabs and appending new tabs", () => {
     const moved = [SETTINGS_TAB, terminalB, terminalA, "file:/a.ts"];
     const visible = [terminalA, SETTINGS_TAB, "file:/a.ts", OVERVIEW_TAB];
-    expect(reconcileTabOrder(moved, visible))
-      .toEqual([SETTINGS_TAB, terminalA, "file:/a.ts", OVERVIEW_TAB]);
-    expect(reconcileTabOrder([SETTINGS_TAB, SETTINGS_TAB], visible))
-      .toEqual([SETTINGS_TAB, terminalA, "file:/a.ts", OVERVIEW_TAB]);
+    expect(reconcileTabOrder(moved, visible)).toEqual([
+      SETTINGS_TAB,
+      terminalA,
+      "file:/a.ts",
+      OVERVIEW_TAB,
+    ]);
+    expect(reconcileTabOrder([SETTINGS_TAB, SETTINGS_TAB], visible)).toEqual([
+      SETTINGS_TAB,
+      terminalA,
+      "file:/a.ts",
+      OVERVIEW_TAB,
+    ]);
   });
 
   it("validates saved order and supports existing storage without an order", () => {
-    expect(restoreTabs({ order: [SETTINGS_TAB, null, 3, SETTINGS_TAB, terminalA] }).order)
-      .toEqual([SETTINGS_TAB, terminalA]);
+    expect(restoreTabs({ order: [SETTINGS_TAB, null, 3, SETTINGS_TAB, terminalA] }).order).toEqual([
+      SETTINGS_TAB,
+      terminalA,
+    ]);
     expect(restoreTabs({ order: "invalid" }).order).toEqual([]);
   });
 
@@ -565,9 +575,24 @@ function memoryStorage(): Storage {
 describe("current changes tabs", () => {
   it("reuses repository tab and keeps machines separate", () => {
     const store = useMainTabsStore.getState();
-    store.openChanges({ machineId: "alpha", sessionName: "dev", paneId: "%1", contextPath: "/repo" });
-    store.openChanges({ machineId: "alpha", sessionName: "dev", paneId: "%2", contextPath: "/repo" });
-    store.openChanges({ machineId: "beta", sessionName: "dev", paneId: "%1", contextPath: "/repo" });
+    store.openChanges({
+      machineId: "alpha",
+      sessionName: "dev",
+      paneId: "%1",
+      contextPath: "/repo",
+    });
+    store.openChanges({
+      machineId: "alpha",
+      sessionName: "dev",
+      paneId: "%2",
+      contextPath: "/repo",
+    });
+    store.openChanges({
+      machineId: "beta",
+      sessionName: "dev",
+      paneId: "%1",
+      contextPath: "/repo",
+    });
     const state = useMainTabsStore.getState();
     expect(state.tabs).toHaveLength(2);
     expect(state.tabs[0]).toMatchObject({ kind: "changes", machineId: "alpha", paneId: "%2" });
@@ -578,8 +603,17 @@ describe("current changes tabs", () => {
   });
 
   it("rejects restored changes tabs with mismatched repository or machine", () => {
-    useMainTabsStore.getState().openChanges({ machineId: "alpha", paneId: "%1", contextPath: "/repo" });
+    useMainTabsStore
+      .getState()
+      .openChanges({ machineId: "alpha", paneId: "%1", contextPath: "/repo" });
     const tab = useMainTabsStore.getState().tabs[0]!;
-    expect(restoreTabs({ tabs: [{ ...tab, contextPath: "/other" }, { ...tab, machineId: "beta" }] }).tabs).toEqual([]);
+    expect(
+      restoreTabs({
+        tabs: [
+          { ...tab, contextPath: "/other" },
+          { ...tab, machineId: "beta" },
+        ],
+      }).tabs,
+    ).toEqual([]);
   });
 });

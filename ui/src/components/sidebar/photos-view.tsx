@@ -11,8 +11,8 @@ export function PhotosView() {
         <div className="mb-3 flex flex-col gap-2 px-1">
           <PhotoUpload className="h-9 w-full justify-start hover:bg-accent" />
           <p className="text-sm text-muted-foreground">
-            Paste a screenshot into the terminal, or upload one here. Reuse
-            inserts a saved path without pressing Enter.
+            Paste a screenshot into the terminal, or upload one here. Reuse inserts a saved path
+            without pressing Enter.
           </p>
         </div>
         <RecentPhotoList />

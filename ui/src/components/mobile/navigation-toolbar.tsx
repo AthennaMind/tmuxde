@@ -61,13 +61,32 @@ export function NavigationToolbar({
       >
         <Keyboard aria-hidden className="h-5 w-5" />
       </button>
-      {[["Esc", "\x1b"], ["Enter", "\r"]].map(([label, value]) => (
-        <button key={label} type="button" data-terminal-key className={keyClass}
-          disabled={disabled} onClick={() => sendKeySequence(value!)}>{label}</button>
+      {[
+        ["Esc", "\x1b"],
+        ["Enter", "\r"],
+      ].map(([label, value]) => (
+        <button
+          key={label}
+          type="button"
+          data-terminal-key
+          className={keyClass}
+          disabled={disabled}
+          onClick={() => sendKeySequence(value!)}
+        >
+          {label}
+        </button>
       ))}
-      <button ref={controlsTrigger} type="button" className={`${keyClass} flex-col gap-0.5`}
-        aria-label="Terminal controls" aria-haspopup="dialog" aria-expanded={controlsOpen} onClick={onMore}>
-        <SlidersHorizontal aria-hidden className="size-4" /><span>Tools</span>
+      <button
+        ref={controlsTrigger}
+        type="button"
+        className={`${keyClass} flex-col gap-0.5`}
+        aria-label="Terminal controls"
+        aria-haspopup="dialog"
+        aria-expanded={controlsOpen}
+        onClick={onMore}
+      >
+        <SlidersHorizontal aria-hidden className="size-4" />
+        <span>Tools</span>
       </button>
       {keys.map((key) => (
         <button

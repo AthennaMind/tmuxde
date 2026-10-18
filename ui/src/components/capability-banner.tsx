@@ -24,9 +24,7 @@ export function CapabilityBanner() {
       className="flex w-full items-center justify-center gap-2 bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
     >
       <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      <span className="truncate">
-        Read-only — you can watch this session but not type into it
-      </span>
+      <span className="truncate">Read-only — you can watch this session but not type into it</span>
     </div>
   );
 }

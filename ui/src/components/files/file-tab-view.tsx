@@ -21,13 +21,7 @@ const SCOPE_LABELS = {
 };
 
 /** A file or diff in the desktop main area, opened from the sidebar. */
-export function FileTabView({
-  tab,
-  className,
-}: {
-  tab: FileTab;
-  className?: string;
-}) {
+export function FileTabView({ tab, className }: { tab: FileTab; className?: string }) {
   const client = useRelayClient();
   const status = useConnectionStore((s) => s.status);
   const closeTab = useMainTabsStore((s) => s.closeTab);
@@ -40,10 +34,7 @@ export function FileTabView({
   const rendered = useSettingsStore((s) => s.markdownPreview);
   const setRendered = useSettingsStore((s) => s.setMarkdownPreview);
   const openFile = useMainTabsStore((s) => s.openFile);
-  const fullPath =
-    tab.scope && tab.root
-      ? `${tab.root.replace(/\/$/, "")}/${tab.path}`
-      : tab.path;
+  const fullPath = tab.scope && tab.root ? `${tab.root.replace(/\/$/, "")}/${tab.path}` : tab.path;
   const name = tab.path.split("/").pop() || tab.path;
   const markdown = !tab.scope && isMarkdownPath(fullPath);
   const showRendered = markdown && rendered;
@@ -51,8 +42,7 @@ export function FileTabView({
   // diffs also follow the index and HEAD.
   const pushed = useRepoChangeCount((change) =>
     tab.scope
-      ? !!tab.root &&
-        changeTouchesDiff(change, tab.root, tab.path, tab.scope !== "untracked")
+      ? !!tab.root && changeTouchesDiff(change, tab.root, tab.path, tab.scope !== "untracked")
       : changeTouchesFile(change, tab.path),
   );
 
@@ -75,10 +65,7 @@ export function FileTabView({
             {SCOPE_LABELS[tab.scope]}
           </span>
         )}
-        <span
-          className="min-w-0 flex-1 truncate text-xs text-muted-foreground"
-          title={fullPath}
-        >
+        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={fullPath}>
           {shortenPath(fullPath)}
         </span>
         {!tab.scope && <DownloadButton path={fullPath} target={tab.machineId} />}
@@ -92,11 +79,7 @@ export function FileTabView({
           </HeaderButton>
         )}
         {!showRendered && (
-          <HeaderButton
-            label="Wrap lines"
-            pressed={wrap}
-            onClick={() => setWrap(!wrap)}
-          >
+          <HeaderButton label="Wrap lines" pressed={wrap} onClick={() => setWrap(!wrap)}>
             <WrapText className={cn("h-4 w-4", wrap && "text-primary")} />
           </HeaderButton>
         )}
@@ -108,10 +91,7 @@ export function FileTabView({
           }}
         >
           <RefreshCw
-            className={cn(
-              "h-4 w-4",
-              reloading && "animate-spin motion-reduce:animate-none",
-            )}
+            className={cn("h-4 w-4", reloading && "animate-spin motion-reduce:animate-none")}
           />
         </HeaderButton>
         <HeaderButton label="Close" onClick={() => closeTab(tab.id)}>
@@ -127,7 +107,14 @@ export function FileTabView({
           wrap={wrap}
           fullPath={fullPath}
           rendered={showRendered}
-          onOpenPath={(path) => openFile({ machineId: tab.machineId, sessionName: tab.sessionName, paneId: tab.paneId, path })}
+          onOpenPath={(path) =>
+            openFile({
+              machineId: tab.machineId,
+              sessionName: tab.sessionName,
+              paneId: tab.paneId,
+              path,
+            })
+          }
         />
       ) : (
         <Notice>Connect to view this file.</Notice>
@@ -172,9 +159,7 @@ function FileTabBody({
     { keepOnRefresh: true },
   );
   const content =
-    query.result?.kind === "read" || query.result?.kind === "diff"
-      ? query.result
-      : undefined;
+    query.result?.kind === "read" || query.result?.kind === "diff" ? query.result : undefined;
   useEffect(() => {
     if (!query.loading) onSettled();
   }, [query.loading, onSettled]);

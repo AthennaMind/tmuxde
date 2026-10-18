@@ -4,11 +4,7 @@ import { triggerHaptic } from "@/components/haptic-button";
 import { getRelayClient } from "@/hooks/use-websocket";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
 import { believedInCopyMode, noteLeftCopyMode } from "@/lib/copy-mode-belief";
-import {
-  flushScroll,
-  resetPendingScroll,
-  scrollByLines,
-} from "@/lib/terminal-scroll";
+import { flushScroll, resetPendingScroll, scrollByLines } from "@/lib/terminal-scroll";
 import { stepStrip } from "@/lib/strip-controller";
 import { useSessionStore } from "@/stores/session-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -93,10 +89,7 @@ const FLING_MAX_MS = 2500;
  * straight to `style`, because the old implementation kept the drag offset in
  * `useState` and re-rendered the entire terminal subtree on every `touchmove`.
  */
-export function TerminalGestureSurface({
-  children,
-  className,
-}: TerminalGestureSurfaceProps) {
+export function TerminalGestureSurface({ children, className }: TerminalGestureSurfaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<GestureState>(initialGestureState());
 
@@ -144,10 +137,7 @@ export function TerminalGestureSurface({
         const elapsed = Math.min(50, Math.max(1, now - last));
         last = now;
         speed *= Math.pow(FLING_DECAY_PER_FRAME, elapsed / (1000 / 60));
-        if (
-          Math.abs(speed) < FLING_STOP_VELOCITY ||
-          now - startedAt > FLING_MAX_MS
-        ) {
+        if (Math.abs(speed) < FLING_STOP_VELOCITY || now - startedAt > FLING_MAX_MS) {
           flushScroll();
           return;
         }
@@ -247,10 +237,7 @@ export function TerminalGestureSurface({
             const size = Math.round(
               Math.min(
                 MAX_FONT_SIZE,
-                Math.max(
-                  MIN_FONT_SIZE,
-                  baseline.font * (effect.scale / baseline.scale),
-                ),
+                Math.max(MIN_FONT_SIZE, baseline.font * (effect.scale / baseline.scale)),
               ),
             );
             pendingFontSize.current = size;
@@ -312,11 +299,9 @@ export function TerminalGestureSurface({
       return {
         dragToScroll: gestures.dragToScroll,
         pinchToZoom: gestures.pinchToZoom,
-        swipeToSwitch:
-          gestures.swipeToSwitchSessions || gestures.swipeToSwitchPanes,
+        swipeToSwitch: gestures.swipeToSwitchSessions || gestures.swipeToSwitchPanes,
         longPressPaneMenu: gestures.longPressPaneMenu,
-        cellHeightPx:
-          getTerminalHandle()?.getCellHeightPx() || FALLBACK_CELL_PX,
+        cellHeightPx: getTerminalHandle()?.getCellHeightPx() || FALLBACK_CELL_PX,
       };
     };
 
@@ -385,8 +370,7 @@ export function TerminalGestureSurface({
       stopFling();
       const target = e.target;
       const passthrough =
-        target instanceof Element &&
-        target.closest("[data-gesture-passthrough]") !== null;
+        target instanceof Element && target.closest("[data-gesture-passthrough]") !== null;
       apply(
         reduceGesture(stateRef.current, {
           kind: "start",
@@ -462,10 +446,7 @@ export function TerminalGestureSurface({
       if (e.changedTouches.length && !touches(e.changedTouches).length) return;
       handledEvents.add(e);
       clearHold();
-      apply(
-        reduceGesture(stateRef.current, { kind: "cancel", at: e.timeStamp }),
-        e,
-      );
+      apply(reduceGesture(stateRef.current, { kind: "cancel", at: e.timeStamp }), e);
       ownedTouches.clear();
       releaseTargets();
     };
@@ -489,8 +470,7 @@ export function TerminalGestureSurface({
      */
     const onContextMenu = (e: MouseEvent) => {
       const fromTouch =
-        stateRef.current.phase !== "idle" ||
-        (e as PointerEvent).pointerType === "touch";
+        stateRef.current.phase !== "idle" || (e as PointerEvent).pointerType === "touch";
       if (!fromTouch || !e.cancelable) return;
       e.preventDefault();
     };

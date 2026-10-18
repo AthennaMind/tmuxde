@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RepoCommit } from "@/protocol";
-import {
-  FirstPageGate,
-  commitAge,
-  keepOlderPages,
-  parseRefs,
-} from "./commit-log";
+import { FirstPageGate, commitAge, keepOlderPages, parseRefs } from "./commit-log";
 
 const commit = (hash: string): RepoCommit => ({
   hash,
@@ -16,14 +11,11 @@ const commit = (hash: string): RepoCommit => ({
   refs: [],
 });
 const list = (...hashes: string[]) => hashes.map(commit);
-const hashes = (commits: RepoCommit[] | null) =>
-  commits?.map((c) => c.hash) ?? null;
+const hashes = (commits: RepoCommit[] | null) => commits?.map((c) => c.hash) ?? null;
 
 describe("parseRefs", () => {
   it("marks the current branch and tags, and drops remote HEAD", () => {
-    expect(
-      parseRefs(["HEAD -> main", "origin/main", "origin/HEAD", "tag: v1.2"]),
-    ).toEqual([
+    expect(parseRefs(["HEAD -> main", "origin/main", "origin/HEAD", "tag: v1.2"])).toEqual([
       { name: "main", kind: "head" },
       { name: "origin/main", kind: "branch" },
       { name: "v1.2", kind: "tag" },
@@ -71,10 +63,27 @@ describe("keepOlderPages", () => {
 
   it("keeps older pages below new commits on top", () => {
     expect(hashes(keepOlderPages(loaded, list("n", "a", "b", "c")))).toEqual([
-      "n", "a", "b", "c", "d", "e", "f", "g", "h",
+      "n",
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h",
     ]);
     expect(hashes(keepOlderPages(loaded, list("n", "m", "a", "b")))).toEqual([
-      "n", "m", "a", "b", "c", "d", "e", "f", "g", "h",
+      "n",
+      "m",
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h",
     ]);
   });
 

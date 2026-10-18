@@ -20,11 +20,7 @@ interface SessionListProps {
   className?: string;
 }
 
-export function SessionList({
-  onCreateClick,
-  leading,
-  className,
-}: SessionListProps) {
+export function SessionList({ onCreateClick, leading, className }: SessionListProps) {
   const sessions = useSessionStore((s) => s.sessions);
   const sessionsLoaded = useSessionStore((s) => s.sessionsLoaded);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -38,8 +34,7 @@ export function SessionList({
    * error and nothing to press. The skeleton is only honest while a reply is
    * still plausibly coming; once the socket has given up, so should it.
    */
-  const unreachable =
-    !sessionsLoaded && (status === "disconnected" || status === "reconnecting");
+  const unreachable = !sessionsLoaded && (status === "disconnected" || status === "reconnecting");
   const isLoading = !sessionsLoaded && !unreachable;
 
   const [pullDistance, setPullDistance] = useState(0);
@@ -93,9 +88,7 @@ export function SessionList({
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
-      const viewport = listRef.current?.closest<HTMLElement>(
-        "[data-radix-scroll-area-viewport]",
-      );
+      const viewport = listRef.current?.closest<HTMLElement>("[data-radix-scroll-area-viewport]");
       if (!viewport || viewport.scrollTop > 0 || isRefreshing) return;
       const dy = e.touches[0]!.clientY - touchStartY.current;
       if (dy > 0) {
@@ -160,10 +153,7 @@ export function SessionList({
             style={{ height: isRefreshing ? 40 : pullDistance }}
           >
             <Loader2
-              className={cn(
-                "h-5 w-5 text-muted-foreground",
-                isRefreshing && "animate-spin",
-              )}
+              className={cn("h-5 w-5 text-muted-foreground", isRefreshing && "animate-spin")}
             />
           </div>
         )}
@@ -176,25 +166,16 @@ export function SessionList({
         >
           {unreachable ? (
             <div className="flex flex-col items-center gap-3 py-8 text-center">
-              <PlugZap
-                className="h-10 w-10 text-muted-foreground"
-                aria-hidden
-              />
+              <PlugZap className="h-10 w-10 text-muted-foreground" aria-hidden />
               <div>
-                <p className="text-sm font-medium">
-                  Can&apos;t reach this machine
-                </p>
+                <p className="text-sm font-medium">Can&apos;t reach this machine</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {status === "reconnecting"
                     ? "Still trying. Its sessions are safe — tmux keeps running whether or not anything is watching."
                     : "The connection dropped. Its sessions are safe — tmux keeps running whether or not anything is watching."}
                 </p>
               </div>
-              <Button
-                size="sm"
-                className="min-h-11"
-                onClick={() => getRelayClient()?.connect()}
-              >
+              <Button size="sm" className="min-h-11" onClick={() => getRelayClient()?.connect()}>
                 <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden />
                 Try again
               </Button>

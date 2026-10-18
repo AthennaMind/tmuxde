@@ -9,22 +9,14 @@ import { useMachineStore } from "@/stores/machine-store";
 import { MachineWorkspace } from "@/components/machine-workspace";
 import { AppShell } from "@/components/app-shell";
 import { useWebSocket, getRelayClient } from "@/hooks/use-websocket";
-import {
-  filesDisabled,
-  isReadOnly,
-  useConnectionStore,
-} from "@/stores/connection-store";
+import { filesDisabled, isReadOnly, useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useStableMediaQuery } from "@/hooks/use-media-query";
 import { MOBILE_MEDIA_QUERY, isMobileViewport } from "@/lib/mobile-query";
 import { fontZoomStep } from "@/lib/font-zoom-key.js";
 import { isDictationKey } from "@/lib/dictation-key";
 import { toggleDictation } from "@/lib/dictation";
-import {
-  applyFontZoom,
-  fontZoomSurface,
-  trackZoomPointer,
-} from "@/lib/font-zoom";
+import { applyFontZoom, fontZoomSurface, trackZoomPointer } from "@/lib/font-zoom";
 import { MobileNav } from "@/components/mobile/mobile-nav";
 import { CommandComposer } from "@/components/mobile/command-composer";
 import { KeyboardToolbar } from "@/components/mobile/keyboard-toolbar";
@@ -43,11 +35,7 @@ import { useMobileHistory } from "@/hooks/use-mobile-history";
 import { resolveRelayWsUrl } from "@/lib/relay-url";
 import { Loader2 } from "lucide-react";
 import { copyFailureReason, copyText } from "@/lib/clipboard";
-import {
-  LAST_SESSION_KEY,
-  readSelfHostedToken,
-  readStored,
-} from "@/lib/storage-keys";
+import { LAST_SESSION_KEY, readSelfHostedToken, readStored } from "@/lib/storage-keys";
 
 /**
  * The gate is outside the layout body on purpose.
@@ -72,10 +60,7 @@ export function TerminalLayout() {
  * Three states, not two. Checking shows a spinner, none goes to /login and
  * ready opens the socket with the token.
  */
-type Auth =
-  | { phase: "checking" }
-  | { phase: "none" }
-  | { phase: "ready"; token: string };
+type Auth = { phase: "checking" } | { phase: "none" } | { phase: "ready"; token: string };
 
 function TerminalLayoutInner() {
   const navigate = useNavigate();
@@ -140,7 +125,8 @@ function TerminalLayoutInner() {
       if (palette) {
         e.preventDefault();
         // Another dialog owns the keyboard. The palette itself switches modes.
-        if (e.target instanceof Element && e.target.closest('[role="dialog"]:not([data-palette])')) return;
+        if (e.target instanceof Element && e.target.closest('[role="dialog"]:not([data-palette])'))
+          return;
         if (!e.repeat) togglePalette(palette);
         return;
       }
@@ -206,9 +192,7 @@ function TerminalLayoutInner() {
       // xterm's selection is mouse-driven and a long press on its canvas
       // produces nothing. Pointing at the thing that does work beats repeating
       // advice that has never been true on a phone.
-      useAlertStore
-        .getState()
-        .push("info", "Nothing selected — use Copy Mode to copy the pane");
+      useAlertStore.getState().push("info", "Nothing selected — use Copy Mode to copy the pane");
       return;
     }
     if (await copyText(selection)) {
@@ -249,10 +233,7 @@ function TerminalLayoutInner() {
         role="status"
         aria-live="polite"
       >
-        <Loader2
-          className="h-5 w-5 animate-spin text-muted-foreground"
-          aria-hidden
-        />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
         <span className="sr-only">
           {auth.phase === "checking"
             ? "Checking this device for a session"
@@ -297,11 +278,7 @@ function TerminalLayoutInner() {
   ) : undefined;
 
   return (
-    <AppShell
-      className="tmuxde-terminal-shell"
-      header={header}
-      toolbar={toolbar}
-    >
+    <AppShell className="tmuxde-terminal-shell" header={header} toolbar={toolbar}>
       {/* WebKit skips edge colors from boxes at most 10px tall. Clipping
           background to empty text preserves its color without covering content. */}
       {isMobile && (

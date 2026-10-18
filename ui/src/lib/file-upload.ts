@@ -12,7 +12,13 @@ export const UPLOAD_CHUNK_SIZE = 128 * 1024;
 type UploadClient = Pick<RelayClient, "send" | "onMessage" | "onStatusChange" | "status">;
 
 export function uploadPath(directory: string, name: string): string {
-  if (!directory.startsWith("/") || !name || /[/\\\0]/.test(name) || name === "." || name === "..") {
+  if (
+    !directory.startsWith("/") ||
+    !name ||
+    /[/\\\0]/.test(name) ||
+    name === "." ||
+    name === ".."
+  ) {
     throw new Error("Invalid upload destination");
   }
   return `${directory.replace(/\/$/, "")}/${name}`;
@@ -35,9 +41,15 @@ export function uploadReply(
       offStatus();
       signal.removeEventListener("abort", abort);
     };
-    const fail = (error: unknown) => { clean(); reject(error); };
+    const fail = (error: unknown) => {
+      clean();
+      reject(error);
+    };
     const abort = () => fail(signal.reason);
-    const timer = setTimeout(() => fail(new Error("Transfer timed out. Check destination before retrying.")), 30_000);
+    const timer = setTimeout(
+      () => fail(new Error("Transfer timed out. Check destination before retrying.")),
+      30_000,
+    );
     signal.addEventListener("abort", abort, { once: true });
     offStatus = client.onStatusChange((status) => {
       if (status === "disconnected" || status === "reconnecting") {
@@ -52,7 +64,11 @@ export function uploadReply(
         resolve(message);
       }
     });
-    try { send(); } catch (error) { fail(error); }
+    try {
+      send();
+    } catch (error) {
+      fail(error);
+    }
   });
 }
 
@@ -68,21 +84,36 @@ export async function uploadFileChunks(
   let offset = 0;
   do {
     // Stay below hub rate limit even with near-zero round-trip latency.
-    if (offset) await new Promise<void>((resolve, reject) => {
-      const abort = () => { clearTimeout(timer); reject(signal.reason); };
-      const timer = setTimeout(() => { signal.removeEventListener("abort", abort); resolve(); }, 20);
-      signal.addEventListener("abort", abort, { once: true });
-      if (signal.aborted) abort();
-    });
+    if (offset)
+      await new Promise<void>((resolve, reject) => {
+        const abort = () => {
+          clearTimeout(timer);
+          reject(signal.reason);
+        };
+        const timer = setTimeout(() => {
+          signal.removeEventListener("abort", abort);
+          resolve();
+        }, 20);
+        signal.addEventListener("abort", abort, { once: true });
+        if (signal.aborted) abort();
+      });
     signal.throwIfAborted();
-    const bytes = new Uint8Array(await file.slice(offset, offset + UPLOAD_CHUNK_SIZE).arrayBuffer());
+    const bytes = new Uint8Array(
+      await file.slice(offset, offset + UPLOAD_CHUNK_SIZE).arrayBuffer(),
+    );
     signal.throwIfAborted();
     if (client.status !== "connected") throw new Error("Upload connection lost");
     let binary = "";
     for (const byte of bytes) binary += String.fromCharCode(byte);
     const end = offset + bytes.length;
     const final = end === file.size;
-    const message: ClientMessage = { type: "file:upload", path, content: btoa(binary), final, ack: true };
+    const message: ClientMessage = {
+      type: "file:upload",
+      path,
+      content: btoa(binary),
+      final,
+      ack: true,
+    };
     const reply = await uploadReply(
       client,
       (msg) => msg.type === "file:op:result" && msg.op === "upload" && msg.path === path,
@@ -90,7 +121,11 @@ export async function uploadFileChunks(
       () => client.send(message),
     );
     if (reply.type !== "file:op:result" || !reply.success) {
-      throw new Error(reply.type === "file:op:result" ? reply.error ?? "Upload failed" : "Unexpected upload response");
+      throw new Error(
+        reply.type === "file:op:result"
+          ? (reply.error ?? "Upload failed")
+          : "Unexpected upload response",
+      );
     }
     if (reply.final !== final) throw new Error("Unexpected upload acknowledgement");
     offset = end;

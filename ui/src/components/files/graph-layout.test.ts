@@ -37,12 +37,7 @@ describe("layoutGraph", () => {
 
   it("draws a branch and its merge", () => {
     // m merges s into b. s and b both come from a.
-    const rows = layoutGraph([
-      c("m", "b", "s"),
-      c("s", "a"),
-      c("b", "a"),
-      c("a"),
-    ]);
+    const rows = layoutGraph([c("m", "b", "s"), c("s", "a"), c("b", "a"), c("a")]);
     expect(rows.map((r) => r.lane)).toEqual([0, 1, 0, 0]);
     expect(rows[0]!.edges).toEqual([
       { from: 0, to: 0, color: 0, kind: "parent" },
@@ -204,9 +199,7 @@ describe("sameGraphRow", () => {
     const after = layoutGraph([c("new", commits[0]!.hash), ...commits]);
     expect(after[1]).not.toBe(before[0]);
     // Only the old top row changes: it has a child now.
-    const changed = before.flatMap((row, i) =>
-      sameGraphRow(row, after[i + 1]!) ? [] : [i],
-    );
+    const changed = before.flatMap((row, i) => (sameGraphRow(row, after[i + 1]!) ? [] : [i]));
     expect(changed).toEqual([0]);
   });
 
@@ -226,9 +219,7 @@ describe("sameGraphRow", () => {
     expect(sameGraphRow(row, { ...copy, child: false })).toBe(false);
     expect(sameGraphRow(row, { ...copy, edges: [] })).toBe(false);
     for (const change of [{ from: 0 }, { to: 0 }, { color: 0 }, { kind: "merge" as const }])
-      expect(
-        sameGraphRow(row, { ...copy, edges: [{ ...copy.edges[0]!, ...change }] }),
-      ).toBe(false);
+      expect(sameGraphRow(row, { ...copy, edges: [{ ...copy.edges[0]!, ...change }] })).toBe(false);
   });
 });
 

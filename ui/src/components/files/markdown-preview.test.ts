@@ -6,9 +6,7 @@ import { MarkdownPreview } from "./markdown-preview";
 const PATH = "/home/u/repo/README.md";
 
 function render(content: string, onOpenPath?: (path: string) => void) {
-  return renderToStaticMarkup(
-    createElement(MarkdownPreview, { path: PATH, content, onOpenPath }),
-  );
+  return renderToStaticMarkup(createElement(MarkdownPreview, { path: PATH, content, onOpenPath }));
 }
 
 describe("MarkdownPreview", () => {
@@ -72,9 +70,7 @@ describe("MarkdownPreview", () => {
     expect(ref).toBe("fn-1");
     expect(markup).toContain('id="user-content-fn-1"');
     expect(markup).not.toContain("user-content-user-content");
-    const back = /<a href="#([^"]+)"[^>]*data-footnote-backref/.exec(
-      markup,
-    )?.[1];
+    const back = /<a href="#([^"]+)"[^>]*data-footnote-backref/.exec(markup)?.[1];
     expect(back).toBe("fnref-1");
     expect(markup).toContain('id="user-content-fnref-1"');
     expect(markup).toContain('class="footnotes"');
@@ -133,9 +129,7 @@ describe("MarkdownPreview", () => {
   });
 
   it("renders task lists, tables and strikethrough from GFM", () => {
-    const markup = render(
-      "- [x] done\n- [ ] open\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n~~old~~",
-    );
+    const markup = render("- [x] done\n- [ ] open\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n~~old~~");
     expect(markup).toContain('<input type="checkbox" disabled="" checked=""/>');
     expect(markup).toContain('<input type="checkbox" disabled=""/>');
     expect(markup).toContain('<div class="markdown-table"><table>');

@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  fontZoomSurface,
-  notePointerTarget,
-  zoomSurfaceOf,
-} from "./font-zoom";
+import { fontZoomSurface, notePointerTarget, zoomSurfaceOf } from "./font-zoom";
 
 /** Just enough of an Element for `closest` on attribute selectors. */
 type Fake = {
@@ -48,9 +44,7 @@ beforeEach(() => notePointerTarget(null));
 
 describe("fontZoomSurface", () => {
   it("sizes the terminal when it has focus", () => {
-    expect(fontZoomSurface(asElement(terminalInput), asElement(body))).toBe(
-      "terminal",
-    );
+    expect(fontZoomSurface(asElement(terminalInput), asElement(body))).toBe("terminal");
   });
 
   it("sizes code when focus is inside a file or diff", () => {
@@ -59,9 +53,7 @@ describe("fontZoomSurface", () => {
 
   it("leaves browser zoom alone anywhere else", () => {
     notePointerTarget(asElement(codeLine));
-    expect(fontZoomSurface(asElement(sidebarButton), asElement(body))).toBe(
-      null,
-    );
+    expect(fontZoomSurface(asElement(sidebarButton), asElement(body))).toBe(null);
   });
 
   it("follows the last click when focus is on the page itself", () => {

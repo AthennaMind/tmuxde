@@ -8,9 +8,7 @@ import { toggleDictation } from "@/lib/dictation";
 
 /** Whether this connection is offered dictation at all. */
 export function useDictationAvailable(): boolean {
-  return useConnectionStore(
-    (s) => s.features.has("dictation") && !isReadOnly(s.capabilities),
-  );
+  return useConnectionStore((s) => s.features.has("dictation") && !isReadOnly(s.capabilities));
 }
 
 /**
@@ -35,11 +33,7 @@ export function DictationButton({
 
   const recording = status === "starting" || status === "listening";
   const label =
-    status === "stopping"
-      ? "Transcribing"
-      : recording
-        ? "Stop dictation"
-        : "Start dictation";
+    status === "stopping" ? "Transcribing" : recording ? "Stop dictation" : "Start dictation";
   const Icon = status === "stopping" ? Loader2 : recording ? Square : Mic;
 
   return (
@@ -63,7 +57,8 @@ export function DictationButton({
         variant === "toolbar"
           ? "h-11 min-w-0 border border-border bg-background px-1 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-accent"
           : "h-9 w-9 text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-        recording && "border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:text-destructive-foreground active:bg-destructive/90",
+        recording &&
+          "border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:text-destructive-foreground active:bg-destructive/90",
         className,
       )}
     >

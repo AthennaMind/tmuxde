@@ -2,14 +2,18 @@ import { create } from "zustand";
 import { onDisconnectAll } from "@/lib/relay-registry";
 import { useMainTabsStore } from "./main-tabs-store";
 
-export interface RecentFile { machineId: string; path: string }
+export interface RecentFile {
+  machineId: string;
+  path: string;
+}
 
 export function relativeFile(root: string, path: string): string | null {
   const prefix = root === "/" ? "/" : `${root.replace(/\/$/, "")}/`;
   if (!path.startsWith(prefix)) return null;
   const relative = path.slice(prefix.length);
   return relative && !relative.split("/").some((part) => part === ".." || part === "." || !part)
-    ? relative : null;
+    ? relative
+    : null;
 }
 
 export const useQuickOpenStore = create<{
@@ -17,11 +21,15 @@ export const useQuickOpenStore = create<{
   remember: (file: RecentFile) => void;
 }>((set) => ({
   recent: [],
-  remember: (file) => set((state) => ({
-    recent: [file, ...state.recent.filter((entry) =>
-      entry.machineId !== file.machineId || entry.path !== file.path,
-    )].slice(0, 60),
-  })),
+  remember: (file) =>
+    set((state) => ({
+      recent: [
+        file,
+        ...state.recent.filter(
+          (entry) => entry.machineId !== file.machineId || entry.path !== file.path,
+        ),
+      ].slice(0, 60),
+    })),
 }));
 
 // Track file opens from every entry point. Paths stay in memory only.

@@ -82,13 +82,7 @@ function drag(
   const inputs: GestureInput[] = [down(from.x, from.y, 0)];
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
-    inputs.push(
-      move(
-        from.x + (to.x - from.x) * t,
-        from.y + (to.y - from.y) * t,
-        duration * t,
-      ),
-    );
+    inputs.push(move(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, duration * t));
   }
   inputs.push(up(duration));
   return inputs;
@@ -135,9 +129,7 @@ describe("vertical drag — the swipe that did nothing", () => {
   it("moves about as many lines as the finger covered cells", () => {
     const total = 300;
     const r = run(drag({ x: 200, y: 100 }, { x: 200, y: 100 + total }));
-    const lines = r
-      .of("scroll")
-      .reduce((n, e) => n + (e.type === "scroll" ? e.lines : 0), 0);
+    const lines = r.of("scroll").reduce((n, e) => n + (e.type === "scroll" ? e.lines : 0), 0);
     // The slop the axis lock consumed is not travelled, so allow a cell of
     // slack either way — what matters is that it is not off by a factor.
     const expected = Math.trunc((total - AXIS_LOCK_PX) / CELL);
@@ -146,9 +138,7 @@ describe("vertical drag — the swipe that did nothing", () => {
 
   it("goes back the other way on an upward drag", () => {
     const r = run(drag({ x: 200, y: 400 }, { x: 200, y: 100 }));
-    const lines = r
-      .of("scroll")
-      .reduce((n, e) => n + (e.type === "scroll" ? e.lines : 0), 0);
+    const lines = r.of("scroll").reduce((n, e) => n + (e.type === "scroll" ? e.lines : 0), 0);
     expect(lines).toBeLessThan(0);
   });
 
@@ -164,12 +154,7 @@ describe("vertical drag — the swipe that did nothing", () => {
   });
 
   it("ignores a large horizontal excursion once it has locked to scrolling", () => {
-    const r = run([
-      down(200, 100, 0),
-      move(200, 160, 40),
-      move(600, 200, 120),
-      up(160),
-    ]);
+    const r = run([down(200, 100, 0), move(200, 160, 40), move(600, 200, 120), up(160)]);
     expect(r.of("swipeCommit")).toEqual([]);
     expect(r.of("scroll").length).toBeGreaterThan(0);
   });
@@ -341,38 +326,28 @@ describe("horizontal swipe — the one that worked occasionally", () => {
   it("commits a curving swipe that ends well off the axis", () => {
     // 140 across, 90 down: rejected outright by the old endpoint cone.
     const r = run(drag({ x: 300, y: 200 }, { x: 160, y: 290 }));
-    expect(r.of("swipeCommit")).toEqual([
-      { type: "swipeCommit", direction: "left" },
-    ]);
+    expect(r.of("swipeCommit")).toEqual([{ type: "swipeCommit", direction: "left" }]);
   });
 
   it("commits a short flick that was still moving when released", () => {
-    const r = run(
-      drag({ x: 300, y: 200 }, { x: 220, y: 205 }, { durationMs: 120 }),
-    );
+    const r = run(drag({ x: 300, y: 200 }, { x: 220, y: 205 }, { durationMs: 120 }));
     expect(r.of("swipeCommit")).toHaveLength(1);
   });
 
   it("does not commit a slow 80px drag", () => {
     // No velocity bound at all is what let a resting finger switch sessions.
-    const r = run(
-      drag({ x: 300, y: 200 }, { x: 220, y: 205 }, { durationMs: 1200 }),
-    );
+    const r = run(drag({ x: 300, y: 200 }, { x: 220, y: 205 }, { durationMs: 1200 }));
     expect(r.of("swipeCommit")).toEqual([]);
   });
 
   it("does not commit a long drag that took forever", () => {
-    const r = run(
-      drag({ x: 400, y: 200 }, { x: 100, y: 205 }, { durationMs: 4000 }),
-    );
+    const r = run(drag({ x: 400, y: 200 }, { x: 100, y: 205 }, { durationMs: 4000 }));
     expect(r.of("swipeCommit")).toEqual([]);
   });
 
   it("reports the direction the finger travelled", () => {
     const right = run(drag({ x: 100, y: 200 }, { x: 300, y: 205 }));
-    expect(right.of("swipeCommit")).toEqual([
-      { type: "swipeCommit", direction: "right" },
-    ]);
+    expect(right.of("swipeCommit")).toEqual([{ type: "swipeCommit", direction: "right" }]);
   });
 
   it("emits nothing at all while the finger is still down", () => {
@@ -563,10 +538,7 @@ describe("fingers that belong to something else", () => {
     expect(started.state.phase).toBe("scroll");
 
     const after = run(
-      [
-        lift(60, { still: [{ id: 1, x: 100, y: 160 }], changed: [other] }),
-        move(100, 220, 100),
-      ],
+      [lift(60, { still: [{ id: 1, x: 100, y: 160 }], changed: [other] }), move(100, 220, 100)],
       started.state,
     );
     expect(after.state.phase).toBe("scroll");
@@ -691,9 +663,7 @@ describe("a swipe the user changed their mind about", () => {
       move(262, 104, 300),
       up(300),
     ]);
-    expect(swipe.of("swipeCommit")).toEqual([
-      { type: "swipeCommit", direction: "right" },
-    ]);
+    expect(swipe.of("swipeCommit")).toEqual([{ type: "swipeCommit", direction: "right" }]);
   });
 
   it("measures the release from where the finger actually left", () => {
@@ -705,9 +675,7 @@ describe("a swipe the user changed their mind about", () => {
       move(140, 102, 40),
       lift(80, { changed: [{ id: 1, x: 200, y: 102 }] }),
     ]);
-    expect(swipe.of("swipeCommit")).toEqual([
-      { type: "swipeCommit", direction: "right" },
-    ]);
+    expect(swipe.of("swipeCommit")).toEqual([{ type: "swipeCommit", direction: "right" }]);
   });
 });
 
@@ -716,11 +684,7 @@ describe("reversing a scroll", () => {
     // Down 46px is 2.7 cells: 2 lines out, 0.7 owed. Dragging back up 2 cells
     // used to net that 0.7 against the reversal and emit only one line.
     // The first move only locks the axis; scrolling is measured from there.
-    const scrolled = run([
-      down(100, 100),
-      move(100, 120, 30),
-      move(100, 166, 50),
-    ]);
+    const scrolled = run([down(100, 100), move(100, 120, 30), move(100, 166, 50)]);
     expect(scrolled.of("scroll")).toEqual([{ type: "scroll", lines: 2 }]);
 
     const back = run([move(100, 166 - 2 * CELL, 100)], scrolled.state);
@@ -755,11 +719,7 @@ describe("long press", () => {
   it("does not fire once a drag has locked an axis", () => {
     // A slow scroll is still a scroll. Opening a menu out from under one is
     // exactly the surprise that makes a gesture surface feel unpredictable.
-    const r = run([
-      down(120, 200),
-      move(120, 200 + AXIS_LOCK_PX + 5, 300),
-      hold(500),
-    ]);
+    const r = run([down(120, 200), move(120, 200 + AXIS_LOCK_PX + 5, 300), hold(500)]);
     expect(r.of("longPress")).toHaveLength(0);
     expect(r.state.phase).toBe("scroll");
   });

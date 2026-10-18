@@ -67,10 +67,7 @@ export function ChangesView({ repo }: { repo: RepositoryState }) {
           <Note>Pane folder is outside a Git repository.</Note>
         ) : count === 0 ? (
           <div className="px-3 py-6">
-            <GitCompareArrows
-              className="mb-3 h-5 w-5 text-muted-foreground"
-              aria-hidden
-            />
+            <GitCompareArrows className="mb-3 h-5 w-5 text-muted-foreground" aria-hidden />
             <p className="text-sm font-medium">Working tree is clean</p>
             <p className="mt-1 text-sm text-muted-foreground">
               No staged, unstaged or untracked files.
@@ -92,9 +89,7 @@ export function ChangesView({ repo }: { repo: RepositoryState }) {
             }}
           />
         )}
-        {status?.truncated && (
-          <Note>Change list shortened. Some files are not shown.</Note>
-        )}
+        {status?.truncated && <Note>Change list shortened. Some files are not shown.</Note>}
       </div>
     </div>
   );
@@ -103,39 +98,24 @@ export function ChangesView({ repo }: { repo: RepositoryState }) {
 /** Branch of the active pane's repository, under a Changes or History header. */
 export function BranchRow({ repo }: { repo: RepositoryState }) {
   const { context, status } = repo;
-  const branch =
-    status?.branch ??
-    context?.branch ??
-    (context?.root ? "Detached HEAD" : null);
+  const branch = status?.branch ?? context?.branch ?? (context?.root ? "Detached HEAD" : null);
   if (!branch) return null;
   return (
     <div
       className="flex shrink-0 items-center gap-2 border-b px-3 py-2 text-sm"
       title={context?.root ?? undefined}
     >
-      <GitBranch
-        className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-        aria-hidden
-      />
+      <GitBranch className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
       <span className="truncate">{branch}</span>
     </div>
   );
 }
 
-export function Note({
-  children,
-  error = false,
-}: {
-  children: React.ReactNode;
-  error?: boolean;
-}) {
+export function Note({ children, error = false }: { children: React.ReactNode; error?: boolean }) {
   return (
     <p
       role={error ? "alert" : "status"}
-      className={cn(
-        "px-3 py-4 text-sm",
-        error ? "text-destructive" : "text-muted-foreground",
-      )}
+      className={cn("px-3 py-4 text-sm", error ? "text-destructive" : "text-muted-foreground")}
     >
       {children}
     </p>

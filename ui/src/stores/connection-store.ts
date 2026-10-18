@@ -37,11 +37,7 @@ interface ConnectionStore {
   setLatency: (latency: number) => void;
   incrementReconnect: () => void;
   resetReconnect: () => void;
-  setServerInfo: (
-    version: string,
-    hostname: string,
-    defaultPath?: string,
-  ) => void;
+  setServerInfo: (version: string, hostname: string, defaultPath?: string) => void;
   setCapabilities: (capabilities: Capabilities | null) => void;
   setFeatures: (features: string[] | undefined) => void;
 }
@@ -57,14 +53,12 @@ export const useConnectionStore = create<ConnectionStore>((set) => ({
   features: NO_FEATURES,
   setStatus: (status) => set({ status }),
   setLatency: (latency) => set({ latency }),
-  incrementReconnect: () =>
-    set((s) => ({ reconnectCount: s.reconnectCount + 1 })),
+  incrementReconnect: () => set((s) => ({ reconnectCount: s.reconnectCount + 1 })),
   resetReconnect: () => set({ reconnectCount: 0 }),
   setServerInfo: (serverVersion, hostname, defaultPath) =>
     set({ serverVersion, hostname, defaultPath: defaultPath ?? null }),
   setCapabilities: (capabilities) => set({ capabilities }),
-  setFeatures: (features) =>
-    set({ features: features ? new Set(features) : NO_FEATURES }),
+  setFeatures: (features) => set({ features: features ? new Set(features) : NO_FEATURES }),
 }));
 
 /** True when the connection may not type into the terminal. */

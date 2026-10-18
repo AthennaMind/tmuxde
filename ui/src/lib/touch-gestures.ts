@@ -287,10 +287,7 @@ function distance(a: GestureTouch, b: GestureTouch): number {
  * 50px swipe left committed 600px to the right. If the primary is gone, the
  * answer is "no touch", and the caller decides what that means.
  */
-function primary(
-  state: GestureState,
-  touches: GestureTouch[],
-): GestureTouch | null {
+function primary(state: GestureState, touches: GestureTouch[]): GestureTouch | null {
   return touches.find((t) => t.id === state.primaryId) ?? null;
 }
 
@@ -310,11 +307,7 @@ function pushSample(
  * is moving fast at the moment of release, and an unsigned reading counted that
  * as a confident flick in the direction they had just abandoned.
  */
-function releaseVelocity(
-  samples: GestureState["samples"],
-  x: number,
-  at: number,
-): number {
+function releaseVelocity(samples: GestureState["samples"], x: number, at: number): number {
   const oldest = samples.find((s) => at - s.at <= SWIPE_VELOCITY_WINDOW_MS);
   if (!oldest) return 0;
   const dt = at - oldest.at;
@@ -328,11 +321,7 @@ function releaseVelocity(
  * Positive is downward on screen, which is backward in time — the same sign
  * convention `scroll` effects use, so the surface can hand it straight on.
  */
-function releaseVelocityY(
-  samples: GestureState["samples"],
-  y: number,
-  at: number,
-): number {
+function releaseVelocityY(samples: GestureState["samples"], y: number, at: number): number {
   const oldest = samples.find((s) => at - s.at <= SWIPE_VELOCITY_WINDOW_MS);
   if (!oldest) return 0;
   const dt = at - oldest.at;
@@ -341,11 +330,7 @@ function releaseVelocityY(
 }
 
 /** Whether a released swipe is one the user meant. */
-export function swipeCommits(
-  state: GestureState,
-  x: number,
-  at: number,
-): "left" | "right" | null {
+export function swipeCommits(state: GestureState, x: number, at: number): "left" | "right" | null {
   const dx = x - state.originX;
   if (at - state.lockedAt > SWIPE_MAX_MS) return null;
   const far = Math.abs(dx) >= SWIPE_FAR_PX;
@@ -391,10 +376,7 @@ function claimedPhase(phase: GesturePhase): boolean {
   return phase === "scroll" || phase === "swipe" || phase === "pinch";
 }
 
-export function reduceGesture(
-  state: GestureState,
-  input: GestureInput,
-): GestureResult {
+export function reduceGesture(state: GestureState, input: GestureInput): GestureResult {
   switch (input.kind) {
     case "start":
       return onStart(state, input);
@@ -421,10 +403,7 @@ function onHold(state: GestureState): GestureResult {
   if (state.phase !== "pending" || !state.config?.longPressPaneMenu) {
     return { state, effects: [], preventDefault: false };
   }
-  const drift = Math.hypot(
-    state.lastX - state.originX,
-    state.lastY - state.originY,
-  );
+  const drift = Math.hypot(state.lastX - state.originX, state.lastY - state.originY);
   if (drift > LONG_PRESS_SLOP_PX) {
     return { state, effects: [], preventDefault: false };
   }
@@ -525,12 +504,7 @@ function onMove(
   // the old handler could only start a pinch from rest, so a pinch that began
   // with one finger already drifting was simply never recognised.
   if (input.touches.length >= 2 && config.pinchToZoom) {
-    return enterPinch(
-      state,
-      input.touches,
-      input.at,
-      claimedPhase(state.phase),
-    );
+    return enterPinch(state, input.touches, input.at, claimedPhase(state.phase));
   }
 
   const touch = primary(state, input.touches);
@@ -621,10 +595,7 @@ function scrollMove(
    * a line and a half paying that off before anything moved, and a user who
    * dragged back a little watched the screen ignore them.
    */
-  const reversed =
-    moved !== 0 &&
-    state.scrollDirection !== 0 &&
-    moved !== state.scrollDirection;
+  const reversed = moved !== 0 && state.scrollDirection !== 0 && moved !== state.scrollDirection;
   const raw = delta + (reversed ? 0 : state.scrollRemainder);
   const lines = Math.trunc(raw);
   const scrollDirection = moved !== 0 ? moved : state.scrollDirection;
@@ -672,10 +643,7 @@ function pinchMove(
   };
 }
 
-function onEnd(
-  state: GestureState,
-  input: Extract<GestureInput, { kind: "end" }>,
-): GestureResult {
+function onEnd(state: GestureState, input: Extract<GestureInput, { kind: "end" }>): GestureResult {
   const remaining = input.touches.length;
 
   if (state.phase === "passthrough") {
@@ -707,9 +675,7 @@ function onEnd(
     // switching sessions on the way out.
     return {
       state:
-        remaining > 0
-          ? { ...initialGestureState(), phase: "passthrough" }
-          : initialGestureState(),
+        remaining > 0 ? { ...initialGestureState(), phase: "passthrough" } : initialGestureState(),
       effects: [{ type: "zoomEnd" }],
       preventDefault: true,
     };
@@ -801,9 +767,7 @@ function onEnd(
     }
     return {
       state:
-        remaining > 0
-          ? { ...initialGestureState(), phase: "passthrough" }
-          : initialGestureState(),
+        remaining > 0 ? { ...initialGestureState(), phase: "passthrough" } : initialGestureState(),
       effects,
       preventDefault: true,
     };
@@ -822,9 +786,7 @@ function onEnd(
   const direction = swipeCommits(released, x, input.at);
   return {
     state:
-      remaining > 0
-        ? { ...initialGestureState(), phase: "passthrough" }
-        : initialGestureState(),
+      remaining > 0 ? { ...initialGestureState(), phase: "passthrough" } : initialGestureState(),
     effects: direction ? [{ type: "swipeCommit", direction }] : [],
     // Prevented either way: the drag happened, and the trailing click it would
     // otherwise synthesize would land in tmux.

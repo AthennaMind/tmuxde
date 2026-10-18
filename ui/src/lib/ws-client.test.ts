@@ -59,9 +59,7 @@ class FakeSocket {
 
 const latest = () => FakeSocket.instances[FakeSocket.instances.length - 1]!;
 
-function makeClient(
-  overrides: { onMessageDropped?: (n: number) => void } = {},
-) {
+function makeClient(overrides: { onMessageDropped?: (n: number) => void } = {}) {
   return new RelayClient({
     url: "ws://relay.test/_relay",
     token: "t0ken",
@@ -222,10 +220,13 @@ describe("reconnect", () => {
   });
 });
 
-
 describe("transfer sockets", () => {
   it("never reconnects after connection loss", () => {
-    const client = new RelayClient({ url: "ws://relay.test/_relay?machine=alpha", token: "test", reconnect: false });
+    const client = new RelayClient({
+      url: "ws://relay.test/_relay?machine=alpha",
+      token: "test",
+      reconnect: false,
+    });
     client.connect();
     latest().authenticate();
     latest().close();

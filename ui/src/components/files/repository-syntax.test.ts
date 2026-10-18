@@ -9,31 +9,21 @@ const restore = (lines: Awaited<ReturnType<typeof highlightRepositoryCode>>) =>
 
 describe("repository syntax", () => {
   it("highlights real TypeScript tokens and preserves text", async () => {
-    const source =
-      'const message: string = "<script>&";\n\tconsole.log(message);\n';
+    const source = 'const message: string = "<script>&";\n\tconsole.log(message);\n';
     const lines = await highlightRepositoryCode("src/main.ts", source, false);
     expect(restore(lines)).toBe(source);
-    expect(
-      lines?.[0]?.some((token) => token.color === "var(--term-keyword)"),
-    ).toBe(true);
-    expect(
-      lines?.[0]?.some((token) => token.color === "var(--term-value)"),
-    ).toBe(true);
+    expect(lines?.[0]?.some((token) => token.color === "var(--term-keyword)")).toBe(true);
+    expect(lines?.[0]?.some((token) => token.color === "var(--term-value)")).toBe(true);
   });
 
   it("keeps multiline comment and template string state", async () => {
-    const source =
-      "/* comment\nconst notCode = 12;\n*/\nconst value = `first\nsecond`;";
+    const source = "/* comment\nconst notCode = 12;\n*/\nconst value = `first\nsecond`;";
     const lines = await highlightRepositoryCode("main.ts", source, false);
     expect(restore(lines)).toBe(source);
-    expect(
-      lines?.[1]?.every((token) => token.color === "var(--term-comment)"),
-    ).toBe(true);
+    expect(lines?.[1]?.every((token) => token.color === "var(--term-comment)")).toBe(true);
     expect(
       lines?.[4]?.some(
-        (token) =>
-          token.content.includes("second") &&
-          token.color === "var(--term-value)",
+        (token) => token.content.includes("second") && token.color === "var(--term-value)",
       ),
     ).toBe(true);
   });
@@ -58,22 +48,14 @@ describe("repository syntax", () => {
     expect(restore(lines)).toBe(diff);
     expect(lines?.[0]).toEqual([{ content: "diff --git a/main.ts b/main.ts" }]);
     expect(lines?.[3]).toEqual([{ content: "@@ -1,3 +1,3 @@" }]);
-    expect(
-      lines?.[5]?.some((token) => token.color === "var(--term-comment)"),
-    ).toBe(true);
-    expect(
-      lines?.[7]?.some((token) => token.color === "var(--term-value)"),
-    ).toBe(true);
-    expect(
-      lines?.[11]?.some((token) => token.color === "var(--term-keyword)"),
-    ).toBe(true);
+    expect(lines?.[5]?.some((token) => token.color === "var(--term-comment)")).toBe(true);
+    expect(lines?.[7]?.some((token) => token.color === "var(--term-value)")).toBe(true);
+    expect(lines?.[11]?.some((token) => token.color === "var(--term-keyword)")).toBe(true);
   });
 
   it("preserves CRLF and empty lines", async () => {
     const source = "const value = 1;\r\n\r\n// final\r\n";
-    expect(
-      restore(await highlightRepositoryCode("file.ts", source, false)),
-    ).toBe(source);
+    expect(restore(await highlightRepositoryCode("file.ts", source, false))).toBe(source);
   });
 
   it.each([
@@ -93,21 +75,13 @@ describe("repository syntax", () => {
     ["file.toml", 'name = "hello"'],
     ["Dockerfile", "FROM node:22"],
   ])("loads local grammar for %s", async (path, source) => {
-    expect(restore(await highlightRepositoryCode(path, source, false))).toBe(
-      source,
-    );
+    expect(restore(await highlightRepositoryCode(path, source, false))).toBe(source);
   });
 
   it("falls back for unknown and oversized input", async () => {
-    expect(
-      await highlightRepositoryCode("data.unknown", "const value = 1", false),
-    ).toBeUndefined();
-    expect(
-      await highlightRepositoryCode("big.ts", "x".repeat(200_001), false),
-    ).toBeUndefined();
-    expect(
-      await highlightRepositoryCode("long.ts", "x".repeat(2_001), false),
-    ).toBeUndefined();
+    expect(await highlightRepositoryCode("data.unknown", "const value = 1", false)).toBeUndefined();
+    expect(await highlightRepositoryCode("big.ts", "x".repeat(200_001), false)).toBeUndefined();
+    expect(await highlightRepositoryCode("long.ts", "x".repeat(2_001), false)).toBeUndefined();
   });
 
   it("renders hostile text as escaped content", () => {

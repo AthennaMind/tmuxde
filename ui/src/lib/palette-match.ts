@@ -51,7 +51,11 @@ export function mergeRanges(ranges: Range[]): Range[] {
  * Every query token must match the label or one keyword. Keyword matches
  * count less and never highlight. An empty query matches everything.
  */
-export function matchPalette(query: string, label: string, keywords: readonly string[] = []): PaletteMatch | null {
+export function matchPalette(
+  query: string,
+  label: string,
+  keywords: readonly string[] = [],
+): PaletteMatch | null {
   const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (!tokens.length) return { score: 0, ranges: [] };
   const text = label.toLowerCase();
@@ -77,7 +81,10 @@ export function matchPalette(query: string, label: string, keywords: readonly st
 }
 
 /** Split a label into plain and matched parts for rendering. */
-export function splitHighlight(text: string, ranges: readonly Range[]): { text: string; hit: boolean }[] {
+export function splitHighlight(
+  text: string,
+  ranges: readonly Range[],
+): { text: string; hit: boolean }[] {
   const parts: { text: string; hit: boolean }[] = [];
   let cursor = 0;
   for (const [start, end] of ranges) {

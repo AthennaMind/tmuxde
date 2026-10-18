@@ -1,12 +1,23 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
 const fixture = vi.hoisted(() => ({ disconnect: () => {} }));
-vi.mock("@/lib/relay-registry", () => ({ onDisconnectAll: (fn: () => void) => { fixture.disconnect = fn; } }));
+vi.mock("@/lib/relay-registry", () => ({
+  onDisconnectAll: (fn: () => void) => {
+    fixture.disconnect = fn;
+  },
+}));
 import {
-  closePalette, confirmAfterPalette, openPalette, promptInPalette, togglePalette, usePaletteStore,
+  closePalette,
+  confirmAfterPalette,
+  openPalette,
+  promptInPalette,
+  togglePalette,
+  usePaletteStore,
 } from "./palette-store";
 
-beforeEach(() => usePaletteStore.setState({ open: false, mode: "commands", prompt: null, confirm: null }));
+beforeEach(() =>
+  usePaletteStore.setState({ open: false, mode: "commands", prompt: null, confirm: null }),
+);
 
 it("toggles a mode shortcut and switches between modes while open", () => {
   togglePalette("files");
