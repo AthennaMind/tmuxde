@@ -34,11 +34,16 @@ export function RecentPhotoList({
   const [error, setError] = useState<string | null>(null);
   const controller = useRef<AbortController | null>(null);
 
-  useEffect(() => {
+  // A reuse belongs to the connection it started on. A new client drops its
+  // progress and its error in the same render, and the effect below aborts
+  // its fetch, so the old attempt cannot report back.
+  const [attemptClient, setAttemptClient] = useState(client);
+  if (attemptClient !== client) {
+    setAttemptClient(client);
     setPending(null);
     setError(null);
-    return () => controller.current?.abort();
-  }, [client]);
+  }
+  useEffect(() => () => controller.current?.abort(), [client]);
 
   const canRead = capabilities?.files !== "none";
   const canReuse =

@@ -60,9 +60,18 @@ export function KeyboardToolbar({
     };
   }, []);
 
+  // Controls act on the session they were opened for. A new session or a
+  // change in connection closes them in the same render.
+  const [controlsScope, setControlsScope] = useState({ connected, session });
+  if (controlsScope.connected !== connected || controlsScope.session !== session) {
+    setControlsScope({ connected, session });
+    setControlsOpen(false);
+  }
+
+  // Sticky Ctrl and Alt live in a store outside React. This effect clears
+  // them on the same changes and on unmount.
   useEffect(() => {
     useTerminalInput.getState().reset();
-    setControlsOpen(false);
     return () => useTerminalInput.getState().reset();
   }, [connected, session]);
 
