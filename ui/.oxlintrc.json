@@ -1,0 +1,119 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": ["dist", "public", ".cache"],
+  "plugins": ["typescript", "react", "oxc", "unicorn", "import"],
+  "env": { "browser": true },
+  "categories": { "correctness": "error" },
+  "jsPlugins": [{ "name": "tmuxde", "specifier": "./lint/tmuxde-oxlint-plugin.mjs" }],
+  "rules": {
+    "no-empty": ["error", { "allowEmptyCatch": true }],
+    "no-shadow": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "react/only-export-components": ["error", { "allowConstantExport": true }],
+    "react/no-unstable-nested-components": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/error-boundaries": "error",
+    "react/globals": "error",
+    "react/immutability": "error",
+    "react/incompatible-library": "error",
+    "react/preserve-manual-memoization": "error",
+    "react/purity": "error",
+    "react/refs": "error",
+    "react/set-state-in-effect": "error",
+    "react/set-state-in-render": "error",
+    "react/static-components": "error",
+    "react/use-memo": "error",
+    "react/void-use-memo": "error",
+    "import/no-cycle": "warn",
+    "tmuxde/no-cdn-urls": "error",
+    "unicorn/filename-case": ["error", { "case": "kebabCase" }]
+  },
+  "overrides": [
+    {
+      "files": ["src/shared/**/*.{ts,tsx}", "src/components/ui/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@/features",
+                  "@/features/**",
+                  "@/app",
+                  "@/app/**",
+                  "**/features/**",
+                  "**/app/**"
+                ],
+                "message": "Layer violation: shared and components/ui must not import features or app. Move the shared code down or the import up."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/features/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/app", "@/app/**", "**/app/**"],
+                "message": "Layer violation: features must not import app. Move the shared code into a feature or shared."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/protocol/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@/features",
+                  "@/features/**",
+                  "@/app",
+                  "@/app/**",
+                  "@/shared",
+                  "@/shared/**",
+                  "@/components",
+                  "@/components/**",
+                  "**/features/**",
+                  "**/app/**",
+                  "**/shared/**",
+                  "**/components/**"
+                ],
+                "message": "protocol is the wire contract and imports only zod."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "globals": [
+              {
+                "name": "fetch",
+                "message": "Use the helpers in features/connection and features/files/file-url. A direct fetch needs an inline disable with its reason."
+              }
+            ],
+            "checkGlobalObject": true
+          }
+        ]
+      }
+    }
+  ]
+}

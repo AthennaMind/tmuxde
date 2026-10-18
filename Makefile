@@ -1,13 +1,13 @@
 # Local tooling runs in started dev containers. CI uses direct commands.
 SHELL := /bin/bash
 GO_EXEC := docker compose exec -T -w /workspace server-dev
-UI_EXEC := docker compose exec -T -w /workspace/src/ui ui
+UI_EXEC := docker compose exec -T -w /workspace/ui ui
 GO_TEST_ARGS ?= ./...
 UI_TEST_ARGS ?=
 VERSION ?= dev
 
 .DEFAULT_GOAL := help
-.PHONY: help setup deps vet lint test go-test ui-test integration race typecheck check ui ui-build build
+.PHONY: help setup deps vet lint go-lint ui-lint ui-format test go-test ui-test integration race typecheck check ui ui-build build
 
 help: ## List targets
 	@awk 'BEGIN { FS = ":.*## " } /^[a-z-]+:.*## / { printf "  %-14s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -28,8 +28,18 @@ deps: ## Install UI dependencies in running ui container
 vet: ## Go vet in server-dev
 	$(GO_EXEC) go vet ./...
 
-lint: ## Go lint including integration tests in server-dev
+go-lint: ## Go lint including integration tests in server-dev
 	$(GO_EXEC) golangci-lint run --build-tags=integration --timeout=5m ./...
+
+ui-lint: ## UI lint, format check and knip in ui
+	$(UI_EXEC) pnpm lint
+	$(UI_EXEC) pnpm format:check
+	$(UI_EXEC) pnpm knip
+
+ui-format: ## Format UI sources with oxfmt in ui
+	$(UI_EXEC) pnpm format
+
+lint: go-lint ui-lint ## Go and UI lint
 
 go-test: ## Go unit tests in server-dev; override GO_TEST_ARGS to select tests
 	$(GO_EXEC) go test $(GO_TEST_ARGS)
@@ -50,7 +60,7 @@ typecheck: ## UI TypeScript checks in ui
 
 ui-build: ## Build UI and copy assets to web/dist inside ui
 	$(UI_EXEC) pnpm build
-	$(UI_EXEC) sh -ec 'mkdir -p ../../web/dist; find ../../web/dist -mindepth 1 ! -name .gitkeep -delete; cp -a dist/. ../../web/dist/'
+	$(UI_EXEC) sh -ec 'mkdir -p ../web/dist; find ../web/dist -mindepth 1 ! -name .gitkeep -delete; cp -a dist/. ../web/dist/'
 
 ui: typecheck ui-build ## UI typecheck and embedded production assets
 

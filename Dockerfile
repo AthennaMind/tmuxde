@@ -3,11 +3,11 @@
 FROM --platform=$BUILDPLATFORM node:26.11.1-bookworm-slim AS ui-build
 RUN npm install -g npm@12.2.0 && npm install -g --allow-scripts=pnpm pnpm@12.11.2
 ENV DO_NOT_TRACK=1
-WORKDIR /src/ui
-COPY src/ui/package.json src/ui/pnpm-lock.yaml src/ui/pnpm-workspace.yaml ./
+WORKDIR /ui
+COPY ui/package.json ui/pnpm-lock.yaml ui/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts
 RUN --network=none pnpm --config.trustLockfile=true rebuild --pending
-COPY src/ui/ ./
+COPY ui/ ./
 RUN --network=none pnpm exec vite build --configLoader native
 
 FROM --platform=$BUILDPLATFORM golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS tmuxde-source
@@ -21,7 +21,7 @@ COPY cmd/ cmd/
 COPY internal/ internal/
 COPY web/ web/
 # web/embed.go embeds this UI into binary during compilation.
-COPY --from=ui-build /src/ui/dist/ web/dist/
+COPY --from=ui-build /ui/dist/ web/dist/
 ARG VERSION=dev
 RUN --network=none CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -buildid= -X main.version=$VERSION" -o /out/tmuxde ./cmd/tmuxde

@@ -22,15 +22,17 @@ Closing browser or locking UI leaves tmux running. Stopping or recreating dev co
 | `internal/node` | Local tmux, PTY, files, repositories and watchers |
 | `internal/config` | Server and agent environment validation |
 | `internal/protocol` | Go wire types, registries and contract tests |
-| `src/ui/src/protocol` | Zod schemas, fixtures and `PROTOCOL.md` |
-| `src/ui` | React, Vite, React Router, xterm.js and Zustand |
+| `ui/src/protocol` | Zod schemas, fixtures and `PROTOCOL.md` |
+| `ui` | React, Vite, React Router, xterm.js and Zustand |
 | `web` | Embeds production UI from `web/dist` |
 | `cmd/tmuxde-stt`, `internal/stt` | Optional speech binary and engine |
 | `cmd/tmuxde-stt/internal/bundle` | Command-owned model embedding and extraction |
 
-UI routes live in `src/ui/src/router.tsx`; remote sessions use `/m/:machineId/s/:sessionId`. Machine state lives in `stores/machine-store.ts` and `components/machine-workspace.tsx`. WebSocket handling lives in `lib/ws-client.ts` and `hooks/use-websocket.ts`.
+UI layout: `ui/src/main.tsx` bootstraps React. `ui/src` holds `app` (router, routes, layouts and providers), `features` (one flat folder per feature with its components, stores, hooks, helpers and tests), `shared` (cross-cutting helpers), `components/ui` (shadcn primitives) and `protocol`. Features import each other directly and never import `app`. `shared`, `components/ui` and `protocol` never import features or `app`. `protocol` imports only zod. oxlint enforces these layers and kebab-case filenames. Only connection helpers and `ui/src/features/files/file-url.ts` call `fetch`.
 
-Local lock code lives in `lib/lock-store.ts`, `lib/lock-controller.ts` and `components/lock`. Locking clears decrypted credentials and browser connections, not tmux sessions.
+UI routes live in `ui/src/app/router.tsx`; remote sessions use `/m/:machineId/s/:sessionId`. Machine state and WebSocket handling live in `ui/src/features/connection`: `machine-store.ts`, `ws-client.ts` and `use-websocket.ts`. Machine switching lives in `ui/src/features/workspace/machine-workspace.tsx`.
+
+Local lock code lives in `ui/src/features/lock`, mainly `lock-store.ts` and `lock-controller.ts`. Locking clears decrypted credentials and browser connections, not tmux sessions.
 
 Speech uses Parakeet and Silero through sherpa-onnx. Default Go checks use stub engine. Dev STT uses `sherpa`; releases also use `stt_bundle`. Shared `internal/stt` must not contain embedded model payloads.
 
@@ -70,7 +72,10 @@ make race
 | Command | Runs |
 | --- | --- |
 | `make check` | Vet, lint, Go unit tests, UI tests and typecheck |
-| `make vet`, `make lint` | Go checks in `server-dev` |
+| `make vet`, `make go-lint` | Go checks in `server-dev` |
+| `make lint` | Go and UI lint |
+| `make ui-lint` | oxlint, oxfmt check and knip in `ui` |
+| `make ui-format` | UI formatting with oxfmt |
 | `make test` | Go and UI unit tests |
 | `make go-test`, `make ui-test` | Selected test suite |
 | `make typecheck` | UI TypeScript check |
@@ -92,13 +97,13 @@ Dependency changes run inside containers. Keep pnpm's five-day release delay, di
 
 ## Change rules
 
-- Protocol edits need Zod schemas, Go types and registries, valid/invalid fixtures, handlers and `src/ui/src/protocol/PROTOCOL.md` updates. Check both Go and UI contracts.
-- Update Go routing in `internal/node/local` and browser handling in `hooks/use-websocket.ts`; update machine forwarding when affected.
+- Protocol edits need Zod schemas, Go types and registries, valid/invalid fixtures, handlers and `ui/src/protocol/PROTOCOL.md` updates. Check both Go and UI contracts.
+- Update Go routing in `internal/node/local` and browser handling in `ui/src/features/connection/use-websocket.ts`; update machine forwarding when affected.
 - File access goes through guards in `internal/node/files`. Tmux operations go through `internal/node/tmux`.
 - Keep remote file, repository and terminal operations scoped to their machine. Do not replay mutations after connection loss.
 - Preserve authentication, origin checks, credential redaction and local lock behavior. Browser tokens and agent tokens are separate.
 - Validate Go settings in `internal/config` or `internal/stt/config.go`; use Zod for TypeScript environment settings.
-- Use semantic color classes and existing `@/` imports. UI tooling stays in `src/ui/package.json`; UI has no linter or formatter. Go formatting uses gofmt.
+- Use semantic color classes and existing `@/` imports. UI tooling stays in `ui/package.json`. UI uses oxlint for lint, oxfmt for formatting and knip for unused code. Go formatting uses gofmt.
 - Browser assets stay local. No telemetry, hosted accounts, cloud dictation or automatic public runtime requests.
 
 ## Verification
@@ -111,7 +116,7 @@ Browser checks target local dev at `http://localhost:24200`, or configured dev H
 
 ## CI and releases
 
-`.github/workflows/checks.yml` runs on PRs against main, main pushes and reusable calls. Path filters select Go lint/unit/integration and UI jobs. UI protocol changes also trigger Go checks; workflow and GoReleaser changes trigger both. UI checks typecheck and test without building.
+`.github/workflows/checks.yml` runs on PRs against main, main pushes and reusable calls. Path filters select Go lint/unit/integration and UI jobs. UI protocol changes also trigger Go checks; workflow and GoReleaser changes trigger both. UI checks lint, format, knip, typecheck and test without building.
 
 Require `All checks passed` for PR protection. It always runs, accepts skipped jobs and fails on failed or cancelled jobs.
 

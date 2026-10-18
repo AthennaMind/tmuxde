@@ -32,7 +32,10 @@ Commands run inside the started containers.
 
 ```bash
 make check        # vet, lint, unit tests and typecheck
-make lint         # Go lint
+make lint         # Go and UI lint
+make go-lint      # Go lint
+make ui-lint      # UI oxlint, format check and knip
+make ui-format    # format UI with oxfmt
 make test         # Go and UI unit tests
 make typecheck    # UI typecheck
 make integration  # tmux integration tests
@@ -61,3 +64,14 @@ Rebuild images after toolchain changes; renew UI dependencies after package chan
 docker compose up -d --build --wait
 docker compose up -d --build --renew-anon-volumes --wait ui
 ```
+
+## UI layout
+
+- `ui/src/main.tsx`: React bootstrap
+- `ui/src/app`: router, routes, layouts and providers
+- `ui/src/features`: one flat folder per feature, tests co-located
+- `ui/src/shared`: cross-cutting helpers
+- `ui/src/components/ui`: shadcn primitives
+- `ui/src/protocol`: Zod wire schemas shared with Go
+
+Features import each other directly and never import `app`. `shared`, `components/ui` and `protocol` never import features or `app`. `protocol` imports only zod. `make ui-lint` enforces these rules.

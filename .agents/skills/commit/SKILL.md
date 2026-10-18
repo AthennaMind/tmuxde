@@ -24,7 +24,7 @@ git log -10 --format='%s%n%n%b---'
 
 ### 2. Group changes
 
-One commit per topic. A feature travels with its tests and its `src/ui/src/protocol/PROTOCOL.md` update. Plans, backlogs and reviews under `.agents/` are gitignored and never committed. `pnpm-lock.yaml` goes with the `package.json` change behind it.
+One commit per topic. A feature travels with its tests and its `ui/src/protocol/PROTOCOL.md` update. Plans, backlogs and reviews under `.agents/` are gitignored and never committed. `pnpm-lock.yaml` goes with the `package.json` change behind it.
 
 Unrelated work in the tree gets separate commits. Example: markdown preview next to new app icons. When there is more than one group, show the proposed split before committing.
 
@@ -34,8 +34,9 @@ Add paths explicitly. No `git add -A`, `git add .` or `git add -f`.
 
 Never stage:
 
-- `.env`, `.docker/.env.token` or any relay token
-- `.docker/host-tmux/` (generated host binary) and `.docker/certs/` (local CA root)
+- `.env` and `.env.*`, except tracked `.env.example`
+- `.local/` (hub registry and agent credentials)
+- `ui/node_modules`, `dist/` and `web/dist/*` build output
 - `AGENTS.local.md`, `CLAUDE.local.md`
 - `.playwright-cli/`, `data/`, screenshots or logs from verification runs
 
@@ -57,17 +58,17 @@ All of these are gitignored. If one shows up in `git status`, stop and tell the 
 
 | Scope | Covers |
 | --- | --- |
-| `web` | `apps/web` |
-| `relay` | `apps/relay` |
-| `stt` | `apps/stt` |
-| `protocol` | `packages/protocol` |
-| `crypto`, `ui`, `logger` | matching `packages/*` |
-| `infra` | `.docker`, Caddyfile, compose files |
-| `scripts` | `scripts/setup.sh` and helpers |
+| `ui` | `ui` |
+| `protocol` | `internal/protocol`, `ui/src/protocol` |
+| `hub`, `machine`, `node` | `internal/hub`, `internal/machine`, `internal/node` |
+| `server` | `cmd/tmuxde` |
+| `stt` | `cmd/tmuxde-stt`, `internal/stt` |
+| `infra` | `docker-compose.yml`, `Dockerfile`, `dev.Dockerfile`, `.air.toml`, `Makefile` |
+| `ci` | `.github/workflows`, `.goreleaser.yaml` |
 | `agents` | `.agents` skills |
 | `deps` | dependency bumps only |
 
-Leave scope out when change spans several areas, for example a feature across relay, protocol and web. Older history uses upstream scopes `cli`, `site`, `api` and `ci`. Those parts are gone. Do not reuse them.
+Leave scope out when change spans several areas, for example a feature across node, protocol and ui. Older history uses upstream scopes `cli`, `site` and `api`, and `web`, `relay`, `crypto`, `logger` and `scripts` from the old layout. Those parts are gone. Do not reuse them.
 
 **Subjects** from history:
 
@@ -85,14 +86,14 @@ refactor!: rename project to tmuxde
 Scoped samples:
 
 ```
-feat(web): markdown preview for repository files
-fix(relay): select pane window through attached session
+feat(ui): file filter in the commit view
+fix(hub): bound the close of a socket refused by shutdown
 feat(protocol): repo:request log and show actions
-chore(infra): route /_sessions to relay in Caddyfile
+chore(ci): remap secret scan exclusions after history cleanup
 chore(agents): add commit and pr skills
 ```
 
-**Body** says what changed for the user first, then notable relay, protocol or security detail. Short plain sentences. Wrap at 72 columns.
+**Body** says what changed for the user first, then notable server, protocol or security detail. Short plain sentences. Wrap at 72 columns.
 
 - Single topic: one or two paragraphs.
 - Several parts: `- ` bullets. Large changes group bullets under bare header lines such as `Sidebar`, `Main area`, `Keys`.
@@ -145,7 +146,7 @@ Pass message through heredoc so wrapping survives:
 
 ```bash
 git commit -F - <<'EOF'
-feat(web): markdown preview for repository files
+feat(ui): markdown preview for repository files
 
 ...
 EOF

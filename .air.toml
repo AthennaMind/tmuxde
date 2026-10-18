@@ -2,8 +2,8 @@
 # with agent for remote nodes. Go changes rebuild each dev binary.
 # Build outputs live under /tmp. Checkout is mounted read/write.
 
-# Watch root, the working dir /workspace. It holds the Go module, the
-# protocol fixtures. Build caches live at /cache.
+# Watch root, the working dir /workspace. It holds the Go module and the
+# browser UI in ui. Build caches live at /cache.
 root = "."
 # Air keeps build logs outside source.
 tmp_dir = "/tmp/air"
@@ -18,8 +18,9 @@ args_bin = ["serve"]
 # Only Go files trigger a rebuild.
 include_ext = ["go"]
 # Not watched. Paths are relative to root, so only top level dirs match.
+# Vite in the ui service reloads ui, so Air skips it.
 # After a go-vendor run, restart server-dev to pick up new modules.
-exclude_dir = ["vendor", "testdata", "src", ".cache", ".git", ".local", ".agents", "dist"]
+exclude_dir = ["vendor", "testdata", "ui", ".cache", ".git", ".local", ".agents", "dist"]
 # Tests are not part of the binary.
 exclude_regex = ["_test.go"]
 # Wait this many ms after a change, so a save of many files builds once.

@@ -1,5 +1,5 @@
 // Package client holds the messages a browser sends, one struct per wire
-// type. They mirror src/ui/src/protocol/client-messages.ts and RepoRequest
+// type. They mirror ui/src/protocol/client-messages.ts and RepoRequest
 // in repository.ts. See package protocol for the rules.
 package client
 

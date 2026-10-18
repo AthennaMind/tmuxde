@@ -70,11 +70,11 @@ jobs:
               - 'go.work.sum'
               - '.golangci.yml'
               # Go contract tests read UI protocol schemas and fixtures.
-              - 'src/ui/src/protocol/**'
+              - 'ui/src/protocol/**'
               - '.github/workflows/**'
               - '.goreleaser.yaml'
             ui:
-              - 'src/ui/**'
+              - 'ui/**'
               - '.github/workflows/**'
               - '.goreleaser.yaml'
 
@@ -232,19 +232,33 @@ jobs:
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: '12.11.2'
-          package_json_file: src/ui/package.json
+          package_json_file: ui/package.json
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '26.11.1'
           cache: pnpm
-          cache-dependency-path: src/ui/pnpm-lock.yaml
+          cache-dependency-path: ui/pnpm-lock.yaml
       - name: Install dependencies
-        working-directory: src/ui
+        working-directory: ui
         run: |
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm --offline --config.trustLockfile=true rebuild --pending
+      - name: Lint
+        working-directory: ui
+        run: pnpm exec oxlint
+      - name: Check formatting
+        working-directory: ui
+        run: |
+          if ! pnpm exec oxfmt --check; then
+            pnpm exec oxfmt
+            git diff -- .
+            exit 1
+          fi
+      - name: Knip
+        working-directory: ui
+        run: pnpm exec knip
       - name: Typecheck and test
-        working-directory: src/ui
+        working-directory: ui
         run: |
           pnpm exec tsc
           pnpm exec vitest run --configLoader native

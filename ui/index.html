@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="theme-color" content="#fcfdfb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a0b0a" media="(prefers-color-scheme: dark)" />
+    <title>tmuxde</title>
+    <meta
+      name="description"
+      content="An IDE with tmux as its backend. Nothing leaves your network."
+    />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="tmuxde" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" type="image/x-icon" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" sizes="any" />
+    <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-icon.png" sizes="180x180" type="image/png" />
+    <script>
+      // Theme before first paint. Matches ThemeProvider: storage key "theme",
+      // class attribute and color-scheme. Missing, unknown or unreadable
+      // values fall back to dark, as the provider does.
+      (function () {
+        var theme = null;
+        try {
+          theme = localStorage.getItem("theme");
+          if (theme === "system") {
+            theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+        } catch (e) {}
+        if (theme !== "light") theme = "dark";
+        var root = document.documentElement;
+        root.classList.add(theme);
+        root.style.colorScheme = theme;
+      })();
+    </script>
+  </head>
+  <body class="bg-background text-foreground overscroll-none">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

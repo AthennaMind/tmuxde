@@ -2,7 +2,7 @@ package protocol
 
 import "errors"
 
-// Shared info structs, ported from src/ui/src/protocol/types.ts.
+// Shared info structs, ported from ui/src/protocol/types.ts.
 // ConnectionState there is browser state only and has no Go twin.
 
 // TerminalSize mirrors TerminalSizeSchema.

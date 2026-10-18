@@ -15,23 +15,23 @@ const (
 	ServerSide = "server"
 )
 
-// SourceDir finds the TypeScript protocol dir src/ui/src/protocol by walking
-// up from the working directory. It holds the Zod sources and fixtures.
+// SourceDir finds the TypeScript protocol dir ui/src/protocol by walking up
+// from the working directory. It holds the Zod sources and fixtures.
 // Go tests run in a package dir below the repository root, on the host and
-// in server-dev, and both have src/ui/src/protocol at that root.
+// in server-dev, and both have ui/src/protocol at that root.
 func SourceDir() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
 	for {
-		candidate := filepath.Join(dir, "src", "ui", "src", "protocol")
+		candidate := filepath.Join(dir, "ui", "src", "protocol")
 		if _, err := os.Stat(filepath.Join(candidate, "client-messages.ts")); err == nil {
 			return candidate, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", errors.New("src/ui/src/protocol not found above the working directory")
+			return "", errors.New("ui/src/protocol not found above the working directory")
 		}
 		dir = parent
 	}

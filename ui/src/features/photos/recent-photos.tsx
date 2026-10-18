@@ -1,0 +1,157 @@
+import { useEffect, useRef, useState } from "react";
+import { cn } from "@/shared/utils";
+import { getRelayClient } from "@/features/connection/use-websocket";
+import { usePhotoHistory } from "./use-photo-history";
+import { useBelievedInCopyMode } from "@/features/terminal/use-copy-mode";
+import { useConnectionStore } from "@/features/connection/connection-store";
+import { useSessionStore } from "@/features/session/session-store";
+import { usePaneStore } from "@/features/panes/pane-store";
+import { useAlertStore } from "@/shared/alert-store";
+import { fetchFileObjectUrl, filesAvailable } from "@/features/files/file-url";
+import { reusePhotoPath } from "./photo-history";
+import { believedInCopyMode } from "@/features/terminal/copy-mode-belief";
+import { useTerminalInput } from "@/features/terminal/terminal-input";
+import { getTerminalHandle } from "@/features/terminal/terminal-handle";
+import { PhotoThumbnail } from "./photo-thumbnail";
+
+/**
+ * Saved photos with a Reuse button each. Lives in the mobile dialog and in the
+ * desktop sidebar Photos view.
+ */
+export function RecentPhotoList({
+  onReused,
+  className,
+}: {
+  onReused?: () => void;
+  className?: string;
+}) {
+  const { client, paths, scope } = usePhotoHistory();
+  const status = useConnectionStore((s) => s.status);
+  const capabilities = useConnectionStore((s) => s.capabilities);
+  const session = useSessionStore((s) => s.activeSessionId);
+  const inCopyMode = useBelievedInCopyMode(session);
+  const [pending, setPending] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const controller = useRef<AbortController | null>(null);
+
+  // A reuse belongs to the connection it started on. A new client drops its
+  // progress and its error in the same render, and the effect below aborts
+  // its fetch, so the old attempt cannot report back.
+  const [attemptClient, setAttemptClient] = useState(client);
+  if (attemptClient !== client) {
+    setAttemptClient(client);
+    setPending(null);
+    setError(null);
+  }
+  useEffect(() => () => controller.current?.abort(), [client]);
+
+  const canRead = capabilities?.files !== "none";
+  const canReuse =
+    status === "connected" && !!session && !capabilities?.readOnly && canRead && !inCopyMode;
+
+  const reuse = async (path: string) => {
+    if (!client || !canReuse || controller.current) return;
+    const terminal = getTerminalHandle();
+    if (!terminal) return;
+    const pane = usePaneStore.getState().activePaneId;
+    const abort = new AbortController();
+    controller.current = abort;
+    let changed = false;
+    const offSession = useSessionStore.subscribe((s) => {
+      if (s.activeSessionId !== session) changed = true;
+    });
+    const offPane = usePaneStore.subscribe((s) => {
+      if (s.activePaneId !== pane) changed = true;
+    });
+    const offStatus = client.onStatusChange((s) => {
+      if (s !== "connected") changed = true;
+    });
+    setPending(path);
+    setError(null);
+    try {
+      await reusePhotoPath(path, {
+        load: (savedPath) => fetchFileObjectUrl(savedPath, abort.signal),
+        release: (url) => URL.revokeObjectURL(url),
+        isCurrent: () => {
+          const current = useConnectionStore.getState();
+          return (
+            !changed &&
+            !abort.signal.aborted &&
+            getRelayClient() === client &&
+            client.status === "connected" &&
+            getTerminalHandle() === terminal &&
+            useSessionStore.getState().activeSessionId === session &&
+            usePaneStore.getState().activePaneId === pane &&
+            !current.capabilities?.readOnly &&
+            current.capabilities?.files !== "none" &&
+            !believedInCopyMode(session)
+          );
+        },
+        resetInput: () => useTerminalInput.getState().reset(),
+        paste: (text) => terminal.paste(text),
+      });
+      onReused?.();
+      useAlertStore
+        .getState()
+        .push("success", "Photo path inserted. Add your question, then press Enter.");
+    } catch (reason) {
+      if (!abort.signal.aborted) {
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Photo unavailable. Choose Photo to upload it again.",
+        );
+      }
+    } finally {
+      offSession();
+      offPane();
+      offStatus();
+      controller.current = null;
+      if (!abort.signal.aborted) setPending(null);
+    }
+  };
+
+  return (
+    <div className={cn("space-y-3", className)}>
+      {!filesAvailable() && (
+        <p className="text-sm text-muted-foreground">
+          Connect directly to this machine to preview or reuse photos.
+        </p>
+      )}
+      {inCopyMode && (
+        <p className="text-sm text-muted-foreground">Leave copy mode to reuse a photo.</p>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      {paths.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No photos yet. Upload or paste one and it shows up here.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {paths.map((path) => (
+            <li
+              key={`${scope}:${path}`}
+              className="flex items-center gap-3 rounded-md border border-border p-2"
+            >
+              <PhotoThumbnail path={path} className="h-14 w-14" />
+              <span className="min-w-0 flex-1 break-all text-xs text-muted-foreground">{path}</span>
+              <button
+                type="button"
+                disabled={!canReuse || !!pending || !filesAvailable()}
+                aria-label={`Reuse photo ${path.split("/").pop()}`}
+                className="min-h-9 shrink-0 rounded-md border border-border px-3 text-sm font-medium hover:bg-accent disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pointer-coarse:min-h-11"
+                onClick={() => void reuse(path)}
+              >
+                {pending === path ? "Checking…" : "Reuse"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
