@@ -68,6 +68,7 @@ type Run = {
   typed: string;
   inserted: boolean;
   capture: Capture | null;
+  microphoneRequest: AbortController;
   ready: boolean;
   early: string[];
   stopping: boolean;
@@ -164,6 +165,7 @@ function finish(current: Run): void {
   run = null;
   for (const timer of current.timers) clearTimeout(timer);
   for (const off of current.cleanup) off();
+  current.microphoneRequest.abort();
   current.capture?.abort();
   current.early = [];
   useDictationStore.setState({ status: "idle", level: 0, startedAt: null });
@@ -217,6 +219,7 @@ export async function startDictation(): Promise<void> {
     typed: "",
     inserted: false,
     capture: null,
+    microphoneRequest: new AbortController(),
     ready: false,
     early: [],
     stopping: false,
@@ -261,7 +264,7 @@ export async function startDictation(): Promise<void> {
         alert("error", "Microphone disconnected");
         void stopDictation();
       },
-    });
+    }, current.microphoneRequest.signal);
   } catch (error) {
     if (run === current) {
       abortDictation(

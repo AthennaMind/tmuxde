@@ -4,7 +4,7 @@ import { create } from "zustand";
  * - `starting`: asking for the microphone.
  * - `listening`: recording. Speech already counts even if the speech service
  *   has not answered yet; audio waits on the device until it does.
- * - `stopping`: microphone closed, the last words are being transcribed.
+ * - `stopping`: microphone muted, the last words are being transcribed.
  */
 export type DictationStatus = "idle" | "starting" | "listening" | "stopping";
 

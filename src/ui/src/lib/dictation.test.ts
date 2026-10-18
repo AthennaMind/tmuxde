@@ -17,6 +17,7 @@ const client = {
 const terminal = { paste: vi.fn<(text: string) => void>() };
 
 let handlers: CaptureHandlers | null = null;
+let microphoneSignal: AbortSignal | null = null;
 const capture = { stop: vi.fn(async () => {}), abort: vi.fn() };
 let openMicrophone: () => Promise<typeof capture> = async () => capture;
 
@@ -27,8 +28,9 @@ vi.mock("@/components/terminal/terminal-handle", () => ({
 vi.mock("@/lib/dictation-audio", () => ({
   MicrophoneError: class MicrophoneError extends Error {},
   pcmToBase64: (pcm: Int16Array) => `pcm${pcm[0]}`,
-  startCapture: (h: CaptureHandlers) => {
+  startCapture: (h: CaptureHandlers, signal: AbortSignal) => {
     handlers = h;
+    microphoneSignal = signal;
     return openMicrophone();
   },
 }));
@@ -56,6 +58,7 @@ beforeEach(() => {
   sent.length = 0;
   statusHandlers.clear();
   handlers = null;
+  microphoneSignal = null;
   openMicrophone = async () => capture;
   terminal.paste.mockReset();
   capture.stop.mockClear();
@@ -85,6 +88,19 @@ afterEach(() => {
 });
 
 describe("dictation", () => {
+  it("cancels pending microphone request when user stops before permission arrives", async () => {
+    let grant!: (value: typeof capture) => void;
+    openMicrophone = () => new Promise((resolve) => { grant = resolve; });
+    const pending = dictation.startDictation();
+    expect(status()).toBe("starting");
+    await dictation.stopDictation();
+    expect(microphoneSignal!.aborted).toBe(true);
+    grant(capture);
+    await pending;
+    expect(capture.abort).toHaveBeenCalledOnce();
+    expect(status()).toBe("idle");
+  });
+
   it("asks the service first, then records", async () => {
     await dictation.startDictation();
     expect(types()).toEqual(["dictation:start"]);

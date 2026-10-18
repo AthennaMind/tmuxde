@@ -106,7 +106,7 @@ answers. Production may use separate host socket directory.
 - It has no authentication of its own. The tmuxde server has already checked the browser's token and origin before any audio arrives.
 - The service never writes audio or text to disk, and neither does the tmuxde server. Logs hold one line per dictation with its length, decode time and outcome, never what was said.
 - The container runs read-only, without Linux capabilities and as your host user.
-- The browser only allows the microphone on this site (`Permissions-Policy: microphone=(self)`) and asks before the first recording.
+- The browser only allows the microphone on this site (`Permissions-Policy: microphone=(self)`). Granted stream is reused while page stays visible. Tracks stay disabled between recordings, with audio processing closed. Backgrounding, locking, disconnecting or leaving page releases tracks. Persistent permission across visits belongs to browser site settings.
 
 ## Troubleshooting
 
@@ -114,6 +114,7 @@ answers. Production may use separate host socket directory.
 | --- | --- |
 | No mic button | `docker compose ps stt` should say healthy. The server logs `Speech service availability changed` when it notices: `journalctl --user -u tmuxde`. Reload the page: the browser learns about dictation when it connects. |
 | "Microphone blocked" | Allow the microphone for the site in browser settings. The page must load over trusted HTTPS, see [development guide](../../docs/DEVELOPMENT.md). |
+| Repeated microphone prompts | Set microphone permission to Allow for this site. iPhone Safari: Page Menu > Website Settings > Microphone. Mac Safari: Settings > Websites > Microphone. Chrome: site controls > Site settings > Microphone. App Settings includes same guidance. |
 | "Speech service is busy" | Four dictations are already running. |
 | "No speech detected" | The level meter should move while you talk. If it does not, the browser is using the wrong microphone. |
 | `stt` keeps restarting | `docker compose logs stt`. A missing model file names the setup command to run. |

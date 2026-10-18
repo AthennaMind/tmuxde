@@ -1,3 +1,5 @@
+import { acquireMicrophone } from "@/lib/dictation-microphone";
+
 /**
  * Microphone capture for dictation: 16 kHz mono PCM16 in 200 ms frames.
  *
@@ -7,7 +9,7 @@
  */
 
 export type Capture = {
-  /** Flush the last partial frame, then release the microphone. */
+  /** Mute microphone, flush final frame, and close audio processing. */
   stop: () => Promise<void>;
   /** Release the microphone at once and drop anything unsent. */
   abort: () => void;
@@ -46,36 +48,38 @@ function describe(error: unknown): string {
  * created and resumed inside one, which is why both happen before the first
  * await.
  */
-export async function startCapture(handlers: CaptureHandlers): Promise<Capture> {
+export async function startCapture(handlers: CaptureHandlers, signal: AbortSignal): Promise<Capture> {
+  signal.throwIfAborted();
   if (!navigator.mediaDevices?.getUserMedia || typeof AudioWorkletNode === "undefined") {
     throw new MicrophoneError("This browser cannot record audio here");
   }
   const context = new AudioContext();
-  const resumed = context.resume();
+  const closeContext = () => {
+    signal.removeEventListener("abort", closeContext);
+    void context.close().catch(() => undefined);
+  };
+  signal.addEventListener("abort", closeContext, { once: true });
+  // Observe rejection immediately, even while permission prompt is pending.
+  const resumed = context.resume().then(() => true, () => false);
 
-  let stream: MediaStream;
+  let microphone: Awaited<ReturnType<typeof acquireMicrophone>>;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+    microphone = await acquireMicrophone(signal);
   } catch (error) {
-    void context.close();
+    closeContext();
     throw new MicrophoneError(describe(error));
   }
 
-  const release = () => {
-    for (const track of stream.getTracks()) track.stop();
-    void context.close().catch(() => undefined);
+  const release = (retain: boolean) => {
+    if (retain) microphone.pause();
+    else microphone.discard();
+    closeContext();
   };
 
   let node: AudioWorkletNode;
   try {
-    await resumed;
+    if (!await resumed) throw new Error("Audio context did not resume");
+    signal.throwIfAborted();
     await context.audioWorklet.addModule("/dictation-worklet.js");
     node = new AudioWorkletNode(context, "dictation-capture", {
       numberOfInputs: 1,
@@ -84,7 +88,7 @@ export async function startCapture(handlers: CaptureHandlers): Promise<Capture> 
       channelCountMode: "explicit",
     });
   } catch {
-    release();
+    release(false);
     throw new MicrophoneError("Could not start audio processing");
   }
 
@@ -99,38 +103,53 @@ export async function startCapture(handlers: CaptureHandlers): Promise<Capture> 
     else flushed?.();
   };
 
-  const source = context.createMediaStreamSource(stream);
-  source.connect(node);
-  // The node writes nothing to its output. Connected anyway, because some
-  // engines only run nodes that lead to the destination.
-  node.connect(context.destination);
+  let source: MediaStreamAudioSourceNode;
+  try {
+    source = context.createMediaStreamSource(microphone.stream);
+    source.connect(node);
+    // Silent output keeps worklet running on browsers that require a destination.
+    node.connect(context.destination);
+    microphone.activate();
+  } catch {
+    node.port.onmessage = null;
+    node.disconnect();
+    release(false);
+    throw new MicrophoneError("Could not start audio processing");
+  }
 
   let done = false;
-  const track = stream.getAudioTracks()[0];
-  track?.addEventListener("ended", () => {
+  const track = microphone.stream.getAudioTracks()[0];
+  const ended = () => {
     if (!done) handlers.onEnded();
-  });
+  };
+  track?.addEventListener("ended", ended);
 
-  const disconnect = () => {
+  const disconnect = (retain: boolean) => {
+    if (done) return;
     done = true;
+    signal.removeEventListener("abort", abort);
+    track?.removeEventListener("ended", ended);
     node.port.onmessage = null;
     source.disconnect();
     node.disconnect();
-    release();
+    release(retain);
   };
+  const abort = () => disconnect(false);
+  signal.addEventListener("abort", abort, { once: true });
 
   return {
     async stop() {
       if (done) return;
+      microphone.pause();
       await new Promise<void>((resolve) => {
-        flushed = resolve;
+        const timer = setTimeout(resolve, FLUSH_TIMEOUT_MS);
+        flushed = () => { clearTimeout(timer); resolve(); };
         node.port.postMessage({ type: "flush" });
-        setTimeout(resolve, FLUSH_TIMEOUT_MS);
       });
-      disconnect();
+      disconnect(true);
     },
     abort() {
-      if (!done) disconnect();
+      abort();
     },
   };
 }
