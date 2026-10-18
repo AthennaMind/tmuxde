@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cn } from "../../lib/utils";
+import { cn } from "@/shared/utils";
 
 /** Smallest the thumb is allowed to get, so a long list stays grabbable. */
 const MIN_THUMB_PX = 28;

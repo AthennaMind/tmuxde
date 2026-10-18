@@ -452,7 +452,7 @@ browser.
    samples together set every field, and each optional field is left out by
    one of them.
 5. Handle client messages in `internal/node/local/router.go`.
-6. Handle server messages in `ui/src/hooks/use-websocket.ts`.
+6. Handle server messages in `ui/src/features/connection/use-websocket.ts`.
 
 ## Machine routing
 
