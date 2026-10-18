@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef, useState, type ReactElement } from "react";
+import { memo, useMemo, useState } from "react";
 import type { RepoCommit } from "@/protocol";
 import { cn } from "@/shared/utils";
 import { useTreeKeyboard } from "@/features/workspace/use-tree-keyboard";
@@ -25,10 +25,9 @@ const x = laneX;
  * Each row is a button that opens the commit. Arrow keys, Home and End move
  * between rows, and only one row sits in the Tab order.
  *
- * Memoized, and each row keeps its element while its commit and layout
- * stay the same by value. A new first page builds and renders only the rows
- * that look different. Thousands of loaded rows would block the page
- * otherwise.
+ * Memoized, and each row is memoized by value with `sameRowProps`. A new
+ * first page renders only the rows that look different. Thousands of loaded
+ * rows would block the page otherwise. Both need a stable `onOpen`.
  */
 export const GraphList = memo(function GraphList({
   commits,
@@ -38,6 +37,7 @@ export const GraphList = memo(function GraphList({
   commits: RepoCommit[];
   /** Hash of the commit tab on screen, if any. */
   selected?: string;
+  /** Keep it stable. Every row renders again when it changes. */
   onOpen: (commit: RepoCommit) => void;
 }) {
   // Git's order can put a parent before a child. Rows follow the fixed order.
@@ -45,39 +45,23 @@ export const GraphList = memo(function GraphList({
   const rows = useMemo(() => layoutGraph(ordered), [ordered]);
   const { ref, onKeyDown } = useTreeKeyboard();
   const [focused, setFocused] = useState<string | null>(null);
-  const latestOpen = useRef(onOpen);
-  latestOpen.current = onOpen;
-  const open = useCallback((commit: RepoCommit) => latestOpen.current(commit), []);
   const has = (hash: string | null | undefined) => !!hash && commits.some((c) => c.hash === hash);
   const tabStop = has(focused) ? focused : has(selected) ? selected : commits[0]?.hash;
-
-  // Last element of each row, by hash. A row whose props compare equal gets
-  // the same element back, and React skips it without a call. Every element
-  // here matches its props, so one from a render React threw away is still
-  // right to reuse.
-  const elements = useRef(new Map<string, ReactElement<GraphRowProps>>());
-  const next = new Map<string, ReactElement<GraphRowProps>>();
-  const items = ordered.map((commit, i) => {
-    const props: GraphRowProps = {
-      commit,
-      row: rows[i]!,
-      selected: commit.hash === selected,
-      tabStop: commit.hash === tabStop,
-      onFocus: setFocused,
-      onOpen: open,
-    };
-    const old = elements.current.get(commit.hash);
-    const element =
-      old && sameRowProps(old.props, props) ? old : <GraphRowItem key={commit.hash} {...props} />;
-    next.set(commit.hash, element);
-    return element;
-  });
-  elements.current = next;
 
   return (
     <div ref={ref} onKeyDown={onKeyDown} data-tree="">
       <ul aria-label="Commits" className="py-1">
-        {items}
+        {ordered.map((commit, i) => (
+          <GraphRowItem
+            key={commit.hash}
+            commit={commit}
+            row={rows[i]!}
+            selected={commit.hash === selected}
+            tabStop={commit.hash === tabStop}
+            onFocus={setFocused}
+            onOpen={onOpen}
+          />
+        ))}
       </ul>
     </div>
   );

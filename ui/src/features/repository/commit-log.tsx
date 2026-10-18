@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { GitMerge, Tag } from "lucide-react";
 import type { RepoCommit } from "@/protocol";
 import { cn } from "@/shared/utils";
@@ -43,9 +43,12 @@ export function CommitList({
 }) {
   const { ref, onKeyDown } = useTreeKeyboard();
   const [focused, setFocused] = useState<string | null>(null);
-  // Stable for the memoized rows. Callers pass a fresh arrow each render.
+  // Stable for the memoized rows. Callers pass a fresh arrow each render, and
+  // the newest one is kept after each commit, before any click can land.
   const latestOpen = useRef(onOpen);
-  latestOpen.current = onOpen;
+  useLayoutEffect(() => {
+    latestOpen.current = onOpen;
+  }, [onOpen]);
   const open = useCallback((commit: RepoCommit) => latestOpen.current(commit), []);
   const has = (hash: string | null | undefined) => !!hash && commits.some((c) => c.hash === hash);
   const tabStop = has(focused) ? focused : has(selected) ? selected : commits[0]?.hash;
