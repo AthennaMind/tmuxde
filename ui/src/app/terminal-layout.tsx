@@ -64,15 +64,12 @@ export function TerminalLayout() {
   );
 }
 
-/**
- * Three states, not two. Checking shows a spinner, none goes to /login and
- * ready opens the socket with the token.
- */
-type Auth = { phase: "checking" } | { phase: "none" } | { phase: "ready"; token: string };
-
 function TerminalLayoutInner() {
   const navigate = useNavigate();
-  const [auth, setAuth] = useState<Auth>({ phase: "checking" });
+  // The token from login, or the lock store after an unlock. Read once per
+  // mount: the read is synchronous, and `LockGate` mounts this anew after
+  // every unlock. Without a token the browser goes back to /login.
+  const [token] = useState(readSelfHostedToken);
   // Selected, and for the sharpest reason of all: `composerDraft` lives in this
   // same store and is written on every keystroke in the command composer.
   const mobileTab = useUiStore((s) => s.mobileTab);
@@ -83,17 +80,9 @@ function TerminalLayoutInner() {
 
   useMobileHistory();
 
-  // The token from login, or the lock store after an unlock. Without one the
-  // browser goes back to /login.
   useEffect(() => {
-    const storedToken = readSelfHostedToken();
-    if (storedToken) {
-      setAuth({ phase: "ready", token: storedToken });
-      return;
-    }
-    setAuth({ phase: "none" });
-    navigate("/login", { replace: true });
-  }, [navigate]);
+    if (!token) navigate("/login", { replace: true });
+  }, [token, navigate]);
 
   // What this credential may do, per `auth:success`. Null on the self-hosted
   // and full-grant paths, which is what unrestricted looks like.
@@ -226,15 +215,14 @@ function TerminalLayoutInner() {
 
   // Called for its effect: this is where the socket is opened and registered.
   // Children reach it through `getRelayClient()`, not through a return value.
-  const token = auth.phase === "ready" ? auth.token : null;
   const activeMachine = useMachineStore((s) => s.activeMachine);
   const switching = useMachineStore((s) => s.requested !== null);
   useWebSocket(token && !switching ? resolveRelayWsUrl(activeMachine) : "", token ?? "");
 
-  if (auth.phase !== "ready") {
-    // Same markup as `RequireSession`'s pending branch, and for the same
-    // reason: a screen-reader user gets told what is happening, and a sighted
-    // one can tell "checking" apart from "crashed".
+  if (!token) {
+    // Same markup as `LockGate`'s pending branch, and for the same reason: a
+    // screen-reader user gets told what is happening, and a sighted one can
+    // tell "leaving" apart from "crashed".
     return (
       <div
         className="flex min-h-[100dvh] items-center justify-center bg-background"
@@ -242,11 +230,7 @@ function TerminalLayoutInner() {
         aria-live="polite"
       >
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
-        <span className="sr-only">
-          {auth.phase === "checking"
-            ? "Checking this device for a session"
-            : "Taking you to the connect page"}
-        </span>
+        <span className="sr-only">Taking you to the connect page</span>
       </div>
     );
   }

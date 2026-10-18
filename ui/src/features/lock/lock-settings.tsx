@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,13 +50,23 @@ export function LockSettings() {
   const [confirmText, setConfirmText] = useState("");
   const [erasing, setErasing] = useState(false);
 
-  const refresh = useCallback(async () => {
-    setRecord(await readLockRecord());
+  // The record lives in IndexedDB. The first read lands after mount. A late
+  // answer is dropped if the panel closed meanwhile.
+  useEffect(() => {
+    let cancelled = false;
+    void readLockRecord().then((next) => {
+      if (!cancelled) setRecord(next);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  // Every change below reads the record back, so the panel shows what
+  // was stored rather than what was asked for.
+  async function refresh() {
+    setRecord(await readLockRecord());
+  }
 
   async function patch(next: Partial<LockRecord>) {
     await updateLockSettings(next);
