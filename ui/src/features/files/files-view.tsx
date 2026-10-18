@@ -1,5 +1,5 @@
 import { QuickOpenTrigger } from "./quick-open-trigger";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ClipboardCopy,
   Download,
@@ -106,19 +106,25 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [menuKey, setMenuKey] = useState<string | null>(null);
-  const tree = useTreeKeyboard();
+  const { ref: treeRef, onKeyDown: onTreeKeyDown } = useTreeKeyboard();
   const uploaded = useTransferStore((s) => s.revisions[machineId()] ?? 0);
   const uploadPicker = useRef<UploadPicker>(null);
 
   // A new pane folder opens the tree down to it. In the same repository the
-  // folders opened by hand stay open.
+  // folders opened by hand stay open. This adjusts state during render, so
+  // the first frame for a new folder already shows it open.
   const contextPath = context?.path;
-  useEffect(() => {
-    if (!root || !contextPath) return;
-    const path = ancestors(root, contextPath);
-    setExpanded((prev) => (prev.has(root) ? new Set([...prev, ...path]) : new Set(path)));
-    setFocusKey(null);
-  }, [root, contextPath]);
+  const [openedFor, setOpenedFor] = useState<{ root: string | null; path?: string }>({
+    root: null,
+  });
+  if (openedFor.root !== root || openedFor.path !== contextPath) {
+    setOpenedFor({ root, path: contextPath });
+    if (root && contextPath) {
+      const path = ancestors(root, contextPath);
+      setExpanded((prev) => (prev.has(root) ? new Set([...prev, ...path]) : new Set(path)));
+      setFocusKey(null);
+    }
+  }
 
   const { changes, changedDirs } = useMemo(() => {
     const files = new Map<string, ChangeCode>();
@@ -148,7 +154,7 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
     if (expanded.has(path) && focusKey?.startsWith(`${path}/`)) {
       setFocusKey(path);
       requestAnimationFrame(() =>
-        tree.ref.current
+        treeRef.current
           ?.querySelector<HTMLElement>(`[data-tree-row="${CSS.escape(path)}"]`)
           ?.focus(),
       );
@@ -325,11 +331,11 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
           </div>
           <div className="min-h-0 flex-1 overflow-auto px-1.5 pb-2">
             <div
-              ref={tree.ref}
+              ref={treeRef}
               data-tree
               role="group"
               aria-label={`Files in ${basename(root)}`}
-              onKeyDown={tree.onKeyDown}
+              onKeyDown={onTreeKeyDown}
               className="space-y-px"
             >
               <FolderChildren
