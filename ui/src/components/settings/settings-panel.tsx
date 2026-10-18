@@ -138,9 +138,6 @@ function MicrophoneSection() {
 
 function AppearanceSection() {
   const { theme, resolvedTheme, setTheme } = useTheme();
-  // The stored theme is unknown on the server. Nothing is checked until mount.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
   const themeName = useTerminalStore((s) => s.themeName);
   const setThemeName = useTerminalStore((s) => s.setThemeName);
 
@@ -150,7 +147,7 @@ function AppearanceSection() {
         {(ids) => (
           <Segmented
             ids={ids}
-            value={mounted ? theme : undefined}
+            value={theme}
             onChange={setTheme}
             options={[
               { value: "light", label: "Light", icon: <Sun className="h-3.5 w-3.5" aria-hidden /> },

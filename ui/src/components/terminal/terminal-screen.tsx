@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/hooks/use-theme";
 import type { PreviewFrame } from "@/protocol";
 import { terminalFontFamily, refreshWhenFontLoads } from "@/lib/terminal-font.js";
 import { getTerminalTheme, terminalThemeToXterm } from "@/lib/terminal-themes";
