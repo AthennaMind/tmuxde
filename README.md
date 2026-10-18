@@ -15,6 +15,7 @@ TmuxDE (Tmux Development Environment) is a self-hosted DE built on top of tmux. 
 - [Who it is for](#who-it-is-for)
 - [Is this yet another slop?](#is-this-yet-another-slop)
 - [How it works](#how-it-works)
+- [Showcase](docs/SHOWCASE.md)
 - [Install guide](docs/INSTALL.md)
 - [Development guide](docs/DEVELOPMENT.md)
 - [Credits](#credits)
