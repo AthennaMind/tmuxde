@@ -67,7 +67,8 @@ docker compose up -d --build --renew-anon-volumes --wait ui
 
 ## UI layout
 
-- `ui/src/app`: bootstrap, router, routes and providers
+- `ui/src/main.tsx`: React bootstrap
+- `ui/src/app`: router, routes, layouts and providers
 - `ui/src/features`: one flat folder per feature, tests co-located
 - `ui/src/shared`: cross-cutting helpers
 - `ui/src/components/ui`: shadcn primitives
