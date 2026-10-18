@@ -26,14 +26,35 @@ ARG VERSION=dev
 RUN --network=none CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -buildid= -X main.version=$VERSION" -o /out/tmuxde ./cmd/tmuxde
 
-FROM golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS stt-source
+# Cross compiled from the build platform, like the GoReleaser job. Emulated
+# bookworm failed to link the arm64 static binary: its glibc static objects
+# use the small GOT model and the speech libraries overflow it.
+FROM --platform=$BUILDPLATFORM golang:1.27.2-trixie@sha256:47667934874913a449b96faa7ef4777fa285d9ec29126ee80ed61c45b7cccf0e AS stt-source
 ARG TARGETARCH
-RUN apt-get update && apt-get install -y --no-install-recommends curl jq bzip2 \
-    && rm -rf /var/lib/apt/lists/*
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+# Native compilers on a matching host, Debian cross compilers otherwise.
+# Later steps source /opt/stt/env.sh for CC and CXX.
+RUN <<'EOF'
+apt-get update
+apt-get install -y --no-install-recommends curl jq bzip2
+case "$(dpkg --print-architecture):$TARGETARCH" in
+  amd64:amd64 | arm64:arm64) triplet="" ;;
+  *:arm64) triplet=aarch64-linux-gnu ;;
+  *:amd64) triplet=x86_64-linux-gnu ;;
+  *) echo "unsupported TARGETARCH $TARGETARCH" >&2; exit 1 ;;
+esac
+mkdir -p /opt/stt
+if [ -n "$triplet" ]; then
+  apt-get install -y --no-install-recommends "gcc-${triplet//_/-}" "g++-${triplet//_/-}"
+  echo "export CC=${triplet}-gcc CXX=${triplet}-g++" > /opt/stt/env.sh
+else
+  echo "export CC=gcc CXX=g++" > /opt/stt/env.sh
+fi
+rm -rf /var/lib/apt/lists/*
+EOF
 ENV GOTOOLCHAIN=local GOFLAGS=-mod=vendor GOPROXY=off GOTELEMETRY=off
 COPY cmd/tmuxde-stt/assets.json /opt/stt/assets.json
 WORKDIR /opt/stt
-SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 RUN <<'EOF'
 mkdir -p include/sherpa-onnx/c-api "$TARGETARCH"
 curl --fail --location --retry 3 "$(jq -r '.header.url' assets.json)" -o include/sherpa-onnx/c-api/c-api.h
@@ -60,7 +81,8 @@ if [ "$TARGETARCH" = arm64 ]; then
     curl --fail --location --retry 3 "$url" -o "include/$name"
     echo "$checksum  include/$name" | sha256sum --check
   done
-  g++ -std=c++17 -O2 -DNDEBUG -D_GLIBCXX_USE_CXX11_ABI=1 \
+  . /opt/stt/env.sh
+  "$CXX" -std=c++17 -O2 -DNDEBUG -D_GLIBCXX_USE_CXX11_ABI=1 \
     -DSHERPA_ONNX_ENABLE_TTS=0 -DSHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION=0 \
     -Isource -Iinclude -Ikaldi-decoder -Ikaldifst -Iopenfst/src/include -Ieigen \
     -c source/sherpa-onnx/c-api/c-api.cc -o arm64/c-api.cc.o
@@ -88,7 +110,8 @@ COPY internal/ internal/
 RUN cp -a /opt/stt/models cmd/tmuxde-stt/internal/bundle/models \
     && jq -cS '.models | map_values(.sha256)' /opt/stt/assets.json > cmd/tmuxde-stt/internal/bundle/models/manifest.json
 ARG VERSION=dev
-RUN --network=none go build -tags 'sherpa stt_bundle netgo osusergo' -trimpath \
+RUN --network=none . /opt/stt/env.sh && GOOS=linux GOARCH=$TARGETARCH \
+    go build -tags 'sherpa stt_bundle netgo osusergo' -trimpath \
     -ldflags "-s -w -buildid= -X main.version=$VERSION -linkmode external -extldflags -static" \
     -o /out/tmuxde-stt ./cmd/tmuxde-stt
 
