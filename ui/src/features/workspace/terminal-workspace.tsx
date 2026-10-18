@@ -66,16 +66,20 @@ const CopyModeOverlay = lazyComponent(() =>
 export function TerminalWorkspace() {
   const isMobile = useStableMediaQuery(MOBILE_MEDIA_QUERY);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const createSession = useMachineStore((s) => s.createSession);
   const activeMachine = useMachineStore((s) => s.activeMachine);
-  const switching = useMachineStore((s) => s.requested !== null);
-  useEffect(() => {
-    if (createSession && !switching) {
-      setShowCreateDialog(true);
-      useMachineStore.setState({ createSession: false });
-    }
-  }, [createSession, switching]);
+  /*
+   * The new session dialog opens from this view's buttons, or from another
+   * view through `createSession`, which often comes with a machine switch.
+   * That request holds the dialog open once the switch lands. Closing the
+   * dialog clears both.
+   */
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const createRequested = useMachineStore((s) => s.createSession && s.requested === null);
+  const createDialogOpen = showCreateDialog || createRequested;
+  const setCreateDialogOpen = useCallback((open: boolean) => {
+    setShowCreateDialog(open);
+    if (!open) useMachineStore.setState({ createSession: false });
+  }, []);
   useEffect(() => {
     if (activeSessionId) {
       useMachineStore.getState().openTerminal(machineId(), activeSessionId);
@@ -330,7 +334,7 @@ export function TerminalWorkspace() {
           <PaneResizeControls />
         </MachineContent>
         <MachineContent>
-          <SessionCreateDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
+          <SessionCreateDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
         </MachineContent>
       </div>
     );
@@ -412,7 +416,7 @@ export function TerminalWorkspace() {
         ))}
 
       <MachineContent>
-        <SessionCreateDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
+        <SessionCreateDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
       </MachineContent>
     </div>
   );

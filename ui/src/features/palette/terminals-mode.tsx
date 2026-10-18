@@ -14,7 +14,14 @@ export function TerminalsMode({ caseSensitive }: { caseSensitive: boolean }) {
   const state = useTerminalSearchStore();
   const loaded = useMachineStore((s) => s.loaded);
   const machineCount = useMachineStore((s) => s.machines.length);
-  const [navigationError, setNavigationError] = useState("");
+  // A failed open belongs to the search it came from. A new search, or a
+  // reset, hides it because its request id no longer matches.
+  const [navigationError, setNavigationError] = useState<{
+    requestId: string | null;
+    message: string;
+  } | null>(null);
+  const navigationMessage =
+    navigationError?.requestId === state.requestId ? navigationError.message : "";
   const busy = state.machines.some((machine) => machine.state === "searching");
   const count = state.machines.reduce(
     (sum, machine) => sum + (machine.result?.matches.length ?? 0),
@@ -26,7 +33,6 @@ export function TerminalsMode({ caseSensitive }: { caseSensitive: boolean }) {
   );
   const stale = !state.requestId || query !== state.query || caseSensitive !== state.caseSensitive;
 
-  useEffect(() => setNavigationError(""), [state.requestId]);
   useEffect(() => {
     setBusy(busy);
     return () => setBusy(false);
@@ -37,7 +43,11 @@ export function TerminalsMode({ caseSensitive }: { caseSensitive: boolean }) {
       openMachineSession(machineId, match.sessionName, [{ type: "pane:select", id: match.paneId }])
     )
       finish("terminal");
-    else setNavigationError("Could not open the pane. Check the machine connection and try again.");
+    else
+      setNavigationError({
+        requestId: state.requestId,
+        message: "Could not open the pane. Check the machine connection and try again.",
+      });
   };
 
   const status = !loaded
@@ -62,9 +72,9 @@ export function TerminalsMode({ caseSensitive }: { caseSensitive: boolean }) {
   return (
     <>
       <Command.List className={LIST_CLASS} aria-busy={busy} aria-label="Terminal matches">
-        {navigationError && (
+        {navigationMessage && (
           <p role="alert" className="px-3 pt-3 text-sm text-destructive">
-            {navigationError}
+            {navigationMessage}
           </p>
         )}
         {empty && <PaletteEmpty>{empty}</PaletteEmpty>}

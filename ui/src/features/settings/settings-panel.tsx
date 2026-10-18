@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -424,17 +424,21 @@ function SessionsSection() {
   );
 }
 
-/** Commits on blur or Enter, so typing 10000 never passes through 1. */
+/**
+ * Commits on blur or Enter, so typing 10000 never passes through 1.
+ *
+ * The draft exists only while the user edits. Otherwise the field shows the
+ * stored value, so it never needs copying back after a commit.
+ */
 function ScrollbackInput({ ids }: { ids: RowIds }) {
   const scrollback = useTerminalStore((s) => s.scrollback);
   const setScrollback = useTerminalStore((s) => s.setScrollback);
-  const [draft, setDraft] = useState(String(scrollback));
-  useEffect(() => setDraft(String(scrollback)), [scrollback]);
+  const [draft, setDraft] = useState<string | null>(null);
 
   const commit = () => {
-    const lines = Math.max(100, Math.min(50000, Math.round(Number(draft)) || 1000));
-    setScrollback(lines);
-    setDraft(String(lines));
+    const lines = Number(draft ?? scrollback);
+    setScrollback(Math.max(100, Math.min(50000, Math.round(lines) || 1000)));
+    setDraft(null);
   };
 
   return (
@@ -446,7 +450,7 @@ function ScrollbackInput({ ids }: { ids: RowIds }) {
       min={100}
       max={50000}
       step={500}
-      value={draft}
+      value={draft ?? String(scrollback)}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={commit}
       onKeyDown={(event) => {
