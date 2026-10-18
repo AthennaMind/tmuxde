@@ -306,7 +306,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	k := newSocket(s, c, hw.conn, clientAddr(r), r.UserAgent())
 	k.machineID = r.URL.Query().Get("machine")
 	if !s.track(k) {
-		k.closeSync(websocket.StatusGoingAway, reasonShutdown)
+		// Shutdown ran between the upgrade and track, so its close and
+		// terminate loops never saw this socket. Give the peer the same grace
+		// they would have, then drop it. A silent peer must not hold the
+		// handler, and with it Shutdown, for the library's handshake timeout.
+		k.closeWithin(s.opts.CloseGrace, websocket.StatusGoingAway, reasonShutdown)
 		return
 	}
 	defer s.untrack(k)

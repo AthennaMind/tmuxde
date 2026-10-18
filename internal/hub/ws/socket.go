@@ -327,6 +327,24 @@ func (k *socket) closeAsync(code websocket.StatusCode, reason string) {
 
 // terminate drops the TCP connection without a handshake. Every goroutine
 // blocked on the socket returns.
+// closeWithin runs the close handshake and drops the socket when the peer
+// has not answered within grace.
+func (k *socket) closeWithin(grace time.Duration, code websocket.StatusCode, reason string) {
+	done := make(chan struct{})
+	go func() {
+		k.closeSync(code, reason)
+		close(done)
+	}()
+	timer := time.NewTimer(grace)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+		k.terminate()
+		<-done
+	}
+}
+
 func (k *socket) terminate() {
 	if k.raw != nil {
 		k.raw.Close()
