@@ -1,5 +1,5 @@
 import { clearMachineStorage } from "@/features/connection/machine-context";
-import type { FactorRecord, SealedRecord } from "@/shared/crypto";
+import type { FactorRecord, SealedRecord } from "./lock-envelope";
 import {
   derivePinKey,
   generateMasterKey,
@@ -10,7 +10,7 @@ import {
   unwrapMasterKey,
   wipe,
   wrapMasterKey,
-} from "@/shared/crypto";
+} from "./lock-envelope";
 import {
   LAST_SESSION_KEY,
   TOKEN_KEY,

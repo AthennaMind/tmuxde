@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { openJson, type SealedRecord } from "@/shared/crypto";
+import { openJson, type SealedRecord } from "./lock-envelope";
 
 import {
   enrollPin,

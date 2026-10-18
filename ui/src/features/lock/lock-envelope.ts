@@ -2,7 +2,7 @@ import { gcm } from "@noble/ciphers/aes.js";
 import { hkdf } from "@noble/hashes/hkdf.js";
 import { pbkdf2Async } from "@noble/hashes/pbkdf2.js";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { randomBytes, utf8ToBytes, wipe } from "./bytes";
+import { randomBytes, utf8ToBytes, wipe } from "./lock-bytes";
 
 /**
  * The device-lock envelope — encryption at rest for the browser's key material.
@@ -367,4 +367,4 @@ export async function unwrapMasterKey(
   return mk;
 }
 
-export { wipe } from "./bytes";
+export { wipe } from "./lock-bytes";

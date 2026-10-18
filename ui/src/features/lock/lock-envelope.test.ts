@@ -15,8 +15,8 @@ import {
   LOCK_AAD_PREFIX,
   FACTOR_SALT_BYTES,
   type SealedRecord,
-} from "./envelope";
-import { bytesToHex, hexToBytes, utf8ToBytes } from "./bytes";
+} from "./lock-envelope";
+import { bytesToHex, hexToBytes, utf8ToBytes } from "./lock-bytes";
 
 const MK = Uint8Array.from({ length: 32 }, (_, i) => i);
 const OTHER_MK = new Uint8Array(32).fill(0xee);

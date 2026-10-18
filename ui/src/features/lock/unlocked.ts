@@ -1,4 +1,4 @@
-import { wipe } from "@/shared/crypto";
+import { wipe } from "./lock-envelope";
 
 /**
  * The only place an unlocked master key exists.

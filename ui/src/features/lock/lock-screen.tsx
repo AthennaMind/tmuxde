@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Fingerprint, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
-import { wipe } from "@/shared/crypto";
+import { wipe } from "./lock-envelope";
 import {
   eraseDevice,
   readLockRecord,

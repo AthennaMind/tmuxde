@@ -10,7 +10,7 @@ import {
   hexToBytes,
   randomBytes,
   wipe,
-} from "./bytes";
+} from "./lock-bytes";
 
 describe("leb128", () => {
   it("encodes small values in a single byte", () => {

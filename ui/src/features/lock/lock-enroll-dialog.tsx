@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { addFactor, enrollPin } from "./lock-store";
 import { duringCeremony } from "./lock-controller";
 import { enrollPasskeyFactor, prfSupport } from "./passkey-prf";
-import { wipe } from "@/shared/crypto";
+import { wipe } from "./lock-envelope";
 import { PinPad } from "./pin-pad";
 
 /**

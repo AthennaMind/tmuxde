@@ -1,5 +1,5 @@
-import type { SealedRecord } from "@/shared/crypto";
-import { openJson, recordAad, sealJson } from "@/shared/crypto";
+import type { SealedRecord } from "./lock-envelope";
+import { openJson, recordAad, sealJson } from "./lock-envelope";
 import { cacheKeys, cachedKeys, isEnrolled, masterKey } from "./unlocked";
 
 /**
