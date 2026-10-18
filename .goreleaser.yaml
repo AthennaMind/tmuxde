@@ -43,5 +43,45 @@ archives:
 checksum:
   name_template: checksums.txt
 
+# Keyless cosign through GitHub OIDC. The certificate names the release
+# workflow and tag, so no signing secret exists anywhere.
+signs:
+  - id: checksums
+    cmd: cosign
+    certificate: '${artifact}.pem'
+    signature: '${artifact}.sig'
+    args:
+      - sign-blob
+      - --yes
+      - --output-certificate=${certificate}
+      - --output-signature=${signature}
+      - ${artifact}
+    artifacts: checksum
+    output: true
+
+changelog:
+  use: git
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^feat(\(.+\))?!?:'
+      order: 0
+    - title: Fixes
+      regexp: '^fix(\(.+\))?!?:'
+      order: 1
+    - title: Other changes
+      order: 999
+  filters:
+    exclude:
+      - '^docs(\(.+\))?:'
+      - '^ci(\(.+\))?:'
+      - '^chore(\(.+\))?:'
+      - '^test(\(.+\))?:'
+      - '^style(\(.+\))?:'
+      - '^Merge '
+
+# Draft until the images exist. The publish job writes the final notes.
 release:
+  draft: true
+  replace_existing_draft: true
   prerelease: auto

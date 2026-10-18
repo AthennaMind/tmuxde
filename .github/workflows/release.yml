@@ -29,6 +29,7 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -125,6 +126,7 @@ jobs:
             cp ".cache/stt-downloads/$checksum" "cmd/tmuxde-stt/internal/bundle/models/$name"
           done
           jq -cS '.models | map_values(.sha256)' cmd/tmuxde-stt/assets.json > cmd/tmuxde-stt/internal/bundle/models/manifest.json
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Check GoReleaser configuration
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
@@ -134,7 +136,7 @@ jobs:
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
           version: v2.18.0
-          args: release --snapshot --clean --skip=publish
+          args: release --snapshot --clean --skip=publish,sign
       - name: Verify archive checksums
         working-directory: dist
         run: sha256sum --check checksums.txt
@@ -148,7 +150,7 @@ jobs:
           "$binary" serve > "$RUNNER_TEMP/stt.log" 2>&1 &
           stt_pid=$!
           trap 'kill "$stt_pid" 2>/dev/null || true; cat "$RUNNER_TEMP/stt.log"' EXIT
-          for attempt in $(seq 1 90); do
+          for _ in $(seq 1 90); do
             if "$binary" health 2>/dev/null; then break; fi
             kill -0 "$stt_pid"
             sleep 1
@@ -156,7 +158,7 @@ jobs:
           "$binary" health
           kill "$stt_pid"
           wait "$stt_pid"
-      - name: Publish binary releases
+      - name: Create draft release with signed archives
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
           version: v2.18.0
@@ -171,6 +173,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     strategy:
       matrix:
         include:
@@ -184,6 +187,7 @@ jobs:
           persist-credentials: false
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
@@ -206,6 +210,7 @@ jobs:
           echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           echo "cache-image=ghcr.io/${GITHUB_REPOSITORY,,}${IMAGE_SUFFIX}:buildcache" >> "$GITHUB_OUTPUT"
       - name: Build and publish image from source
+        id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -218,3 +223,50 @@ jobs:
           build-args: VERSION=${{ steps.version.outputs.version }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
+      - name: Sign image by digest
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}${{ matrix.suffix }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          image="${IMAGE,,}"
+          cosign sign --yes "${image}@${DIGEST}"
+          cosign verify "${image}@${DIGEST}" \
+            --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+
+  publish:
+    needs: [binaries, images]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Write release notes and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Image digests exist only now. The draft body holds the changelog
+          # GoReleaser wrote; the template wraps it with install and verify steps.
+          export TAG REPOSITORY="$GITHUB_REPOSITORY" VERSION="${TAG#v}" IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          export IDENTITY="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@refs/tags/${TAG}"
+          DIGEST="$(docker buildx imagetools inspect "${IMAGE}:${TAG}" --format '{{.Manifest.Digest}}')"
+          STT_DIGEST="$(docker buildx imagetools inspect "${IMAGE}-stt:${TAG}" --format '{{.Manifest.Digest}}')"
+          CHANGELOG="$(gh release view "$TAG" --json body --jq .body)"
+          export DIGEST STT_DIGEST CHANGELOG
+          test -n "$DIGEST" && test -n "$STT_DIGEST" && test -n "$CHANGELOG"
+          # shellcheck disable=SC2016 # envsubst takes the variable names literally.
+          envsubst '$CHANGELOG $REPOSITORY $TAG $VERSION $IMAGE $DIGEST $STT_DIGEST $IDENTITY' \
+            < .github/release-notes.md > "$RUNNER_TEMP/notes.md"
+          gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --draft=false
+          gh release view "$TAG" --json url,isDraft,isPrerelease --jq '"\(.url) draft=\(.isDraft) prerelease=\(.isPrerelease)"'
