@@ -283,6 +283,9 @@ export function PaneGrid({
     stop: () => void;
   } | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
+  // A drag whose pane went away ends there. The effect below lets go of the
+  // press and tells the parent.
+  if (dragging !== null && !panes.some((pane) => pane.id === dragging)) setDragging(null);
   // The click that ends a drag is not a select.
   const [clicks] = useState(dragClickGuard);
   // The window listeners of a press outlive renders. They call the `onDrag`
@@ -309,14 +312,12 @@ export function PaneGrid({
       drag.current = null;
       current.stop();
     }
-    if (current.element.hasPointerCapture(current.pointerId)) {
-      current.element.releasePointerCapture(current.pointerId);
-    }
+    releasePointer(current);
     if (!wasDragging) return;
     setDragging(null);
     onDragRef.current?.({ pane: current.pane, phase, x, y });
   };
-  const cancelDrag = useEffectEvent((held: boolean) => endDrag("cancel", 0, 0, held));
+  const cancelHeldDrag = useEffectEvent(() => endDrag("cancel", 0, 0, true));
 
   useEffect(() => {
     if (!dragging) return;
@@ -324,16 +325,25 @@ export function PaneGrid({
       if (event.key !== "Escape") return;
       event.preventDefault();
       event.stopPropagation();
-      cancelDrag(true);
+      cancelHeldDrag();
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [dragging]);
 
-  // A drag the pane under it went away from ends there.
+  // A press on a pane that went away stops here, before or during its drag.
+  // Render already dropped `dragging`. This lets go of the window listeners
+  // and the pointer, and a drag in progress tells the parent it was cancelled.
   useEffect(() => {
-    if (dragging && !panes.some((pane) => pane.id === dragging)) cancelDrag(false);
-  }, [dragging, panes]);
+    const current = drag.current;
+    if (!current || panes.some((pane) => pane.id === current.pane.id)) return;
+    drag.current = null;
+    current.stop();
+    releasePointer(current);
+    if (current.active) {
+      onDragRef.current?.({ pane: current.pane, phase: "cancel", x: 0, y: 0 });
+    }
+  }, [panes]);
 
   /**
    * Follow a press on a cell from the window. The first move can leave the
@@ -760,6 +770,11 @@ export function PaneGrid({
       )}
     </div>
   );
+}
+
+/** Give the pointer back if the press still holds it. */
+function releasePointer({ element, pointerId }: { element: HTMLElement; pointerId: number }) {
+  if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
 }
 
 function CellContent({
