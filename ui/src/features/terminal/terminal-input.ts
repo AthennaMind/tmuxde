@@ -1,20 +1,20 @@
-// @ts-check
 import { create } from "zustand";
 
-/**
- * @typedef {{ctrl: boolean, alt: boolean, toggle: (key: "ctrl" | "alt") => void, reset: () => void}} InputState
- */
+type InputState = {
+  ctrl: boolean;
+  alt: boolean;
+  toggle: (key: "ctrl" | "alt") => void;
+  reset: () => void;
+};
 
-/** @type {import("zustand").UseBoundStore<import("zustand").StoreApi<InputState>>} */
-export const useTerminalInput = create((set) => ({
+export const useTerminalInput = create<InputState>()((set) => ({
   ctrl: false,
   alt: false,
   toggle: (key) => set((state) => ({ [key]: !state[key] })),
   reset: () => set({ ctrl: false, alt: false }),
 }));
 
-/** @param {string} data */
-export function consumeTerminalInput(data) {
+export function consumeTerminalInput(data: string) {
   if (!data) return data;
   const { ctrl, alt, reset } = useTerminalInput.getState();
   if (!ctrl && !alt) return data;

@@ -1,37 +1,28 @@
-// @ts-check
 import { photoPathText } from "./photo-upload-client";
 
-/** @type {readonly string[]} */
-const EMPTY = Object.freeze([]);
+const EMPTY: readonly string[] = Object.freeze([]);
 
 export function createPhotoHistory() {
   // Client identity prevents equal paths on different hosts from sharing previews.
-  /** @type {WeakMap<object, readonly string[]>} */
-  const histories = new WeakMap();
-  /** @type {WeakMap<object, number>} */
-  const scopes = new WeakMap();
+  const histories = new WeakMap<object, readonly string[]>();
+  const scopes = new WeakMap<object, number>();
   let nextScope = 0;
-  /** @type {Set<() => void>} */
-  const listeners = new Set();
+  const listeners = new Set<() => void>();
   return {
-    /** @param {object | null} client */
-    get(client) {
+    get(client: object | null) {
       return (client && histories.get(client)) || EMPTY;
     },
-    /** @param {object | null} client */
-    scope(client) {
+    scope(client: object | null) {
       return (client && scopes.get(client)) || 0;
     },
-    /** @param {object} client @param {string} path */
-    add(client, path) {
+    add(client: object, path: string) {
       photoPathText(path);
       if (!scopes.has(client)) scopes.set(client, ++nextScope);
       const previous = histories.get(client) || EMPTY;
       histories.set(client, [path, ...previous.filter((p) => p !== path)].slice(0, 8));
       for (const listener of listeners) listener();
     },
-    /** @param {() => void} listener */
-    subscribe(listener) {
+    subscribe(listener: () => void) {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
@@ -42,21 +33,20 @@ export function createPhotoHistory() {
 
 export const photoHistory = createPhotoHistory();
 
-/**
- * @param {string} path
- * @param {{
- *   load: (path: string) => Promise<string>,
- *   release: (url: string) => void,
- *   isCurrent: () => boolean,
- *   paste: (text: string) => void,
- *   resetInput: () => void,
- * }} context
- */
-export async function reusePhotoPath(path, context) {
+export async function reusePhotoPath(
+  path: string,
+  context: {
+    load: (path: string) => Promise<string>;
+    release: (url: string) => void;
+    isCurrent: () => boolean;
+    paste: (text: string) => void;
+    resetInput: () => void;
+  },
+) {
   const text = photoPathText(path);
   const changed = () => new Error("Terminal changed. Select photo again.");
   if (!context.isCurrent()) throw changed();
-  let url;
+  let url: string;
   try {
     // Recheck even if a thumbnail was already loaded. File may have been removed.
     url = await context.load(path);

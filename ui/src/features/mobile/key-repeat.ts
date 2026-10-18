@@ -1,17 +1,12 @@
-// @ts-check
-
-/** @param {(key: string) => void} send */
-export function createKeyRepeat(send) {
-  /** @type {ReturnType<typeof setTimeout> | undefined} */
-  let timer;
+export function createKeyRepeat(send: (key: string) => void) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const stop = () => {
     clearTimeout(timer);
     timer = undefined;
   };
   return {
     stop,
-    /** @param {string} key */
-    start(key) {
+    start(key: string) {
       stop();
       send(key);
       const tick = () => {

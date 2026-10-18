@@ -1,4 +1,8 @@
-// @ts-check
+import type { RelayClient } from "@/features/connection/ws-client";
+import type { FileUploadMessage } from "@/protocol";
+
+type UploadClient = Pick<RelayClient, "status" | "send" | "onMessage" | "onStatusChange">;
+
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 const CHUNK_SIZE = 128 * 1024;
 const PHOTO_TYPES = new Map([
@@ -8,8 +12,7 @@ const PHOTO_TYPES = new Map([
   ["image/gif", "gif"],
 ]);
 
-/** @param {string} path */
-export function photoPathText(path) {
+export function photoPathText(path: string) {
   // A path must never inject a terminal command or escape sequence.
   // eslint-disable-next-line no-control-regex
   if (!path.startsWith("/") || /[\x00-\x1f\x7f]/.test(path)) {
@@ -25,11 +28,10 @@ export function photoPathText(path) {
  * Text wins when both are present. Spreadsheet and document copies carry an
  * image rendering beside their text, and a terminal user wants the text.
  * Screenshots and "Copy image" carry no text.
- *
- * @param {Pick<DataTransfer, "getData" | "items" | "files"> | null} data
- * @returns {File | null}
  */
-export function clipboardImage(data) {
+export function clipboardImage(
+  data: Pick<DataTransfer, "getData" | "items" | "files"> | null,
+): File | null {
   if (!data || data.getData("text/plain").trim()) return null;
   for (const item of Array.from(data.items ?? [])) {
     if (item.kind !== "file" || !item.type.startsWith("image/")) continue;
@@ -43,8 +45,7 @@ export function clipboardImage(data) {
   return null;
 }
 
-/** @param {File} file */
-export async function preparePhoto(file) {
+export async function preparePhoto(file: File) {
   if (!file.size) throw new Error("Photo is empty");
   if (file.size > MAX_PHOTO_SIZE) throw new Error("Choose a photo smaller than 10 MB");
   if (PHOTO_TYPES.has(file.type)) return file;
@@ -66,7 +67,9 @@ export async function preparePhoto(file) {
     context.fillStyle = "white";
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.92),
+    );
     if (!blob) throw new Error("Image conversion failed");
     return new File([blob], "photo.jpg", { type: "image/jpeg" });
   } catch {
@@ -76,13 +79,7 @@ export async function preparePhoto(file) {
   }
 }
 
-/**
- * @typedef {Pick<import("@/features/connection/ws-client").RelayClient, "status" | "send" | "onMessage" | "onStatusChange">} UploadClient
- * @param {UploadClient} client
- * @param {File} file
- * @param {string} directory
- */
-export async function uploadPhoto(client, file, directory) {
+export async function uploadPhoto(client: UploadClient, file: File, directory: string) {
   if (!file.size) throw new Error("Photo is empty");
   if (file.size > MAX_PHOTO_SIZE) throw new Error("Choose a photo smaller than 10 MB");
   const extension = PHOTO_TYPES.get(file.type);
@@ -117,15 +114,11 @@ export async function uploadPhoto(client, file, directory) {
   }
 }
 
-/** @param {UploadClient} client @param {import("@/protocol").FileUploadMessage} message */
-function sendPhotoChunk(client, message) {
-  return new Promise((resolve, reject) => {
-    /** @type {() => void} */
+function sendPhotoChunk(client: UploadClient, message: FileUploadMessage) {
+  return new Promise<void>((resolve, reject) => {
     let offMessage = () => {};
-    /** @type {() => void} */
     let offStatus = () => {};
-    /** @param {Error=} error */
-    const finish = (error) => {
+    const finish = (error?: Error) => {
       clearTimeout(timer);
       offMessage();
       offStatus();

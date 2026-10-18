@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/knip/schema.json",
-  "project": ["src/**/*.{ts,tsx,js,css}"],
+  "project": ["src/**/*.{ts,tsx,css}"],
   "rules": {
     "exports": "off",
     "types": "off"

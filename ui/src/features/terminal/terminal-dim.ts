@@ -1,4 +1,11 @@
-// @ts-check
+type XtermRenderer = {
+  _injectCss?: (...args: unknown[]) => void;
+  _themeStyleElement?: { textContent: string | null };
+};
+
+type XtermInternals = {
+  _core?: { _renderService?: { _renderer?: { value?: XtermRenderer } } };
+};
 
 /**
  * xterm 5.5's DOM renderer halves opacity for dim default and ANSI colors.
@@ -8,14 +15,9 @@
  * This private hook is isolated because xterm has no dim-opacity option.
  * Recheck _injectCss and its eight-digit colors when upgrading xterm.
  * Renderer owns this wrapper. No observer or external listener needs cleanup.
- * @param {unknown} terminal
  */
-export function brightenDimText(terminal) {
-  const core =
-    /** @type {{ _core?: { _renderService?: { _renderer?: { value?: {
-     * _injectCss?: (...args: unknown[]) => void,
-     * _themeStyleElement?: { textContent: string | null }
-     * } } } } }} */ (terminal);
+export function brightenDimText(terminal: unknown) {
+  const core = terminal as XtermInternals;
   const renderer = core?._core?._renderService?._renderer?.value;
   const injectCss = renderer?._injectCss;
   if (!renderer?._themeStyleElement || typeof injectCss !== "function") return;
@@ -29,7 +31,7 @@ export function brightenDimText(terminal) {
     );
   };
 
-  renderer._injectCss = function (...args) {
+  renderer._injectCss = function (this: unknown, ...args: unknown[]) {
     injectCss.apply(this, args);
     brightenStyles();
   };
