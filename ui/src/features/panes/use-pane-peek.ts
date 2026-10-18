@@ -21,8 +21,9 @@ export interface Peek {
 /** Shared hover, long press and keyboard gestures. Output lives in preview store. */
 export function usePanePeek(enabled: boolean) {
   const [peek, setPeek] = useState<Peek | null>(null);
+  // The handlers read the peek before React renders it. `open` and `close`
+  // write it here next to `setPeek`, so it always holds the latest request.
   const peekRef = useRef(peek);
-  peekRef.current = peek;
   const timer = useRef<number | null>(null);
   const press = useRef<{ x: number; y: number; timer: number } | null>(null);
   // A long press opened the peek. The click that follows the lift is not a select.

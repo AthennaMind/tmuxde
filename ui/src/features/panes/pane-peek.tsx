@@ -51,8 +51,11 @@ export function PanePeek({
     return watchPreview(owner, scope.machineId, [{ session: scope.session, paneId }], true);
   }, [owner, scope.machineId, scope.session, paneId, supported]);
   const contentRef = useRef<HTMLDivElement>(null);
+  // The last peek on screen. Focus goes back once `peek` is already null.
   const last = useRef(peek);
-  if (peek) last.current = peek;
+  useEffect(() => {
+    if (peek) last.current = peek;
+  }, [peek]);
   // Beside the whole grid at the cell's height, so the popover never covers
   // the other cells of the window.
   const anchor = useMemo(() => {
