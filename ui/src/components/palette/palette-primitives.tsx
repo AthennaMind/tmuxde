@@ -1,8 +1,7 @@
-import { createContext, useContext, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Command } from "cmdk";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { PaletteMode } from "@/lib/palette-key";
 import { splitHighlight, type Range } from "@/lib/palette-match";
 
 /** Outer panel radius 22px, 8px padding, so rows sit at 14px. */
@@ -16,23 +15,6 @@ export const ROW_CLASS =
 
 export const CONTROL_CLASS =
   "transition-[background-color,color,scale] duration-150 ease-out active:scale-[0.96] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring";
-
-export interface PaletteContextValue {
-  query: string;
-  /** Close, then return focus to the opener or to the terminal. */
-  finish: (focus?: "terminal") => void;
-  setMode: (mode: PaletteMode) => void;
-  /** Show a spinner in the input while a mode waits on the network. */
-  setBusy: (busy: boolean) => void;
-}
-
-export const PaletteContext = createContext<PaletteContextValue | null>(null);
-
-export function usePalette(): PaletteContextValue {
-  const value = useContext(PaletteContext);
-  if (!value) throw new Error("usePalette outside Palette");
-  return value;
-}
 
 export interface PaletteItem {
   id: string;

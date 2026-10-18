@@ -20,7 +20,7 @@ import {
   leaveCopyMode,
   noteScrollStateReply,
   requestScrollState,
-  resetScrollForTests,
+  resetScrollState,
   scrollByLines,
   scrollToPosition,
   SCROLL_FLUSH_MS,
@@ -37,7 +37,7 @@ beforeEach(() => {
   sent.length = 0;
   currentClient = client;
   client.status = "connected";
-  resetScrollForTests();
+  resetScrollState();
   resetCopyModeBeliefForTests();
   useSessionStore.getState().setActiveSession("work");
 });

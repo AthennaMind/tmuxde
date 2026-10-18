@@ -10,7 +10,7 @@ import {
   isRenamedAway,
   noteSessionCreated,
   renamedTo,
-  resetSessionLifecycleForTests,
+  resetSessionLifecycle,
   sessionNotFoundText,
 } from "@/lib/session-lifecycle";
 import {
@@ -63,7 +63,7 @@ const pane: PaneInfo = {
 beforeEach(() => {
   vi.stubGlobal("window", {});
   vi.stubGlobal("localStorage", memoryStorage());
-  resetSessionLifecycleForTests();
+  resetSessionLifecycle();
   resetCopyModeBeliefForTests();
   useSessionStore.setState({
     sessions: [],

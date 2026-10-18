@@ -5,13 +5,8 @@ import { isSessionLocked } from "@/lib/lock-store";
 import { openMachineSession } from "@/lib/workspace-target";
 import { useMachineStore } from "@/stores/machine-store";
 import { useTerminalSearchStore, type MachineSearch } from "@/stores/terminal-search-store";
-import {
-  GROUP_CLASS,
-  LIST_CLASS,
-  PaletteEmpty,
-  PaletteFooter,
-  usePalette,
-} from "./palette-primitives";
+import { GROUP_CLASS, LIST_CLASS, PaletteEmpty, PaletteFooter } from "./palette-primitives";
+import { usePalette } from "./palette-context";
 
 /** Results stay in the store, so reopening shows the last search. */
 export function TerminalsMode({ caseSensitive }: { caseSensitive: boolean }) {

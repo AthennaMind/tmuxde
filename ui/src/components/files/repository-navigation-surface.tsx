@@ -58,7 +58,7 @@ export function RepositoryNavigationSurface({
         drag = null;
         return;
       }
-      const touch = Array.from(event.touches).find((touch) => touch.identifier === drag!.id);
+      const touch = Array.from(event.touches).find((point) => point.identifier === drag!.id);
       if (!touch) return;
       const dx = touch.clientX - drag.x;
       const dy = touch.clientY - drag.y;
@@ -78,7 +78,7 @@ export function RepositoryNavigationSurface({
         suppressClick = false;
       }, 400);
       const touch = Array.from(event.changedTouches).find(
-        (touch) => touch.identifier === current.id,
+        (point) => point.identifier === current.id,
       );
       const dx = (touch?.clientX ?? current.lastX) - current.x;
       if (Math.abs(dx) >= 60) {

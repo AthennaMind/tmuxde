@@ -1,4 +1,4 @@
-import { useMemo, useRef, type ComponentProps, type ReactNode } from "react";
+import { createContext, use, useMemo, useRef, type ComponentProps, type ReactNode } from "react";
 import Markdown, { type Components, type ExtraProps, type Options } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -50,6 +50,96 @@ const REMARK_REHYPE_OPTIONS: Options["remarkRehypeOptions"] = {
 };
 const HEADINGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 
+/** What the elements below need from the preview that renders them. */
+interface MarkdownScope {
+  /** File the Markdown came from. Links and images resolve against it. */
+  path: string;
+  onOpenPath?: (path: string) => void;
+  scrollTo: (id: string) => void;
+  headingId: (node: HastElement | undefined) => string;
+}
+
+const MarkdownScopeContext = createContext<MarkdownScope | null>(null);
+
+function useMarkdownScope(): MarkdownScope {
+  const scope = use(MarkdownScopeContext);
+  if (!scope) throw new Error("Markdown element outside MarkdownPreview");
+  return scope;
+}
+
+const heading = (Tag: (typeof HEADINGS)[number]) =>
+  function Heading({ node, children, ...props }: ComponentProps<typeof Tag> & ExtraProps) {
+    const { headingId } = useMarkdownScope();
+    return (
+      <Tag id={headingId(node)} {...props}>
+        {children}
+      </Tag>
+    );
+  };
+
+function ScopedLink({
+  node: _node,
+  href,
+  target: _target,
+  children,
+  ...props
+}: ComponentProps<"a"> & ExtraProps) {
+  const { path, onOpenPath, scrollTo } = useMarkdownScope();
+  return (
+    <MarkdownLink
+      link={resolveMarkdownHref(path, href ?? "")}
+      onOpenPath={onOpenPath}
+      scrollTo={scrollTo}
+      {...props}
+    >
+      {children}
+    </MarkdownLink>
+  );
+}
+
+function ScopedImage({ src, alt, title, width, height }: ComponentProps<"img"> & ExtraProps) {
+  const { path } = useMarkdownScope();
+  return (
+    <MarkdownImage
+      target={resolveMarkdownHref(path, typeof src === "string" ? src : "")}
+      alt={alt ?? ""}
+      title={title}
+      width={width}
+      height={height}
+    />
+  );
+}
+
+/**
+ * Element overrides for react-markdown. Stable, so a new body updates the
+ * rendered elements in place. Per preview values come from context.
+ */
+const COMPONENTS: Components = {
+  ...Object.fromEntries(HEADINGS.map((tag) => [tag, heading(tag)])),
+  a: ScopedLink,
+  img: ScopedImage,
+  pre: ({ node, children }) => {
+    const code = node?.children.find(
+      (child): child is HastElement => child.type === "element" && child.tagName === "code",
+    );
+    if (!code) return <pre>{children}</pre>;
+    const language = codeBlockLanguage(code.properties?.className);
+    const source = hastText(code);
+    if (language === "mermaid") return <MarkdownMermaid source={source} />;
+    return <MarkdownCodeBlock language={language} source={source} />;
+  },
+  code: ({ node: _node, className: _className, children, ...props }) => (
+    <code className="markdown-inline-code" {...props}>
+      {children}
+    </code>
+  ),
+  table: ({ node: _node, children, ...props }) => (
+    <div className="markdown-table">
+      <table {...props}>{children}</table>
+    </div>
+  ),
+};
+
 /**
  * Rendered Markdown for the Files surface. Inline HTML is parsed, then cut
  * down to the sanitize schema above, so a centered logo block survives and a
@@ -69,7 +159,7 @@ export function MarkdownPreview({
 }) {
   const container = useRef<HTMLDivElement>(null);
   const { frontMatter, body } = useMemo(() => splitFrontMatter(content), [content]);
-  const components = useMemo<Components>(() => {
+  const scope = useMemo<MarkdownScope>(() => {
     const slug = createSlugger();
     // Headings keep their ids across renders of the same body, so a second
     // render pass does not number them again.
@@ -96,56 +186,7 @@ export function MarkdownPreview({
         block: "start",
       });
     };
-    const heading = (Tag: (typeof HEADINGS)[number]) =>
-      function Heading({ node, children, ...props }: ComponentProps<typeof Tag> & ExtraProps) {
-        return (
-          <Tag id={headingId(node)} {...props}>
-            {children}
-          </Tag>
-        );
-      };
-    return {
-      ...Object.fromEntries(HEADINGS.map((tag) => [tag, heading(tag)])),
-      a: ({ node: _node, href, target: _target, children, ...props }) => (
-        <MarkdownLink
-          link={resolveMarkdownHref(path, href ?? "")}
-          onOpenPath={onOpenPath}
-          scrollTo={scrollTo}
-          {...props}
-        >
-          {children}
-        </MarkdownLink>
-      ),
-      img: ({ node: _node, src, alt, title, width, height }) => (
-        <MarkdownImage
-          target={resolveMarkdownHref(path, typeof src === "string" ? src : "")}
-          alt={alt ?? ""}
-          title={title}
-          width={width}
-          height={height}
-        />
-      ),
-      pre: ({ node, children }) => {
-        const code = node?.children.find(
-          (child): child is HastElement => child.type === "element" && child.tagName === "code",
-        );
-        if (!code) return <pre>{children}</pre>;
-        const language = codeBlockLanguage(code.properties?.className);
-        const source = hastText(code);
-        if (language === "mermaid") return <MarkdownMermaid source={source} />;
-        return <MarkdownCodeBlock language={language} source={source} />;
-      },
-      code: ({ node: _node, className: _className, children, ...props }) => (
-        <code className="markdown-inline-code" {...props}>
-          {children}
-        </code>
-      ),
-      table: ({ node: _node, children, ...props }) => (
-        <div className="markdown-table">
-          <table {...props}>{children}</table>
-        </div>
-      ),
-    };
+    return { path, onOpenPath, scrollTo, headingId };
   }, [body, onOpenPath, path]);
 
   return (
@@ -163,14 +204,16 @@ export function MarkdownPreview({
             <MarkdownCodeBlock language="yaml" source={frontMatter} />
           </details>
         )}
-        <Markdown
-          remarkPlugins={REMARK_PLUGINS}
-          remarkRehypeOptions={REMARK_REHYPE_OPTIONS}
-          rehypePlugins={REHYPE_PLUGINS}
-          components={components}
-        >
-          {body}
-        </Markdown>
+        <MarkdownScopeContext value={scope}>
+          <Markdown
+            remarkPlugins={REMARK_PLUGINS}
+            remarkRehypeOptions={REMARK_REHYPE_OPTIONS}
+            rehypePlugins={REHYPE_PLUGINS}
+            components={COMPONENTS}
+          >
+            {body}
+          </Markdown>
+        </MarkdownScopeContext>
       </article>
     </div>
   );

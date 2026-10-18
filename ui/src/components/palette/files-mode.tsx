@@ -18,8 +18,8 @@ import {
   PaletteEmpty,
   PaletteFooter,
   ROW_CLASS,
-  usePalette,
 } from "./palette-primitives";
+import { usePalette } from "./palette-context";
 
 /** Workspace context resets the queries. The typed query lives above. */
 export function FilesMode() {

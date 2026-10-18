@@ -379,12 +379,12 @@ export async function unlockWithPin(pin: string): Promise<UnlockOutcome> {
 
 /** Unlock with a factor key that is already a 256-bit secret — i.e. a passkey PRF. */
 export async function unlockWithFactorKey(
-  factorId: string,
+  id: string,
   factorKey: Uint8Array,
 ): Promise<UnlockOutcome> {
   const record = await readLockRecord();
   if (!record) return { ok: false, reason: "no-lock" };
-  const factor = record.factors.find((f) => f.id === factorId);
+  const factor = record.factors.find((f) => f.id === id);
   if (!factor) return { ok: false, reason: "no-lock" };
 
   try {
@@ -470,11 +470,11 @@ export async function setSessionLock(
     const opened = fromSealedKeys(
       openJson<ReturnType<typeof toSealedKeys>>(mk, stored, keysAad(serverId)),
     );
-    const sessionLocks = { ...(opened.sessionLocks ?? {}) };
-    if (locked) sessionLocks[sessionName] = true;
-    else delete sessionLocks[sessionName];
+    const nextLocks = { ...opened.sessionLocks };
+    if (locked) nextLocks[sessionName] = true;
+    else delete nextLocks[sessionName];
 
-    const next: StoredKeys = { ...opened, sessionLocks };
+    const next: StoredKeys = { ...opened, sessionLocks: nextLocks };
     await tx(db, KEY_STORE, "readwrite", (store) =>
       store.put(sealJson(mk, toSealedKeys(next), keysAad(serverId)), serverId),
     );

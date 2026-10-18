@@ -27,12 +27,13 @@ import { isReadOnly, useConnectionStore } from "@/stores/connection-store";
 import { useMainTabsStore } from "@/stores/main-tabs-store";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
 import { RepositoryFileIcon } from "@/components/files/repository-file-icon";
-import { useRepositoryQuery } from "@/components/files/repository-preview";
+import { useRepositoryQuery } from "@/components/files/use-repository-query";
 import { changeTouchesFolder } from "@/lib/repo-change";
 import { useRepoChangeCount } from "@/stores/repo-watch-store";
 import type { RepositoryClient } from "@/components/files/repository-request";
 import { PanelHeader, PanelIconButton } from "./panel-header";
-import { TreeRow, useTreeKeyboard, type TreeAction, type TreeRowModel } from "./tree-row";
+import { TreeRow, type TreeAction, type TreeRowModel } from "./tree-row";
+import { useTreeKeyboard } from "./use-tree-keyboard";
 import type { RepositoryState } from "./use-repository-state";
 
 type ChangeCode = { code: string; label: string };
@@ -120,9 +121,9 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
   }, [root, contextPath]);
 
   const { changes, changedDirs } = useMemo(() => {
-    const changes = new Map<string, ChangeCode>();
-    const changedDirs = new Set<string>();
-    if (!status?.root) return { changes, changedDirs };
+    const files = new Map<string, ChangeCode>();
+    const dirs = new Set<string>();
+    if (!status?.root) return { changes: files, changedDirs: dirs };
     const base = status.root.replace(/\/$/, "");
     for (const entry of status.entries) {
       const code =
@@ -132,14 +133,14 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
             ? entry.worktree
             : entry.index;
       const full = `${base}/${entry.path}`;
-      changes.set(full, { code, label: CODE_LABELS[code] ?? "Changed" });
+      files.set(full, { code, label: CODE_LABELS[code] ?? "Changed" });
       let dir = full.slice(0, full.lastIndexOf("/"));
       while (dir.length > base.length) {
-        changedDirs.add(dir);
+        dirs.add(dir);
         dir = dir.slice(0, dir.lastIndexOf("/"));
       }
     }
-    return { changes, changedDirs };
+    return { changes: files, changedDirs: dirs };
   }, [status]);
 
   const toggle = (path: string) => {

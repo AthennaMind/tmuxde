@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { SendHorizonal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMiniScrollbar } from "@/components/ui/mini-scrollbar";
-import { triggerHaptic } from "@/components/haptic-button";
+import { useMiniScrollbar } from "@/components/ui/use-mini-scrollbar";
+import { triggerHaptic } from "@/lib/haptics";
 import { useCommandStore } from "@/stores/command-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSettingsStore } from "@/stores/settings-store";

@@ -64,9 +64,10 @@ import { useSessionTreeStore, type SessionDetails } from "@/stores/session-tree-
 import { useSettingsStore } from "@/stores/settings-store";
 import { useUiStore } from "@/stores/ui-store";
 import { PanelIconButton } from "./panel-header";
-import { LAYOUTS } from "./layout-glyph";
+import { LAYOUTS } from "./layout-presets";
 import { PaneGrid, type PaneDragEvent, type PaneGridProps } from "./pane-grid";
-import { TreeRow, useTreeKeyboard, type TreeAction, type TreeRowModel } from "./tree-row";
+import { TreeRow, type TreeAction, type TreeRowModel } from "./tree-row";
+import { useTreeKeyboard } from "./use-tree-keyboard";
 
 /** Busy sessions report activity on every burst of output. */
 const ACTIVITY_REFRESH_MS = 3000;

@@ -34,7 +34,8 @@ import {
 import { paneLayout } from "@/lib/session-presentation";
 import { cn } from "@/lib/utils";
 import { GridBorders } from "./pane-grid-borders";
-import { PanePeek, usePanePeek } from "./pane-peek";
+import { PanePeek } from "./pane-peek";
+import { usePanePeek } from "./use-pane-peek";
 import { ProcessIcon } from "./process-icon";
 import { TreeMenuItem, type TreeAction } from "./tree-row";
 

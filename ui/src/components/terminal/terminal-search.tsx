@@ -69,10 +69,10 @@ export function TerminalSearch({
         placeholder="Search..."
         aria-label="Search terminal output"
         // `text-[16px]`, not `text-sm`. Below 16px iOS zooms the whole page on
-        // focus, and this bar floats over the terminal — so the zoom lands on
-        // the output you were trying to search. Same reasoning, same value as
-        // the command bar; see mobile-command-bar.tsx. `md:text-sm` from the
-        // base survives, so a pointer device still gets the compact size.
+        // focus, and this bar floats over the terminal. The zoom would land on
+        // the output you were trying to search. The command composer uses the
+        // same value for the same reason. `md:text-sm` from the base survives,
+        // so a pointer device still gets the compact size.
         className="border-0 bg-transparent px-1 text-[16px] focus-visible:ring-0"
         autoFocus
       />

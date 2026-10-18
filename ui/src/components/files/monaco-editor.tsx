@@ -55,12 +55,12 @@ export function MonacoEditor({
   const fontSize = fixedFontSize ?? Math.round(14 * codeZoom);
 
   const handleMount: OnMount = useCallback(
-    (editor, monaco) => {
+    (editor, monacoApi) => {
       editorRef.current = editor;
 
       // Register Ctrl+S / Cmd+S keybinding
       if (onSave) {
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+        editor.addCommand(monacoApi.KeyMod.CtrlCmd | monacoApi.KeyCode.KeyS, () => {
           onSave();
         });
       }
@@ -69,7 +69,7 @@ export function MonacoEditor({
       // widths are the fallback's and the cursor drifts off the text.
       void document.fonts
         .load('400 16px "Cascadia Code"', "W")
-        .then(() => monaco.editor.remeasureFonts())
+        .then(() => monacoApi.editor.remeasureFonts())
         .catch(() => {});
 
       editor.focus();

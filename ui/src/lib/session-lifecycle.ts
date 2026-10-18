@@ -181,11 +181,9 @@ export function isGone(name: string): boolean {
   return gone.has(name);
 }
 
-/** Test seam: module state outlives a test otherwise. */
+/** Forget every rename and gone session. Machine switches and tests call it. */
 export function resetSessionLifecycle(): void {
   renamed.clear();
   gone.clear();
   falloutUntil = 0;
 }
-
-export const resetSessionLifecycleForTests = resetSessionLifecycle;

@@ -529,15 +529,15 @@ describe("split handles", () => {
     for (const width of [40, 56, 64, 80, 120, 252]) {
       for (const height of [24, 36, 48, 56, 64, 80, 128]) {
         for (const spot of splitHandles(width, height, true)) {
-          const box = { x: spot.x, y: spot.y };
+          const handle = box(spot);
           const middle =
-            box.x < width / 2 &&
-            width / 2 < box.x + HANDLE_SIZE &&
-            box.y < height / 2 &&
-            height / 2 < box.y + HANDLE_SIZE;
+            handle.x < width / 2 &&
+            width / 2 < handle.x + HANDLE_SIZE &&
+            handle.y < height / 2 &&
+            height / 2 < handle.y + HANDLE_SIZE;
           expect(middle).toBe(false);
-          if (spot.direction === "h") expect(box.x).toBeGreaterThanOrEqual(width / 2);
-          else expect(box.y).toBeGreaterThanOrEqual(height / 2);
+          if (spot.direction === "h") expect(handle.x).toBeGreaterThanOrEqual(width / 2);
+          else expect(handle.y).toBeGreaterThanOrEqual(height / 2);
         }
       }
     }

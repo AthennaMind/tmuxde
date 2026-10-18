@@ -1,15 +1,11 @@
 import { Loader2, Mic, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { triggerHaptic } from "@/components/haptic-button";
-import { isReadOnly, useConnectionStore } from "@/stores/connection-store";
+import { triggerHaptic } from "@/lib/haptics";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useDictationStore } from "@/stores/dictation-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { toggleDictation } from "@/lib/dictation";
-
-/** Whether this connection is offered dictation at all. */
-export function useDictationAvailable(): boolean {
-  return useConnectionStore((s) => s.features.has("dictation") && !isReadOnly(s.capabilities));
-}
+import { useDictationAvailable } from "@/hooks/use-dictation-available";
 
 /**
  * Start and stop dictation.

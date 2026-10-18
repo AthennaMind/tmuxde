@@ -39,7 +39,7 @@ describe("current changes", () => {
         entry("removed", "D", " "),
         entry("ignored", "!", "!"),
         entry("conflict", "U", "U"),
-      ]).map(({ path, scope, status }) => [path, scope, status]),
+      ]).map((change) => [change.path, change.scope, change.status]),
     ).toEqual([
       ["both.ts", "unstaged", "M"],
       ["conflict", "unstaged", "U"],

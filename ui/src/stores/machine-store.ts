@@ -68,16 +68,18 @@ export const useMachineStore = create<MachineStore>()(
             },
           },
         })),
-      openTerminal: (machineId, sessionName) =>
+      openTerminal: (tabMachineId, sessionName) =>
         set((s) =>
-          s.terminals.some((tab) => tab.machineId === machineId && tab.sessionName === sessionName)
+          s.terminals.some(
+            (tab) => tab.machineId === tabMachineId && tab.sessionName === sessionName,
+          )
             ? s
-            : { terminals: [...s.terminals, { machineId, sessionName }] },
+            : { terminals: [...s.terminals, { machineId: tabMachineId, sessionName }] },
         ),
-      closeTerminal: (machineId, sessionName) =>
+      closeTerminal: (tabMachineId, sessionName) =>
         set((s) => ({
           terminals: s.terminals.filter(
-            (tab) => tab.machineId !== machineId || tab.sessionName !== sessionName,
+            (tab) => tab.machineId !== tabMachineId || tab.sessionName !== sessionName,
           ),
         })),
     }),

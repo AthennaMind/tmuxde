@@ -1,19 +1,12 @@
 import { memo, useCallback, useMemo, useRef, useState, type ReactElement } from "react";
 import type { RepoCommit } from "@/protocol";
 import { cn } from "@/lib/utils";
-import { useTreeKeyboard } from "@/components/sidebar/tree-row";
-import { RefChip, commitAge, formatCommitDate, parseRefs } from "./commit-log";
-import { graphOrder, layoutGraph, sameGraphRow, type GraphRow } from "./graph-layout";
-
-/** Row height in px. Fixed, so lanes meet across rows. */
-const ROW = 28;
-const MID = ROW / 2;
-/** Width of one lane in px. */
-const LANE = 14;
-/** Lanes drawn at most. The rest show as a count. */
-export const MAX_LANES = 24;
-/** Room past the last lane for the marker of a node in a hidden lane. */
-const EDGE = 10;
+import { useTreeKeyboard } from "@/components/sidebar/use-tree-keyboard";
+import { RefChip } from "./commit-log";
+import { commitAge, formatCommitDate, parseRefs } from "./commit-format";
+import { graphOrder, layoutGraph, type GraphRow } from "./graph-layout";
+import { EDGE, LANE, MAX_LANES, MID, ROW, laneX } from "./graph-geometry";
+import { sameRowProps, type GraphRowProps } from "./graph-row-props";
 
 /** Lane colors, by `GraphRow.color`. Six, like `GRAPH_COLORS`. */
 const LANE_COLORS = [
@@ -25,8 +18,6 @@ const LANE_COLORS = [
   "text-primary",
 ];
 
-/** Centre of a lane in px. */
-export const laneX = (lane: number) => lane * LANE + LANE / 2;
 const x = laneX;
 
 /**
@@ -91,44 +82,6 @@ export const GraphList = memo(function GraphList({
     </div>
   );
 });
-
-/** Two commits show the same in a row and open the same commit tab. */
-function sameCommit(a: RepoCommit, b: RepoCommit): boolean {
-  return (
-    a === b ||
-    (a.hash === b.hash &&
-      a.subject === b.subject &&
-      a.author === b.author &&
-      a.date === b.date &&
-      sameList(a.refs, b.refs) &&
-      sameList(a.parents, b.parents))
-  );
-}
-
-function sameList(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((item, i) => item === b[i]);
-}
-
-interface GraphRowProps {
-  commit: RepoCommit;
-  row: GraphRow;
-  selected: boolean;
-  tabStop: boolean;
-  onFocus: (hash: string) => void;
-  onOpen: (commit: RepoCommit) => void;
-}
-
-/** A row renders again only when something it shows changed. */
-export function sameRowProps(a: GraphRowProps, b: GraphRowProps): boolean {
-  return (
-    a.selected === b.selected &&
-    a.tabStop === b.tabStop &&
-    a.onFocus === b.onFocus &&
-    a.onOpen === b.onOpen &&
-    sameCommit(a.commit, b.commit) &&
-    sameGraphRow(a.row, b.row)
-  );
-}
 
 const GraphRowItem = memo(function GraphRowItem({
   commit,

@@ -20,6 +20,7 @@ export const TerminalSearchMessage = z.object({
     .min(1)
     .max(256)
     .regex(/[^\s]/)
+    // oxlint-disable-next-line no-control-regex -- NUL is rejected on purpose, the server refuses it too.
     .regex(/^[^\r\n\x00]*$/),
   caseSensitive: z.boolean(),
   excludeSessions: z.array(z.string()).max(1024),

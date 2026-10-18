@@ -3,6 +3,9 @@
  * how text goes into a field React owns.
  */
 
+// oxlint-disable-next-line no-control-regex -- matches C0 and C1 controls on purpose.
+const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
+
 /**
  * Drop everything a terminal would read as a command.
  *
@@ -13,7 +16,7 @@
 export function sanitizeDictation(text: string): string {
   return text
     .replace(/[\r\n\t]+/g, " ")
-    .replace(/[\u0000-\u001f\u007f-\u009f]/g, "")
+    .replace(CONTROL_CHARS, "")
     .replace(/ {2,}/g, " ")
     .trim();
 }

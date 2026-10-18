@@ -8,7 +8,7 @@ import { TerminalWorkspace } from "@/components/terminal/terminal-workspace";
 import { useMachineStore } from "@/stores/machine-store";
 import { MachineWorkspace } from "@/components/machine-workspace";
 import { AppShell } from "@/components/app-shell";
-import { useWebSocket, getRelayClient } from "@/hooks/use-websocket";
+import { useWebSocket } from "@/hooks/use-websocket";
 import { filesDisabled, isReadOnly, useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useStableMediaQuery } from "@/hooks/use-media-query";

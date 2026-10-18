@@ -10,9 +10,9 @@ import {
   PaletteEmpty,
   PaletteFooter,
   PaletteRow,
-  usePalette,
   type PaletteItem,
 } from "./palette-primitives";
+import { usePalette } from "./palette-context";
 import {
   useCanType,
   usePaletteCommands,
@@ -26,7 +26,7 @@ interface Visible {
 }
 
 /** Keep matching items, best first within each group. Group order is fixed. */
-export function filterGroups(groups: PaletteGroup[], query: string): Visible[] {
+function filterGroups(groups: PaletteGroup[], query: string): Visible[] {
   const visible: Visible[] = [];
   for (const group of groups) {
     const scored = group.items.flatMap((item, index) => {

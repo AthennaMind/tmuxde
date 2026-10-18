@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { copyFailureReason, copyText } from "@/lib/clipboard";
 import { useAlertStore } from "@/stores/alert-store";
-import { RepositorySyntaxLine, useCodeSyntax } from "./repository-syntax";
+import { RepositorySyntaxLine } from "./repository-syntax";
+import { useCodeSyntax } from "./use-syntax-tokens";
 
 /** A fenced block in a Markdown preview: language label, copy, Shiki colors. */
 export function MarkdownCodeBlock({ language, source }: { language?: string; source: string }) {

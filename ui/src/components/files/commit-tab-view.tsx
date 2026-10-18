@@ -7,7 +7,8 @@ import { useMainTabsStore, type CommitTab } from "@/stores/main-tabs-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { CommitDetail } from "./commit-view";
 import { HeaderButton } from "./file-tab-view";
-import { Notice, useRepositoryQuery } from "./repository-preview";
+import { Notice } from "./repository-preview";
+import { useRepositoryQuery } from "./use-repository-query";
 import type { RepositoryClient } from "./repository-request";
 
 /** A commit and its whole patch in the desktop main area. */

@@ -3,9 +3,7 @@
 // color-scheme, system tracking, tab sync and no transitions on change.
 // index.html applies the stored theme before first paint with the same key.
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -13,25 +11,10 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-
-export type Theme = "light" | "dark" | "system";
-export type ResolvedTheme = "light" | "dark";
-
-export interface ThemeState {
-  theme: Theme;
-  resolvedTheme: ResolvedTheme;
-  setTheme: (theme: Theme) => void;
-}
+import { ThemeContext, type ResolvedTheme, type Theme } from "./theme-context";
 
 const STORAGE_KEY = "theme";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
-
-// Outside a provider, as in server rendered tests, the app looks dark.
-const ThemeContext = createContext<ThemeState>({
-  theme: "dark",
-  resolvedTheme: "dark",
-  setTheme: () => {},
-});
 
 function isTheme(value: unknown): value is Theme {
   return value === "light" || value === "dark" || value === "system";
@@ -131,8 +114,4 @@ export function ThemeProvider({
     [theme, resolvedTheme, setTheme],
   );
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-}
-
-export function useTheme(): ThemeState {
-  return useContext(ThemeContext);
 }

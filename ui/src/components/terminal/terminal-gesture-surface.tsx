@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { triggerHaptic } from "@/components/haptic-button";
+import { triggerHaptic } from "@/lib/haptics";
 import { getRelayClient } from "@/hooks/use-websocket";
 import { getTerminalHandle } from "@/components/terminal/terminal-handle";
 import { believedInCopyMode, noteLeftCopyMode } from "@/lib/copy-mode-belief";

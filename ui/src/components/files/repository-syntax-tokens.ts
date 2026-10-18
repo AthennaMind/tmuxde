@@ -77,9 +77,9 @@ export function resolveCodeLanguage(info: string | undefined): Language | undefi
 }
 
 type Highlighter = Awaited<ReturnType<typeof createHighlighterCore>>;
-let highlighter: ReturnType<typeof createHighlighterCore> | undefined;
+let highlighterPromise: ReturnType<typeof createHighlighterCore> | undefined;
 function getHighlighter() {
-  return (highlighter ??= createHighlighterCore({
+  return (highlighterPromise ??= createHighlighterCore({
     engine: createJavaScriptRegexEngine({ forgiving: true }),
     langs: [],
     themes: [
@@ -135,7 +135,7 @@ export async function highlightRepositoryCode(
       // TextMate normalizes line endings. Keep original preview text exact.
       return lines.map((line, index) => restoreLine(line, tokens[index]));
     }
-    const result = lines.map((content) => [{ content }] as RepositorySyntaxToken[]);
+    const result = lines.map((line) => [{ content: line }] as RepositorySyntaxToken[]);
     let oldLines: { index: number; content: string }[] = [];
     let newLines: { index: number; content: string }[] = [];
     const flush = () => {

@@ -8,7 +8,7 @@ import { sameRoot, type RepoChange } from "@/lib/repo-change";
 import { useConnectionStore } from "@/stores/connection-store";
 import { commitTabId, useMainTabsStore, type GraphTab } from "@/stores/main-tabs-store";
 import { useRepoChangeCount, useRepoWatch, watchHealthy } from "@/stores/repo-watch-store";
-import { useCommitLog } from "./commit-log";
+import { useCommitLog } from "./use-commit-log";
 import { HeaderButton } from "./file-tab-view";
 import { GraphList } from "./graph-list";
 import { Notice } from "./repository-preview";

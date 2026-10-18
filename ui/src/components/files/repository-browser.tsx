@@ -22,14 +22,16 @@ import type { FileEntry } from "@/protocol";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useRelayClient } from "@/hooks/use-websocket";
-import { CommitList, useCommitLog } from "./commit-log";
+import { CommitList } from "./commit-log";
+import { useCommitLog } from "./use-commit-log";
 import { lazyComponent } from "@/lib/lazy-component";
 import { CommitDetail } from "./commit-view";
 import { useRepositoryHistory, type RepositoryView } from "./repository-history";
 import { RepositoryNavigationSurface } from "./repository-navigation-surface";
 import { ChangesList } from "./repository-changes";
 import { RepositoryFileIcon } from "./repository-file-icon";
-import { FilePreview, Notice, useRepositoryQuery } from "./repository-preview";
+import { FilePreview, Notice } from "./repository-preview";
+import { useRepositoryQuery } from "./use-repository-query";
 import { formatFileSize } from "@/lib/file-utils";
 import { isMarkdownPath } from "@/lib/markdown";
 import {
@@ -470,7 +472,7 @@ function BrowserContents({
                     size={preview.size}
                     symlink={preview.symlink}
                     rendered={showRendered}
-                    onOpenPath={(path) => navigate({ ...view, preview: { path } })}
+                    onOpenPath={(target) => navigate({ ...view, preview: { path: target } })}
                   />
                 ) : null}
               </>
@@ -630,7 +632,9 @@ function BrowserContents({
                   ) : (
                     <ChangesList
                       entries={status.entries}
-                      onOpen={(path, scope) => navigate({ ...view, preview: { path, scope } })}
+                      onOpen={(file, scope) =>
+                        navigate({ ...view, preview: { path: file, scope } })
+                      }
                     />
                   )}
                   {status?.truncated && (

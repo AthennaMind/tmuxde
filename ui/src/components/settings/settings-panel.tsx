@@ -28,7 +28,7 @@ import {
 import { LockSettings } from "@/components/lock/lock-settings";
 import { DisconnectSection } from "./disconnect-section";
 import { InstallAppSection } from "@/components/pwa/install-app-section";
-import { useDictationAvailable } from "@/components/dictation/dictation-button";
+import { useDictationAvailable } from "@/hooks/use-dictation-available";
 import {
   Segmented,
   SettingsRow,

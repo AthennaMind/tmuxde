@@ -53,8 +53,8 @@ import {
 import type { ClientMessage } from "@/protocol";
 import { RepositoryFileIcon } from "@/components/files/repository-file-icon";
 import { useQuickOpenQuery } from "@/components/files/use-quick-open-query";
-import { useDictationAvailable } from "@/components/dictation/dictation-button";
-import { useShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
+import { useDictationAvailable } from "@/hooks/use-dictation-available";
+import { useShortcutsDialog } from "@/stores/shortcuts-dialog-store";
 import { getRelayClient, useRelayClient } from "@/hooks/use-websocket";
 import { useStableMediaQuery } from "@/hooks/use-media-query";
 import { useTheme } from "@/hooks/use-theme";
@@ -93,7 +93,8 @@ import { useSessionTreeStore } from "@/stores/session-tree-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { clampFontSize, getDefaultFontSize, useTerminalStore } from "@/stores/terminal-store";
 import { useUiStore, type SidebarView } from "@/stores/ui-store";
-import { usePalette, type PaletteItem } from "./palette-primitives";
+import type { PaletteItem } from "./palette-primitives";
+import { usePalette } from "./palette-context";
 
 export interface PaletteGroup {
   id: string;

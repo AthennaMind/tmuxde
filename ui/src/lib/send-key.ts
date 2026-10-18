@@ -1,4 +1,4 @@
-import { triggerHaptic } from "@/components/haptic-button";
+import { triggerHaptic } from "@/lib/haptics";
 import { getRelayClient } from "@/hooks/use-websocket";
 import { useSettingsStore } from "@/stores/settings-store";
 

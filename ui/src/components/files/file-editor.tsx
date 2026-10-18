@@ -190,17 +190,13 @@ export function FileEditor() {
   const saveTarget = useRef({ editorFile, currentContent, isReadOnly });
   saveTarget.current = { editorFile, currentContent, isReadOnly };
   const handleSave = useCallback(() => {
-    const { editorFile, currentContent, isReadOnly } = saveTarget.current;
-    if (!editorFile || currentContent === null || isReadOnly) return;
+    const { editorFile: path, currentContent: content, isReadOnly: readOnly } = saveTarget.current;
+    if (!path || content === null || readOnly) return;
     const client = getRelayClient();
     if (!client) return;
     setIsSaving(true);
-    savingRef.current = currentContent;
-    client.send({
-      type: "file:write",
-      path: editorFile,
-      content: currentContent,
-    });
+    savingRef.current = content;
+    client.send({ type: "file:write", path, content });
   }, [setIsSaving]);
 
   // Keep unsaved edits visible during navigation or a machine change.

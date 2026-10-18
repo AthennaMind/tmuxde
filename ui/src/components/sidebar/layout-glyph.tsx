@@ -1,14 +1,11 @@
-import type { WindowLayoutMessage } from "@/protocol";
-
-export type LayoutPreset = WindowLayoutMessage["preset"];
-
 type GlyphProps = { className?: string };
 
 /**
  * One tmux layout preset drawn as its shape.
  *
  * Same 24px grid and 2px stroke as the lucide icons beside it, so the
- * glyphs sit in a row of them without looking heavier or lighter.
+ * glyphs sit in a row of them without looking heavier or lighter. The
+ * window frame spans 3..21 by 4..20, and `lines` draws inside it.
  */
 function Glyph({ lines, className }: { lines: string; className?: string }) {
   return (
@@ -28,35 +25,27 @@ function Glyph({ lines, className }: { lines: string; className?: string }) {
   );
 }
 
-/** Lines inside the window frame, per preset. The frame spans 3..21 by 4..20. */
-const LINES: Record<LayoutPreset, string> = {
-  // Three panes side by side.
-  "even-horizontal": "M9 4v16M15 4v16",
-  // Three panes stacked.
-  "even-vertical": "M3 9.5h18M3 14.5h18",
-  // A main pane across the top, two below it.
-  "main-horizontal": "M3 12h18M12 12v8",
-  // A main pane on the left, two stacked on its right.
-  "main-vertical": "M12 4v16M12 12h9",
-  // A grid of four.
-  tiled: "M12 4v16M3 12h18",
-};
+/** Three panes side by side. */
+export function EvenHorizontalGlyph({ className }: GlyphProps) {
+  return <Glyph lines="M9 4v16M15 4v16" className={className} />;
+}
 
-/** Presets in menu and toolbar order, with their plain names. */
-export const LAYOUTS: readonly {
-  preset: LayoutPreset;
-  label: string;
-  icon: React.ComponentType<GlyphProps>;
-}[] = (
-  [
-    ["even-horizontal", "Side by side"],
-    ["even-vertical", "Stacked"],
-    ["main-horizontal", "Main on top"],
-    ["main-vertical", "Main on left"],
-    ["tiled", "Tiled"],
-  ] as const
-).map(([preset, label]) => ({
-  preset,
-  label,
-  icon: ({ className }: GlyphProps) => <Glyph lines={LINES[preset]} className={className} />,
-}));
+/** Three panes stacked. */
+export function EvenVerticalGlyph({ className }: GlyphProps) {
+  return <Glyph lines="M3 9.5h18M3 14.5h18" className={className} />;
+}
+
+/** A main pane across the top, two below it. */
+export function MainHorizontalGlyph({ className }: GlyphProps) {
+  return <Glyph lines="M3 12h18M12 12v8" className={className} />;
+}
+
+/** A main pane on the left, two stacked on its right. */
+export function MainVerticalGlyph({ className }: GlyphProps) {
+  return <Glyph lines="M12 4v16M12 12h9" className={className} />;
+}
+
+/** A grid of four. */
+export function TiledGlyph({ className }: GlyphProps) {
+  return <Glyph lines="M12 4v16M3 12h18" className={className} />;
+}

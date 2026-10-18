@@ -1,9 +1,6 @@
 import { useEffect } from "react";
-import { create } from "zustand";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-
-/** Opened by `?` and by the command palette. */
-export const useShortcutsDialog = create<{ open: boolean }>(() => ({ open: false }));
+import { useShortcutsDialog } from "@/stores/shortcuts-dialog-store";
 
 /**
  * On a phone every one of these is a button in the toolbar rather than a key
@@ -39,7 +36,7 @@ const shortcuts = [
 
 export function KeyboardShortcutsDialog() {
   const open = useShortcutsDialog((s) => s.open);
-  const setOpen = (open: boolean) => useShortcutsDialog.setState({ open });
+  const setOpen = (nextOpen: boolean) => useShortcutsDialog.setState({ open: nextOpen });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

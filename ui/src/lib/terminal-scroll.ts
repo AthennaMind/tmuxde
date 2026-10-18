@@ -197,7 +197,7 @@ export function resetScrollSupport(): void {
   }
 }
 
-/** Test seam: the module-level burst outlives a test file otherwise. */
+/** Drop the module-level burst. Machine switches and tests call it. */
 export function resetScrollState(): void {
   resetScrollSupport();
   resetPendingScroll();
@@ -206,5 +206,3 @@ export function resetScrollState(): void {
     flushTimer = null;
   }
 }
-
-export const resetScrollForTests = resetScrollState;

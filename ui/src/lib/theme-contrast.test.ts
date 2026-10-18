@@ -214,7 +214,7 @@ describe.each([
    */
   it.each(
     Object.keys(aliases().refs)
-      .filter((name) => name.endsWith("-foreground"))
+      .filter((token) => token.endsWith("-foreground"))
       .map((fg): [string, string] => [
         fg,
         fg === "--foreground" ? "--background" : fg.slice(0, -"-foreground".length),

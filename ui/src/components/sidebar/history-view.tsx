@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { GitGraph, History, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CommitList, useCommitLog } from "@/components/files/commit-log";
+import { CommitList } from "@/components/files/commit-log";
+import { useCommitLog } from "@/components/files/use-commit-log";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useMainTabsStore } from "@/stores/main-tabs-store";
 import { BranchRow, Note } from "./changes-view";

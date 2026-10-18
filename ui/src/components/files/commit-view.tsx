@@ -19,10 +19,12 @@ import {
   type CommitFilterMode,
   type CommitSection,
 } from "./commit-file-filter";
-import { formatCommitDate, parseRefs, RefChip } from "./commit-log";
+import { RefChip } from "./commit-log";
+import { formatCommitDate, parseRefs } from "./commit-format";
 import { ChangeCode } from "./repository-changes";
 import { RepositoryFileIcon } from "./repository-file-icon";
-import { RepositorySyntaxLine, useRepositorySyntax } from "./repository-syntax";
+import { RepositorySyntaxLine } from "./repository-syntax";
+import { useRepositorySyntax } from "./use-syntax-tokens";
 import type { RepositorySyntaxToken } from "./repository-syntax-tokens";
 
 export type CommitResult = Extract<RepoResult, { kind: "show" }>;
@@ -166,9 +168,9 @@ export function FileChangesDetail({
       setOpen((prev) => ({ ...prev, [fileKey(files[index]!)]: true }));
       // After the section opens, so the scroll lands on its final position.
       requestAnimationFrame(() => {
-        const header = document.getElementById(sectionHeaderId(id, index));
-        header?.scrollIntoView({ block: "start" });
-        header?.focus({ preventScroll: true });
+        const section = document.getElementById(sectionHeaderId(id, index));
+        section?.scrollIntoView({ block: "start" });
+        section?.focus({ preventScroll: true });
       });
     },
     [id, files],

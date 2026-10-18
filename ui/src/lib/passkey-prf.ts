@@ -159,9 +159,9 @@ export async function evaluatePrf(credentialId: string): Promise<Uint8Array | nu
 }
 
 function toBase64Url(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
+  const view = new Uint8Array(buffer);
   let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
+  for (const byte of view) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 

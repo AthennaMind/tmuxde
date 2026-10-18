@@ -3,7 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { RepoCommit } from "@/protocol";
 import { layoutGraph, type GraphRow } from "./graph-layout";
-import { GraphCell, GraphList, MAX_LANES, laneX, sameRowProps } from "./graph-list";
+import { GraphCell, GraphList } from "./graph-list";
+import { MAX_LANES, laneX } from "./graph-geometry";
+import { sameRowProps } from "./graph-row-props";
 
 function render(row: GraphRow, head = false) {
   return renderToStaticMarkup(createElement(GraphCell, { row, merge: false, head }));

@@ -68,6 +68,7 @@ export function terminalSearchDisconnected(machineId: string): void {
 
 /** Inventory connections search every machine without changing active workspace. */
 export function searchTerminals(query: string, caseSensitive: boolean): void {
+  // oxlint-disable-next-line no-control-regex -- NUL is rejected on purpose, like the protocol schema.
   if (!query.trim() || query.length > 256 || /[\r\n\x00]/.test(query)) return;
   if (useTerminalSearchStore.getState().machines.some((machine) => machine.state === "searching"))
     return;

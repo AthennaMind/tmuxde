@@ -11,7 +11,8 @@ import { useConnectionStore } from "@/stores/connection-store";
 import { useMainTabsStore, type FileTab } from "@/stores/main-tabs-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { RepositoryFileIcon } from "./repository-file-icon";
-import { FilePreview, Notice, useRepositoryQuery } from "./repository-preview";
+import { FilePreview, Notice } from "./repository-preview";
+import { useRepositoryQuery } from "./use-repository-query";
 import type { RepositoryClient } from "./repository-request";
 
 const SCOPE_LABELS = {

@@ -51,7 +51,7 @@ function useEnvironment() {
   return env;
 }
 
-export function useInstallAvailability(): InstallAvailability | null {
+function useInstallAvailability(): InstallAvailability | null {
   const { standalone, iosDevice, secureContext, resolved } = useEnvironment();
   const snapshot = useSyncExternalStore(
     subscribeInstall,

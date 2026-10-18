@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Keyboard, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { triggerHaptic } from "@/components/haptic-button";
+import { triggerHaptic } from "@/lib/haptics";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
@@ -11,7 +11,8 @@ import { sendKeySequence } from "@/lib/send-key";
 import { consumeTerminalInput, useTerminalInput } from "@/lib/terminal-input.js";
 import { NavigationToolbar } from "./navigation-toolbar";
 import { TerminalControls } from "./terminal-controls";
-import { DictationButton, useDictationAvailable } from "@/components/dictation/dictation-button";
+import { DictationButton } from "@/components/dictation/dictation-button";
+import { useDictationAvailable } from "@/hooks/use-dictation-available";
 import { GestureHelpSheet } from "./gesture-help-sheet";
 import { useUiStore } from "@/stores/ui-store";
 

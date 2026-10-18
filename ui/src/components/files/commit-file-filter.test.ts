@@ -31,7 +31,7 @@ function paths(text: string, mode: "hide" | "only") {
   return filterCommitFiles(FILES, {
     patterns: parseFilePatterns(text),
     mode,
-  }).map(({ file }) => file.path);
+  }).map((entry) => entry.file.path);
 }
 
 describe("parseFilePatterns", () => {
