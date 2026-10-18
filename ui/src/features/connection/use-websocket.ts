@@ -1,7 +1,7 @@
 import { receiveTerminalPreview } from "@/features/panes/terminal-preview-store";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import type { DependencyList } from "react";
-import type { ClientMessage, ServerMessage } from "@/protocol";
+import type { ServerMessage } from "@/protocol";
 import { useMachineStore } from "./machine-store";
 import { copyFailureReason, copyText } from "@/shared/clipboard";
 import { machineId } from "./machine-context";
@@ -98,10 +98,13 @@ export function useRelayClient(): RelayClient | null {
   return getRelayClient();
 }
 
-/** Opens the socket to the server at `url` and applies its messages to the stores. */
-export function useWebSocket(url: string, token: string) {
-  const clientRef = useRef<RelayClient | null>(null);
-
+/**
+ * Opens the socket to the server at `url` and applies its messages to the stores.
+ *
+ * Returns nothing. The client is registered as the active one, and callers
+ * reach it through `getRelayClient()` or `useRelayClient()`.
+ */
+export function useWebSocket(url: string, token: string): void {
   useEffect(() => {
     if (!url || !token) return;
 
@@ -379,7 +382,6 @@ export function useWebSocket(url: string, token: string) {
     registry.setActive(serverId);
 
     const held = client;
-    clientRef.current = held;
     held.connect();
 
     const handleOnline = () => {
@@ -429,10 +431,4 @@ export function useWebSocket(url: string, token: string) {
       registry.release(serverId);
     };
   }, [url, token]);
-
-  const send = useCallback((msg: ClientMessage) => {
-    clientRef.current?.send(msg);
-  }, []);
-
-  return { send, client: clientRef.current };
 }
