@@ -1,9 +1,9 @@
+import { isShell } from "./shell-commands";
+
 /** Labels for sessions, windows and panes, shared by every list of them. */
 
-const SHELL_COMMANDS = new Set(["bash", "zsh", "fish", "sh", "dash", "ksh", "tcsh", "csh"]);
-
 export function isShellCommand(command?: string): boolean {
-  return !command || SHELL_COMMANDS.has(command);
+  return !command || isShell(command);
 }
 
 export function shortenPath(path: string): string {

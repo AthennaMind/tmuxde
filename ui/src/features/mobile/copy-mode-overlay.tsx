@@ -15,19 +15,7 @@ import { usePaneStore } from "@/features/panes/pane-store";
 import { useAlertStore } from "@/shared/alert-store";
 import { getRelayClient } from "@/features/connection/use-websocket";
 import { copyText, copyFailureReason } from "@/shared/clipboard";
-import { isShell } from "@/features/terminal/shell-commands";
-
-function shortenPath(path: string): string {
-  if (!path) return "";
-  return path.replace(/^\/home\/[^/]+/, "~").replace(/^\/root/, "~");
-}
-
-function formatPaneName(command?: string, path?: string): string {
-  if (!command || isShell(command)) {
-    return path ? shortenPath(path) : command || "shell";
-  }
-  return path ? `${command} · ${shortenPath(path)}` : command;
-}
+import { formatPaneName } from "@/shared/tmux-labels";
 
 export function CopyModeOverlay() {
   // Per field: this overlay stays mounted over a live pane, and an unselected

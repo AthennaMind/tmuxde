@@ -1,7 +1,7 @@
 import { getRelayClient } from "@/features/connection/use-websocket";
 import { useCommandStore } from "./command-store";
 import { usePaneStore } from "@/features/panes/pane-store";
-import { isShell } from "./shell-commands";
+import { isShell } from "@/shared/shell-commands";
 
 /**
  * The one way anything in this app sends a command to the terminal.
