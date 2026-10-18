@@ -38,9 +38,39 @@ const SANITIZE_SCHEMA = {
     a: [...(defaultSchema.attributes?.a ?? []), "dataFootnoteRef", "dataFootnoteBackref"],
   },
 } satisfies typeof defaultSchema;
+const HEADINGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
+
+type HastNode = {
+  type: string;
+  tagName?: string;
+  properties?: Record<string, unknown>;
+  children?: HastNode[];
+};
+
+/**
+ * Gives headings GitHub style ids, numbered in document order. Each parse
+ * numbers from scratch, so a new body or a second render pass gets the same
+ * ids for the same text. Runs after the sanitizer, so the ids stay plain.
+ */
+function rehypeHeadingIds() {
+  return (tree: HastNode) => {
+    const slug = createSlugger();
+    const visit = (node: HastNode) => {
+      if (node.type === "element" && node.tagName && HEADINGS.has(node.tagName)) {
+        // An id from inline HTML wins. Its slug still counts, so later
+        // repeats number the same way.
+        node.properties = { id: slug(hastText(node)), ...node.properties };
+      }
+      node.children?.forEach(visit);
+    };
+    visit(tree);
+  };
+}
+
 const REHYPE_PLUGINS: NonNullable<Options["rehypePlugins"]> = [
   rehypeRaw,
   [rehypeSanitize, SANITIZE_SCHEMA],
+  rehypeHeadingIds,
 ];
 // The sanitizer prefixes every id once more, so remark must not. Footnote
 // links then say `#fn-1` for an element with id `user-content-fn-1`, which
@@ -48,7 +78,6 @@ const REHYPE_PLUGINS: NonNullable<Options["rehypePlugins"]> = [
 const REMARK_REHYPE_OPTIONS: Options["remarkRehypeOptions"] = {
   clobberPrefix: "",
 };
-const HEADINGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 
 /** What the elements below need from the preview that renders them. */
 interface MarkdownScope {
@@ -56,7 +85,6 @@ interface MarkdownScope {
   path: string;
   onOpenPath?: (path: string) => void;
   scrollTo: (id: string) => void;
-  headingId: (node: HastElement | undefined) => string;
 }
 
 const MarkdownScopeContext = createContext<MarkdownScope | null>(null);
@@ -66,16 +94,6 @@ function useMarkdownScope(): MarkdownScope {
   if (!scope) throw new Error("Markdown element outside MarkdownPreview");
   return scope;
 }
-
-const heading = (Tag: (typeof HEADINGS)[number]) =>
-  function Heading({ node, children, ...props }: ComponentProps<typeof Tag> & ExtraProps) {
-    const { headingId } = useMarkdownScope();
-    return (
-      <Tag id={headingId(node)} {...props}>
-        {children}
-      </Tag>
-    );
-  };
 
 function ScopedLink({
   node: _node,
@@ -115,7 +133,6 @@ function ScopedImage({ src, alt, title, width, height }: ComponentProps<"img"> &
  * rendered elements in place. Per preview values come from context.
  */
 const COMPONENTS: Components = {
-  ...Object.fromEntries(HEADINGS.map((tag) => [tag, heading(tag)])),
   a: ScopedLink,
   img: ScopedImage,
   pre: ({ node, children }) => {
@@ -160,19 +177,6 @@ export function MarkdownPreview({
   const container = useRef<HTMLDivElement>(null);
   const { frontMatter, body } = useMemo(() => splitFrontMatter(content), [content]);
   const scope = useMemo<MarkdownScope>(() => {
-    const slug = createSlugger();
-    // Headings keep their ids across renders of the same body, so a second
-    // render pass does not number them again.
-    const ids = new Map<number, string>();
-    const headingId = (node: HastElement | undefined) => {
-      const key = node?.position?.start.offset ?? -1;
-      let id = ids.get(key);
-      if (id === undefined) {
-        id = slug(hastText(node));
-        ids.set(key, id);
-      }
-      return id;
-    };
     // Headings carry plain ids. Ids and names from inline HTML and footnotes
     // carry the sanitizer's prefix. A link may mean either.
     const scrollTo = (id: string) => {
@@ -186,8 +190,8 @@ export function MarkdownPreview({
         block: "start",
       });
     };
-    return { path, onOpenPath, scrollTo, headingId };
-  }, [body, onOpenPath, path]);
+    return { path, onOpenPath, scrollTo };
+  }, [onOpenPath, path]);
 
   return (
     <div
