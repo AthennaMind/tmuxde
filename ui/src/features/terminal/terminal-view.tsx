@@ -1,10 +1,18 @@
-import { useCallback, useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { SearchAddon } from "@xterm/addon-search";
 import "@xterm/xterm/css/xterm.css";
-import { getTerminalTheme, terminalThemeToXterm } from "./terminal-themes";
+import { getTerminalTheme, terminalThemeToXterm, type ColorScheme } from "./terminal-themes";
 import { useTheme } from "@/shared/use-theme";
 import { createXterm } from "./xterm-factory";
 import { copyText, copyFailureReason } from "@/shared/clipboard";
@@ -102,7 +110,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
   const fontFamily = useTerminalStore((s) => s.fontFamily);
   const terminalWeight = useTerminalStore((s) => s.terminalWeight);
   const themeName = useTerminalStore((s) => s.themeName);
-  const scheme = useTheme().resolvedTheme === "light" ? "light" : "dark";
+  const scheme: ColorScheme = useTheme().resolvedTheme === "light" ? "light" : "dark";
   const cursorStyle = useTerminalStore((s) => s.cursorStyle);
   const cursorBlink = useTerminalStore((s) => s.cursorBlink);
   const scrollback = useTerminalStore((s) => s.scrollback);
@@ -313,15 +321,13 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
     return () => container.removeEventListener("paste", onPaste, true);
   }, []);
 
-  // Initialize terminal ONCE on mount — no sessionName dependency
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    // Stable object for the lifetime of this effect — captured once so the
-    // cleanup below doesn't read a ref that could have been reassigned.
-    const timers = fitTimersRef.current;
-    const { terminal, fitAddon, searchAddon } = createXterm({
-      container: containerRef.current,
+  /*
+   * The settings the terminal is built with. The init effect below reads them
+   * once, at mount. Later changes go through the options effect further down,
+   * and `gpuRendering` waits for the next mount.
+   */
+  const initialSettings = useEffectEvent(() => ({
+    options: {
       themeName,
       scheme,
       fontSize,
@@ -330,6 +336,22 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
       cursorStyle,
       cursorBlink,
       scrollback,
+    },
+    gpuRendering,
+  }));
+
+  // Initialize terminal ONCE on mount, with no sessionName dependency.
+  // `redraw` is stable, so its dependency never reruns this.
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Stable object for the lifetime of this effect — captured once so the
+    // cleanup below doesn't read a ref that could have been reassigned.
+    const timers = fitTimersRef.current;
+    const settings = initialSettings();
+    const { terminal, fitAddon, searchAddon } = createXterm({
+      container: containerRef.current,
+      ...settings.options,
     });
 
     terminalRef.current = terminal;
@@ -448,7 +470,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
     // DOM rendering is the default everywhere. It draws text with the
     // browser's own rasterizer, which stays sharp at any DPR, and it is the
     // renderer `brightenDimText` patches. GPU is opt-in for heavy output.
-    if (gpuRendering && !isMobileViewport()) {
+    if (settings.gpuRendering && !isMobileViewport()) {
       try {
         webglAddon = new WebglAddon();
         webglAddon.onContextLoss(() => {
@@ -644,7 +666,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
       searchAddonRef.current = null;
       webglAddonRef.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- terminal created once on mount; `redraw` is stable
+  }, [redraw]);
 
   /*
    * Repaint when the tab comes back, and when the display changes.

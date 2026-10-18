@@ -8,19 +8,27 @@ import { RelayClient } from "@/features/connection/ws-client";
 import { resolveRelayWsUrl } from "@/features/connection/relay-url";
 import { TOKEN_KEY, clearStored, writeStored } from "@/features/connection/storage-keys";
 
+/** The token of a `#token=<64 hex>` sign-in link, if the page was opened with one. */
+function linkToken(): string | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  return params.get("token")?.trim() || null;
+}
+
 /** Connect to the server with its token. */
 export function LoginPage() {
   const navigate = useNavigate();
   const [token, setToken] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  // A sign-in link connects at mount, so the page starts busy.
+  const [isLoading, setIsLoading] = useState(() => linkToken() !== null);
   const clientRef = useRef<RelayClient | null>(null);
 
   // Validate a token by attempting a WebSocket connection, then redirect on
   // success. Shared by the manual paste form and fragment-based auto-login.
+  // Callers mark the page busy. A failed attempt clears it, and a good one
+  // leaves the page.
   const connectWithToken = useCallback(
     (trimmedToken: string) => {
-      setIsLoading(true);
-
       // Store token first
       writeStored(TOKEN_KEY, trimmedToken);
 
@@ -80,22 +88,21 @@ export function LoginPage() {
       toast.error("Please enter a token");
       return;
     }
+    setIsLoading(true);
     connectWithToken(token.trim());
   }
 
   // Auto-login from a `#token=<64 hex>` link. The fragment is never sent to
-  // the server and is stripped from the URL before anything else happens.
-  // Without it, the manual paste form below is the fallback.
+  // the server and is stripped from the URL before anything else happens, so
+  // a second run of this effect finds nothing to do. Without it, the manual
+  // paste form below is the fallback.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-    const hashToken = params.get("token")?.trim();
+    const hashToken = linkToken();
     if (!hashToken) return;
 
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
     connectWithToken(hashToken);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [connectWithToken]);
 
   return (
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-10">

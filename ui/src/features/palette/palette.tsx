@@ -24,7 +24,7 @@ import { cn } from "@/shared/utils";
 import { isMobileViewport } from "@/shared/mobile-query";
 import { modKey, type PaletteMode } from "./palette-key";
 import { sendCommand } from "@/features/terminal/send-command";
-import { closePalette, usePaletteStore } from "./palette-store";
+import { closePalette, usePaletteStore, type PalettePrompt } from "./palette-store";
 import { isReadOnly, useConnectionStore } from "@/features/connection/connection-store";
 import { useSessionStore } from "@/features/session/session-store";
 import { searchTerminals, useTerminalSearchStore } from "./terminal-search-store";
@@ -92,6 +92,17 @@ export function Palette() {
   );
 }
 
+/** Focus the query. A restored search or a current name is selected, so typing replaces it. */
+function focusQuery(
+  element: HTMLInputElement | null,
+  mode: PaletteMode,
+  prompt: PalettePrompt | null,
+) {
+  if (!element) return;
+  element.focus();
+  if (prompt?.initial || (mode === "terminals" && element.value)) element.select();
+}
+
 function PaletteDialog() {
   const mode = usePaletteStore((s) => s.mode);
   const prompt = usePaletteStore((s) => s.prompt);
@@ -125,13 +136,7 @@ function PaletteDialog() {
     if (!prompt) setQuery("");
   }
 
-  // A restored search or a current name is selected, so typing replaces it.
-  const focusInput = () => {
-    const element = input.current;
-    if (!element) return;
-    element.focus();
-    if (prompt?.initial || (mode === "terminals" && element.value)) element.select();
-  };
+  const focusInput = () => focusQuery(input.current, mode, prompt);
   // Radix focuses on open. Later mode and prompt changes refocus here.
   const mounted = useRef(false);
   useEffect(() => {
@@ -139,8 +144,7 @@ function PaletteDialog() {
       mounted.current = true;
       return;
     }
-    focusInput();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    focusQuery(input.current, mode, prompt);
   }, [mode, prompt]);
 
   const current = MODES.find((entry) => entry.id === mode) ?? MODES[0]!;
