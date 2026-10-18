@@ -50,7 +50,13 @@ export function UploadControl({
   pickerRef?: Ref<UploadPicker>;
 }) {
   const input = useRef<HTMLInputElement>(null);
-  const destination = useRef({ path: directory, machine: machineId(), name: "" });
+  // Captured when the picker opens. The confirmation shows it and the upload
+  // goes there.
+  const [destination, setDestination] = useState(() => ({
+    path: directory,
+    machine: machineId(),
+    name: "",
+  }));
   const [files, setFiles] = useState<File[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const allowed = useConnectionStore(
@@ -64,7 +70,7 @@ export function UploadControl({
     if (!allowed) return;
     const target = machineId();
     const machine = useMachineStore.getState().machines.find((item) => item.id === target);
-    destination.current = { path, machine: target, name: machine?.name ?? target };
+    setDestination({ path, machine: target, name: machine?.name ?? target });
     input.current?.click();
   };
   useImperativeHandle(pickerRef, () => ({ choose: open }));
@@ -105,9 +111,9 @@ export function UploadControl({
               Upload {files.length} {files.length === 1 ? "file" : "files"}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Destination: {destination.current.name}
+              Destination: {destination.name}
               <br />
-              <span className="break-all font-mono">{destination.current.path}</span>
+              <span className="break-all font-mono">{destination.path}</span>
               <br />
               Existing files with matching names will be replaced after upload completes. Limit:{" "}
               {limitLabel} per file.
@@ -131,7 +137,7 @@ export function UploadControl({
             <AlertDialogAction
               disabled={oversized}
               onClick={() => {
-                startUploads(files, destination.current.path, destination.current.machine);
+                startUploads(files, destination.path, destination.machine);
                 setConfirmOpen(false);
               }}
             >
