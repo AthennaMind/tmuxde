@@ -58,7 +58,7 @@ const FLING_MAX_MS = 2500;
  *
  * Replaces `SwipeSessionSwitcher` and `PinchZoomHandler`, which stacked two
  * independent recognisers on the same element and produced three distinct bugs
- * in the gaps between them — see `features/terminal/touch-gestures.ts` for what each was.
+ * in the gaps between them. See `features/terminal/touch-gestures.ts` for what each was.
  * The decisions all live in that reducer; everything here is plumbing: DOM in,
  * effects out.
  *

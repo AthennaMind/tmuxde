@@ -78,7 +78,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
   const searchAddonRef = useRef<SearchAddon | null>(null);
   const webglAddonRef = useRef<WebglAddon | null>(null);
 
-  // Single source of truth for the attach lifecycle — see features/terminal/attach-state.ts.
+  // Single source of truth for the attach lifecycle. See features/terminal/attach-state.ts.
   const attachStateRef = useRef<AttachState>(IDLE);
   // Last size actually sent to the relay, so repeated fits at the same
   // dimensions never hit the wire.

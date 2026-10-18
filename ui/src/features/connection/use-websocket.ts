@@ -194,7 +194,7 @@ export function useWebSocket(url: string, token: string) {
             if (!zoomedPane && isMobileViewport()) {
               // Name the pane and the state. A bare `pane:zoom` is a toggle,
               // and this fires off an announcement that may race a tap the
-              // user has already made — see `features/panes/pane-zoom.ts`.
+              // user has already made. See `features/panes/pane-zoom.ts`.
               const active = msg.panes.find((p) => p.active);
               client?.send({
                 type: "pane:zoom",
@@ -309,7 +309,7 @@ export function useWebSocket(url: string, token: string) {
            *
            * A relay older than `tmux:scroll-state` rejects it as
            * `INVALID_MESSAGE`, and the probe that asked is how the client
-           * finds out the machine cannot answer — see `features/terminal/terminal-scroll.ts`.
+           * finds out the machine cannot answer. See `features/terminal/terminal-scroll.ts`.
            * Showing that to the user would be an error toast on every attach
            * to a machine whose CLI is a version behind, about a question they
            * never asked. Only a probe in flight qualifies, so a genuinely

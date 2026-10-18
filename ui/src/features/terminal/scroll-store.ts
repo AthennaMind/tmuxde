@@ -4,7 +4,7 @@ import { create } from "zustand";
  * Where the attached pane's view sits inside tmux's history.
  *
  * Mirrors the relay's `tmux:scroll-state`. It is a *report*, not a control:
- * nothing here moves the pane — `features/terminal/terminal-scroll.ts` does that, and the
+ * nothing here moves the pane. `features/terminal/terminal-scroll.ts` does that, and the
  * relay answers with the position it actually reached. Drawing the rail from
  * anything else (a locally predicted position, say) makes the thumb argue with
  * the terminal every time output arrives mid-drag.
