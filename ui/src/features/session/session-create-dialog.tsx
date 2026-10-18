@@ -28,23 +28,20 @@ export function SessionCreateDialog({ open, onOpenChange }: SessionCreateDialogP
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Listen for session:created to auto-attach
-  useRelaySubscription(
-    (msg) => {
-      if (msg.type === "session:created" && waitingForSession.current) {
-        waitingForSession.current = false;
-        if (resetTimerRef.current) {
-          clearTimeout(resetTimerRef.current);
-          resetTimerRef.current = null;
-        }
-        setIsCreating(false);
-        setActiveSession(msg.session.name);
-        if (typeof window !== "undefined") {
-          writeStored(LAST_SESSION_KEY, msg.session.name);
-        }
+  useRelaySubscription((msg) => {
+    if (msg.type === "session:created" && waitingForSession.current) {
+      waitingForSession.current = false;
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current);
+        resetTimerRef.current = null;
       }
-    },
-    [setActiveSession],
-  );
+      setIsCreating(false);
+      setActiveSession(msg.session.name);
+      if (typeof window !== "undefined") {
+        writeStored(LAST_SESSION_KEY, msg.session.name);
+      }
+    }
+  });
 
   // Clear any pending reset timer on unmount
   useEffect(() => {

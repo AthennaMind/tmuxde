@@ -1,6 +1,5 @@
 import { receiveTerminalPreview } from "@/features/panes/terminal-preview-store";
-import { useEffect, useRef } from "react";
-import type { DependencyList } from "react";
+import { useEffect, useEffectEvent } from "react";
 import type { ServerMessage } from "@/protocol";
 import { useMachineStore } from "./machine-store";
 import { copyFailureReason, copyText } from "@/shared/clipboard";
@@ -69,22 +68,21 @@ export function getRelayClient(): RelayClient | null {
  * Subscribe to relay messages, re-attaching whenever the connection status
  * changes. This binds once the client exists (it's created asynchronously by
  * the layout's `useWebSocket` effect, so it's null on first child mount) and
- * re-binds on a new socket after a reconnect. The latest `handler` is kept in a
- * ref so the subscription stays stable and doesn't churn on every render.
+ * re-binds on a new socket after a reconnect.
+ *
+ * Each message reaches the `handler` of the last committed render, through an
+ * effect event. The subscription stays put while the handler changes, so
+ * callers pass a plain closure and no dependency list.
  */
-export function useRelaySubscription(
-  handler: (msg: ServerMessage) => void,
-  deps: DependencyList = [],
-): void {
+export function useRelaySubscription(handler: (msg: ServerMessage) => void): void {
   const status = useConnectionStore((s) => s.status);
-  const ref = useRef(handler);
-  ref.current = handler;
+  const onMessage = useEffectEvent(handler);
+  // `status` only triggers the re-bind. The client to bind is read here.
   useEffect(() => {
     const client = getRelayClient();
     if (!client) return;
-    return client.onMessage((msg) => ref.current(msg));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, ...deps]);
+    return client.onMessage((msg) => onMessage(msg));
+  }, [status]);
 }
 
 /**
