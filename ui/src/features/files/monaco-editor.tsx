@@ -1,7 +1,7 @@
 import Editor, { loader } from "@monaco-editor/react";
 import type { OnMount, OnChange } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useEffectEvent, useState } from "react";
 import { useTerminalStore } from "@/features/terminal/terminal-store";
 // Before loader.config, so Monaco finds the bundled workers.
 import "./monaco-workers";
@@ -27,8 +27,19 @@ const loadingSkeleton = (
   </div>
 );
 
+type CodeEditor = Parameters<OnMount>[0];
+
 interface MonacoEditorProps {
+  /**
+   * The text to show. Monaco takes it at mount, and again whenever
+   * `revision` changes. Edits in the editor do not come back through it.
+   */
   content: string;
+  /**
+   * Changes when `content` is replaced from outside, as by a load. Typing
+   * leaves it alone. Defaults to `content`, so every new text counts.
+   */
+  revision?: unknown;
   language: string;
   readOnly?: boolean;
   onChange?: (value: string) => void;
@@ -40,6 +51,7 @@ interface MonacoEditorProps {
 
 export function MonacoEditor({
   content,
+  revision = content,
   language,
   readOnly = false,
   onChange,
@@ -48,34 +60,64 @@ export function MonacoEditor({
   wordWrap = "on",
   fontSize: fixedFontSize,
 }: MonacoEditorProps) {
-  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  // Set once Monaco has mounted. The effects below reach it through this.
+  const [editor, setEditor] = useState<CodeEditor | null>(null);
   const codeWeight = useTerminalStore((s) => s.codeWeight);
   // Follows the code zoom unless the caller fixes a size.
   const codeZoom = useTerminalStore((s) => s.codeZoom);
   const fontSize = fixedFontSize ?? Math.round(14 * codeZoom);
 
-  const handleMount: OnMount = useCallback(
-    (editor, monacoApi) => {
-      editorRef.current = editor;
+  // The package calls the `onMount` of its first render, once. It only
+  // hands the editor over. Everything that reads props runs in effects.
+  const handleMount: OnMount = useCallback((mounted, monacoApi) => {
+    setEditor(mounted);
+    // Monaco measures glyphs once. If the web font lands after mount, those
+    // widths are the fallback's and the cursor drifts off the text.
+    void document.fonts
+      .load('400 16px "Cascadia Code"', "W")
+      .then(() => monacoApi.editor.remeasureFonts())
+      .catch(() => {});
+    mounted.focus();
+  }, []);
 
-      // Register Ctrl+S / Cmd+S keybinding
-      if (onSave) {
-        editor.addCommand(monacoApi.KeyMod.CtrlCmd | monacoApi.KeyCode.KeyS, () => {
-          onSave();
-        });
-      }
+  /*
+   * Monaco owns the text while someone types. A controlled `value` raced
+   * the keyboard: the package's update effect could still hold the text of
+   * the render before the last key and write it back over that key. The
+   * text goes in at mount through `defaultValue`, and again for each new
+   * revision. An edit keeps the undo history. A read-only editor refuses
+   * edits, so it gets the text set.
+   */
+  const showContent = useEffectEvent((target: CodeEditor) => {
+    if (target.getValue() === content) return;
+    if (readOnly) {
+      target.setValue(content);
+      return;
+    }
+    const model = target.getModel();
+    if (!model) return;
+    target.executeEdits("", [
+      { range: model.getFullModelRange(), text: content, forceMoveMarkers: true },
+    ]);
+    target.pushUndoStop();
+  });
+  useEffect(() => {
+    if (editor) showContent(editor);
+  }, [editor, revision]);
 
-      // Monaco measures glyphs once. If the web font lands after mount, those
-      // widths are the fallback's and the cursor drifts off the text.
-      void document.fonts
-        .load('400 16px "Cascadia Code"', "W")
-        .then(() => monacoApi.editor.remeasureFonts())
-        .catch(() => {});
-
-      editor.focus();
-    },
-    [onSave],
-  );
+  // Ctrl+S / Cmd+S runs the `onSave` of the latest render.
+  const save = useEffectEvent(() => onSave?.());
+  const canSave = !!onSave;
+  useEffect(() => {
+    if (!editor || !canSave) return;
+    const action = editor.addAction({
+      id: "tmuxde.save",
+      label: "Save",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+      run: () => save(),
+    });
+    return () => action.dispose();
+  }, [editor, canSave]);
 
   const handleChange: OnChange = useCallback(
     (value) => {
@@ -88,7 +130,7 @@ export function MonacoEditor({
     <Editor
       height="100%"
       language={language}
-      value={content}
+      defaultValue={content}
       theme={theme}
       loading={loadingSkeleton}
       onChange={handleChange}

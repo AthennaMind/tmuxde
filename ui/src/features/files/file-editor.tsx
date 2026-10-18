@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { X, Save, WrapText, Terminal, AlertTriangle, Lock } from "lucide-react";
 import type { ServerMessage } from "@/protocol";
 import { DownloadButton } from "./transfer-controls";
@@ -71,6 +71,9 @@ function OpenFileEditor({ path }: { path: string }) {
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [externalChange, setExternalChange] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Counts loads from disk. Each one replaces the text in the editor. Typing
+  // never comes back into it, so a load is the only way in.
+  const [loads, setLoads] = useState(0);
 
   const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -93,6 +96,7 @@ function OpenFileEditor({ path }: { path: string }) {
       }
       setSavedContent(msg.content);
       setCurrentContent(msg.content);
+      setLoads((n) => n + 1);
       if (msg.truncated) {
         setIsReadOnly(true);
       }
@@ -181,23 +185,16 @@ function OpenFileEditor({ path }: { path: string }) {
     };
   }, [path, connectionStatus]);
 
-  // Monaco binds Ctrl+S once, when it mounts, so the handler it holds is
-  // the first one. Reading the text from that closure saved the text the
-  // file had when it opened. The handler reads it through a ref instead,
-  // which each commit updates before the next key can arrive.
-  const saveInput = useRef({ currentContent, isReadOnly });
-  useLayoutEffect(() => {
-    saveInput.current = { currentContent, isReadOnly };
-  }, [currentContent, isReadOnly]);
+  // The editor's Ctrl+S calls the handler of the latest render, so the text
+  // saved is the text on screen.
   const handleSave = useCallback(() => {
-    const { currentContent: content, isReadOnly: readOnly } = saveInput.current;
-    if (content === null || readOnly) return;
+    if (currentContent === null || isReadOnly) return;
     const client = getRelayClient();
     if (!client) return;
     setIsSaving(true);
-    savingRef.current = content;
-    client.send({ type: "file:write", path, content });
-  }, [path, setIsSaving]);
+    savingRef.current = currentContent;
+    client.send({ type: "file:write", path, content: currentContent });
+  }, [currentContent, isReadOnly, path, setIsSaving]);
 
   // Keep unsaved edits visible during navigation or a machine change.
   useEffect(() => {
@@ -354,6 +351,7 @@ function OpenFileEditor({ path }: { path: string }) {
           {currentContent !== null ? (
             <MonacoEditor
               content={currentContent}
+              revision={loads}
               language={language}
               readOnly={isReadOnly}
               onChange={setCurrentContent}
