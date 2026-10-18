@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AppWindow,
@@ -75,6 +75,8 @@ import { useTreeKeyboard } from "./use-tree-keyboard";
 
 /** Busy sessions report activity on every burst of output. */
 const ACTIVITY_REFRESH_MS = 3000;
+/** How long a copy waits for tmux to send the pane contents. */
+const COPY_WAIT_MS = 10_000;
 
 // What a tree of a machine that is not selected reads from the local stores.
 // Stable, so a write to those stores does not render it.
@@ -93,7 +95,10 @@ const GRID_INDENT = 38;
 type GridItem = {
   kind: "grid";
   key: string;
-  grid: Omit<PaneGridProps, "showIndex" | "tabStopId" | "onFocusPane">;
+  /** Where a cell drag of this grid starts. */
+  session: string;
+  windowId: string;
+  grid: Omit<PaneGridProps, "showIndex" | "tabStopId" | "onFocusPane" | "focusRow" | "onDrag">;
 };
 type Item = { kind: "row"; row: TreeRowModel } | GridItem;
 
@@ -216,11 +221,13 @@ export function SessionTree({
   // trigger, so on cancel nothing else would take focus back.
   const confirmReturn = useRef<HTMLElement | null>(null);
   const [, setTick] = useState(0);
-  const tree = useTreeKeyboard();
+  const { ref: treeRef, onKeyDown: onTreeKeyDown } = useTreeKeyboard();
   const sectionRef = useRef<HTMLElement>(null);
   const [paneDrag, setPaneDrag] = useState<PaneDrag | null>(null);
   const chipRef = useRef<HTMLDivElement>(null);
-  const dropWindows = useRef(new Map<string, DropWindow>());
+  // Filled while the rows are built below. The drag handlers of this render
+  // read it, and the grid calls the handlers of the last committed render.
+  const dropWindows = new Map<string, DropWindow>();
 
   // Relative times read "now", "4m", "2h". A minute tick keeps them honest
   // while they are on screen. Shown again, the tree renders with new times.
@@ -230,34 +237,40 @@ export function SessionTree({
     return () => clearInterval(id);
   }, [visible]);
 
-  // The session you are in is always open.
-  useEffect(() => {
-    if (!activeSessionId) return;
-    setExpandedSessions((prev) =>
-      prev.has(activeSessionId) ? prev : new Set(prev).add(activeSessionId),
-    );
-  }, [activeSessionId]);
-
+  // Two things open a session on their own: entering it, and a new list
+  // that brings it without details yet. One closed by hand stays closed
+  // until that happens again. Both apply while rendering, so the first
+  // frame of a change already shows the session open.
+  const [enteredSession, setEnteredSession] = useState<string | null>(null);
+  if (activeSessionId !== enteredSession) {
+    setEnteredSession(activeSessionId);
+    if (activeSessionId) {
+      setExpandedSessions((previous) =>
+        previous.has(activeSessionId) ? previous : new Set(previous).add(activeSessionId),
+      );
+    }
+  }
   const sessionNames = sessions.map((s) => s.name).join("\n");
-  useEffect(() => {
-    setExpandedSessions((previous) => {
-      const next = new Set(previous);
-      for (const session of sessions) {
-        if (!details[session.name]) next.add(session.name);
-      }
-      return next;
-    });
-  }, [sessionNames]);
+  const [listedNames, setListedNames] = useState(sessionNames);
+  if (sessionNames !== listedNames) {
+    setListedNames(sessionNames);
+    const fresh = sessions.map((session) => session.name).filter((name) => !details[name]);
+    setExpandedSessions((previous) =>
+      fresh.every((name) => previous.has(name)) ? previous : new Set([...previous, ...fresh]),
+    );
+  }
   const expandedKey = [...expandedSessions].sort().join("\n");
 
-  // Fetch details for every open session that has none yet.
+  // Fetch details for every open session that has none yet. Details change
+  // with every listing, so the effect reads them and does not rerun on them.
+  const askMissingDetails = useEffectEvent((open: string[], listed: Set<string>) => {
+    for (const name of open) {
+      if (name && listed.has(name) && !details[name]) askDetails(name);
+    }
+  });
   useEffect(() => {
     if (!connected || !asking) return;
-    const known = new Set(sessionNames.split("\n"));
-    const have = details;
-    for (const name of expandedKey.split("\n")) {
-      if (name && known.has(name) && !have[name]) askDetails(name);
-    }
+    askMissingDetails(expandedKey.split("\n"), new Set(sessionNames.split("\n")));
   }, [connected, asking, expandedKey, sessionNames]);
 
   // Any layout change in the attached session refreshes its full listing.
@@ -269,28 +282,32 @@ export function SessionTree({
       livePanes.map((p) => `${p.id}:${p.windowId}`).join(","),
     [liveWindows, livePanes],
   );
+  // The route to the machine can change while the timer runs. It asks
+  // through the current one, and a new route does not restart the wait.
+  const askAttachedDetails = useEffectEvent((name: string) => askDetails(name));
   useEffect(() => {
     if (!connected || !attachedSession || !asking) return;
-    const timer = setTimeout(() => askDetails(attachedSession), 250);
+    const timer = setTimeout(() => askAttachedDetails(attachedSession), 250);
     return () => clearTimeout(timer);
   }, [connected, attachedSession, asking, layoutKey]);
 
-  const expandedRef = useRef(expandedSessions);
-  expandedRef.current = expandedSessions;
-
   // Activity does not refresh a hidden tree. Shown again, every open session
-  // of the selected machine asks once, so no listing stays stale.
+  // of the selected machine asks once, so no listing stays stale. Only the
+  // return to asking runs it, not a change of connection or machine.
+  const askOpenSessions = useEffectEvent(() => {
+    if (!connected || !selected) return;
+    for (const name of expandedSessions) askDetails(name, ACTIVITY_REFRESH_MS);
+  });
   const wasAsking = useRef(asking);
   useEffect(() => {
     const resumed = asking && !wasAsking.current;
     wasAsking.current = asking;
-    if (!resumed || !connected || !selected) return;
-    for (const name of expandedRef.current) askDetails(name, ACTIVITY_REFRESH_MS);
+    if (resumed) askOpenSessions();
   }, [asking]);
 
   useRelaySubscription((msg) => {
     if (!selected || !asking) return;
-    if (msg.type === "session:activity" && expandedRef.current.has(msg.name)) {
+    if (msg.type === "session:activity" && expandedSessions.has(msg.name)) {
       // Commands and folders change with output, not with layout.
       askDetails(msg.name, ACTIVITY_REFRESH_MS);
     }
@@ -326,9 +343,7 @@ export function SessionTree({
     inSession(session, [select, { type: "pane:split", direction }]);
 
   const copyPane = (session: string, id: string) => {
-    useMachineStore.setState({
-      capture: { machineId: machine.id, paneId: id, expires: Date.now() + 10_000 },
-    });
+    expectPaneCopy(machine.id, id);
     inSession(session, [{ type: "pane:capture", id }]);
   };
 
@@ -389,7 +404,7 @@ export function SessionTree({
   ): DropTarget | null => {
     const element = document.elementFromPoint(x, y);
     if (!element || !sectionRef.current?.contains(element)) return null;
-    const own = dropWindows.current.get(windowId);
+    const own = dropWindows.get(windowId);
     const cell = element.closest<HTMLElement>("[data-cell]");
     if (cell) {
       const target = own?.panes.find((other) => other.id === cell.dataset.cell);
@@ -405,7 +420,7 @@ export function SessionTree({
     }
     if (!key.startsWith("w:")) return null;
     const id = key.slice(2);
-    const target = dropWindows.current.get(id);
+    const target = dropWindows.get(id);
     if (!target || target.session !== session) return null;
     if (id === windowId && target.activeId === pane.id) return null;
     const bounds = row.getBoundingClientRect();
@@ -456,7 +471,6 @@ export function SessionTree({
     items.push({ kind: "row", row });
   };
   let selectedKey: string | null = null;
-  const nextDropWindows = new Map<string, DropWindow>();
 
   for (const session of sessions) {
     const name = session.name;
@@ -600,7 +614,7 @@ export function SessionTree({
       const onScreen = live && w.id === activeWindowId;
       const focus = windowFocus(w, panes, onScreen ? { activePaneId, zoomedPaneId } : null);
       const presentation = windowPresentation(w.name, panes);
-      nextDropWindows.set(w.id, {
+      dropWindows.set(w.id, {
         session: name,
         index: w.index,
         label: presentation.label,
@@ -848,7 +862,7 @@ export function SessionTree({
                                 icon: Columns2,
                                 onSelect: () => {
                                   join(name, pane, other.w.id, "h");
-                                  grid.focusAfter(() => focusRow(`w:${other.w.id}`));
+                                  grid.focusRowAfter?.(`w:${other.w.id}`);
                                 },
                               },
                               {
@@ -856,7 +870,7 @@ export function SessionTree({
                                 icon: Rows2,
                                 onSelect: () => {
                                   join(name, pane, other.w.id, "v");
-                                  grid.focusAfter(() => focusRow(`w:${other.w.id}`));
+                                  grid.focusRowAfter?.(`w:${other.w.id}`);
                                 },
                               },
                             ],
@@ -874,7 +888,7 @@ export function SessionTree({
                       // row holds focus until then.
                       onSelect: () => {
                         breakOut(name, pane);
-                        grid.focusAfter(() => focusRow(sessionKey));
+                        grid.focusRowAfter?.(sessionKey);
                       },
                     },
                   ]
@@ -955,6 +969,8 @@ export function SessionTree({
       items.push({
         kind: "grid",
         key: `g:${w.id}`,
+        session: name,
+        windowId: w.id,
         grid: {
           layout: w.layout,
           panes,
@@ -988,7 +1004,6 @@ export function SessionTree({
                 else inSession(name, [message]);
               },
           liveResize: live,
-          onDrag: readOnly ? undefined : (event) => onPaneDrag(name, w.id, event),
           dropTargetId:
             paneDrag?.windowId === w.id && paneDrag.target?.kind === "swap"
               ? paneDrag.target.paneId
@@ -1029,7 +1044,6 @@ export function SessionTree({
     }
   }
 
-  dropWindows.current = nextDropWindows;
   for (const row of rows) {
     if (row.key === selectedKey) row.selected = true;
   }
@@ -1170,11 +1184,11 @@ export function SessionTree({
           </div>
         ) : (
           <div
-            ref={tree.ref}
+            ref={treeRef}
             data-tree
             role="group"
             aria-label="Sessions, windows and panes"
-            onKeyDown={tree.onKeyDown}
+            onKeyDown={onTreeKeyDown}
             className="@container/tree space-y-px"
           >
             {items.map((item) => {
@@ -1195,6 +1209,12 @@ export function SessionTree({
                       showIndex={showPaneIndexes}
                       tabStopId={stop}
                       onFocusPane={(pane) => setFocusKey(`p:${pane.id}`)}
+                      focusRow={focusRow}
+                      onDrag={
+                        readOnly
+                          ? undefined
+                          : (event) => onPaneDrag(item.session, item.windowId, event)
+                      }
                     />
                   </div>
                 );
@@ -1288,6 +1308,16 @@ export function SessionTree({
         )}
     </section>
   );
+}
+
+/**
+ * The next contents of this pane go to the clipboard, if they come in time.
+ * The deadline starts when the copy is picked from a menu.
+ */
+function expectPaneCopy(machineId: string, paneId: string) {
+  useMachineStore.setState({
+    capture: { machineId, paneId, expires: Date.now() + COPY_WAIT_MS },
+  });
 }
 
 /** The drag chip sits below and after the pointer, clear of the drop target. */

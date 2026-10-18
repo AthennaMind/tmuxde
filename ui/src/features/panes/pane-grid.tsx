@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Ellipsis, Maximize2, Plus } from "lucide-react";
 import type { PaneInfo, TerminalSize } from "@/protocol";
 import {
@@ -65,10 +65,11 @@ export interface PaneDragEvent {
 /** Grid actions a cell menu can offer. */
 export interface PaneGridMenu {
   /**
-   * Run this instead of focusing the cell when the menu closes. For an item
-   * that moves the pane out of this grid, so focus lands where it went.
+   * Focus this tree row instead of the cell when the menu closes. For an
+   * item that moves the pane out of this grid, so focus lands where it went.
+   * Offered when the grid has `focusRow`.
    */
-  focusAfter: (run: () => void) => void;
+  focusRowAfter?: (key: string) => void;
   /** Open the peek and move focus into it. Key P. */
   peek?: () => void;
   /** Focus the first border of the pane that a resize moves. Keys Alt and an arrow. */
@@ -136,7 +137,16 @@ export interface PaneGridProps {
    */
   tabStopId?: string | null;
   onFocusPane?: (pane: PaneInfo) => void;
+  /**
+   * Focus a row of the tree around a sidebar grid by its `data-tree-row`
+   * key. The tree outlives the grid, so focus still lands when the pane
+   * moved out and the grid went away.
+   */
+  focusRow?: (key: string) => void;
 }
+
+/** What a menu item asked for, in place of focusing the cell, once its menu closed. */
+type AfterMenu = { kind: "row"; key: string } | { kind: "peek" } | { kind: "resize" };
 
 /**
  * One window drawn as tmux draws it, every pane a button.
@@ -178,6 +188,7 @@ export function PaneGrid({
   size = "sidebar",
   tabStopId,
   onFocusPane,
+  focusRow,
 }: PaneGridProps) {
   const ref = useRef<HTMLDivElement>(null);
   const box = useElementSize(ref);
@@ -188,9 +199,9 @@ export function PaneGrid({
     at: { x: number; y: number } | null;
   } | null>(null);
   const [lastFocused, setLastFocused] = useState<string | null>(null);
-  // Runs instead of focusing the cell when the menu closes, for a menu item
-  // that moves focus somewhere else.
-  const afterMenu = useRef<(() => void) | null>(null);
+  // Set by a menu item that moves focus somewhere else. The menu's close
+  // reads it instead of focusing the cell.
+  const [afterMenu, setAfterMenu] = useState<AfterMenu | null>(null);
   // Cell a border was entered from, for Escape on the border.
   const borderOrigin = useRef<string | null>(null);
   const peek = usePanePeek(!!preview);
@@ -226,8 +237,9 @@ export function PaneGrid({
           ? focusId
           : (ordered[0]?.id ?? null);
 
-  const focusCell = (id: string) =>
-    ref.current?.querySelector<HTMLElement>(`[data-pane-cell="${CSS.escape(id)}"]`)?.focus();
+  const cellOf = (id: string) =>
+    ref.current?.querySelector<HTMLElement>(`[data-pane-cell="${CSS.escape(id)}"]`);
+  const focusCell = (id: string) => cellOf(id)?.focus();
 
   const focusBorder = (border: PaneBorder, from: string) => {
     borderOrigin.current = from;
@@ -273,12 +285,17 @@ export function PaneGrid({
   const [dragging, setDragging] = useState<string | null>(null);
   // The click that ends a drag is not a select.
   const [clicks] = useState(dragClickGuard);
+  // The window listeners of a press outlive renders. They call the `onDrag`
+  // of the last committed render.
   const onDragRef = useRef(onDrag);
-  onDragRef.current = onDrag;
+  useLayoutEffect(() => {
+    onDragRef.current = onDrag;
+  }, [onDrag]);
 
   /**
    * End the drag. `held` keeps following the press after Escape, since its
-   * release can still land on the cell and click it.
+   * release can still land on the cell and click it. It reads only refs and
+   * the state setter, so the copy of any render ends the current drag.
    */
   const endDrag = (phase: "drop" | "cancel", x: number, y: number, held = false) => {
     const current = drag.current;
@@ -299,8 +316,7 @@ export function PaneGrid({
     setDragging(null);
     onDragRef.current?.({ pane: current.pane, phase, x, y });
   };
-  const endDragRef = useRef(endDrag);
-  endDragRef.current = endDrag;
+  const cancelDrag = useEffectEvent((held: boolean) => endDrag("cancel", 0, 0, held));
 
   useEffect(() => {
     if (!dragging) return;
@@ -308,7 +324,7 @@ export function PaneGrid({
       if (event.key !== "Escape") return;
       event.preventDefault();
       event.stopPropagation();
-      endDragRef.current("cancel", 0, 0, true);
+      cancelDrag(true);
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
@@ -316,9 +332,7 @@ export function PaneGrid({
 
   // A drag the pane under it went away from ends there.
   useEffect(() => {
-    if (dragging && !panes.some((pane) => pane.id === dragging)) {
-      endDragRef.current("cancel", 0, 0);
-    }
+    if (dragging && !panes.some((pane) => pane.id === dragging)) cancelDrag(false);
   }, [dragging, panes]);
 
   /**
@@ -349,14 +363,14 @@ export function PaneGrid({
       if (current?.active || current?.cancelled) {
         clicks.release(e.target instanceof Node && element.contains(e.target));
       }
-      if (current?.active) endDragRef.current("drop", e.clientX, e.clientY);
+      if (current?.active) endDrag("drop", e.clientX, e.clientY);
       else {
         current?.stop();
         drag.current = null;
       }
     };
     const cancel = (e: PointerEvent) => {
-      if (e.pointerId === pointerId) endDragRef.current("cancel", e.clientX, e.clientY);
+      if (e.pointerId === pointerId) endDrag("cancel", e.clientX, e.clientY);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -434,29 +448,36 @@ export function PaneGrid({
     }
   };
 
+  // Items only record what they want. The menu's close does it, once
+  // focus can leave the menu.
   const gridMenu = (pane: PaneInfo): PaneGridMenu => ({
-    focusAfter: (run) => {
-      afterMenu.current = run;
-    },
-    peek: peek.enabled
-      ? () => {
-          afterMenu.current = () => {
-            const cell = ref.current?.querySelector<HTMLElement>(
-              `[data-pane-cell="${CSS.escape(pane.id)}"]`,
-            );
-            if (cell) peek.open(pane, "key", cell);
-          };
-        }
-      : undefined,
-    resize: firstBorder(pane.id)
-      ? () => {
-          afterMenu.current = () => {
-            const border = firstBorder(pane.id);
-            if (border) focusBorder(border, pane.id);
-          };
-        }
-      : undefined,
+    focusRowAfter: focusRow ? (key) => setAfterMenu({ kind: "row", key }) : undefined,
+    peek: peek.enabled ? () => setAfterMenu({ kind: "peek" }) : undefined,
+    resize: firstBorder(pane.id) ? () => setAfterMenu({ kind: "resize" }) : undefined,
   });
+
+  /** Focus where the closing menu of `pane` was asked to, else the cell. */
+  const focusAfterMenu = (pane: PaneInfo) => {
+    const next = afterMenu;
+    setAfterMenu(null);
+    switch (next?.kind) {
+      case "row":
+        focusRow?.(next.key);
+        return;
+      case "peek": {
+        const cell = cellOf(pane.id);
+        if (cell) peek.open(pane, "key", cell);
+        return;
+      }
+      case "resize": {
+        const border = firstBorder(pane.id);
+        if (border) focusBorder(border, pane.id);
+        return;
+      }
+      default:
+        focusCell(pane.id);
+    }
+  };
 
   return (
     <div
@@ -693,10 +714,7 @@ export function PaneGrid({
                   // picked moves focus on its own.
                   onCloseAutoFocus={(event) => {
                     event.preventDefault();
-                    const next = afterMenu.current;
-                    afterMenu.current = null;
-                    if (next) next();
-                    else focusCell(pane.id);
+                    focusAfterMenu(pane);
                   }}
                 >
                   {menuOpen &&
