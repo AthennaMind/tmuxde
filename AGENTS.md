@@ -28,9 +28,11 @@ Closing browser or locking UI leaves tmux running. Stopping or recreating dev co
 | `cmd/tmuxde-stt`, `internal/stt` | Optional speech binary and engine |
 | `cmd/tmuxde-stt/internal/bundle` | Command-owned model embedding and extraction |
 
-UI routes live in `ui/src/router.tsx`; remote sessions use `/m/:machineId/s/:sessionId`. Machine state lives in `stores/machine-store.ts` and `components/machine-workspace.tsx`. WebSocket handling lives in `lib/ws-client.ts` and `hooks/use-websocket.ts`.
+UI layout: `ui/src` holds `app` (bootstrap, router, routes and providers), `features` (one flat folder per feature with its components, stores, hooks, helpers and tests), `shared` (cross-cutting helpers), `components/ui` (shadcn primitives) and `protocol`. Features import each other directly. `shared`, `components/ui` and `protocol` never import features or `app`. oxlint enforces these layers and kebab-case filenames. Only connection helpers and `ui/src/features/files/file-url.ts` call `fetch`.
 
-Local lock code lives in `lib/lock-store.ts`, `lib/lock-controller.ts` and `components/lock`. Locking clears decrypted credentials and browser connections, not tmux sessions.
+UI routes live in `ui/src/app/router.tsx`; remote sessions use `/m/:machineId/s/:sessionId`. Machine state and WebSocket handling live in `ui/src/features/connection`: `machine-store.ts`, `machine-workspace.tsx`, `ws-client.ts` and `use-websocket.ts`.
+
+Local lock code lives in `ui/src/features/lock`, mainly `lock-store.ts` and `lock-controller.ts`. Locking clears decrypted credentials and browser connections, not tmux sessions.
 
 Speech uses Parakeet and Silero through sherpa-onnx. Default Go checks use stub engine. Dev STT uses `sherpa`; releases also use `stt_bundle`. Shared `internal/stt` must not contain embedded model payloads.
 
@@ -96,7 +98,7 @@ Dependency changes run inside containers. Keep pnpm's five-day release delay, di
 ## Change rules
 
 - Protocol edits need Zod schemas, Go types and registries, valid/invalid fixtures, handlers and `ui/src/protocol/PROTOCOL.md` updates. Check both Go and UI contracts.
-- Update Go routing in `internal/node/local` and browser handling in `hooks/use-websocket.ts`; update machine forwarding when affected.
+- Update Go routing in `internal/node/local` and browser handling in `ui/src/features/connection/use-websocket.ts`; update machine forwarding when affected.
 - File access goes through guards in `internal/node/files`. Tmux operations go through `internal/node/tmux`.
 - Keep remote file, repository and terminal operations scoped to their machine. Do not replay mutations after connection loss.
 - Preserve authentication, origin checks, credential redaction and local lock behavior. Browser tokens and agent tokens are separate.

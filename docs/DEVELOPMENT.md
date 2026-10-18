@@ -64,3 +64,13 @@ Rebuild images after toolchain changes; renew UI dependencies after package chan
 docker compose up -d --build --wait
 docker compose up -d --build --renew-anon-volumes --wait ui
 ```
+
+## UI layout
+
+- `ui/src/app`: bootstrap, router, routes and providers
+- `ui/src/features`: one flat folder per feature, tests co-located
+- `ui/src/shared`: cross-cutting helpers
+- `ui/src/components/ui`: shadcn primitives
+- `ui/src/protocol`: Zod wire schemas shared with Go
+
+Features import each other directly. `shared`, `components/ui` and `protocol` never import features or `app`. `make ui-lint` enforces it.
