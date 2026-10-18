@@ -32,7 +32,10 @@ Commands run inside the started containers.
 
 ```bash
 make check        # vet, lint, unit tests and typecheck
-make lint         # Go lint
+make lint         # Go and UI lint
+make go-lint      # Go lint
+make ui-lint      # UI oxlint, format check and knip
+make ui-format    # format UI with oxfmt
 make test         # Go and UI unit tests
 make typecheck    # UI typecheck
 make integration  # tmux integration tests

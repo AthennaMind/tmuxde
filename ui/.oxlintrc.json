@@ -1,0 +1,32 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": ["dist", "public", ".cache"],
+  "plugins": ["typescript", "react", "oxc", "unicorn", "import"],
+  "env": { "browser": true },
+  "categories": { "correctness": "error" },
+  "jsPlugins": [{ "name": "tmuxde", "specifier": "./lint/tmuxde-oxlint-plugin.mjs" }],
+  "rules": {
+    "no-empty": ["error", { "allowEmptyCatch": true }],
+    "no-shadow": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "react/only-export-components": ["error", { "allowConstantExport": true }],
+    "react/no-unstable-nested-components": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/error-boundaries": "warn",
+    "react/globals": "warn",
+    "react/immutability": "warn",
+    "react/incompatible-library": "warn",
+    "react/preserve-manual-memoization": "warn",
+    "react/purity": "warn",
+    "react/refs": "warn",
+    "react/set-state-in-effect": "warn",
+    "react/set-state-in-render": "warn",
+    "react/static-components": "warn",
+    "react/use-memo": "warn",
+    "react/void-use-memo": "warn",
+    "import/no-cycle": "warn",
+    "tmuxde/no-cdn-urls": "error",
+    "unicorn/filename-case": ["error", { "case": "kebabCase" }]
+  }
+}

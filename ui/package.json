@@ -10,7 +10,12 @@
     "build": "vite build --configLoader native",
     "preview": "vite preview --configLoader native --port 24100",
     "typecheck": "tsc",
-    "test": "vitest run --configLoader native"
+    "test": "vitest run --configLoader native",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "knip": "knip"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -62,6 +67,9 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "fake-indexeddb": "6.2.5",
+    "knip": "6.41.0",
+    "oxfmt": "0.73.0",
+    "oxlint": "1.88.0",
     "tailwindcss": "4.3.3",
     "tw-animate-css": "^1",
     "typescript": "7.0.2",

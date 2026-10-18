@@ -70,7 +70,10 @@ make race
 | Command | Runs |
 | --- | --- |
 | `make check` | Vet, lint, Go unit tests, UI tests and typecheck |
-| `make vet`, `make lint` | Go checks in `server-dev` |
+| `make vet`, `make go-lint` | Go checks in `server-dev` |
+| `make lint` | Go and UI lint |
+| `make ui-lint` | oxlint, oxfmt check and knip in `ui` |
+| `make ui-format` | UI formatting with oxfmt |
 | `make test` | Go and UI unit tests |
 | `make go-test`, `make ui-test` | Selected test suite |
 | `make typecheck` | UI TypeScript check |
@@ -98,7 +101,7 @@ Dependency changes run inside containers. Keep pnpm's five-day release delay, di
 - Keep remote file, repository and terminal operations scoped to their machine. Do not replay mutations after connection loss.
 - Preserve authentication, origin checks, credential redaction and local lock behavior. Browser tokens and agent tokens are separate.
 - Validate Go settings in `internal/config` or `internal/stt/config.go`; use Zod for TypeScript environment settings.
-- Use semantic color classes and existing `@/` imports. UI tooling stays in `ui/package.json`; UI has no linter or formatter. Go formatting uses gofmt.
+- Use semantic color classes and existing `@/` imports. UI tooling stays in `ui/package.json`. UI uses oxlint for lint, oxfmt for formatting and knip for unused code. Go formatting uses gofmt.
 - Browser assets stay local. No telemetry, hosted accounts, cloud dictation or automatic public runtime requests.
 
 ## Verification
@@ -111,7 +114,7 @@ Browser checks target local dev at `http://localhost:24200`, or configured dev H
 
 ## CI and releases
 
-`.github/workflows/checks.yml` runs on PRs against main, main pushes and reusable calls. Path filters select Go lint/unit/integration and UI jobs. UI protocol changes also trigger Go checks; workflow and GoReleaser changes trigger both. UI checks typecheck and test without building.
+`.github/workflows/checks.yml` runs on PRs against main, main pushes and reusable calls. Path filters select Go lint/unit/integration and UI jobs. UI protocol changes also trigger Go checks; workflow and GoReleaser changes trigger both. UI checks lint, format, knip, typecheck and test without building.
 
 Require `All checks passed` for PR protection. It always runs, accepts skipped jobs and fails on failed or cancelled jobs.
 

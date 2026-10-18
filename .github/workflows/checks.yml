@@ -243,6 +243,20 @@ jobs:
         run: |
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm --offline --config.trustLockfile=true rebuild --pending
+      - name: Lint
+        working-directory: ui
+        run: pnpm exec oxlint
+      - name: Check formatting
+        working-directory: ui
+        run: |
+          if ! pnpm exec oxfmt --check; then
+            pnpm exec oxfmt
+            git diff -- .
+            exit 1
+          fi
+      - name: Knip
+        working-directory: ui
+        run: pnpm exec knip
       - name: Typecheck and test
         working-directory: ui
         run: |
