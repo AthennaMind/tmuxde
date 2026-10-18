@@ -28,6 +28,69 @@ interface Metrics {
 const ZERO: Metrics = { offset: 0, total: 0, visible: 0 };
 
 /**
+ * The target's scroll geometry along one axis, as an external store.
+ *
+ * It notifies on scroll, on resize, and on content change. All three are
+ * needed and none implies the others: scrolling moves the thumb, resizing the
+ * box changes its size, and a list that gains rows changes `scrollHeight`
+ * without either event firing. The last is the common case here. These
+ * panels are filled asynchronously from the relay.
+ *
+ * Dragging the thumb scrolls through the store as well, so reads and writes
+ * of the element's scroll position live in one place.
+ */
+function scrollGeometry(target: HTMLElement | null, vertical: boolean) {
+  let last = ZERO;
+
+  const subscribe = (notify: () => void) => {
+    if (!target) return () => {};
+    target.addEventListener("scroll", notify, { passive: true });
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(notify);
+      observer.observe(target);
+      // The content, not just the box: a Radix viewport wraps its children in
+      // a div, and that is the node whose height actually changes.
+      const content = target.firstElementChild;
+      if (content) observer.observe(content);
+    }
+
+    let mutations: MutationObserver | null = null;
+    if (typeof MutationObserver !== "undefined") {
+      mutations = new MutationObserver(notify);
+      mutations.observe(target, { childList: true, subtree: true });
+    }
+
+    return () => {
+      target.removeEventListener("scroll", notify);
+      observer?.disconnect();
+      mutations?.disconnect();
+    };
+  };
+
+  const getSnapshot = (): Metrics => {
+    if (!target) return ZERO;
+    const offset = vertical ? target.scrollTop : target.scrollLeft;
+    const total = vertical ? target.scrollHeight : target.scrollWidth;
+    const visible = vertical ? target.clientHeight : target.clientWidth;
+    // Same numbers, same object, so an unrelated notify does not re-render.
+    if (offset !== last.offset || total !== last.total || visible !== last.visible) {
+      last = { offset, total, visible };
+    }
+    return last;
+  };
+
+  const scrollTo = (offset: number) => {
+    if (!target) return;
+    if (vertical) target.scrollTop = offset;
+    else target.scrollLeft = offset;
+  };
+
+  return { subscribe, getSnapshot, scrollTo };
+}
+
+/**
  * A thin overlay scrollbar for any scrolling element.
  *
  * The app had no scroll affordance on touch at all. Radix's `ScrollArea` is
@@ -52,7 +115,8 @@ const ZERO: Metrics = { offset: 0, total: 0, visible: 0 };
  */
 export function MiniScrollbar({ target, orientation = "vertical", className }: MiniScrollbarProps) {
   const vertical = orientation === "vertical";
-  const [metrics, setMetrics] = React.useState<Metrics>(ZERO);
+  const geometry = React.useMemo(() => scrollGeometry(target, vertical), [target, vertical]);
+  const metrics = React.useSyncExternalStore(geometry.subscribe, geometry.getSnapshot);
   const [railLength, setRailLength] = React.useState(0);
   const [active, setActive] = React.useState(false);
   const [dragging, setDragging] = React.useState(false);
@@ -77,66 +141,12 @@ export function MiniScrollbar({ target, orientation = "vertical", className }: M
     [],
   );
 
-  /*
-   * Re-measure on scroll, on resize, and on content change.
-   *
-   * All three are needed and none implies the others: scrolling moves the
-   * thumb, resizing the box changes its size, and a list that gains rows
-   * changes `scrollHeight` without either event firing. The last is the common
-   * case here — these panels are filled asynchronously from the relay.
-   */
+  // Scrolling brings the bar up for a moment.
   React.useEffect(() => {
-    if (!target) {
-      setMetrics(ZERO);
-      return;
-    }
-
-    const measure = () => {
-      setMetrics(
-        vertical
-          ? {
-              offset: target.scrollTop,
-              total: target.scrollHeight,
-              visible: target.clientHeight,
-            }
-          : {
-              offset: target.scrollLeft,
-              total: target.scrollWidth,
-              visible: target.clientWidth,
-            },
-      );
-    };
-
-    measure();
-
-    const onScroll = () => {
-      measure();
-      show();
-    };
-    target.addEventListener("scroll", onScroll, { passive: true });
-
-    let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined") {
-      observer = new ResizeObserver(measure);
-      observer.observe(target);
-      // The content, not just the box: a Radix viewport wraps its children in
-      // a div, and that is the node whose height actually changes.
-      const content = target.firstElementChild;
-      if (content) observer.observe(content);
-    }
-
-    let mutations: MutationObserver | null = null;
-    if (typeof MutationObserver !== "undefined") {
-      mutations = new MutationObserver(measure);
-      mutations.observe(target, { childList: true, subtree: true });
-    }
-
-    return () => {
-      target.removeEventListener("scroll", onScroll);
-      observer?.disconnect();
-      mutations?.disconnect();
-    };
-  }, [target, vertical, show]);
+    if (!target) return;
+    target.addEventListener("scroll", show, { passive: true });
+    return () => target.removeEventListener("scroll", show);
+  }, [target, show]);
 
   /*
    * The rail is measured from a ref callback, not a mount effect.
@@ -177,15 +187,13 @@ export function MiniScrollbar({ target, orientation = "vertical", className }: M
   const scrollToPointer = React.useCallback(
     (clientPos: number) => {
       const rail = railRef.current;
-      if (!rail || !target || travelPx <= 0) return;
+      if (!rail || travelPx <= 0) return;
       const rect = rail.getBoundingClientRect();
       const railStart = vertical ? rect.top : rect.left;
       const start = Math.min(travelPx, Math.max(0, clientPos - railStart - grabOffset.current));
-      const next = (start / travelPx) * maxOffset;
-      if (vertical) target.scrollTop = next;
-      else target.scrollLeft = next;
+      geometry.scrollTo((start / travelPx) * maxOffset);
     },
-    [target, travelPx, maxOffset, vertical],
+    [geometry, travelPx, maxOffset, vertical],
   );
 
   const onPointerDown = React.useCallback(
