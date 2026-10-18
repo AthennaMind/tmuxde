@@ -37,7 +37,12 @@ export const GraphList = memo(function GraphList({
   commits: RepoCommit[];
   /** Hash of the commit tab on screen, if any. */
   selected?: string;
-  /** Keep it stable. Every row renders again when it changes. */
+  /**
+   * Keep it stable. Rows take it as is and all render again when it changes.
+   * `CommitList` keeps the latest callback instead, because its callers
+   * rebuild theirs from navigation state on every render. The one caller here
+   * memoizes it.
+   */
   onOpen: (commit: RepoCommit) => void;
 }) {
   // Git's order can put a parent before a child. Rows follow the fixed order.

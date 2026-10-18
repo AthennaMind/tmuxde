@@ -35,9 +35,6 @@ const ZERO: Metrics = { offset: 0, total: 0, visible: 0 };
  * box changes its size, and a list that gains rows changes `scrollHeight`
  * without either event firing. The last is the common case here. These
  * panels are filled asynchronously from the relay.
- *
- * Dragging the thumb scrolls through the store as well, so reads and writes
- * of the element's scroll position live in one place.
  */
 function scrollGeometry(target: HTMLElement | null, vertical: boolean) {
   let last = ZERO;
@@ -81,13 +78,7 @@ function scrollGeometry(target: HTMLElement | null, vertical: boolean) {
     return last;
   };
 
-  const scrollTo = (offset: number) => {
-    if (!target) return;
-    if (vertical) target.scrollTop = offset;
-    else target.scrollLeft = offset;
-  };
-
-  return { subscribe, getSnapshot, scrollTo };
+  return { subscribe, getSnapshot };
 }
 
 /**
@@ -191,9 +182,11 @@ export function MiniScrollbar({ target, orientation = "vertical", className }: M
       const rect = rail.getBoundingClientRect();
       const railStart = vertical ? rect.top : rect.left;
       const start = Math.min(travelPx, Math.max(0, clientPos - railStart - grabOffset.current));
-      geometry.scrollTo((start / travelPx) * maxOffset);
+      const offset = (start / travelPx) * maxOffset;
+      // A pointer handler scrolls the element. The store hears the scroll.
+      target?.scrollTo(vertical ? { top: offset } : { left: offset });
     },
-    [geometry, travelPx, maxOffset, vertical],
+    [target, travelPx, maxOffset, vertical],
   );
 
   const onPointerDown = React.useCallback(
