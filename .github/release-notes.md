@@ -2,7 +2,7 @@ ${CHANGELOG}
 
 ## Install
 
-Linux archives for amd64 and arm64 are attached. `tmuxde` serves the UI and manages local tmux. `tmuxde-stt` is the optional speech binary with bundled models.
+Linux archives for amd64 and arm64 are attached. `tmuxde` serves the UI and manages local tmux. `tmuxde-stt` is the optional speech binary. It is large because it embeds the Parakeet and Silero models and the speech engine, so it runs self contained with no downloads at start.
 
 ```sh
 curl -fsSLO https://github.com/${REPOSITORY}/releases/download/${TAG}/tmuxde_${VERSION}_linux_amd64.tar.gz
