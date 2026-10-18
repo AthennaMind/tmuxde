@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { PaneInfo, TerminalSize } from "@/protocol";
 import {
   borderKey,
@@ -74,11 +74,10 @@ export function GridBorders({
   onLeave: (border: PaneBorder, side?: "before" | "after") => void;
 }) {
   const [drag, setDrag] = useState<Drag | null>(null);
+  // The drag under way. It outlives renders, so the pointer handlers of any
+  // render read and move it. They and the frame they schedule send with the
+  // props of the render that took the event.
   const active = useRef<Active | null>(null);
-  const onResizeRef = useRef(onResize);
-  onResizeRef.current = onResize;
-  const liveRef = useRef(live);
-  liveRef.current = live;
 
   const flush = (a: Active, final: boolean) => {
     setDrag((previous) =>
@@ -86,11 +85,11 @@ export function GridBorders({
         ? previous
         : { key: a.key, cell: a.target },
     );
-    if (!liveRef.current && !final) return;
+    if (!live && !final) return;
     const step = resizeStep(a.border.orientation, a.sent, a.target);
     if (!step) return;
     a.sent = a.target;
-    onResizeRef.current(a.owner, step.direction, step.amount);
+    onResize(a.owner, step.direction, step.amount);
   };
 
   const end = (commit: boolean) => {
@@ -105,41 +104,42 @@ export function GridBorders({
       setDrag(a.target === a.border.cell ? null : { key: a.key, cell: a.target, settling: true });
       return;
     }
-    if (liveRef.current) {
+    if (live) {
       const back = resizeStep(a.border.orientation, a.sent, a.border.cell);
-      if (back) onResizeRef.current(a.owner, back.direction, back.amount);
+      if (back) onResize(a.owner, back.direction, back.amount);
     }
     setDrag(null);
   };
-  const endRef = useRef(end);
-  endRef.current = end;
 
   const dragging = !!drag && !drag.settling;
+  // Escape cancels with the props of the render on screen, and the listener
+  // stays for the whole drag.
+  const cancelDrag = useEffectEvent(() => end(false));
   useEffect(() => {
     if (!dragging) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
       event.stopPropagation();
-      endRef.current(false);
+      cancelDrag();
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [dragging]);
 
-  // A settled border shows where tmux put it.
-  const settled = drag?.settling
-    ? borders.find((border) => borderKey(border) === drag.key)
+  // Where tmux reports a released border, while it is drawn at its drop spot.
+  const reported = drag?.settling
+    ? borders.find((border) => borderKey(border) === drag.key)?.cell
     : undefined;
+  // tmux put it at the drop spot, or the border is gone. The drop spot is
+  // no longer drawn.
+  if (drag?.settling && (reported === undefined || reported === drag.cell)) setDrag(null);
+  // Anywhere else it waits. Each move tmux reports starts the wait again.
   useEffect(() => {
-    if (!drag?.settling) return;
-    if (!settled || settled.cell === drag.cell) {
-      setDrag(null);
-      return;
-    }
+    if (reported === undefined) return;
     const timer = window.setTimeout(() => setDrag(null), SETTLE_MS);
     return () => window.clearTimeout(timer);
-  }, [drag, settled]);
+  }, [reported]);
 
   useEffect(
     () => () => {
