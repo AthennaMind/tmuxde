@@ -41,11 +41,16 @@ export function ChangesTabView({ tab, className }: { tab: ChangesTab; className?
   );
 }
 
-/** The last load of current changes, and what it was loaded for. */
-interface Answer {
+/** One run of loads for a client and view. A new object starts a new run. */
+interface LoadRun {
   client: RepositoryClient;
   /** Attach, pane and folder. */
   view: string;
+}
+
+/** The last load of current changes, and the run it belongs to. */
+interface Answer {
+  run: LoadRun;
   result?: CurrentChangesResult;
   error?: string;
   /** A reload after this answer is in flight. */
@@ -74,12 +79,15 @@ export function CurrentChangesView({
   const setWrap = useSettingsStore((s) => s.setWrapLines);
   const attached = useSessionTreeStore((s) => s.attachedSession !== null);
   const attachCount = useSessionTreeStore((s) => s.attachCount);
-  // Answers carry what they were loaded for. Another client, pane, folder or
-  // attach starts empty, so nothing has to reset them.
+  // Answers carry the run they were loaded for. Another client, pane, folder
+  // or attach starts a new run during render, and so does a return to an
+  // earlier view. A new run shows Loading until its first answer, so nothing
+  // has to reset the answer and an old one is never shown as current.
   const view = `${attachCount}:${paneId}:${path}`;
+  const [run, setRun] = useState<LoadRun>(() => ({ client, view }));
+  if (run.client !== client || run.view !== view) setRun({ client, view });
   const [answer, setAnswer] = useState<Answer>();
-  const current =
-    attached && answer?.client === client && answer.view === view ? answer : undefined;
+  const current = attached && answer?.run === run ? answer : undefined;
   const result = current?.result;
   const error = current?.error;
   // The first load has no answer yet. Later loads keep the last one on screen.
@@ -90,8 +98,7 @@ export function CurrentChangesView({
   useEffect(() => {
     if (!attached) return;
     const controller = new AbortController();
-    const mine = (prev: Answer | undefined): prev is Answer =>
-      prev?.client === client && prev.view === view;
+    const mine = (prev: Answer | undefined): prev is Answer => prev?.run === run;
     let busy = false;
     let again = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -102,12 +109,12 @@ export function CurrentChangesView({
         const next = await loadCurrentChanges(client, paneId, path, controller.signal);
         if (controller.signal.aborted) return;
         root = next.root ?? path;
-        setAnswer({ client, view, result: next, reloading: false });
+        setAnswer({ run, result: next, reloading: false });
       } catch (cause) {
         if (controller.signal.aborted) return;
         const message = cause instanceof Error ? cause.message : "Could not load changes.";
         setAnswer((prev) => ({
-          ...(mine(prev) ? prev : { client, view }),
+          ...(mine(prev) ? prev : { run }),
           error: message,
           reloading: false,
         }));
@@ -144,7 +151,7 @@ export function CurrentChangesView({
       unsubscribe();
       reload.current = () => {};
     };
-  }, [client, paneId, path, attached, view]);
+  }, [client, paneId, path, attached, run]);
 
   useVisibleInterval(() => reload.current(), watchHealthy(watch) ? 120_000 : 15_000, {
     enabled: attached,
