@@ -105,6 +105,11 @@ export function useRelayClient(): RelayClient | null {
 export function useWebSocket(url: string, token: string): void {
   useEffect(() => {
     if (!url || !token) return;
+    // An effect that ran before this one in the same commit may have asked
+    // for another machine after `url` was rendered, as `useActiveTabMachine`
+    // does on load. The switch reruns this effect with the new machine's url,
+    // so nothing opens for the old one.
+    if (useMachineStore.getState().requested) return;
 
     const serverId = machineId();
     handledExits.clear();

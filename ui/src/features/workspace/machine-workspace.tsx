@@ -8,10 +8,10 @@ import { useConnectionStore } from "@/features/connection/connection-store";
 import { usePaneStore } from "@/features/panes/pane-store";
 import { useFileStore } from "@/features/files/file-store";
 import { useScrollStore } from "@/features/terminal/scroll-store";
-import { isMachineTab, useMainTabsStore } from "./main-tabs-store";
+import { useMainTabsStore } from "./main-tabs-store";
 import { useCommandStore } from "@/features/terminal/command-store";
 import { useUiStore } from "./ui-store";
-import { activateView, openWorkspace } from "./workspace-target";
+import { openWorkspace } from "./workspace-target";
 import { RequireUnlockDialog } from "@/features/lock/require-unlock-dialog";
 import { cancelDictation } from "@/features/dictation/dictation";
 import { machineStorageKey, setMachineId } from "@/features/connection/machine-context";
@@ -32,14 +32,6 @@ export function MachineWorkspace({ children }: { children: React.ReactNode }) {
   const requested = useMachineStore((s) => s.requested);
   const unlockTarget = useMachineStore((s) => s.unlockTarget);
   const navigate = useNavigate();
-  const activeTab = useMainTabsStore((s) => s.active);
-  const activeMachine = useMachineStore((s) => s.activeMachine);
-  useEffect(() => {
-    const tab = useMainTabsStore.getState().tabs.find((item) => item.id === activeTab);
-    if (tab && isMachineTab(tab) && (tab.machineId ?? "local") !== activeMachine) {
-      activateView(tab.id);
-    }
-  }, [activeTab, activeMachine]);
   useMachines(readSelfHostedToken() ?? "");
 
   useEffect(() => {

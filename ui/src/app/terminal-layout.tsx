@@ -7,6 +7,7 @@ import { Outlet, useNavigate } from "react-router";
 import { TerminalWorkspace } from "@/features/workspace/terminal-workspace";
 import { useMachineStore } from "@/features/connection/machine-store";
 import { MachineWorkspace } from "@/features/workspace/machine-workspace";
+import { useActiveTabMachine } from "@/features/workspace/use-active-tab-machine";
 import { AppShell } from "./app-shell";
 import { useWebSocket } from "@/features/connection/use-websocket";
 import {
@@ -215,8 +216,11 @@ function TerminalLayoutInner() {
 
   // Called for its effect: this is where the socket is opened and registered.
   // Children reach it through `getRelayClient()`, not through a return value.
+  // The active tab's machine is settled first. A tab of another machine asks
+  // for a switch, and the socket effect then waits for it.
   const activeMachine = useMachineStore((s) => s.activeMachine);
   const switching = useMachineStore((s) => s.requested !== null);
+  useActiveTabMachine();
   useWebSocket(token && !switching ? resolveRelayWsUrl(activeMachine) : "", token ?? "");
 
   if (!token) {
