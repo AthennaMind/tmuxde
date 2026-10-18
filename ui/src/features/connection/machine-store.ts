@@ -18,6 +18,9 @@ export interface TerminalTab {
   sessionName: string;
 }
 
+/** How long a copy waits for tmux to send the pane contents. */
+const CAPTURE_WAIT_MS = 10_000;
+
 export interface WorkspaceTarget extends TerminalTab {
   tabId: string;
   messages: ClientMessage[];
@@ -33,9 +36,12 @@ interface MachineStore {
   pendingAction: (WorkspaceTarget & { expires: number }) | null;
   createSession: boolean;
   unlockTarget: WorkspaceTarget | null;
+  /** The pane whose next contents go to the clipboard, until `expires`. */
   capture: { machineId: string; paneId: string; expires: number } | null;
   terminals: TerminalTab[];
   update: (id: string, patch: Partial<MachineSessions>) => void;
+  /** Send the next contents of this pane to the clipboard, if they come in time. */
+  expectCapture: (machineId: string, paneId: string) => void;
   openTerminal: (machineId: string, sessionName: string) => void;
   closeTerminal: (machineId: string, sessionName: string) => void;
 }
@@ -68,6 +74,10 @@ export const useMachineStore = create<MachineStore>()(
             },
           },
         })),
+      expectCapture: (captureMachineId, paneId) =>
+        set({
+          capture: { machineId: captureMachineId, paneId, expires: Date.now() + CAPTURE_WAIT_MS },
+        }),
       openTerminal: (tabMachineId, sessionName) =>
         set((s) =>
           s.terminals.some(

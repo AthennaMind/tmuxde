@@ -75,8 +75,6 @@ import { useTreeKeyboard } from "./use-tree-keyboard";
 
 /** Busy sessions report activity on every burst of output. */
 const ACTIVITY_REFRESH_MS = 3000;
-/** How long a copy waits for tmux to send the pane contents. */
-const COPY_WAIT_MS = 10_000;
 
 // What a tree of a machine that is not selected reads from the local stores.
 // Stable, so a write to those stores does not render it.
@@ -343,7 +341,7 @@ export function SessionTree({
     inSession(session, [select, { type: "pane:split", direction }]);
 
   const copyPane = (session: string, id: string) => {
-    expectPaneCopy(machine.id, id);
+    useMachineStore.getState().expectCapture(machine.id, id);
     inSession(session, [{ type: "pane:capture", id }]);
   };
 
@@ -1308,16 +1306,6 @@ export function SessionTree({
         )}
     </section>
   );
-}
-
-/**
- * The next contents of this pane go to the clipboard, if they come in time.
- * The deadline starts when the copy is picked from a menu.
- */
-function expectPaneCopy(machineId: string, paneId: string) {
-  useMachineStore.setState({
-    capture: { machineId, paneId, expires: Date.now() + COPY_WAIT_MS },
-  });
 }
 
 /** The drag chip sits below and after the pointer, clear of the drop target. */
