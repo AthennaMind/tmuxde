@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import type { RepoResult } from "@/protocol";
 import { useSessionTreeStore } from "@/features/session/session-tree-store";
 import {
@@ -35,8 +35,9 @@ export function useRepositoryQuery(
   // An absolute path answers the same through any pane, so the pane stays out
   // of the key. Moving between panes then asks nothing again.
   const key = JSON.stringify(query && isPaneFree(query) ? { ...query, id: undefined } : query);
-  const paneId = useRef(query?.id);
-  paneId.current = query?.id;
+  // The pane is read when a request goes out, so a new pane alone sends
+  // nothing for a key that leaves it out.
+  const requestPane = useEffectEvent(() => query?.id ?? "");
   // The relay refuses repository requests until a new socket has attached.
   // Waiting for that, and asking again after it, clears an error left by a
   // reconnect. A switch between sessions keeps this true and asks nothing.
@@ -52,7 +53,7 @@ export function useRepositoryQuery(
     const controller = new AbortController();
     repositoryRequest(
       client,
-      { ...(JSON.parse(key) as RepositoryQuery), id: paneId.current ?? "" },
+      { ...(JSON.parse(key) as RepositoryQuery), id: requestPane() },
       controller.signal,
     )
       .then((result) => {

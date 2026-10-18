@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 
 /** File gestures leave native vertical and wide-code scrolling available. */
 export function RepositoryNavigationSurface({
@@ -11,8 +11,11 @@ export function RepositoryNavigationSurface({
   forward: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const actions = useRef({ back, forward });
-  actions.current = { back, forward };
+  // Reads the newest callbacks when a swipe ends, so the listeners stay put.
+  const swipe = useEffectEvent((dx: number) => {
+    if (dx > 0) back();
+    else forward();
+  });
 
   useEffect(() => {
     const element = ref.current;
@@ -81,10 +84,7 @@ export function RepositoryNavigationSurface({
         (point) => point.identifier === current.id,
       );
       const dx = (touch?.clientX ?? current.lastX) - current.x;
-      if (Math.abs(dx) >= 60) {
-        if (dx > 0) actions.current.back();
-        else actions.current.forward();
-      }
+      if (Math.abs(dx) >= 60) swipe(dx);
     };
     const cancel = () => {
       drag = null;

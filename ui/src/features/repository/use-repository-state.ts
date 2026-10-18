@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import type { RepoResult } from "@/protocol";
 import { useRelayClient } from "@/features/connection/use-websocket";
 import { useVisibleInterval } from "@/shared/use-visible-interval";
@@ -132,9 +132,12 @@ export function useRepositoryState(watching: boolean): RepositoryState {
   // never start a second request. One more runs after the answer instead.
   const statusBusy = useRef(false);
   const statusAgain = useRef(false);
+  // An absolute path, so `repositoryRequest` sends it through the active
+  // pane. The context's pane is only the fallback, read when the request
+  // goes out. A new one alone asks nothing.
+  const statusPane = useEffectEvent(() => usePaneStore.getState().activePaneId ?? contextPane);
   useEffect(() => {
-    // An absolute path, so `repositoryRequest` sends it through the active pane.
-    const paneId = usePaneStore.getState().activePaneId ?? contextPane;
+    const paneId = statusPane();
     if (!statusRequestKey || !client || !paneId || !contextPath) return;
     const controller = new AbortController();
     statusBusy.current = true;

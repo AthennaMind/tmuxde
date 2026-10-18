@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { create } from "zustand";
 import type { RepoChangedMessage, RepoWatchResultMessage } from "@/protocol";
 import type { RepositoryClient } from "./repository-request";
@@ -161,23 +161,22 @@ export function useRepoWatch(
   const attachCount = useSessionTreeStore((s) => s.attachCount);
   // The pane and folder may move inside one repository. That needs no new
   // watch, so they are read when the watch is sent.
-  const held = useRef(target);
-  held.current = target;
+  const sendWatch = useEffectEvent((to: RepositoryClient): boolean => {
+    const { paneId, path } = target;
+    const id = usePaneStore.getState().activePaneId ?? paneId;
+    if (!id) return false;
+    to.send({
+      type: "repo:watch",
+      id,
+      ...(path?.startsWith("/") ? { path } : {}),
+    });
+    return true;
+  });
 
   useEffect(() => {
     if (!client || !supported || !attached || !root) return;
     if (client.status !== "connected") return;
-    return startRepoWatch(client, root, () => {
-      const { paneId, path } = held.current;
-      const id = usePaneStore.getState().activePaneId ?? paneId;
-      if (!id) return false;
-      client.send({
-        type: "repo:watch",
-        id,
-        ...(path?.startsWith("/") ? { path } : {}),
-      });
-      return true;
-    });
+    return startRepoWatch(client, root, () => sendWatch(client));
   }, [client, supported, attached, attachCount, root]);
 
   return useRepoWatchStore((s) => (root ? s.roots[trimSlash(root)] : undefined));
@@ -189,14 +188,15 @@ export function useRepoWatch(
  */
 export function useRepoChangeCount(match: ((change: RepoChange) => boolean) | null): number {
   const [count, setCount] = useState(0);
-  const held = useRef(match);
-  held.current = match;
+  // Callers pass a new `match` each render. The one from the latest render
+  // judges each push, so the subscription stays put.
+  const accepts = useEffectEvent((change: RepoChange) => match?.(change) ?? false);
   useEffect(
     () =>
       useRepoWatchStore.subscribe((s, prev) => {
         const change = s.lastChange;
         if (!change || change === prev.lastChange) return;
-        if (held.current?.(change)) setCount((n) => n + 1);
+        if (accepts(change)) setCount((n) => n + 1);
       }),
     [],
   );
