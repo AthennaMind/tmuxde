@@ -8,12 +8,9 @@ import {
 /**
  * Arms everything install-related, as early as the app renders anything.
  *
- * It lives in the root layout rather than in `(terminal)/layout.tsx`, where the
- * registration used to be, for two reasons. `beforeinstallprompt` fires once
- * and very early — a listener attached after the terminal route group has
- * mounted routinely misses it — and the invite URL the CLI prints lands on
- * `/j#code`, not on the terminal, so users following the documented path never
- * reached the old registration at all.
+ * It lives in the root layout, `app/root-layout.tsx`, rather than in the
+ * terminal layout. `beforeinstallprompt` fires once and very early, and a
+ * listener attached after the terminal route has mounted routinely misses it.
  *
  * Renders nothing.
  */
@@ -22,12 +19,12 @@ export function PwaProvider() {
     /*
      * `isSecureContext` is the gate, not a nicety.
      *
-     * `mtmux start` serves the app over plain http on the LAN
-     * (`apps/cli/src/serve.ts`), where `serviceWorker.register` rejects by
-     * spec. The old call site swallowed that rejection into an empty catch, so
-     * the self-hosted path had a permanently failing registration and no
-     * signal anywhere. Not attempting it is the honest version — and iOS "Add
-     * to Home Screen" still works there, which is why the manifest stays.
+     * The Go server speaks plain HTTP. Opened on a LAN address with no TLS
+     * proxy in front, `serviceWorker.register` rejects by spec. The old call
+     * site swallowed that rejection into an empty catch, so that path had a
+     * permanently failing registration and no signal anywhere. Not attempting
+     * it is the honest version. iOS "Add to Home Screen" still works there,
+     * which is why the manifest stays.
      */
     if (!window.isSecureContext || !("serviceWorker" in navigator)) return;
 

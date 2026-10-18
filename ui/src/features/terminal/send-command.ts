@@ -8,9 +8,9 @@ import { isShell } from "@/shared/shell-commands";
  *
  * There used to be four, and they disagreed in ways users felt:
  *
- * - The mobile bar sent `terminal:input`, which the relay drops on the floor
- *   when nothing is attached (`message-router.ts`). `command:send` replies
- *   `NOT_ATTACHED` instead, so a send that cannot land says so.
+ * - The mobile bar sent `terminal:input`, which the old Node relay dropped
+ *   when nothing was attached. The Go node now replies `NOT_ATTACHED` to both
+ *   messages (`write` in `internal/node/local/attach.go`).
  * - The mobile bar never called `addToHistory`, so nothing typed on a phone was
  *   ever remembered — the palette's history was desktop-only by accident.
  * - The file tree and editor deliberately do *not* want their generated

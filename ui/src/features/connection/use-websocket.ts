@@ -291,7 +291,7 @@ export function useWebSocket(url: string, token: string) {
           break;
         }
         case "session:windows":
-          // Mobile SessionCard also listens directly for its own request.
+          // Inventory clients in use-machines.ts keep their own per-machine copy.
           useSessionTreeStore.getState().setDetails(msg.name, {
             windows: msg.windows,
             panes: msg.panes,

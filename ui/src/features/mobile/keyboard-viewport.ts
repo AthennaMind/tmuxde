@@ -4,13 +4,13 @@
  * The obvious formula — `innerHeight - visualViewport.height` — is wrong here
  * twice, and both failures are caused by things this app deliberately does:
  *
- * 1. **Android reads ~0.** `app/layout.tsx` sets `interactiveWidget:
- *    "resizes-content"`, which is what makes the terminal usable with the
- *    keyboard up: Chrome shrinks the *layout* viewport too, so the difference
- *    between the two stays near zero however tall the keyboard is. The only
- *    thing that moves is the absolute height, so detection needs a baseline —
- *    the tallest height seen for this orientation with nothing focused and no
- *    zoom — and measures the drop from it.
+ * 1. **Android reads ~0.** The viewport meta in `index.html` sets
+ *    `interactive-widget=resizes-content`, which is what makes the terminal
+ *    usable with the keyboard up: Chrome shrinks the *layout* viewport too, so
+ *    the difference between the two stays near zero however tall the keyboard
+ *    is. The only thing that moves is the absolute height, so detection needs
+ *    a baseline and measures the drop from it. The baseline is the tallest
+ *    height seen for this orientation with nothing focused and no zoom.
  *
  * 2. **Pinch-zoom reads as a keyboard.** At `scale: 2` the visual viewport is
  *    half as tall, which is a 400px "keyboard" on a phone. The app ships a
