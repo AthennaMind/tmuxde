@@ -117,7 +117,7 @@ Require `All checks passed` for PR protection. It always runs, accepts skipped j
 
 Gitleaks scans checked-out history on every check run with redacted output. Its CLI download is pinned, cached and checksum verified. Integration jobs test latest two stable tmux releases, currently 3.7c and 3.8.
 
-`.github/workflows/release.yml` calls checks with `full-checks: true` on `v*` tags. Binary publishing waits for checks; image publishing waits for binaries and checks.
+`.github/workflows/release.yml` calls checks with `full-checks: true` on `v*` tags. GoReleaser then creates a draft release with grouped changelog, archives and a cosign signed `checksums.txt`. Images build after binaries and are signed by digest. A final publish job renders `.github/release-notes.md` with the changelog, image digests and verify commands, then publishes the release. Signing is keyless through GitHub OIDC; no signing secrets exist.
 
 CI uses direct native commands and official setup, golangci-lint, GoReleaser and Docker actions. Keep commands visible in YAML; no repository scripts or Make wrappers. Actions read Go version from `go.mod`.
 
