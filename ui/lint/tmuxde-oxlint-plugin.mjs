@@ -1,9 +1,11 @@
 // Project rules for oxlint. Loaded through jsPlugins in .oxlintrc.json.
 
-// Hosts of public CDNs, subdomains included. A regex literal keeps this file
-// free of the string literals the rule flags.
+// Hosts of public CDNs, subdomains included. A host must start the string or
+// follow `//` or a non path character, so a path segment such as `/esm.sh`
+// passes. A regex literal keeps this file free of the string literals the
+// rule flags.
 const CDN_HOST =
-  /(?:^|[^\w-])(?:[\w-]+\.)*(?:unpkg\.com|cdn\.jsdelivr\.net|jsdelivr\.com|cdnjs\.cloudflare\.com|cdn\.skypack\.dev|esm\.sh|fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.tailwindcss\.com|ajax\.googleapis\.com)(?![\w-])/i;
+  /(?:^|\/\/|[^\w.\/-])(?:[\w-]+\.)*(?:unpkg\.com|jsdelivr\.net|jsdelivr\.com|cdnjs\.cloudflare\.com|cdn\.skypack\.dev|esm\.sh|esm\.run|jspm\.io|jspm\.dev|fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.tailwindcss\.com|ajax\.googleapis\.com)(?![\w-])/i;
 
 const noCdnUrls = {
   meta: {
