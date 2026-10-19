@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { downloadFile, getFileUrl } from "./file-url";
+import { downloadFile, fetchFileStreamUrl, getFileUrl } from "./file-url";
 import { setMachineId } from "@/features/connection/machine-context";
 
 vi.mock("@/features/connection/relay-url", () => ({
@@ -72,5 +72,45 @@ describe("file downloads", () => {
   it("keeps explicit local route when active machine is remote", () => {
     setMachineId("beta");
     expect(getFileUrl("/x", true, "local")).toBe("https://hub.test/file?path=%2Fx&download=1");
+  });
+});
+
+describe("file streams", () => {
+  function ticket(body: unknown, status = 200) {
+    vi.stubGlobal("window", {});
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
+    vi.stubGlobal("fetch", fetch);
+    return fetch;
+  }
+
+  it("mints a ticket with the bearer and puts only the ticket in the URL", async () => {
+    setMachineId("beta");
+    const fetch = ticket({ ticket: "abc_-123", expiresIn: 900 });
+    const url = await fetchFileStreamUrl("/clips/a b.mp4", "alpha");
+    const [target, options] = fetch.mock.calls[0]!;
+    expect(target).toBe("https://hub.test/file/ticket");
+    expect(options.method).toBe("POST");
+    expect(options.headers.Authorization).toBe("Bearer test-token");
+    expect(JSON.parse(options.body)).toEqual({ path: "/clips/a b.mp4", machine: "alpha" });
+    const parsed = new URL(url);
+    expect(parsed.pathname).toBe("/file");
+    expect(parsed.searchParams.get("path")).toBe("/clips/a b.mp4");
+    expect(parsed.searchParams.get("machine")).toBe("alpha");
+    expect(parsed.searchParams.get("ticket")).toBe("abc_-123");
+    expect(url).not.toContain("token");
+  });
+
+  it("names no machine for local", async () => {
+    const fetch = ticket({ ticket: "t", expiresIn: 900 });
+    const url = await fetchFileStreamUrl("/x", "local");
+    expect(JSON.parse(fetch.mock.calls[0]![1].body)).toEqual({ path: "/x" });
+    expect(new URL(url).searchParams.has("machine")).toBe(false);
+  });
+
+  it("rejects a refused request and a malformed ticket", async () => {
+    ticket("Unauthorized", 401);
+    await expect(fetchFileStreamUrl("/x", "local")).rejects.toThrow("401");
+    ticket({ ticket: "a+b", expiresIn: 900 });
+    await expect(fetchFileStreamUrl("/x", "local")).rejects.toThrow();
   });
 });

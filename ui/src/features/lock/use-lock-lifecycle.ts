@@ -9,7 +9,8 @@ import { isEnrolled, isUnlocked, subscribeLock } from "./unlocked";
  * 1. **Cold load** — structural. The master key is a module variable; a reload
  *    loses it. No code here does that, which is the point.
  * 2. **Idle timeout** — default 15 minutes.
- * 3. **Explicit** — Ctrl/Cmd+Shift+L.
+ * 3. **Explicit**: the `lock.now` binding, Ctrl+Shift+L or Cmd+Shift+L by
+ *    default, and the palette.
  * 4. **Backgrounding** — *default off on mobile*. iOS fires `visibilitychange`
  *    for the app switcher, the share sheet and the Face ID prompt itself, so it
  *    needs a grace period and hard suppression during a WebAuthn ceremony
@@ -53,28 +54,18 @@ export function useLockLifecycle(): void {
       timer = setTimeout(() => lockNow("idle"), minutes * 60_000);
     };
     reset();
+    // Capture phase. xterm and the keybindings listener stop the keys they
+    // handle, so a bubble listener would miss terminal typing and shortcuts.
     for (const event of ACTIVITY_EVENTS) {
-      window.addEventListener(event, reset, { passive: true });
+      window.addEventListener(event, reset, { passive: true, capture: true });
     }
     return () => {
       clearTimeout(timer);
       for (const event of ACTIVITY_EVENTS) {
-        window.removeEventListener(event, reset);
+        window.removeEventListener(event, reset, { capture: true });
       }
     };
   }, [settings]);
-
-  // Explicit lock.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "l") {
-        e.preventDefault();
-        lockNow("manual");
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
 
   // Lock on background, and blur while hidden.
   useEffect(() => {

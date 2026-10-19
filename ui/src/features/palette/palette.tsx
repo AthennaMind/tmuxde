@@ -22,7 +22,10 @@ import {
 import { getTerminalHandle } from "@/features/terminal/terminal-handle";
 import { cn } from "@/shared/utils";
 import { isMobileViewport } from "@/shared/mobile-query";
-import { modKey, type PaletteMode } from "./palette-key";
+import type { PaletteMode } from "./palette-key";
+import type { CommandId } from "@/features/keybindings/command-ids";
+import { useKeybindingsStore } from "@/features/keybindings/keybindings-store";
+import { shortcutLabel } from "@/features/keybindings/shortcut-label";
 import { sendCommand } from "@/features/terminal/send-command";
 import { closePalette, usePaletteStore, type PalettePrompt } from "./palette-store";
 import { isReadOnly, useConnectionStore } from "@/features/connection/connection-store";
@@ -38,7 +41,8 @@ const MODES: {
   id: PaletteMode;
   label: string;
   icon: typeof ChevronRight;
-  keys: string;
+  /** Binding whose chord the mode chip shows. */
+  command: CommandId;
   title: string;
   placeholder: string;
 }[] = [
@@ -46,7 +50,7 @@ const MODES: {
     id: "commands",
     label: "Commands",
     icon: ChevronRight,
-    keys: "K",
+    command: "palette.commands",
     title: "Command palette",
     placeholder: "Type a command or search…",
   },
@@ -54,7 +58,7 @@ const MODES: {
     id: "files",
     label: "Files",
     icon: FileSearch,
-    keys: "P",
+    command: "palette.files",
     title: "Find files",
     placeholder: "Find a file…",
   },
@@ -62,7 +66,7 @@ const MODES: {
     id: "terminals",
     label: "Terminals",
     icon: TextSearch,
-    keys: "⇧F",
+    command: "palette.terminals",
     title: "Search terminals",
     placeholder: "Search terminal history…",
   },
@@ -120,6 +124,7 @@ function PaletteDialog() {
     document.activeElement instanceof HTMLElement ? document.activeElement : null,
   );
   const after = useRef<"terminal" | null>(null);
+  const keymap = useKeybindingsStore((s) => s.keymap);
   const [seenMode, setSeenMode] = useState(mode);
   const [seenPrompt, setSeenPrompt] = useState(prompt);
 
@@ -296,12 +301,13 @@ function PaletteDialog() {
                 >
                   {MODES.map((entry) => {
                     const active = entry.id === mode;
+                    const keys = shortcutLabel(entry.command, keymap);
                     return (
                       <button
                         key={entry.id}
                         type="button"
                         aria-pressed={active}
-                        title={modKey(entry.keys)}
+                        title={keys}
                         onClick={() => setMode(entry.id)}
                         className={cn(
                           "flex min-h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium",
@@ -313,9 +319,11 @@ function PaletteDialog() {
                       >
                         <entry.icon className="size-3.5" aria-hidden />
                         {entry.label}
-                        <Kbd aria-hidden className="hidden sm:inline-flex">
-                          {modKey(entry.keys)}
-                        </Kbd>
+                        {keys && (
+                          <Kbd aria-hidden className="hidden sm:inline-flex">
+                            {keys}
+                          </Kbd>
+                        )}
                       </button>
                     );
                   })}

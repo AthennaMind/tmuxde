@@ -17,11 +17,15 @@ import { localToken } from "@/features/lock/unlocked";
  * The `mtmux-*` keys have no copy-forward. That rename came with a fresh
  * deployment, so every device signs in again once.
  *
- * Zustand's persisted stores (`ccremote-terminal`, `ccremote-commands`, …) are
- * deliberately *not* renamed. Their names are invisible, and changing one makes
- * `persist` look in a key that does not exist, silently resetting somebody's
- * font size and command history to defaults. A cosmetic rename is not worth
- * that; they can move whenever those stores next take a schema version.
+ * Zustand's persisted stores (`ccremote-commands`, …) are deliberately *not*
+ * renamed. Their names are invisible, and changing one makes `persist` look in
+ * a key that does not exist, silently resetting somebody's command history to
+ * defaults. A cosmetic rename is not worth that. They can move whenever those
+ * stores next take a schema version.
+ *
+ * `ccremote-settings` and `ccremote-terminal` are read once more by
+ * `features/settings/settings-migration.ts`, which moves them into the synced
+ * settings document and this browser's `tmuxde-device-settings`.
  */
 
 export const TOKEN_KEY = "tmuxde-token";

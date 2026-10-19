@@ -1,19 +1,10 @@
-import { afterEach, describe, it, expect, vi } from "vitest";
-import {
-  mergeCommitFilter,
-  mergeGestures,
-  mergeToolbarKeys,
-  defaultToolbarKeys,
-  type GestureSettings,
-} from "./settings-store";
+import { describe, it, expect, vi } from "vitest";
+import { mergeToolbarKeys, defaultToolbarKeys } from "./settings-store";
 
 /**
- * The migration is the whole feature for anyone who has opened the app before.
- *
- * `persist` writes `toolbarKeys` to localStorage on first run and hands that
- * frozen array back forever, so a key added to the defaults would otherwise
- * reach new installs only — and `Shift+Tab` is being added for people who
- * already use this every day.
+ * Stored visibility meets the current defaults here, for legacy rows and for
+ * the visible ids of the settings document. A key added to the defaults must
+ * reach people who saved their row before it existed.
  */
 describe("mergeToolbarKeys", () => {
   const legacy = [
@@ -61,156 +52,31 @@ describe("mergeToolbarKeys", () => {
   });
 });
 
-/**
- * The same migration problem, one level down.
- *
- * The obvious spread — `{ ...current, ...stored }` — copies whatever is in
- * localStorage back out, including keys that no longer exist. That matters
- * here because two gesture toggles were removed after shipping (they were
- * switches wired to nothing), and a plain spread would have carried them in
- * every persisted blob forever. It also has to survive a stored value of
- * `false`, which is the whole point of a toggle someone turned off.
- */
-describe("mergeGestures", () => {
-  const current: GestureSettings = {
-    swipeToSwitchSessions: true,
-    swipeToSwitchPanes: true,
-    dragToScroll: true,
-    pinchToZoom: true,
-    longPressPaneMenu: true,
-  };
-
-  it("keeps a toggle the user turned off", () => {
-    expect(mergeGestures({ pinchToZoom: false }, current)).toEqual({
-      ...current,
-      pinchToZoom: false,
-    });
+describe("settings store", () => {
+  it("defaults to no commit filter patterns in hide mode", async () => {
+    const { useSettingsStore } = await import("./settings-store");
+    expect(useSettingsStore.getState().commitFilterPatterns).toBe("");
+    expect(useSettingsStore.getState().commitFilterMode).toBe("hide");
   });
 
-  it("drops keys that no longer exist", () => {
-    const stored = {
-      pinchToZoom: false,
-      // Both removed after shipping; a spread would keep resurrecting them.
-      doubleTapToCopy: true,
-      longPressContextMenu: true,
-      twoFingerScroll: false,
-    } as Partial<GestureSettings>;
-    const merged = mergeGestures(stored, current);
-    expect(Object.keys(merged).sort()).toEqual(Object.keys(current).sort());
+  it("toggles one toolbar key and keeps the rest", async () => {
+    const { useSettingsStore } = await import("./settings-store");
+    const before = useSettingsStore.getState().toolbarKeys;
+    useSettingsStore.getState().toggleToolbarKey("at");
+    const after = useSettingsStore.getState().toolbarKeys;
+    expect(after.find((k) => k.id === "at")?.visible).toBe(true);
+    expect(after.filter((k) => k.id !== "at")).toEqual(before.filter((k) => k.id !== "at"));
+    useSettingsStore.getState().resetToolbarKeys();
+    expect(useSettingsStore.getState().toolbarKeys).toBe(defaultToolbarKeys);
   });
 
-  it("gives a new toggle its default on an install that predates it", () => {
-    // `dragToScroll` replaced the never-implemented `twoFingerScroll`.
-    const merged = mergeGestures({ twoFingerScroll: false } as Partial<GestureSettings>, current);
-    expect(merged.dragToScroll).toBe(true);
-  });
-
-  it("ignores a non-boolean left behind by a hand-edit", () => {
-    const merged = mergeGestures(
-      { pinchToZoom: "yes" } as unknown as Partial<GestureSettings>,
-      current,
-    );
-    expect(merged.pinchToZoom).toBe(true);
-  });
-
-  it("returns the defaults when nothing was stored", () => {
-    expect(mergeGestures(undefined, current)).toEqual(current);
-  });
-
-  it("does not mutate the defaults it was handed", () => {
-    const snapshot = { ...current };
-    mergeGestures({ dragToScroll: false }, current);
-    expect(current).toEqual(snapshot);
-  });
-});
-
-describe("mergeCommitFilter", () => {
-  const current = { commitFilterPatterns: "", commitFilterMode: "hide" as const };
-
-  it("keeps a stored filter", () => {
-    expect(
-      mergeCommitFilter({ commitFilterPatterns: "md, docs/**", commitFilterMode: "only" }, current),
-    ).toEqual({ commitFilterPatterns: "md, docs/**", commitFilterMode: "only" });
-  });
-
-  it("gives the defaults to a blob from before the filter", () => {
-    expect(mergeCommitFilter({}, current)).toEqual(current);
-    expect(mergeCommitFilter(undefined, current)).toEqual(current);
-  });
-
-  it("ignores a mode or text of the wrong shape", () => {
-    expect(
-      mergeCommitFilter(
-        {
-          commitFilterPatterns: 3,
-          commitFilterMode: "show",
-        } as unknown as Parameters<typeof mergeCommitFilter>[0],
-        current,
-      ),
-    ).toEqual(current);
-  });
-});
-
-function memoryStorage(): Storage {
-  const map = new Map<string, string>();
-  return {
-    get length() {
-      return map.size;
-    },
-    clear: () => map.clear(),
-    getItem: (k: string) => map.get(k) ?? null,
-    key: (i: number) => Array.from(map.keys())[i] ?? null,
-    removeItem: (k: string) => void map.delete(k),
-    setItem: (k: string, v: string) => void map.set(k, v),
-  };
-}
-
-/**
- * A fresh store module over the given storage, hydrated on import. `persist`
- * reads `window.localStorage`, so both globals get the stub.
- */
-async function loadStore(storage: Storage) {
-  vi.stubGlobal("localStorage", storage);
-  vi.stubGlobal("window", { localStorage: storage });
-  vi.resetModules();
-  return (await import("./settings-store")).useSettingsStore;
-}
-
-describe("commit filter settings", () => {
-  afterEach(() => {
+  it("no longer writes the legacy localStorage blob", async () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", { getItem: () => null, setItem, removeItem: vi.fn() });
+    vi.resetModules();
+    const { useSettingsStore } = await import("./settings-store");
+    useSettingsStore.getState().setWrapLines(true);
+    expect(setItem).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
-  });
-
-  it("defaults to no patterns in hide mode", async () => {
-    const store = await loadStore(memoryStorage());
-    expect(store.getState().commitFilterPatterns).toBe("");
-    expect(store.getState().commitFilterMode).toBe("hide");
-  });
-
-  it("persists patterns and mode", async () => {
-    const storage = memoryStorage();
-    const store = await loadStore(storage);
-    store.getState().setCommitFilterPatterns("md, *.sh");
-    store.getState().setCommitFilterMode("only");
-    const saved = JSON.parse(storage.getItem("ccremote-settings") ?? "{}");
-    expect(saved.state.commitFilterPatterns).toBe("md, *.sh");
-    expect(saved.state.commitFilterMode).toBe("only");
-
-    // Next page load reads them back.
-    const reloaded = await loadStore(storage);
-    expect(reloaded.getState().commitFilterPatterns).toBe("md, *.sh");
-    expect(reloaded.getState().commitFilterMode).toBe("only");
-  });
-
-  it("keeps other settings when a stored blob predates the filter", async () => {
-    const storage = memoryStorage();
-    storage.setItem(
-      "ccremote-settings",
-      JSON.stringify({ state: { wrapLines: true }, version: 2 }),
-    );
-    const store = await loadStore(storage);
-    expect(store.getState().wrapLines).toBe(true);
-    expect(store.getState().commitFilterPatterns).toBe("");
-    expect(store.getState().commitFilterMode).toBe("hide");
   });
 });

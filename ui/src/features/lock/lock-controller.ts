@@ -25,6 +25,7 @@ export type LockReason = "manual" | "idle" | "background" | "other-tab";
 type Disconnect = () => void;
 
 let disconnect: Disconnect | null = null;
+const beforeLock = new Set<() => void>();
 let channel: BroadcastChannel | null = null;
 /**
  * Set for the duration of any WebAuthn ceremony.
@@ -45,6 +46,20 @@ export function registerDisconnect(fn: Disconnect | null): void {
   disconnect = fn;
 }
 
+/**
+ * Run `fn` at the start of every lock, while the token is still held.
+ *
+ * For a request that must reach the server first, such as a settings save
+ * still waiting out its pause. `fn` must send synchronously: the token is gone
+ * once it returns. Returns an unsubscribe.
+ */
+export function onBeforeLock(fn: () => void): () => void {
+  beforeLock.add(fn);
+  return () => {
+    beforeLock.delete(fn);
+  };
+}
+
 export function duringCeremony<T>(run: () => Promise<T>): Promise<T> {
   ceremonyDepth += 1;
   return run().finally(() => {
@@ -62,6 +77,14 @@ export function ceremonyInProgress(): boolean {
 
 export function lockNow(reason: LockReason = "manual"): void {
   if (!isEnrolled() || !isUnlocked()) return;
+
+  for (const fn of beforeLock) {
+    try {
+      fn();
+    } catch {
+      // One failed hook must not keep the device unlocked.
+    }
+  }
 
   // Disconnect before wiping, so nothing queued on the socket goes out after
   // the token and keys are gone.

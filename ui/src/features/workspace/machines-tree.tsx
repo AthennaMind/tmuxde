@@ -5,6 +5,7 @@ import { OVERVIEW_TAB, TERMINAL_TAB, useMainTabsStore } from "./main-tabs-store"
 import { SessionTree } from "./session-tree";
 import { PanelHeader, PanelIconButton } from "./panel-header";
 import { openPalette } from "@/features/palette/palette-store";
+import { useShortcutTitle } from "@/features/keybindings/shortcut-label";
 
 /**
  * Every machine's session tree. `visible` is false while the trees stay
@@ -21,6 +22,7 @@ export function MachinesTree({
   const loaded = useMachineStore((s) => s.loaded);
   const error = useMachineStore((s) => s.error);
   const overviewActive = useMainTabsStore((s) => s.active === OVERVIEW_TAB);
+  const overviewLabel = useShortcutTitle("Overview", "overview.toggle");
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -31,7 +33,7 @@ export function MachinesTree({
           onClick={() => openPalette("terminals")}
         />
         <PanelIconButton
-          label="Overview (Ctrl+O)"
+          label={overviewLabel}
           icon={LayoutGrid}
           pressed={overviewActive}
           onClick={() => {

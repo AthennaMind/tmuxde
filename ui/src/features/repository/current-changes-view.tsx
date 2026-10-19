@@ -11,7 +11,7 @@ import { useSessionTreeStore } from "@/features/session/session-tree-store";
 import { useSettingsStore } from "@/features/settings/settings-store";
 import { FileChangesDetail } from "./commit-view";
 import { loadCurrentChanges, type CurrentChangesResult } from "./current-changes";
-import { Notice } from "./repository-preview";
+import { Notice } from "@/shared/notice";
 import type { RepositoryClient } from "./repository-request";
 
 export function ChangesTabView({ tab, className }: { tab: ChangesTab; className?: string }) {

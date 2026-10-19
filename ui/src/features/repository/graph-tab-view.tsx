@@ -11,7 +11,7 @@ import { useRepoChangeCount, useRepoWatch, watchHealthy } from "./repo-watch-sto
 import { useCommitLog } from "./use-commit-log";
 import { HeaderButton } from "@/features/workspace/panel-header";
 import { GraphList } from "./graph-list";
-import { Notice } from "./repository-preview";
+import { Notice } from "@/shared/notice";
 
 /** Log poll while no server watch covers the repository. */
 const POLL_MS = 15_000;

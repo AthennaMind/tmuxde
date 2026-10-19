@@ -58,7 +58,11 @@ export function getLanguageLabel(filePath: string): string {
   return lang === "plaintext" ? "text" : lang;
 }
 
-export const BINARY_EXTENSIONS: Record<string, string> = {
+/**
+ * Category by extension. Drives the icon and label of the download card
+ * and marks what never opens as text.
+ */
+const BINARY_EXTENSIONS: Record<string, string> = {
   // Images
   png: "image",
   jpg: "image",
@@ -66,15 +70,26 @@ export const BINARY_EXTENSIONS: Record<string, string> = {
   gif: "image",
   svg: "image",
   webp: "image",
+  avif: "image",
+  apng: "image",
   bmp: "image",
   ico: "image",
+  tif: "image",
   tiff: "image",
+  heic: "image",
+  heif: "image",
+  psd: "image",
   // Video
   mp4: "video",
+  m4v: "video",
   webm: "video",
   mov: "video",
-  avi: "video",
+  ogv: "video",
   mkv: "video",
+  avi: "video",
+  mpg: "video",
+  mpeg: "video",
+  wmv: "video",
   // Audio
   mp3: "audio",
   wav: "audio",
@@ -82,11 +97,19 @@ export const BINARY_EXTENSIONS: Record<string, string> = {
   aac: "audio",
   m4a: "audio",
   ogg: "audio",
+  oga: "audio",
+  opus: "audio",
+  weba: "audio",
+  aiff: "audio",
+  wma: "audio",
   // Archives
   zip: "archive",
   tar: "archive",
   gz: "archive",
+  tgz: "archive",
   bz2: "archive",
+  xz: "archive",
+  zst: "archive",
   "7z": "archive",
   rar: "archive",
   // Documents
@@ -97,46 +120,104 @@ export const BINARY_EXTENSIONS: Record<string, string> = {
   xlsx: "document",
   ppt: "document",
   pptx: "document",
+  odt: "document",
+  ods: "document",
+  odp: "document",
+  epub: "document",
   // Fonts
   ttf: "font",
   otf: "font",
   woff: "font",
   woff2: "font",
+  eot: "font",
+  // Data
+  sqlite: "database",
+  sqlite3: "database",
+  db: "database",
+  parquet: "database",
   // Compiled
   exe: "binary",
   bin: "binary",
   dll: "binary",
   so: "binary",
   dylib: "binary",
+  o: "binary",
+  a: "binary",
+  wasm: "binary",
+  class: "binary",
+  pyc: "binary",
+  img: "binary",
+  iso: "binary",
 };
 
-export type FileViewMode = "text" | "image" | "video" | "audio" | "pdf" | "binary";
+export type FileViewMode = "text" | "image" | "video" | "audio" | "pdf" | "font" | "binary";
 
-const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico"]);
-const VIDEO_EXTS = new Set(["mp4", "webm", "mov"]);
-const AUDIO_EXTS = new Set(["mp3", "wav", "ogg", "flac", "m4a", "aac"]);
+/**
+ * Formats the browser decodes by itself. Other entries of
+ * `BINARY_EXTENSIONS` get the download card, and the rest opens as text.
+ */
+const PREVIEW_MODES: Record<string, Exclude<FileViewMode, "text" | "binary">> = {
+  png: "image",
+  jpg: "image",
+  jpeg: "image",
+  gif: "image",
+  svg: "image",
+  webp: "image",
+  avif: "image",
+  apng: "image",
+  bmp: "image",
+  ico: "image",
+  mp4: "video",
+  m4v: "video",
+  webm: "video",
+  mov: "video",
+  ogv: "video",
+  mkv: "video",
+  mp3: "audio",
+  wav: "audio",
+  flac: "audio",
+  aac: "audio",
+  m4a: "audio",
+  ogg: "audio",
+  oga: "audio",
+  opus: "audio",
+  weba: "audio",
+  pdf: "pdf",
+  ttf: "font",
+  otf: "font",
+  woff: "font",
+  woff2: "font",
+};
+
+/**
+ * The extension of the base name in lower case, without the dot. A dot
+ * that starts the name does not count, as in the server MIME table, so
+ * ".png" has none.
+ */
+function fileExtension(path: string): string {
+  const name = path.split("/").pop() ?? "";
+  const dot = name.lastIndexOf(".");
+  return dot <= 0 ? "" : name.slice(dot + 1).toLowerCase();
+}
 
 export function getFileViewMode(path: string): FileViewMode {
-  const ext = path.split(".").pop()?.toLowerCase() ?? "";
-  if (IMAGE_EXTS.has(ext)) return "image";
-  if (VIDEO_EXTS.has(ext)) return "video";
-  if (AUDIO_EXTS.has(ext)) return "audio";
-  if (ext === "pdf") return "pdf";
-  if (
-    BINARY_EXTENSIONS[ext] &&
-    !IMAGE_EXTS.has(ext) &&
-    !VIDEO_EXTS.has(ext) &&
-    !AUDIO_EXTS.has(ext) &&
-    ext !== "pdf"
-  )
-    return "binary";
-  return "text";
+  const ext = fileExtension(path);
+  return PREVIEW_MODES[ext] ?? (BINARY_EXTENSIONS[ext] ? "binary" : "text");
 }
 
 export function getFileCategory(path: string): string | null {
-  const ext = path.split(".").pop()?.toLowerCase();
-  if (!ext) return null;
-  return BINARY_EXTENSIONS[ext] ?? null;
+  return BINARY_EXTENSIONS[fileExtension(path)] ?? null;
+}
+
+const MIB = 1024 * 1024;
+
+/**
+ * Most bytes a preview fetches on its own. Images and fonts arrive as one
+ * blob before they show, so a bigger one waits for a click. Video, audio
+ * and PDF stream from the server and have no limit. Zero means none.
+ */
+export function previewLimit(mode: FileViewMode): number {
+  return mode === "image" || mode === "font" ? 10 * MIB : 0;
 }
 
 export function formatFileSize(bytes: number): string {

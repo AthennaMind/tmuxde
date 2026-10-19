@@ -57,8 +57,7 @@ func (n *remote) Open(ctx context.Context, id node.ConnID, out node.Sink) error 
 			if err != nil {
 				return
 			}
-			kind := m.WireType()
-			if strings.HasPrefix(kind, "auth:") || strings.HasPrefix(kind, "dictation:") || kind == "server:info" || kind == "pong" {
+			if hubOwned(m.WireType()) {
 				return
 			}
 			if err := out.Send(ctx, m); err != nil {
@@ -224,3 +223,11 @@ func (i remoteInfo) ModTime() time.Time { return i.Modified }
 func (i remoteInfo) IsDir() bool { return false }
 
 func (i remoteInfo) Sys() any { return nil }
+
+// hubOwned reports whether only the hub may send a server message of this
+// type. An agent that sends one loses its stream, so it can never fake
+// auth, dictation, server info, pong or a settings change.
+func hubOwned(kind string) bool {
+	return strings.HasPrefix(kind, "auth:") || strings.HasPrefix(kind, "dictation:") ||
+		strings.HasPrefix(kind, "settings:") || kind == "server:info" || kind == "pong"
+}

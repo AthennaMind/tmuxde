@@ -1,6 +1,4 @@
 import { Palette } from "@/features/palette/palette";
-import { paletteKeyMode } from "@/features/palette/palette-key";
-import { togglePalette } from "@/features/palette/palette-store";
 import { useCallback, useEffect, useState } from "react";
 import { TransferPanel } from "@/features/files/transfer-controls";
 import { Outlet, useNavigate } from "react-router";
@@ -10,6 +8,7 @@ import { MachineWorkspace } from "@/features/workspace/machine-workspace";
 import { useActiveTabMachine } from "@/features/workspace/use-active-tab-machine";
 import { AppShell } from "./app-shell";
 import { useWebSocket } from "@/features/connection/use-websocket";
+import { useUserDocumentsSync } from "@/features/settings/settings-sync";
 import {
   filesDisabled,
   isReadOnly,
@@ -17,16 +16,14 @@ import {
 } from "@/features/connection/connection-store";
 import { useSessionStore } from "@/features/session/session-store";
 import { useStableMediaQuery } from "@/shared/use-media-query";
-import { MOBILE_MEDIA_QUERY, isMobileViewport } from "@/shared/mobile-query";
-import { fontZoomStep } from "@/features/terminal/font-zoom-key";
-import { isDictationKey } from "@/features/dictation/dictation-key";
-import { toggleDictation } from "@/features/dictation/dictation";
-import { applyFontZoom, fontZoomSurface, trackZoomPointer } from "@/features/terminal/font-zoom";
+import { MOBILE_MEDIA_QUERY } from "@/shared/mobile-query";
+import { trackZoomPointer } from "@/features/terminal/font-zoom";
+import { useKeybindings } from "@/features/keybindings/use-keybindings";
 import { MobileNav } from "@/features/mobile/mobile-nav";
 import { CommandComposer } from "@/features/mobile/command-composer";
 import { KeyboardToolbar } from "@/features/mobile/keyboard-toolbar";
 import { useUiStore } from "@/features/workspace/ui-store";
-import { OVERVIEW_TAB, TERMINAL_TAB, useMainTabsStore } from "@/features/workspace/main-tabs-store";
+import { TERMINAL_TAB, useMainTabsStore } from "@/features/workspace/main-tabs-store";
 import { useAlertStore } from "@/shared/alert-store";
 import { getTerminalHandle } from "@/features/terminal/terminal-handle";
 import { useTerminalStore } from "@/features/terminal/terminal-store";
@@ -107,78 +104,11 @@ function TerminalLayoutInner() {
     }
   }, []);
 
-  // Keyboard shortcuts.
-  //
-  // Ctrl/Cmd with -, = and 0 size whatever has focus: the terminal, or a file
-  // or diff. xterm skips them (see xterm-factory.ts), so they reach here
-  // instead of the shell. Anywhere else they stay browser page zoom.
-  //
-  // Ctrl+B, Ctrl+E and Ctrl+O only outside the terminal. xterm has already
-  // sent those to tmux by the time they bubble here, and Ctrl+B is tmux's
-  // default prefix. Acting on it too would toggle the sidebar on every prefix
-  // press.
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const palette = paletteKeyMode(e);
-      if (palette) {
-        e.preventDefault();
-        // Another dialog owns the keyboard. The palette itself switches modes.
-        if (e.target instanceof Element && e.target.closest('[role="dialog"]:not([data-palette])'))
-          return;
-        if (!e.repeat) togglePalette(palette);
-        return;
-      }
-      // Works from the terminal too: xterm passes it through.
-      if (isDictationKey(e)) {
-        if (!useConnectionStore.getState().features.has("dictation")) return;
-        e.preventDefault();
-        if (!e.repeat) toggleDictation();
-        return;
-      }
-      const zoom = fontZoomStep(e);
-      if (zoom !== null) {
-        const surface = fontZoomSurface(e.target);
-        if (!surface) return;
-        e.preventDefault();
-        applyFontZoom(surface, zoom);
-        return;
-      }
-      if (!(e.ctrlKey || e.metaKey)) return;
-      if (e.key !== "b" && e.key !== "e" && e.key !== "o") return;
-      if (e.target instanceof Element && e.target.closest(".xterm")) return;
-      e.preventDefault();
-      if (e.key === "b") {
-        useUiStore.getState().toggleSidebar();
-        return;
-      }
-      if (e.key === "o") {
-        // The overview tab, and back to the terminal on a second press.
-        const tabs = useMainTabsStore.getState();
-        const mobile = isMobileViewport();
-        if (tabs.active !== OVERVIEW_TAB) tabs.openOverview();
-        else {
-          tabs.showTerminal();
-          // Focus was in the page that just went away.
-          if (!mobile) requestAnimationFrame(() => getTerminalHandle()?.focus());
-        }
-        if (mobile) useUiStore.getState().setMobileTab("terminal");
-        return;
-      }
-      if (filesDisabled(useConnectionStore.getState().capabilities)) return;
-      // Desktop has no Files tab. It has a sidebar view.
-      if (isMobileViewport()) {
-        useUiStore.getState().setMobileTab("files");
-      } else {
-        useUiStore.getState().toggleSidebarView("files");
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    const stopTracking = trackZoomPointer();
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      stopTracking();
-    };
-  }, []);
+  // Key bindings, one capture listener on window. See features/keybindings.
+  useKeybindings();
+
+  // Zoom keys size what was clicked last when nothing has focus.
+  useEffect(() => trackZoomPointer(), []);
 
   // Copy the terminal's current selection. The toolbar lives in the shell
   // footer, outside the tree holding the terminal ref, hence the module-level
@@ -222,6 +152,8 @@ function TerminalLayoutInner() {
   const switching = useMachineStore((s) => s.requested !== null);
   useActiveTabMachine();
   useWebSocket(token && !switching ? resolveRelayWsUrl(activeMachine) : "", token ?? "");
+  // Settings and keybindings from the hub, loaded on every connect.
+  useUserDocumentsSync();
 
   if (!token) {
     // Same markup as `LockGate`'s pending branch, and for the same reason: a

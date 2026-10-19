@@ -5,7 +5,7 @@ Every message between the browser and the tmuxde server, as defined in
 
 `client-messages.ts` and `server-messages.ts` hold Zod discriminated unions,
 one JSON object per WebSocket message on `/_relay`. `codec.ts` validates both
-directions. **59** client types and **32** server types, the `repo:*` types
+directions. **61** client types and **35** server types, the `repo:*` types
 from `repository.ts` included. The Go server has a hand written
 type for each one in `internal/protocol/client` and `internal/protocol/server`.
 `fixtures/` holds a sample of every type plus invalid cases, and both the
@@ -362,6 +362,19 @@ utterance once the speaker pauses. Pieces carry no separator, the client
 decides spacing. `code` is `UNAVAILABLE`, `BUSY`, `OVERLOADED`, `NOT_FOUND`
 or `FAILED`. `message` is safe to show.
 
+### Settings
+
+| Type | Fields | Description |
+| --- | --- | --- |
+| `settings:changed` | `name`, `etag` | A user document was saved on the hub |
+
+`name` is `settings` or `keybindings`. `etag` is the new ETag of the
+document, 1 to 80 characters. The hub sends it to every authenticated
+browser socket on every machine after a successful `PUT /user/{name}`, the
+writer included. A client whose ETag differs refetches the document. The
+type is hub owned: the hub drops an agent stream that sends it. No client
+type exists for settings.
+
 
 ## Shared schemas
 
@@ -476,6 +489,83 @@ browser authentication. Missing machine means local. Offline machine returns 503
 Path validation and open happen on selected machine. Range reads use same opened
 file through bounded agent chunks.
 
+`POST /file/ticket` takes browser bearer token and JSON body
+`{"path": "<path>", "machine": "<id>"}`. Machine is omitted for local. Answer is
+`{"ticket": "<url safe base64>", "expiresIn": 900}`, validated by
+`file-ticket.ts`. `GET /file?machine=<id>&path=<path>&ticket=<ticket>` then
+serves that one file without a bearer header until the ticket expires. Video,
+audio and PDF previews load this way, because media elements and frames cannot
+send headers, and Range requests let playback start before the whole file is
+down. A bearer header, even a wrong one, takes precedence over a ticket. Tickets
+are signed with a key drawn at hub start, so a restart voids them. A ticket never
+mints another ticket.
+
+## User documents
+
+Two JSON documents live on the hub in `TMUXDE_CONFIG_DIR`, beside
+`machines.json`. Agents never see them. `user-documents.ts` holds their Zod
+schemas, and `internal/hub/settings` applies the same rules in Go. Shared
+fixtures are `fixtures/http/user-settings.json`, `user-keybindings.json` and
+their `.invalid.json` variants. Both sides parse them in their tests.
+
+| Name | File | Shape | Empty value |
+| --- | --- | --- | --- |
+| `settings` | `settings.json` | object with dotted keys, overrides only | `{}` |
+| `keybindings` | `keybindings.json` | array of binding entries, overrides only | `[]` |
+
+`GET /user/{name}` and `PUT /user/{name}` need
+`Authorization: Bearer <AUTH_TOKEN>`. Every answer has
+`Cache-Control: no-store`. Error bodies are short fixed text.
+
+- `GET` answers 200 with the stored bytes, `Content-Type: application/json`
+  and `ETag`. A missing file answers its empty value with the ETag of that
+  text. A file edited by hand is served as it is, even when it does not
+  validate.
+- `PUT` needs `If-Match` with the current ETag or `*`. The body is the new
+  document, at most 256 KiB. The hub validates it, stores the bytes
+  unchanged and answers 204 with the new `ETag`. Then it broadcasts
+  `settings:changed`.
+- `ETag` is the quoted lower case hex SHA-256 of the document bytes.
+
+| Status | When |
+| --- | --- |
+| 200 | `GET` succeeded |
+| 204 | `PUT` stored the document |
+| 400 | The body is not UTF-8, not JSON or not a valid document |
+| 401 | Bearer token missing or wrong |
+| 404 | Name is not `settings` or `keybindings` |
+| 405 | Method is not `GET` or `PUT`. `Allow: GET, PUT` |
+| 412 | `If-Match` is neither `*` nor the current ETag |
+| 413 | Body larger than 256 KiB |
+| 428 | `PUT` without `If-Match` |
+| 500 | The hub could not read or write the file |
+
+Checks run in that order: method, name, token, then `If-Match`, size,
+validation and the ETag compare. Writes hold a lock across the compare and
+the rename. Once one writer changed the document, a second writer with the
+old ETag gets 412.
+
+`settings` is an object of at most 512 keys. Each key matches
+`^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$`. Values are any JSON.
+
+`keybindings` is an array of at most 512 entries. Each entry is an object
+with only these fields:
+
+| Field | Rule |
+| --- | --- |
+| `key` | chord, 1 to 64 characters. Required unless `mac` is set |
+| `mac` | chord used on Mac instead of `key`. Required unless `key` is set |
+| `command` | matches `^-?[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$`. Leading `-` removes a default binding |
+| `scope` | optional, `global`, `app` or `terminal` |
+| `args` | optional, any JSON |
+
+A chord is lower case tokens joined by `+` with no spaces. Every token but
+the last is a modifier, each at most once: `ctrl`, `shift`, `alt`, `cmd`,
+`meta`, `super`, `win`, `mod`. The last is a key name: `a` to `z`, `0` to
+`9`, `f1` to `f12`, `enter`, `escape`, `space`, `tab`, `backspace`,
+`delete`, `up`, `down`, `left`, `right`, `home`, `end`, `pageup`,
+`pagedown`, or one of `-` `=` `[` `]` `` ` `` `/` `\` `,` `.` `;` `'`.
+
 ## Agent protocol version 1
 
 Agents connect outbound to `/_agent` with `Authorization: Bearer <agent-token>`.
@@ -492,7 +582,7 @@ one machine control connection and can be consumed once. New control connection
 has fresh pending tickets. Credentials never appear in query strings.
 
 Node stream carries existing client/server JSON messages, one per frame, with
-sequential request handling. Auth, ping and dictation are hub-owned and excluded.
+sequential request handling. Auth, ping, dictation and settings are hub-owned and excluded.
 Closing stream releases its local node context without killing tmux sessions.
 Every browser gets separate context and attach client.
 

@@ -8,6 +8,7 @@ import {
   WindowInfoSchema,
 } from "./types";
 import { TerminalSearchMatch } from "./terminal-search";
+import { UserDocumentName } from "./user-documents";
 
 import { PreviewFrame } from "./terminal-preview";
 
@@ -285,6 +286,18 @@ export const DictationErrorMessage = z.object({
   message: z.string(),
 });
 
+/**
+ * A user document on the hub was saved. Hub owned: every authenticated
+ * browser socket on every machine gets it after a successful PUT
+ * /user/{name}, and agents can never send it. A client whose ETag differs
+ * refetches the document.
+ */
+export const SettingsChangedMessage = z.object({
+  type: z.literal("settings:changed"),
+  name: UserDocumentName,
+  etag: z.string().min(1).max(80),
+});
+
 export const ServerMessage = z.discriminatedUnion("type", [
   TerminalSearchResultMessage,
   TerminalPreviewFrameMessage,
@@ -320,6 +333,7 @@ export const ServerMessage = z.discriminatedUnion("type", [
   DictationTextMessage,
   DictationDoneMessage,
   DictationErrorMessage,
+  SettingsChangedMessage,
 ]);
 
 export type ServerMessage = z.infer<typeof ServerMessage>;
@@ -352,5 +366,6 @@ export type DictationReadyMessage = z.infer<typeof DictationReadyMessage>;
 export type DictationTextMessage = z.infer<typeof DictationTextMessage>;
 export type DictationDoneMessage = z.infer<typeof DictationDoneMessage>;
 export type DictationErrorMessage = z.infer<typeof DictationErrorMessage>;
+export type SettingsChangedMessage = z.infer<typeof SettingsChangedMessage>;
 
 export type TerminalSearchResultMessage = z.infer<typeof TerminalSearchResultMessage>;

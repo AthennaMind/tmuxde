@@ -34,6 +34,7 @@ import {
   sessionNotFoundText,
 } from "@/features/session/session-lifecycle";
 import { receiveTerminalSearch } from "@/features/palette/terminal-search-store";
+import { useUserDocumentsStore } from "@/features/settings/user-documents-store";
 
 /**
  * Sessions whose end was already reported, for ten seconds.
@@ -308,6 +309,11 @@ export function useWebSocket(url: string, token: string): void {
         case "dictation:done":
         case "dictation:error":
           handleDictationMessage(msg);
+          break;
+        case "settings:changed":
+          // The hub saved a user document, from this browser or another one.
+          // The store reloads it unless the etag is already known.
+          void useUserDocumentsStore.getState().noteChanged(msg.name, msg.etag);
           break;
         case "error":
           /*

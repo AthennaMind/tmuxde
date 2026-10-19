@@ -15,6 +15,7 @@ import { getRelayClient } from "@/features/connection/use-websocket";
 import { usePhotoHistory } from "@/features/photos/use-photo-history";
 import { readStored, writeStored } from "@/features/connection/storage-keys";
 import { DictationButton } from "@/features/dictation/dictation-button";
+import { useShortcutTitle } from "@/features/keybindings/shortcut-label";
 import { filesDisabled, useConnectionStore } from "@/features/connection/connection-store";
 import { OVERVIEW_TAB, SETTINGS_TAB, useMainTabsStore } from "./main-tabs-store";
 import {
@@ -100,6 +101,8 @@ export function WorkspaceSidebar({ onCreateSession }: { onCreateSession: () => v
   const { paths } = usePhotoHistory();
   const settingsActive = useMainTabsStore((s) => s.active === SETTINGS_TAB);
   const overviewActive = useMainTabsStore((s) => s.active === OVERVIEW_TAB);
+  const overviewLabel = useShortcutTitle("Overview", "overview.toggle");
+  const filesLabel = useShortcutTitle("Files", "sidebar.files");
 
   const [changeCount, setChangeCount] = useState(0);
   // A share without file access has no repository views to show.
@@ -117,7 +120,7 @@ export function WorkspaceSidebar({ onCreateSession }: { onCreateSession: () => v
       >
         {/* Overview tab first. A second click goes back to the terminal. */}
         <RailButton
-          label="Overview (Ctrl+O)"
+          label={overviewLabel}
           icon={LayoutGrid}
           active={overviewActive}
           onClick={() => {
@@ -135,7 +138,7 @@ export function WorkspaceSidebar({ onCreateSession }: { onCreateSession: () => v
         {!noFiles && (
           <>
             <RailButton
-              label="Files (Ctrl+E)"
+              label={filesLabel}
               icon={FolderTree}
               active={open("files")}
               onClick={() => toggleView("files")}
