@@ -41,6 +41,8 @@ export const COMMAND_INFO = {
   "overview.toggle": { title: "Toggle overview", group: "workspace", toggle: true },
   "settings.open": { title: "Open settings", group: "workspace", toggle: true },
   "shortcuts.open": { title: "Show keyboard shortcuts", group: "workspace", toggle: true },
+  "views.previous": { title: "Previous view", group: "workspace", toggle: true },
+  "views.next": { title: "Next view", group: "workspace", toggle: true },
   "views.close": { title: "Close current view", group: "workspace" },
   "views.closeAll": { title: "Close all views", group: "workspace", toggle: true },
 

@@ -21,8 +21,8 @@ const resolve = (user: KeybindingEntry[], platform: Platform = "other") =>
   resolveKeymap(DEFAULT_KEYBINDINGS, user, platform);
 
 describe("defaults", () => {
-  it("has the plan's sixteen entries with known commands", () => {
-    expect(DEFAULT_KEYBINDINGS_COUNT).toBe(16);
+  it("has eighteen entries with known commands", () => {
+    expect(DEFAULT_KEYBINDINGS_COUNT).toBe(18);
     expect(DEFAULT_KEYBINDINGS.every((entry) => isCommandId(entry.command))).toBe(true);
   });
 
@@ -44,6 +44,9 @@ describe("defaults", () => {
     expect(on(keymap, "ctrl+=")).toEqual(["terminal.zoomIn"]);
     expect(on(keymap, "ctrl+shift+=")).toEqual(["terminal.zoomIn"]);
     expect(on(keymap, "shift+/")).toEqual(["shortcuts.open"]);
+    expect(on(keymap, "alt+pageup")).toEqual(["views.previous"]);
+    expect(on(keymap, "alt+pagedown")).toEqual(["views.next"]);
+    expect(keymap.lookup.get(key("alt+pagedown"))?.[0]?.scope).toBe("global");
   });
 
   it("gives Mac Cmd variants everywhere and Ctrl+K back to the shell", () => {
@@ -60,6 +63,10 @@ describe("defaults", () => {
     expect(keymap.bindingsFor("sidebar.files").map((binding) => binding.chordKey)).toEqual([
       "cmd+e",
     ]);
+    // Mac laptops have no PageUp key.
+    expect(on(keymap, "cmd+alt+[")).toEqual(["views.previous"]);
+    expect(on(keymap, "cmd+alt+]")).toEqual(["views.next"]);
+    expect(on(keymap, "alt+pageup")).toEqual([]);
     // Entries with only `key` apply on Mac too.
     expect(on(keymap, "ctrl+shift+space")).toEqual(["dictation.toggle"]);
     expect(on(keymap, "shift+/")).toEqual(["shortcuts.open"]);

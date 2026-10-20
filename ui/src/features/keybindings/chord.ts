@@ -243,12 +243,28 @@ const SHIFTED: Record<string, string> = {
   '"': "'",
 };
 
+/** Punctuation by `event.code`. Option on a Mac turns `[` into `“` in `event.key`. */
+const PUNCTUATION_CODES: Record<string, string> = {
+  Minus: "-",
+  Equal: "=",
+  BracketLeft: "[",
+  BracketRight: "]",
+  Backquote: "`",
+  Slash: "/",
+  Backslash: "\\",
+  Comma: ",",
+  Period: ".",
+  Semicolon: ";",
+  Quote: "'",
+};
+
 /**
  * The chord a key press makes, or null for a bare modifier or an unknown key.
  *
  * Letters and digits come from `event.code`, so Shift and Alt do not change
- * their name. Everything else comes from `event.key`. Non Latin layouts are a
- * known limit.
+ * their name. Everything else comes from `event.key`, with `event.code` for
+ * punctuation that Alt changed into another character. Non Latin layouts are
+ * a known limit.
  */
 export function chordFromEvent(event: ChordEvent): Chord | null {
   // Autofill and some virtual keyboards send keydown without a key. Process
@@ -273,6 +289,7 @@ export function chordFromEvent(event: ChordEvent): Chord | null {
       shift = true;
     }
   }
+  if (!key && event.altKey) key = PUNCTUATION_CODES[code] ?? null;
   if (!key) return null;
   return { ctrl: event.ctrlKey, shift, alt: event.altKey, cmd: event.metaKey, key };
 }

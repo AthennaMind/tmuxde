@@ -11,6 +11,7 @@ import { applyFontZoom, fontZoomSurface } from "@/features/terminal/font-zoom";
 import { getTerminalHandle } from "@/features/terminal/terminal-handle";
 import { OVERVIEW_TAB, TERMINAL_TAB, useMainTabsStore } from "@/features/workspace/main-tabs-store";
 import { useUiStore } from "@/features/workspace/ui-store";
+import { canStepView, stepView } from "@/features/workspace/view-step";
 import { activateView } from "@/features/workspace/workspace-target";
 import { isMobileViewport } from "@/shared/mobile-query";
 import { setThemeFromCommand } from "@/shared/theme-context";
@@ -121,6 +122,9 @@ const BEHAVIOUR: Record<CommandId, Behaviour> = {
     },
   },
   "shortcuts.open": { run: () => useShortcutsDialog.setState({ open: true }) },
+  // Terminal sessions and tabs, in strip order.
+  "views.previous": { enabled: canStepView, run: () => stepView(-1) },
+  "views.next": { enabled: canStepView, run: () => stepView(1) },
   "views.close": {
     enabled: () => {
       const { active, tabs } = useMainTabsStore.getState();

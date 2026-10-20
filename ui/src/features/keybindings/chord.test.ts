@@ -164,6 +164,19 @@ describe("chordFromEvent", () => {
     expect(keyOf({ key: "k", code: "KeyK", metaKey: true })).toBe("cmd+k");
   });
 
+  it("reads punctuation from event.code when Option changed event.key", () => {
+    expect(keyOf({ key: "“", code: "BracketLeft", altKey: true, metaKey: true })).toBe("alt+cmd+[");
+    expect(keyOf({ key: "‘", code: "BracketRight", altKey: true, metaKey: true })).toBe(
+      "alt+cmd+]",
+    );
+    expect(keyOf({ key: "”", code: "BracketLeft", altKey: true, shiftKey: true })).toBe(
+      "shift+alt+[",
+    );
+    expect(keyOf({ key: "Dead", code: "Backquote", altKey: true })).toBe("alt+`");
+    // Without Alt, event.key decides, as before.
+    expect(keyOf({ key: "ü", code: "BracketLeft", ctrlKey: true })).toBeNull();
+  });
+
   it("makes shift+/ from a question mark, like the shortcuts default", () => {
     expect(keyOf({ key: "?", code: "Slash", shiftKey: true })).toBe(chordKey(chord("shift+/")));
   });
