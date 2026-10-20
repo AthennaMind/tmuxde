@@ -2,7 +2,22 @@ ${CHANGELOG}
 
 ## Install
 
-Linux archives for amd64 and arm64 are attached. `tmuxde` serves the UI and manages local tmux. `tmuxde-stt` is the optional speech binary. It is large because it embeds the Parakeet and Silero models and the speech engine, so it runs self contained with no downloads at start.
+`tmuxde` archives include server, agent and browser UI:
+
+| System | Archive OS | Architectures |
+| --- | --- | --- |
+| Linux | `linux` | `amd64`, `arm64` |
+| macOS | `darwin` | `amd64`, `arm64` |
+| FreeBSD | `freebsd` | `amd64`, `arm64` |
+| OpenBSD | `openbsd` | `amd64`, `arm64` |
+| NetBSD | `netbsd` | `amd64`, `arm64` |
+| DragonFly BSD | `dragonfly` | `amd64` |
+
+See [install guide](https://github.com/${REPOSITORY}/blob/${TAG}/docs/INSTALL.md) and [macOS agent launchd guide](https://github.com/${REPOSITORY}/blob/${TAG}/docs/MACOS.md). macOS needs version 13 or newer. macOS and BSD targets are cross-compiled; native runtime tests are not yet in CI.
+
+`tmuxde-stt` is Linux amd64/arm64 only. It embeds Parakeet and Silero models and native speech engine, with no downloads at start. macOS and BSD archives have no bundled speech service.
+
+Linux amd64 example:
 
 ```sh
 curl -fsSLO https://github.com/${REPOSITORY}/releases/download/${TAG}/tmuxde_${VERSION}_linux_amd64.tar.gz

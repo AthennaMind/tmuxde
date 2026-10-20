@@ -136,7 +136,7 @@ jobs:
   go:
     needs: changes
     if: needs.changes.outputs.go == 'true'
-    name: Go unit tests
+    name: Go tests and release builds
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -158,6 +158,16 @@ jobs:
           go vet ./...
           go test ./...
           CGO_ENABLED=1 go test -race ./cmd/tmuxde-stt/... ./internal/stt/...
+      - name: Check GoReleaser configuration
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
+        with:
+          version: v2.18.0
+          args: check
+      - name: Compile tmuxde for every release platform
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
+        with:
+          version: v2.18.0
+          args: build --id tmuxde --snapshot --clean
 
   integration:
     needs: changes
