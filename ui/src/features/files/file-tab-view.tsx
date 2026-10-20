@@ -4,6 +4,7 @@ import { DownloadButton } from "./transfer-controls";
 import { cn } from "@/shared/utils";
 import { useRelayClient } from "@/features/connection/use-websocket";
 import { isMarkdownPath } from "./markdown";
+import { getFileViewMode } from "./file-utils";
 import { changeTouchesDiff, changeTouchesFile } from "@/features/repository/repo-change";
 import { useRepoChangeCount } from "@/features/repository/repo-watch-store";
 import { shortenPath } from "@/shared/tmux-labels";
@@ -12,7 +13,8 @@ import { useMainTabsStore, type FileTab } from "@/features/workspace/main-tabs-s
 import { HeaderButton } from "@/features/workspace/panel-header";
 import { useSettingsStore } from "@/features/settings/settings-store";
 import { RepositoryFileIcon } from "./repository-file-icon";
-import { FilePreview, Notice } from "@/features/repository/repository-preview";
+import { FilePreview } from "@/features/repository/repository-preview";
+import { Notice } from "@/shared/notice";
 import { useRepositoryQuery } from "@/features/repository/use-repository-query";
 import type { RepositoryClient } from "@/features/repository/repository-request";
 
@@ -40,6 +42,8 @@ export function FileTabView({ tab, className }: { tab: FileTab; className?: stri
   const name = tab.path.split("/").pop() || tab.path;
   const markdown = !tab.scope && isMarkdownPath(fullPath);
   const showRendered = markdown && rendered;
+  // Media and other binaries have no lines to wrap.
+  const text = !!tab.scope || getFileViewMode(fullPath) === "text";
   // A push that touches the file reloads it quietly. Staged and unstaged
   // diffs also follow the index and HEAD.
   const pushed = useRepoChangeCount((change) =>
@@ -80,7 +84,7 @@ export function FileTabView({ tab, className }: { tab: FileTab; className?: stri
             <BookOpen className={cn("h-4 w-4", rendered && "text-primary")} />
           </HeaderButton>
         )}
-        {!showRendered && (
+        {text && !showRendered && (
           <HeaderButton label="Wrap lines" pressed={wrap} onClick={() => setWrap(!wrap)}>
             <WrapText className={cn("h-4 w-4", wrap && "text-primary")} />
           </HeaderButton>
@@ -177,6 +181,7 @@ function FileTabBody({
       symlink={tab.symlink}
       rendered={rendered}
       onOpenPath={onOpenPath}
+      machineId={tab.machineId}
     />
   );
 }

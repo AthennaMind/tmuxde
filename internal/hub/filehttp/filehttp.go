@@ -12,9 +12,10 @@
 //  1. Anything but GET on exactly /file with a query is 404 "Not found".
 //     HEAD too, as in the relay.
 //  2. No token or a wrong one is 401 "Unauthorized". The token comes from
-//     "Authorization: Bearer <token>". The token query parameter is a
-//     deprecated fallback and logs a warning. There is no auth throttle on
-//     this route, as in the relay.
+//     "Authorization: Bearer <token>". Without that header, a ticket query
+//     parameter from POST /file/ticket opens its one file. See ticket.go.
+//     The token query parameter is a deprecated fallback and logs a
+//     warning. There is no auth throttle on this route, as in the relay.
 //  3. No path parameter is 400 "Missing path parameter".
 //  4. node.ErrDenied is 403 "Access denied". node.ErrNotFile is 404 "Not a
 //     file". Any other open error is 404 "File not found".
@@ -34,9 +35,11 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"tmuxde/internal/hub/auth"
 	"tmuxde/internal/node"
@@ -70,6 +73,8 @@ type Options struct {
 	// Logger gets the deprecated token warning and serve errors. Nil means
 	// slog.Default(). The token never reaches it.
 	Logger *slog.Logger
+	// Now is the ticket clock. Nil means time.Now. Tests move it.
+	Now func() time.Time
 }
 
 type handler struct {
@@ -77,9 +82,13 @@ type handler struct {
 	opener  node.FileOpener
 	resolve func(string) (node.FileOpener, error)
 	log     *slog.Logger
+	// ticketKey signs tickets. Fresh per process.
+	ticketKey []byte
+	now       func() time.Time
 }
 
-// New returns the GET /file handler. It panics when opts.Opener is nil.
+// New returns the handler of GET /file and POST /file/ticket. Mount it on
+// both Path and TicketPath. It panics when opts.Opener is nil.
 func New(opts Options) http.Handler {
 	if opts.Opener == nil && opts.Resolve == nil {
 		panic("filehttp: Options.Opener is nil")
@@ -88,11 +97,26 @@ func New(opts Options) http.Handler {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &handler{token: opts.Token, opener: opts.Opener, resolve: opts.Resolve, log: logger}
+	now := opts.Now
+	if now == nil {
+		now = time.Now
+	}
+	return &handler{
+		token:     opts.Token,
+		opener:    opts.Opener,
+		resolve:   opts.Resolve,
+		log:       logger,
+		ticketKey: newTicketKey(),
+		now:       now,
+	}
 }
 
 // ServeHTTP answers one request. See the package doc for the order.
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == TicketPath {
+		h.ticket(w, r)
+		return
+	}
 	// The relay matched req.url.startsWith("/file?"), so "/file?" with an
 	// empty query counts as well.
 	hasQuery := r.URL.RawQuery != "" || r.URL.ForceQuery
@@ -105,7 +129,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hdr.Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 	query := r.URL.Query()
-	if !h.authorized(r, query.Get("token")) {
+	if !h.authorized(r, query) {
 		writeText(w, http.StatusUnauthorized, bodyUnauthorized)
 		return
 	}
@@ -117,22 +141,39 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.serve(w, r, filePath, query.Get("download") == "1")
 }
 
-// authorized checks the bearer token, or the deprecated query token when
-// the request has no bearer. A bearer header always wins, even an empty
-// one, as in the relay. The query token puts the credential in browser
-// history and access logs, so its use is logged. The token itself is not.
-func (h *handler) authorized(r *http.Request, queryToken string) bool {
-	bearer, hasBearer := strings.CutPrefix(r.Header.Get("Authorization"), bearerPrefix)
-	if !hasBearer {
-		bearer = ""
-	}
+// authorized checks the bearer token, then a ticket, then the deprecated
+// query token. A bearer header always wins, even an empty one, as in the
+// relay. A ticket opens only the machine and path it was minted for. The
+// query token puts the credential in browser history and access logs, so
+// its use is logged. The token itself is not.
+func (h *handler) authorized(r *http.Request, query url.Values) bool {
+	bearer, hasBearer := bearerToken(r)
+	queryToken := query.Get("token")
 	if bearer == "" && queryToken != "" {
 		h.log.Warn("Deprecated ?token= used on /file; send Authorization: Bearer instead")
 	}
-	token := queryToken
 	if hasBearer {
-		token = bearer
+		return h.tokenOK(bearer)
 	}
+	if ticket := query.Get("ticket"); ticket != "" {
+		return h.ticketOK(ticket, query.Get("machine"), query.Get("path"))
+	}
+	return h.tokenOK(queryToken)
+}
+
+// bearerToken reads the Authorization header. ok is false without the
+// Bearer scheme, and the token is then empty.
+func bearerToken(r *http.Request) (token string, ok bool) {
+	token, ok = strings.CutPrefix(r.Header.Get("Authorization"), bearerPrefix)
+	if !ok {
+		return "", false
+	}
+	return token, true
+}
+
+// tokenOK compares token with the configured one. Nothing matches an empty
+// side.
+func (h *handler) tokenOK(token string) bool {
 	if token == "" || h.token == "" {
 		return false
 	}

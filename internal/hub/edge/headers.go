@@ -42,7 +42,7 @@ func contentSecurityPolicy(socket string) string {
 		"script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
 		"style-src 'self' 'unsafe-inline'; " +
 		"connect-src " + connect + "; " +
-		"font-src 'self' data:; " +
+		"font-src 'self' data: blob:; " +
 		"img-src 'self' data: blob:; " +
 		"media-src 'self' blob:; " +
 		"worker-src 'self' blob:; " +

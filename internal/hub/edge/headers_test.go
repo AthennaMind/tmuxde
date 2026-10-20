@@ -20,6 +20,7 @@ func TestContentSecurityPolicy(t *testing.T) {
 			// and framing by other sites.
 			for directive, want := range map[string][]string{
 				"connect-src":     connect,
+				"font-src":        {"'self'", "data:", "blob:"},
 				"media-src":       {"'self'", "blob:"},
 				"frame-src":       {"'self'", "blob:"},
 				"worker-src":      {"'self'", "blob:"},

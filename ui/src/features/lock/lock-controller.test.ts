@@ -1,7 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ceremonyInProgress, duringCeremony, lockNow, registerDisconnect } from "./lock-controller";
-import { forget, isUnlocked, setEnrolled, setMasterKey } from "./unlocked";
+import {
+  ceremonyInProgress,
+  duringCeremony,
+  lockNow,
+  onBeforeLock,
+  registerDisconnect,
+} from "./lock-controller";
+import {
+  forget,
+  isUnlocked,
+  localToken,
+  setEnrolled,
+  setLocalToken,
+  setMasterKey,
+} from "./unlocked";
 
 function memoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -39,6 +52,30 @@ describe("lockNow", () => {
 
     expect(order).toEqual(["disconnect"]);
     expect(isUnlocked()).toBe(false);
+  });
+
+  it("runs before lock hooks first, while the token is still held", () => {
+    const order: string[] = [];
+    const stop = onBeforeLock(() => order.push(`hook ${localToken()}`));
+    const stopFailing = onBeforeLock(() => {
+      throw new Error("save failed");
+    });
+    registerDisconnect(() => order.push("disconnect"));
+    setEnrolled(true);
+    setMasterKey(new Uint8Array(32).fill(7));
+    setLocalToken("secret");
+
+    lockNow("manual");
+
+    expect(order).toEqual(["hook secret", "disconnect"]);
+    expect(isUnlocked()).toBe(false);
+    expect(localToken()).toBeNull();
+
+    stop();
+    stopFailing();
+    setMasterKey(new Uint8Array(32).fill(7));
+    lockNow("manual");
+    expect(order).toEqual(["hook secret", "disconnect", "disconnect"]);
   });
 
   it("does nothing on a device with no lock", () => {

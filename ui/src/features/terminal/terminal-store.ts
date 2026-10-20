@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { DEFAULT_TERMINAL_THEME } from "./terminal-themes";
 import { DEFAULT_TERMINAL_FONT } from "./terminal-font";
 
@@ -76,6 +75,11 @@ interface TerminalStore {
 }
 
 /**
+ * Upgrade a legacy `ccremote-terminal` blob to version 3.
+ *
+ * The store no longer persists. `settings-migration.ts` reads the old blob
+ * once and moves it into the settings document, through this function.
+ *
  * Version 1 turned GPU rendering off by default. Stored state from before
  * saved the old default `true`, which was never a choice.
  *
@@ -97,38 +101,36 @@ export function migrateTerminalStore(persisted: unknown, version: number): Parti
   return state;
 }
 
-export const useTerminalStore = create<TerminalStore>()(
-  persist(
-    (set) => ({
-      fontSize: getDefaultFontSize(),
-      fontFamily: DEFAULT_TERMINAL_FONT,
-      // Heavy, with room left for bold. At 700, bold output would look like
-      // everything else.
-      terminalWeight: 600,
-      codeWeight: 600,
-      codeZoom: 1,
-      themeName: DEFAULT_TERMINAL_THEME,
-      cursorStyle: "block",
-      cursorBlink: true,
-      copyOnSelect: true,
-      scrollback: 5000,
-      gpuRendering: false,
-      setFontSize: (fontSize) => set({ fontSize: clampFontSize(fontSize) }),
-      setFontFamily: (fontFamily) => set({ fontFamily }),
-      setTerminalWeight: (terminalWeight) => set({ terminalWeight }),
-      setCodeWeight: (codeWeight) => set({ codeWeight }),
-      setCodeZoom: (codeZoom) => set({ codeZoom: clampCodeZoom(codeZoom) }),
-      setThemeName: (themeName) => set({ themeName }),
-      setCursorStyle: (cursorStyle) => set({ cursorStyle }),
-      setCursorBlink: (cursorBlink) => set({ cursorBlink }),
-      setCopyOnSelect: (copyOnSelect) => set({ copyOnSelect }),
-      setScrollback: (scrollback) => set({ scrollback }),
-      setGpuRendering: (gpuRendering) => set({ gpuRendering }),
-    }),
-    {
-      name: "ccremote-terminal",
-      version: 3,
-      migrate: (persisted, version) => migrateTerminalStore(persisted, version) as TerminalStore,
-    },
-  ),
-);
+/**
+ * Terminal and code text settings.
+ *
+ * Not persisted here. `settings-bridge.ts` applies the synced settings
+ * document and this device's own values into this store, and writes changes
+ * made through the actions back. The setters keep their clamping.
+ */
+export const useTerminalStore = create<TerminalStore>()((set) => ({
+  fontSize: getDefaultFontSize(),
+  fontFamily: DEFAULT_TERMINAL_FONT,
+  // Heavy, with room left for bold. At 700, bold output would look like
+  // everything else.
+  terminalWeight: 600,
+  codeWeight: 600,
+  codeZoom: 1,
+  themeName: DEFAULT_TERMINAL_THEME,
+  cursorStyle: "block",
+  cursorBlink: true,
+  copyOnSelect: true,
+  scrollback: 5000,
+  gpuRendering: false,
+  setFontSize: (fontSize) => set({ fontSize: clampFontSize(fontSize) }),
+  setFontFamily: (fontFamily) => set({ fontFamily }),
+  setTerminalWeight: (terminalWeight) => set({ terminalWeight }),
+  setCodeWeight: (codeWeight) => set({ codeWeight }),
+  setCodeZoom: (codeZoom) => set({ codeZoom: clampCodeZoom(codeZoom) }),
+  setThemeName: (themeName) => set({ themeName }),
+  setCursorStyle: (cursorStyle) => set({ cursorStyle }),
+  setCursorBlink: (cursorBlink) => set({ cursorBlink }),
+  setCopyOnSelect: (copyOnSelect) => set({ copyOnSelect }),
+  setScrollback: (scrollback) => set({ scrollback }),
+  setGpuRendering: (gpuRendering) => set({ gpuRendering }),
+}));

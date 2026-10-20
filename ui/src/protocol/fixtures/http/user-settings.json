@@ -1,0 +1,18 @@
+{
+  "appearance.theme": "light",
+  "terminal.theme": "solarized-dark",
+  "terminal.fontFamily": "JetBrains Mono",
+  "terminal.fontWeight": 500,
+  "terminal.cursorStyle": "bar",
+  "terminal.cursorBlink": false,
+  "terminal.scrollback": 20000,
+  "editor.fontWeight": 400,
+  "panes.showIndexes": false,
+  "files.wrapLines": true,
+  "changes.filterPatterns": "",
+  "changes.filterMode": "only",
+  "touch.gesture.pinchToZoom": false,
+  "touch.toolbarKeys": ["esc", "tab", "ctrl", "up", "down"],
+  "future.unknownKey2": { "nested": [1, 2.5, null, true, "text"] },
+  "x.y": null
+}

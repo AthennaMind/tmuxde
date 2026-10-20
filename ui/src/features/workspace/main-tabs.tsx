@@ -28,14 +28,11 @@ import {
 import { useMachineStore } from "@/features/connection/machine-store";
 import { LAST_SESSION_KEY, clearStored } from "@/features/connection/storage-keys";
 import { activateView, openMachineSession } from "./workspace-target";
+import { terminalViewId } from "./view-step";
 import { useTabReorder } from "./use-tab-reorder";
 import { useSessionStore } from "@/features/session/session-store";
 
 const SCOPE_SHORT = { staged: "staged", unstaged: "diff", untracked: "new" };
-
-function terminalId(terminal: { machineId: string; sessionName: string }) {
-  return JSON.stringify(["terminal", terminal.machineId, terminal.sessionName]);
-}
 
 function tabLabel(tab: FileTab) {
   return tab.path.split("/").pop() || tab.path;
@@ -81,7 +78,10 @@ export function MainTabs() {
 
   const order = useMemo(
     () =>
-      reconcileTabOrder(savedOrder, [...terminals.map(terminalId), ...tabs.map((tab) => tab.id)]),
+      reconcileTabOrder(savedOrder, [
+        ...terminals.map(terminalViewId),
+        ...tabs.map((tab) => tab.id),
+      ]),
     [savedOrder, terminals, tabs],
   );
   const { navProps, dragging, target, announcement } = useTabReorder(order, setOrder);
@@ -110,8 +110,8 @@ export function MainTabs() {
           {[
             ...terminals.map((terminal) => (
               <Tab
-                key={terminalId(terminal)}
-                {...reorderProps(terminalId(terminal))}
+                key={terminalViewId(terminal)}
+                {...reorderProps(terminalViewId(terminal))}
                 label={terminal.sessionName}
                 detail={machineName(terminal.machineId)}
                 title={`${terminal.sessionName} on ${machineName(terminal.machineId)}`}

@@ -24,15 +24,18 @@ export function SettingsSection({
 }: {
   title: string;
   description?: React.ReactNode;
-  /** Section wide control beside the heading, such as Reset. */
+  /**
+   * Section wide controls beside the heading, such as Reset. They wrap under
+   * the text when the row is too narrow for both.
+   */
   action?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className="space-y-3">
-      <div className="flex items-end justify-between gap-4">
-        <div className="min-w-0 space-y-1">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+        <div className="min-w-0 flex-1 basis-56 space-y-1">
           <h2 id={headingId} className="text-base font-semibold text-foreground text-balance">
             {title}
           </h2>

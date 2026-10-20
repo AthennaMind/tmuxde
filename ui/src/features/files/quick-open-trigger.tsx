@@ -1,7 +1,12 @@
 import { Search } from "lucide-react";
+import { Kbd } from "@/features/palette/palette-primitives";
 import { openPalette } from "@/features/palette/palette-store";
+import { useKeybindingsStore } from "@/features/keybindings/keybindings-store";
+import { shortcutLabel } from "@/features/keybindings/shortcut-label";
 
 export function QuickOpenTrigger() {
+  const keymap = useKeybindingsStore((s) => s.keymap);
+  const hint = shortcutLabel("palette.files", keymap);
   return (
     <div className="shrink-0 px-3 py-2">
       <button
@@ -11,9 +16,7 @@ export function QuickOpenTrigger() {
       >
         <Search className="size-4 shrink-0" aria-hidden />
         <span className="flex-1 text-left">Find a file…</span>
-        <kbd className="hidden rounded-md bg-background px-1.5 py-1 font-mono text-[10px] sm:inline">
-          Ctrl/Cmd P
-        </kbd>
+        {hint && <Kbd className="hidden sm:inline-flex">{hint}</Kbd>}
       </button>
     </div>
   );

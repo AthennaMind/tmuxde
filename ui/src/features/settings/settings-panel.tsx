@@ -29,6 +29,10 @@ import { LockSettings } from "@/features/lock/lock-settings";
 import { DisconnectSection } from "./disconnect-section";
 import { InstallAppSection } from "@/features/pwa/install-app-section";
 import { useDictationAvailable } from "@/features/dictation/use-dictation-available";
+import { useKeybindingsStore } from "@/features/keybindings/keybindings-store";
+import { shortcutLabel } from "@/features/keybindings/shortcut-label";
+import { KeyboardShortcutsSection } from "./keybindings-section";
+import { SettingsFilesSection } from "./settings-files-section";
 import {
   Segmented,
   SettingsRow,
@@ -57,6 +61,10 @@ const CURSOR_OPTIONS = [
 /** Agent keys first. They are the ones people come here for. */
 const KEY_GROUPS: ToolbarKeyGroup[] = ["agent", "core", "edit", "nav", "symbol"];
 
+/** Scrollback range the settings schema accepts. */
+const SCROLLBACK_MIN = 100;
+const SCROLLBACK_MAX = 100_000;
+
 /** Only gestures the touch reducer reads. */
 const GESTURES: [keyof GestureSettings, string][] = [
   ["swipeToSwitchSessions", "Swipe to switch sessions"],
@@ -72,6 +80,9 @@ const GESTURES: [keyof GestureSettings, string][] = [
  * Desktop shows it as a main-area tab, the phone as its Settings tab. Touch
  * adds the keyboard toolbar, gestures, haptics and auto zoom. Pointer adds
  * GPU rendering, the one renderer choice that only exists there.
+ *
+ * Most settings sync through the server. Font size, file text size and GPU
+ * rendering stay on the device, and their rows say so.
  *
  * Sections read their stores field by field. The phone keeps this page
  * mounted while hidden, and a pinch writes `fontSize` many times a second.
@@ -89,15 +100,20 @@ export function SettingsPanel({
       <div className="mx-auto w-full max-w-2xl space-y-10 px-4 pt-6 pb-16 @lg:px-8 @lg:pt-10">
         <header className="space-y-1">
           <h1 className="text-xl font-semibold text-foreground text-balance">Settings</h1>
-          <p className="text-[13px] leading-5 text-muted-foreground">Saved in this browser only.</p>
+          <p className="text-[13px] leading-5 text-muted-foreground text-pretty">
+            Settings sync through the server to every browser you sign in from. Terminal font size,
+            file and diff text size and GPU rendering stay on this device.
+          </p>
         </header>
         <AppearanceSection />
         <TextSection touch={touch} />
         <TerminalSection touch={touch} />
         <SessionsSection />
+        <KeyboardShortcutsSection touch={touch} />
         <MicrophoneSection />
         {touch && <KeyboardToolbarSection />}
         {touch && <TouchSection />}
+        <SettingsFilesSection />
         <LockSettings />
         <DisconnectSection />
         <InstallAppSection />
@@ -263,7 +279,21 @@ function ThemeGrid({
   );
 }
 
+/** "This device." first, then the row's own hint. */
+function DeviceHint({ children }: { children?: React.ReactNode }) {
+  return (
+    <>
+      <span className="font-medium text-foreground">This device.</span>
+      {children ? <> {children}</> : null}
+    </>
+  );
+}
+
 function TextSection({ touch }: { touch: boolean }) {
+  const keymap = useKeybindingsStore((s) => s.keymap);
+  const zoomIn = shortcutLabel("terminal.zoomIn", keymap);
+  const zoomOut = shortcutLabel("terminal.zoomOut", keymap);
+  const zoomKeys = !touch && zoomIn && zoomOut ? `${zoomIn} and ${zoomOut}` : null;
   const fontSize = useTerminalStore((s) => s.fontSize);
   const setFontSize = useTerminalStore((s) => s.setFontSize);
   const terminalWeight = useTerminalStore((s) => s.terminalWeight);
@@ -277,7 +307,7 @@ function TextSection({ touch }: { touch: boolean }) {
     <SettingsSection title="Text">
       <SettingsRow
         label="Terminal font size"
-        hint={touch ? undefined : "Ctrl with + or - also works in the terminal."}
+        hint={<DeviceHint>{zoomKeys && `${zoomKeys} also work in the terminal.`}</DeviceHint>}
         textLabel
       >
         {(ids) => (
@@ -303,7 +333,9 @@ function TextSection({ touch }: { touch: boolean }) {
       <SettingsRow
         label="File and diff text size"
         hint={
-          touch ? "Files, diffs and the editor." : "Ctrl with + or - also works in a file or diff."
+          <DeviceHint>
+            {zoomKeys ? `${zoomKeys} also work in a file or diff.` : "Files, diffs and the editor."}
+          </DeviceHint>
         }
         textLabel
       >
@@ -389,13 +421,17 @@ function TerminalSection({ touch }: { touch: boolean }) {
         checked={copyOnSelect}
         onChange={setCopyOnSelect}
       />
-      <SettingsRow label="Scrollback lines" hint="How far back you can scroll. 100 to 50,000.">
+      <SettingsRow label="Scrollback lines" hint="How far back you can scroll. 100 to 100,000.">
         {(ids) => <ScrollbackInput ids={ids} />}
       </SettingsRow>
       {!touch && (
         <SwitchRow
           label="GPU rendering"
-          hint="Faster with heavy output. Text looks softer. Applies after reload."
+          hint={
+            <DeviceHint>
+              Faster with heavy output. Text looks softer. Applies after reload.
+            </DeviceHint>
+          }
           checked={gpuRendering}
           onChange={setGpuRendering}
         />
@@ -437,7 +473,7 @@ function ScrollbackInput({ ids }: { ids: RowIds }) {
 
   const commit = () => {
     const lines = Number(draft ?? scrollback);
-    setScrollback(Math.max(100, Math.min(50000, Math.round(lines) || 1000)));
+    setScrollback(Math.max(SCROLLBACK_MIN, Math.min(SCROLLBACK_MAX, Math.round(lines) || 1000)));
     setDraft(null);
   };
 
@@ -447,8 +483,8 @@ function ScrollbackInput({ ids }: { ids: RowIds }) {
       aria-describedby={ids.hintId}
       type="number"
       inputMode="numeric"
-      min={100}
-      max={50000}
+      min={SCROLLBACK_MIN}
+      max={SCROLLBACK_MAX}
       step={500}
       value={draft ?? String(scrollback)}
       onChange={(event) => setDraft(event.target.value)}

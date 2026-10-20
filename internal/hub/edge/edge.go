@@ -5,9 +5,9 @@
 // Otherwise it is the embedded build, passed in as Options.Static.
 //
 // Other hub packages mount their routes with Edge.Handle before the server
-// starts. /_relay and /file belong to them. Until they are mounted the edge
-// answers 404 for those paths. /_relay, /file and /health never reach the
-// web app.
+// starts. /_relay, /file and /user belong to them. Until they are mounted
+// the edge answers 404 for those paths. /_relay, /file, /user and /health
+// never reach the web app.
 package edge
 
 import (
@@ -144,8 +144,9 @@ func notFound(w http.ResponseWriter) {
 }
 
 // hubPaths are served by the hub only. A request for one of them, or for a
-// path below one, never reaches the web app, mounted or not.
-var hubPaths = []string{"/_relay", "/file", "/health"}
+// path below one, never reaches the web app, mounted or not. /user holds
+// the user documents below /user/.
+var hubPaths = []string{"/_relay", "/file", "/health", "/user"}
 
 func isHubPath(path string) bool {
 	for _, p := range hubPaths {

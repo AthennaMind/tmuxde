@@ -9,8 +9,10 @@ import (
 // octetStream is the type of every extension the table does not know.
 const octetStream = "application/octet-stream"
 
-// mimeTypes is the relay table in apps/relay/src/mime.ts, keyed by the
-// lower case extension without the dot.
+// mimeTypes started as the relay table in apps/relay/src/mime.ts, keyed
+// by the lower case extension without the dot. It covers what the file
+// preview shows. A blob keeps the type of its response, and an iframe
+// saves an octet stream instead of showing a PDF, so the type matters.
 var mimeTypes = map[string]string{
 	// Images
 	"png":  "image/png",
@@ -19,21 +21,34 @@ var mimeTypes = map[string]string{
 	"gif":  "image/gif",
 	"svg":  "image/svg+xml",
 	"webp": "image/webp",
+	"avif": "image/avif",
+	"apng": "image/apng",
 	"bmp":  "image/bmp",
 	"ico":  "image/x-icon",
 	// Video
 	"mp4":  "video/mp4",
+	"m4v":  "video/x-m4v",
 	"webm": "video/webm",
 	"mov":  "video/quicktime",
+	"ogv":  "video/ogg",
+	"mkv":  "video/x-matroska",
 	// Audio
 	"mp3":  "audio/mpeg",
 	"wav":  "audio/wav",
 	"ogg":  "audio/ogg",
+	"oga":  "audio/ogg",
+	"opus": "audio/ogg",
+	"weba": "audio/webm",
 	"flac": "audio/flac",
 	"m4a":  "audio/mp4",
 	"aac":  "audio/aac",
 	// Documents
 	"pdf": "application/pdf",
+	// Fonts
+	"ttf":   "font/ttf",
+	"otf":   "font/otf",
+	"woff":  "font/woff",
+	"woff2": "font/woff2",
 }
 
 // mimeType returns the Content-Type for a base name. The extension starts

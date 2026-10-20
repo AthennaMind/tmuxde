@@ -1,4 +1,3 @@
-import { isPaletteKey } from "@/features/palette/palette-key";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
@@ -7,8 +6,6 @@ import { Terminal as XTerm } from "@xterm/xterm";
 
 import { refreshWhenFontLoads, terminalFontFamily } from "./terminal-font";
 import { brightenDimText } from "./terminal-dim";
-import { isFontZoomKey } from "./font-zoom-key";
-import { isDictationKey } from "@/features/dictation/dictation-key";
 
 import { getTerminalTheme, terminalThemeToXterm, type ColorScheme } from "./terminal-themes";
 
@@ -141,12 +138,9 @@ export function createXterm(options: XtermOptions): XtermBundle {
   terminal.loadAddon(unicode11Addon);
   terminal.loadAddon(webLinksAddon);
 
-  // Font size keys belong to the app, not the shell. Without this, a focused
-  // terminal turns Ctrl+- into a control character. Skipped here, the key
-  // bubbles to the terminal layout, which sizes the terminal or the code view.
-  terminal.attachCustomKeyEventHandler(
-    (event) => !isFontZoomKey(event) && !isDictationKey(event) && !isPaletteKey(event),
-  );
+  // No custom key handler. App bindings run in a capture listener on window
+  // (features/keybindings/use-keybindings.ts) and stop the keys they handle
+  // before xterm sees them.
 
   terminal.unicode.activeVersion = "11";
   terminal.open(options.container);

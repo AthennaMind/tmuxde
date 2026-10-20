@@ -1,4 +1,5 @@
 import { PanelLeftClose } from "lucide-react";
+import { useShortcutTitle } from "@/features/keybindings/shortcut-label";
 import { cn } from "@/shared/utils";
 import { useUiStore } from "./ui-store";
 
@@ -19,15 +20,12 @@ export function PanelHeader({
   className?: string;
 }) {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const hideLabel = useShortcutTitle("Hide sidebar", "sidebar.toggle");
   return (
     <div className={cn("flex min-h-11 shrink-0 items-center gap-1 border-b ps-3 pe-1", className)}>
       <h2 className="min-w-0 flex-1 truncate font-chrome text-[13px] font-medium">{title}</h2>
       {children}
-      <PanelIconButton
-        label="Hide sidebar (Ctrl+B)"
-        onClick={toggleSidebar}
-        icon={PanelLeftClose}
-      />
+      <PanelIconButton label={hideLabel} onClick={toggleSidebar} icon={PanelLeftClose} />
     </div>
   );
 }

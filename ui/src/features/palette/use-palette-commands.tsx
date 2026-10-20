@@ -54,19 +54,18 @@ import type { ClientMessage } from "@/protocol";
 import { RepositoryFileIcon } from "@/features/files/repository-file-icon";
 import { useQuickOpenQuery } from "./use-quick-open-query";
 import { useDictationAvailable } from "@/features/dictation/use-dictation-available";
-import { useShortcutsDialog } from "./shortcuts-dialog-store";
 import { getRelayClient, useRelayClient } from "@/features/connection/use-websocket";
 import { useStableMediaQuery } from "@/shared/use-media-query";
 import { useTheme } from "@/shared/use-theme";
 import { noteEnteredCopyMode } from "@/features/terminal/copy-mode-belief";
-import { toggleDictation } from "@/features/dictation/dictation";
-import { lockNow } from "@/features/lock/lock-controller";
 import { MOBILE_MEDIA_QUERY } from "@/shared/mobile-query";
-import { modKey } from "./palette-key";
 import { zoomPane } from "@/features/panes/pane-zoom";
+import type { CommandId } from "@/features/keybindings/command-ids";
+import { runCommand } from "@/features/keybindings/commands";
+import { useKeybindingsStore } from "@/features/keybindings/keybindings-store";
+import { shortcutLabel } from "@/features/keybindings/shortcut-label";
 import { sendCommand } from "@/features/terminal/send-command";
 import { runInSession } from "@/features/session/session-target";
-import { disconnectDevice } from "@/features/lock/sign-out";
 import { DEFAULT_TERMINAL_THEME, terminalThemes } from "@/features/terminal/terminal-themes";
 import { isEnrolled, isUnlocked } from "@/features/lock/unlocked";
 import { activateView, openMachineSession } from "@/features/workspace/workspace-target";
@@ -232,6 +231,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
   const history = useCommandStore((s) => s.history);
   const snippets = useCommandStore((s) => s.snippets);
   const client = useRelayClient();
+  const keymap = useKeybindingsStore((s) => s.keymap);
 
   const connected = status === "connected" && client !== null;
   const noFiles = filesDisabled(capabilities);
@@ -255,6 +255,16 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
   const terminal = (messages: ClientMessage[]) => () => {
     sendAll(messages);
     finish("terminal");
+  };
+  // Hints come from the keymap, so they follow the platform and user bindings.
+  const hint = (id: CommandId) => {
+    const label = shortcutLabel(id, keymap);
+    return label ? [label] : undefined;
+  };
+  // Static items with a registered command run it, then close the palette.
+  const invoke = (id: CommandId, focus?: "terminal") => () => {
+    runCommand(id);
+    finish(focus);
   };
   const showSidebar = (view: SidebarView) => () => {
     useUiStore.getState().showSidebarView(view);
@@ -378,7 +388,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       label: "Overview",
       keywords: ["sessions", "windows", "panes", "machines"],
       icon: <LayoutGrid />,
-      shortcut: ["Ctrl", "O"],
+      shortcut: hint("overview.toggle"),
       run: () => {
         useMainTabsStore.getState().openOverview();
         if (mobile) useUiStore.getState().setMobileTab("terminal");
@@ -390,11 +400,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       label: "Settings",
       keywords: ["preferences", "theme", "font"],
       icon: <SlidersHorizontal />,
-      run: () => {
-        if (mobile) useUiStore.getState().setMobileTab("settings");
-        else useMainTabsStore.getState().openSettings();
-        finish();
-      },
+      run: invoke("settings.open"),
     },
     {
       id: "go:sessions",
@@ -415,7 +421,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       label: "Files",
       keywords: ["sidebar", "tree", "folder"],
       icon: <FolderTree />,
-      shortcut: ["Ctrl", "E"],
+      shortcut: hint("sidebar.files"),
       run: mobile
         ? () => {
             useUiStore.getState().setMobileTab("files");
@@ -428,7 +434,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       label: "Find files",
       keywords: ["quick open", "search", "jump"],
       icon: <FileSearch />,
-      shortcut: [modKey("P")],
+      shortcut: hint("palette.files"),
       run: () => setMode("files"),
     });
   }
@@ -461,11 +467,8 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       label: sidebarCollapsed ? "Show sidebar" : "Hide sidebar",
       keywords: ["toggle", "panel", "collapse"],
       icon: <PanelLeft />,
-      shortcut: ["Ctrl", "B"],
-      run: () => {
-        useUiStore.getState().toggleSidebar();
-        finish();
-      },
+      shortcut: hint("sidebar.toggle"),
+      run: invoke("sidebar.toggle"),
     });
     if (root && activePaneId && features.has("repo:graph")) {
       navigate.push({
@@ -497,7 +500,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
     label: "Search terminals",
     keywords: ["history", "output", "all machines", "grep"],
     icon: <TextSearch />,
-    shortcut: [modKey("⇧F")],
+    shortcut: hint("palette.terminals"),
     run: () => setMode("terminals"),
   });
   if (session) {
@@ -506,10 +509,8 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       label: "Find in terminal",
       keywords: ["search", "scrollback"],
       icon: <Search />,
-      run: () => {
-        useUiStore.getState().setTerminalSearchOpen(true);
-        finish();
-      },
+      shortcut: hint("terminal.search"),
+      run: invoke("terminal.search"),
     });
   }
   navigate.push({
@@ -517,11 +518,8 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
     label: "Keyboard shortcuts",
     keywords: ["help", "keys"],
     icon: <Keyboard />,
-    shortcut: ["?"],
-    run: () => {
-      useShortcutsDialog.setState({ open: true });
-      finish();
-    },
+    shortcut: hint("shortcuts.open"),
+    run: invoke("shortcuts.open"),
   });
   add("navigate", "Go to", navigate);
 
@@ -595,11 +593,11 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
         label: dictating ? "Stop dictation" : "Start dictation",
         keywords: ["voice", "speech", "microphone"],
         icon: dictating ? <MicOff /> : <Mic />,
-        shortcut: ["Ctrl", "⇧", "Space"],
+        shortcut: hint("dictation.toggle"),
         // Dictation types where focus is. Wait for the terminal to take it back.
         run: () => {
           finish("terminal");
-          requestAnimationFrame(() => requestAnimationFrame(toggleDictation));
+          requestAnimationFrame(() => requestAnimationFrame(() => runCommand("dictation.toggle")));
         },
       });
     }
@@ -824,11 +822,8 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       label: "Close current view",
       keywords: ["tab", "close"],
       icon: <CircleX />,
-      run: () => {
-        useMainTabsStore.getState().closeTab(activeTab);
-        activateView(useMainTabsStore.getState().active);
-        finish();
-      },
+      shortcut: hint("views.close"),
+      run: invoke("views.close"),
     });
   }
   if (tabs.length)
@@ -837,11 +832,8 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       label: "Close all views",
       keywords: ["tabs"],
       icon: <CircleX />,
-      run: () => {
-        useMainTabsStore.getState().closeTabs("all");
-        activateView(useMainTabsStore.getState().active);
-        finish();
-      },
+      shortcut: hint("views.closeAll"),
+      run: invoke("views.closeAll"),
     });
   if (has("files"))
     manage.push({
@@ -878,6 +870,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       keywords: ["appearance", "mode"],
       icon: <Sun />,
       current: theme === "light",
+      shortcut: hint("theme.light"),
       run: () => {
         setTheme("light");
         finish();
@@ -889,6 +882,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       keywords: ["appearance", "mode"],
       icon: <Moon />,
       current: theme === "dark",
+      shortcut: hint("theme.dark"),
       run: () => {
         setTheme("dark");
         finish();
@@ -900,6 +894,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       keywords: ["appearance", "mode", "auto"],
       icon: <Monitor />,
       current: theme === "system",
+      shortcut: hint("theme.system"),
       run: () => {
         setTheme("system");
         finish();
@@ -913,7 +908,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
             detail: `${fontSize}px`,
             keywords: ["font", "zoom", "size"],
             icon: <ZoomIn />,
-            shortcut: [modKey("+")],
+            shortcut: hint("terminal.zoomIn"),
             run: () => {
               useTerminalStore.getState().setFontSize(clampFontSize(fontSize + 1));
               finish("terminal");
@@ -929,7 +924,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
             detail: `${fontSize}px`,
             keywords: ["font", "zoom", "size"],
             icon: <ZoomOut />,
-            shortcut: [modKey("-")],
+            shortcut: hint("terminal.zoomOut"),
             run: () => {
               useTerminalStore.getState().setFontSize(clampFontSize(fontSize - 1));
               finish("terminal");
@@ -942,7 +937,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       label: "Reset text size",
       keywords: ["font", "zoom", "default"],
       icon: <ZoomOut />,
-      shortcut: [modKey("0")],
+      shortcut: hint("terminal.zoomReset"),
       run: () => {
         useTerminalStore.getState().setFontSize(getDefaultFontSize());
         finish("terminal");
@@ -976,10 +971,8 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       label: "Lock now",
       keywords: ["pin", "secure", "screen"],
       icon: <Lock />,
-      run: () => {
-        lockNow("manual");
-        finish();
-      },
+      shortcut: hint("lock.now"),
+      run: invoke("lock.now"),
     });
   }
   security.push({
@@ -987,16 +980,9 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
     label: "Disconnect this browser…",
     keywords: ["sign out", "log out", "token"],
     icon: <Unplug />,
-    run: () =>
-      confirmAfterPalette({
-        title: "Disconnect this browser?",
-        description:
-          "The relay token is removed from this browser. You need it to sign in again. Your tmux sessions keep running.",
-        label: "Disconnect",
-        run: () => {
-          void disconnectDevice();
-        },
-      }),
+    shortcut: hint("session.disconnect"),
+    // The confirmation closes the palette itself.
+    run: () => runCommand("session.disconnect"),
   });
   add("security", "Security", security);
 

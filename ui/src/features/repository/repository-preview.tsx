@@ -1,11 +1,10 @@
-import { useState } from "react";
 import { cn } from "@/shared/utils";
-import { useFileObjectUrl } from "@/features/files/use-file-object-url";
+import { Notice } from "@/shared/notice";
 import { RepositorySyntaxLine } from "./repository-syntax";
 import { useRepositorySyntax } from "./use-syntax-tokens";
 import type { RepositoryResult } from "./use-repository-query";
-import { filesAvailable } from "@/features/files/file-url";
-import { getFileCategory } from "@/features/files/file-utils";
+import { getFileViewMode } from "@/features/files/file-utils";
+import { MediaPreview } from "@/features/files/media-preview";
 import { isMarkdownPath } from "@/features/files/markdown";
 import { lazyComponent } from "@/shared/lazy-component";
 
@@ -14,26 +13,6 @@ const MarkdownPreview = lazyComponent(
   () => import("@/features/files/markdown-preview").then((m) => m.MarkdownPreview),
   <Notice>Loading preview...</Notice>,
 );
-
-export function Notice({
-  children,
-  error = false,
-}: {
-  children: React.ReactNode;
-  error?: boolean;
-}) {
-  return (
-    <p
-      role={error ? "alert" : "status"}
-      className={cn(
-        "px-4 py-6 text-sm leading-relaxed",
-        error ? "text-destructive" : "text-muted-foreground",
-      )}
-    >
-      {children}
-    </p>
-  );
-}
 
 /**
  * The file preview, shared by the mobile repository browser, the desktop
@@ -47,6 +26,7 @@ export function FilePreview({
   symlink = false,
   rendered = false,
   onOpenPath,
+  machineId,
 }: {
   result: Extract<RepositoryResult, { kind: "read" | "diff" }>;
   path: string;
@@ -59,6 +39,8 @@ export function FilePreview({
   rendered?: boolean;
   /** Open a file linked from rendered Markdown. */
   onOpenPath?: (path: string) => void;
+  /** Machine the file lives on. The active route by default. */
+  machineId?: string;
 }) {
   const markdown = result.kind === "read" && rendered && !result.binary && isMarkdownPath(path);
   const syntax = useRepositorySyntax(
@@ -66,15 +48,20 @@ export function FilePreview({
     result.binary || markdown ? "" : result.content,
     result.kind === "diff",
   );
-  if (result.kind === "read" && getFileCategory(path) === "image") {
-    if (symlink) return <Notice>Image preview is unavailable for symbolic links.</Notice>;
-    if (size !== undefined && size > 10 * 1024 * 1024)
-      return <Notice>Image exceeds 10 MB preview limit.</Notice>;
-    return filesAvailable() ? (
-      <ImagePreview key={path} path={path} />
-    ) : (
-      <Notice>Image preview needs a direct connection to this machine.</Notice>
-    );
+  if (result.kind === "read") {
+    // Media by extension. Any other file with bytes that are not text gets
+    // the download card.
+    const mode = getFileViewMode(path);
+    if (mode !== "text" || result.binary)
+      return (
+        <MediaPreview
+          path={path}
+          mode={mode === "text" ? "binary" : mode}
+          size={size}
+          symlink={symlink}
+          target={machineId}
+        />
+      );
   }
   if (result.binary) return <Notice>Binary file. Text preview is unavailable.</Notice>;
   if (!result.content)
@@ -144,27 +131,5 @@ export function FilePreview({
         </div>
       )}
     </>
-  );
-}
-
-function ImagePreview({ path }: { path: string }) {
-  const { url, loading, error } = useFileObjectUrl(path);
-  const [decodeError, setDecodeError] = useState(false);
-  if (error || decodeError)
-    return (
-      <Notice error>
-        Could not preview this image. File may be missing, too large, or inaccessible.
-      </Notice>
-    );
-  if (loading || !url) return <Notice>Loading image...</Notice>;
-  return (
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-4">
-      <img
-        src={url}
-        alt={path.split("/").pop() ?? "File preview"}
-        className="max-h-full max-w-full object-contain"
-        onError={() => setDecodeError(true)}
-      />
-    </div>
   );
 }

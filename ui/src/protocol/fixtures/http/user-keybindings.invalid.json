@@ -1,0 +1,93 @@
+[
+  { "reason": "object instead of array", "document": {} },
+  { "reason": "null instead of array", "document": null },
+  { "reason": "string instead of array", "document": "ctrl+b" },
+  { "reason": "entry is a string", "document": ["ctrl+b"] },
+  { "reason": "entry is null", "document": [null] },
+  { "reason": "entry is an array", "document": [[]] },
+  { "reason": "entry without key or mac", "document": [{ "command": "sidebar.toggle" }] },
+  { "reason": "entry without command", "document": [{ "key": "ctrl+b" }] },
+  { "reason": "command is null", "document": [{ "key": "ctrl+b", "command": null }] },
+  { "reason": "command is a number", "document": [{ "key": "ctrl+b", "command": 1 }] },
+  { "reason": "command with one part", "document": [{ "key": "ctrl+b", "command": "lock" }] },
+  {
+    "reason": "command starting upper case",
+    "document": [{ "key": "ctrl+b", "command": "Sidebar.toggle" }]
+  },
+  {
+    "reason": "command with two dashes",
+    "document": [{ "key": "ctrl+b", "command": "--sidebar.toggle" }]
+  },
+  {
+    "reason": "command with a colon",
+    "document": [{ "key": "ctrl+b", "command": "go:sidebar" }]
+  },
+  {
+    "reason": "command with trailing newline",
+    "document": [{ "key": "ctrl+b", "command": "sidebar.toggle\n" }]
+  },
+  { "reason": "empty key", "document": [{ "key": "", "command": "sidebar.toggle" }] },
+  { "reason": "key is null", "document": [{ "key": null, "command": "sidebar.toggle" }] },
+  { "reason": "key is a number", "document": [{ "key": 5, "command": "sidebar.toggle" }] },
+  { "reason": "key with spaces", "document": [{ "key": "ctrl + b", "command": "sidebar.toggle" }] },
+  { "reason": "key sequence", "document": [{ "key": "ctrl+k ctrl+s", "command": "sidebar.toggle" }] },
+  { "reason": "key upper case", "document": [{ "key": "Ctrl+B", "command": "sidebar.toggle" }] },
+  { "reason": "key name upper case", "document": [{ "key": "ctrl+B", "command": "sidebar.toggle" }] },
+  { "reason": "unknown key name", "document": [{ "key": "ctrl+plus", "command": "terminal.zoomIn" }] },
+  { "reason": "plus as key name", "document": [{ "key": "ctrl++", "command": "terminal.zoomIn" }] },
+  { "reason": "f13 key name", "document": [{ "key": "f13", "command": "sidebar.toggle" }] },
+  { "reason": "f0 key name", "document": [{ "key": "f0", "command": "sidebar.toggle" }] },
+  { "reason": "modifiers only", "document": [{ "key": "ctrl+shift", "command": "sidebar.toggle" }] },
+  { "reason": "bare modifier", "document": [{ "key": "ctrl", "command": "sidebar.toggle" }] },
+  {
+    "reason": "repeated modifier",
+    "document": [{ "key": "ctrl+ctrl+b", "command": "sidebar.toggle" }]
+  },
+  { "reason": "empty token", "document": [{ "key": "ctrl++b", "command": "sidebar.toggle" }] },
+  { "reason": "trailing plus", "document": [{ "key": "ctrl+", "command": "sidebar.toggle" }] },
+  { "reason": "leading plus", "document": [{ "key": "+b", "command": "sidebar.toggle" }] },
+  { "reason": "two key names", "document": [{ "key": "a+b", "command": "sidebar.toggle" }] },
+  { "reason": "modifier after key", "document": [{ "key": "b+ctrl", "command": "sidebar.toggle" }] },
+  { "reason": "unknown modifier", "document": [{ "key": "hyper+b", "command": "sidebar.toggle" }] },
+  {
+    "reason": "key longer than 64 characters",
+    "document": [
+      {
+        "key": "ctrl+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "command": "sidebar.toggle"
+      }
+    ]
+  },
+  {
+    "reason": "valid key with invalid mac",
+    "document": [{ "key": "ctrl+b", "mac": "Cmd+B", "command": "sidebar.toggle" }]
+  },
+  { "reason": "mac is null", "document": [{ "mac": null, "command": "sidebar.toggle" }] },
+  {
+    "reason": "unknown scope",
+    "document": [{ "key": "ctrl+b", "command": "sidebar.toggle", "scope": "editor" }]
+  },
+  {
+    "reason": "scope is null",
+    "document": [{ "key": "ctrl+b", "command": "sidebar.toggle", "scope": null }]
+  },
+  {
+    "reason": "unknown field",
+    "document": [{ "key": "ctrl+b", "command": "sidebar.toggle", "when": "terminalFocus" }]
+  },
+  {
+    "reason": "field name in other case",
+    "document": [{ "Key": "ctrl+b", "command": "sidebar.toggle" }]
+  },
+  {
+    "reason": "command field in other case",
+    "document": [{ "key": "ctrl+b", "Command": "sidebar.toggle" }]
+  },
+  {
+    "reason": "one bad entry among good ones",
+    "document": [
+      { "key": "ctrl+b", "command": "sidebar.toggle" },
+      { "key": "ctrl+o", "command": "overview" }
+    ]
+  }
+]

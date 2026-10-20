@@ -181,6 +181,8 @@ type fixture struct {
 	opener *fakeOpener
 	logs   *syncBuffer
 	h      http.Handler
+	// now is the ticket clock. Zero means the wall clock.
+	now time.Time
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -193,12 +195,16 @@ func newFixture(t *testing.T) *fixture {
 	logs := &syncBuffer{}
 	logger := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	opener := &fakeOpener{root: root, denied: denied}
-	return &fixture{
-		root:   root,
-		opener: opener,
-		logs:   logs,
-		h:      New(Options{Token: testToken, Opener: opener, Logger: logger}),
+	f := &fixture{root: root, opener: opener, logs: logs}
+	f.h = New(Options{Token: testToken, Opener: opener, Logger: logger, Now: f.clock})
+	return f
+}
+
+func (f *fixture) clock() time.Time {
+	if f.now.IsZero() {
+		return time.Now()
 	}
+	return f.now
 }
 
 // write creates a file below the root and returns its path.
@@ -747,6 +753,12 @@ func TestMimeType(t *testing.T) {
 		{"a.m4a", "audio/mp4"},
 		{"a.aac", "audio/aac"},
 		{"a.pdf", "application/pdf"},
+		{"a.avif", "image/avif"},
+		{"a.mkv", "video/x-matroska"},
+		{"a.ogv", "video/ogg"},
+		{"a.opus", "audio/ogg"},
+		{"a.weba", "audio/webm"},
+		{"a.woff2", "font/woff2"},
 		{"A.PNG", "image/png"},
 		{"photo.JpEg", "image/jpeg"},
 		{"archive.tar.pdf", "application/pdf"},
@@ -765,8 +777,8 @@ func TestMimeType(t *testing.T) {
 			}
 		})
 	}
-	if len(mimeTypes) != 18 {
-		t.Errorf("table has %d entries, mime.ts has 18", len(mimeTypes))
+	if len(mimeTypes) != 30 {
+		t.Errorf("table has %d entries, want 30", len(mimeTypes))
 	}
 }
 

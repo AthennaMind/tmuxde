@@ -15,3 +15,25 @@ export const ThemeContext = createContext<ThemeState>({
   resolvedTheme: "dark",
   setTheme: () => {},
 });
+
+type ThemeSetter = (theme: Theme) => void;
+
+let themeSetter: ThemeSetter | null = null;
+
+/**
+ * Let the theme provider hand its setter to code outside React, such as
+ * keybinding commands. Returns the cleanup, which only clears its own setter.
+ */
+export function registerThemeSetter(setter: ThemeSetter): () => void {
+  themeSetter = setter;
+  return () => {
+    if (themeSetter === setter) themeSetter = null;
+  };
+}
+
+/** Set the theme from a command. False while no provider has registered. */
+export function setThemeFromCommand(theme: Theme): boolean {
+  if (!themeSetter) return false;
+  themeSetter(theme);
+  return true;
+}

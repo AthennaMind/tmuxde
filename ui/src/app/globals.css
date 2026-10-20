@@ -607,6 +607,13 @@
   background-size: 56px 56px;
 }
 
+/* Checkerboard behind image previews, so transparency shows. */
+@utility bg-checkerboard {
+  background-color: var(--color-surface-sunken);
+  background-image: repeating-conic-gradient(var(--color-muted) 0% 25%, transparent 0% 50%);
+  background-size: 20px 20px;
+}
+
 /* Text that should never be selected or copied (shell prompts, glyphs). */
 @utility select-none-prompt {
   user-select: none;

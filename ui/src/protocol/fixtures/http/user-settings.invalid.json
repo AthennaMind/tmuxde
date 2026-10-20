@@ -1,0 +1,23 @@
+[
+  { "reason": "array instead of object", "document": [] },
+  { "reason": "string instead of object", "document": "appearance.theme" },
+  { "reason": "number instead of object", "document": 1 },
+  { "reason": "null instead of object", "document": null },
+  { "reason": "key with one part", "document": { "theme": "dark" } },
+  { "reason": "empty key", "document": { "": true } },
+  { "reason": "key starting upper case", "document": { "Appearance.theme": "dark" } },
+  { "reason": "part starting upper case", "document": { "appearance.Theme": "dark" } },
+  { "reason": "part starting with a digit", "document": { "terminal.1fontSize": 14 } },
+  { "reason": "dash in key", "document": { "terminal.font-size": 14 } },
+  { "reason": "underscore in key", "document": { "terminal.font_size": 14 } },
+  { "reason": "empty part", "document": { "terminal..fontSize": 14 } },
+  { "reason": "trailing dot", "document": { "terminal.": 14 } },
+  { "reason": "leading dot", "document": { ".terminal.fontSize": 14 } },
+  { "reason": "space in key", "document": { "terminal. fontSize": 14 } },
+  { "reason": "trailing newline in key", "document": { "terminal.fontSize\n": 14 } },
+  { "reason": "non ASCII key", "document": { "terminal.schriftä": 14 } },
+  {
+    "reason": "one bad key among good ones",
+    "document": { "appearance.theme": "dark", "terminal.fontSize": 14, "bad": 1 }
+  }
+]

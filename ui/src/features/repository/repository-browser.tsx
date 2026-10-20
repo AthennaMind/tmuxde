@@ -30,7 +30,8 @@ import { useRepositoryHistory, type RepositoryView } from "./repository-history"
 import { RepositoryNavigationSurface } from "./repository-navigation-surface";
 import { ChangesList } from "./repository-changes";
 import { RepositoryFileIcon } from "@/features/files/repository-file-icon";
-import { FilePreview, Notice } from "./repository-preview";
+import { FilePreview } from "./repository-preview";
+import { Notice } from "@/shared/notice";
 import { useRepositoryQuery } from "./use-repository-query";
 import { formatFileSize } from "@/features/files/file-utils";
 import { isMarkdownPath } from "@/features/files/markdown";

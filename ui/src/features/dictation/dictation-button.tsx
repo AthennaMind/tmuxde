@@ -6,6 +6,8 @@ import { useDictationStore } from "./dictation-store";
 import { useSettingsStore } from "@/features/settings/settings-store";
 import { toggleDictation } from "./dictation";
 import { useDictationAvailable } from "./use-dictation-available";
+import { useKeybindingsStore } from "@/features/keybindings/keybindings-store";
+import { shortcutTitle } from "@/features/keybindings/shortcut-label";
 
 /**
  * Start and stop dictation.
@@ -25,6 +27,7 @@ export function DictationButton({
   const connected = useConnectionStore((s) => s.status === "connected");
   const status = useDictationStore((s) => s.status);
   const hapticEnabled = useSettingsStore((s) => s.hapticEnabled);
+  const keymap = useKeybindingsStore((s) => s.keymap);
   if (!available) return null;
 
   const recording = status === "starting" || status === "listening";
@@ -39,7 +42,7 @@ export function DictationButton({
       data-terminal-key={variant === "toolbar" || undefined}
       aria-label={label}
       aria-pressed={recording}
-      title={`${label} (Ctrl+Shift+Space)`}
+      title={shortcutTitle(label, "dictation.toggle", keymap)}
       disabled={!connected || status === "stopping"}
       onPointerDown={(event) => event.preventDefault()}
       onMouseDown={(event) => event.preventDefault()}

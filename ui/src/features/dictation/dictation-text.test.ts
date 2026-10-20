@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { insertIntoField, isTextField, joinSegment, sanitizeDictation } from "./dictation-text";
-import { isDictationKey } from "./dictation-key";
 import { Downsampler, FRAME_SAMPLES } from "../../../public/dictation-worklet.js";
 
 describe("sanitizeDictation", () => {
@@ -81,26 +80,6 @@ describe("insertIntoField", () => {
     insertIntoField(field as unknown as HTMLTextAreaElement, "fix login");
     expect(field.value).toBe("git commit -m fix login");
     expect(events).toEqual(["input"]);
-  });
-});
-
-describe("isDictationKey", () => {
-  const key = (over: Partial<KeyboardEvent>) => ({
-    key: " ",
-    code: "Space",
-    ctrlKey: true,
-    shiftKey: true,
-    altKey: false,
-    metaKey: false,
-    ...over,
-  });
-
-  it("is Ctrl+Shift+Space only", () => {
-    expect(isDictationKey(key({}))).toBe(true);
-    expect(isDictationKey(key({ shiftKey: false }))).toBe(false);
-    expect(isDictationKey(key({ altKey: true }))).toBe(false);
-    expect(isDictationKey(key({ metaKey: true }))).toBe(false);
-    expect(isDictationKey(key({ key: "a", code: "KeyA" }))).toBe(false);
   });
 });
 

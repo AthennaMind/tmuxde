@@ -1,33 +1,34 @@
 // Own theme provider. It replaces next-themes and keeps the parts this app
-// used: storage key "theme", a light or dark class on the root element,
-// color-scheme, system tracking, tab sync and no transitions on change.
-// index.html applies the stored theme before first paint with the same key.
+// used: a light or dark class on the root element, color-scheme, system
+// tracking, tab sync and no transitions on change.
+//
+// The theme is the synced `appearance.theme` setting, held in
+// features/settings/theme-setting.ts. The localStorage key "theme" stays as
+// its cache: index.html applies it before first paint, and other tabs see
+// changes to it through the storage event.
 import {
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
-  useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { ThemeContext, type ResolvedTheme, type Theme } from "@/shared/theme-context";
+import {
+  ThemeContext,
+  registerThemeSetter,
+  type ResolvedTheme,
+  type Theme,
+} from "@/shared/theme-context";
+import {
+  THEME_CACHE_KEY,
+  getThemeSetting,
+  isTheme,
+  setThemeSetting,
+  subscribeThemeSetting,
+} from "@/features/settings/theme-setting";
 
-const STORAGE_KEY = "theme";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
-
-function isTheme(value: unknown): value is Theme {
-  return value === "light" || value === "dark" || value === "system";
-}
-
-function storedTheme(fallback: Theme): Theme {
-  try {
-    const value = localStorage.getItem(STORAGE_KEY);
-    return isTheme(value) ? value : fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 let darkQuery: MediaQueryList | null | undefined;
 
@@ -84,24 +85,32 @@ export function ThemeProvider({
   children: ReactNode;
   defaultTheme?: Theme;
 }) {
-  const [theme, setThemeState] = useState<Theme>(() => storedTheme(defaultTheme));
+  const theme = useSyncExternalStore(subscribeThemeSetting, getThemeSetting, () => defaultTheme);
   const system = useSyncExternalStore(subscribeSystem, systemTheme, serverTheme);
   const resolvedTheme = theme === "system" ? system : theme;
 
-  const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
+  const setTheme = useCallback((next: Theme) => setThemeSetting(next), []);
+
+  // Theme commands run outside React and reach the setting through this.
+  useEffect(() => registerThemeSetter(setTheme), [setTheme]);
+
+  // Cache for the pre paint script and for other tabs.
+  useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, next);
+      if (localStorage.getItem(THEME_CACHE_KEY) !== theme) {
+        localStorage.setItem(THEME_CACHE_KEY, theme);
+      }
     } catch {
       // Storage can be blocked. The theme still applies to this tab.
     }
-  }, []);
+  }, [theme]);
 
-  // Another tab changed the theme. A removed key means the default.
+  // Another tab changed the theme. A removed key means the default. That tab
+  // already saved the change, so it lands here as a sync, not a new choice.
   useEffect(() => {
     const sync = (event: StorageEvent) => {
-      if (event.key !== STORAGE_KEY) return;
-      setThemeState(isTheme(event.newValue) ? event.newValue : defaultTheme);
+      if (event.key !== THEME_CACHE_KEY) return;
+      setThemeSetting(isTheme(event.newValue) ? event.newValue : defaultTheme, "sync");
     };
     window.addEventListener("storage", sync);
     return () => window.removeEventListener("storage", sync);

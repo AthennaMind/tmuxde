@@ -1,7 +1,7 @@
 import { Command } from "cmdk";
 import { Terminal } from "lucide-react";
 import { matchPalette, type Range } from "./palette-match";
-import { modKey } from "./palette-key";
+import { chordLabel } from "@/features/keybindings/shortcut-label";
 import { sendCommand } from "@/features/terminal/send-command";
 import {
   ContextLine,
@@ -48,6 +48,7 @@ export function CommandsMode() {
   const visible = filterGroups(groups, query);
   const total = visible.reduce((sum, entry) => sum + entry.items.length, 0);
   const command = query.trim();
+  const runKeys = chordLabel("mod+enter");
   const run: PaletteItem | null =
     canType && command
       ? {
@@ -56,7 +57,7 @@ export function CommandsMode() {
           detail: "Send to the active terminal",
           icon: <Terminal />,
           mono: true,
-          shortcut: [modKey("↵")],
+          shortcut: [runKeys],
           run: () => {
             if (sendCommand(command)) finish("terminal");
           },
@@ -90,7 +91,7 @@ export function CommandsMode() {
           run
             ? [
                 ["↵", "select"],
-                [modKey("↵"), "run"],
+                [runKeys, "run"],
               ]
             : [
                 ["↑↓", "move"],

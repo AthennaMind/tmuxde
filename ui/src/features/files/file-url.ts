@@ -2,6 +2,7 @@ import { machineId } from "@/features/connection/machine-context";
 import { resolveRelayHttpBase } from "@/features/connection/relay-url";
 
 import { readSelfHostedToken } from "@/features/connection/storage-keys";
+import { FileTicketSchema } from "@/protocol/file-ticket";
 
 /**
  * Thrown when the current connection has no HTTP route to the relay.
@@ -103,12 +104,17 @@ export async function downloadFile(
 /**
  * Fetch a file as a blob using the `Authorization: Bearer <token>` header
  * (never the URL) and return an object URL. The caller MUST revoke the
- * returned URL on cleanup/unmount to avoid leaks — see `useFileObjectUrl`.
+ * returned URL on cleanup/unmount to avoid leaks. See `useFileObjectUrl`.
+ * `target` names the machine. It defaults to the active route.
  */
-export async function fetchFileObjectUrl(path: string, signal?: AbortSignal): Promise<string> {
+export async function fetchFileObjectUrl(
+  path: string,
+  signal?: AbortSignal,
+  target = machineId(),
+): Promise<string> {
   const token = getStoredToken();
   // oxlint-disable-next-line no-restricted-globals -- sanctioned file preview path, token stays in the header.
-  const res = await fetch(getFileUrl(path), {
+  const res = await fetch(getFileUrl(path, false, target), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     signal,
   });
@@ -117,4 +123,34 @@ export async function fetchFileObjectUrl(path: string, signal?: AbortSignal): Pr
   }
   const blob = await res.blob();
   return URL.createObjectURL(blob);
+}
+
+/**
+ * A `/file` URL the browser loads by itself, for a video, an audio element
+ * or a PDF frame. Those cannot send the bearer header, so the URL carries
+ * a ticket for this one file instead, minted here with the bearer and good
+ * for about fifteen minutes. The server answers Range requests on it, so
+ * playback starts before the whole file is down and seeks freely.
+ */
+export async function fetchFileStreamUrl(
+  path: string,
+  target = machineId(),
+  signal?: AbortSignal,
+): Promise<string> {
+  const httpBase = resolveRelayHttpBase();
+  if (!httpBase) throw new FilesUnavailableError();
+  const token = getStoredToken();
+  // oxlint-disable-next-line no-restricted-globals -- sanctioned ticket request, token stays in the header.
+  const res = await fetch(`${httpBase}/file/ticket`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(target === "local" ? { path } : { path, machine: target }),
+    signal,
+  });
+  if (!res.ok) throw new Error(`Failed to open file (${res.status})`);
+  const { ticket } = FileTicketSchema.parse(await res.json());
+  return `${getFileUrl(path, false, target)}&ticket=${encodeURIComponent(ticket)}`;
 }

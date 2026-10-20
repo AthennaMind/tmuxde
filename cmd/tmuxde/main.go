@@ -4,9 +4,10 @@
 // serve runs standalone mode: one hub and one local node in this process.
 // The hub edge answers /health and the old code entry redirects, the
 // WebSocket server takes /_relay, GET /file serves downloads through the
-// node's path guards, and everything else goes to the web dev server when
-// one is set, or else to the web build embedded in the binary. The local
-// node drives host tmux, files and repositories.
+// node's path guards, GET and PUT /user/settings and /user/keybindings
+// serve the user documents, and everything else goes to the web dev
+// server when one is set, or else to the web build embedded in the binary.
+// The local node drives host tmux, files and repositories.
 // With STT_SOCKET set the hub forwards dictation to the speech service on
 // that socket and offers it to browsers while its health check passes.
 // serve refuses to start when tmux -V fails or the path guard cannot be
@@ -35,6 +36,7 @@ import (
 	"tmuxde/internal/hub/dictation"
 	"tmuxde/internal/hub/edge"
 	"tmuxde/internal/hub/filehttp"
+	"tmuxde/internal/hub/settings"
 	"tmuxde/internal/hub/static"
 	"tmuxde/internal/hub/ws"
 	"tmuxde/internal/machine"
@@ -75,7 +77,8 @@ Environment:
                       web build embedded in the binary.
   STT_SOCKET          unix socket of the speech service. Unset turns
                       dictation off.
-  TMUXDE_CONFIG_DIR   state directory, holds access.log.
+  TMUXDE_CONFIG_DIR   state directory, holds access.log, settings.json
+                      and keybindings.json.
                       Default ~/.config/tmuxde.
   IDLE_TIMEOUT_MINUTES
                       minutes before an idle browser connection closes.
@@ -284,11 +287,11 @@ type app struct {
 	dictation *dictation.Bridge
 }
 
-// newApp builds the local node, the dictation bridge and the hub edge, and
+// newApp builds the local node, the dictation bridge and the hub edge. It
 // mounts the WebSocket server on /_relay and the download handler on /file
-// in front of the node. site is the web build, see webHandler. Nothing runs
-// yet. The node starts with Node.Start, the speech service probe with
-// Bridge.StartProbe.
+// in front of the node, and the user documents on /user. site is the web
+// build, see webHandler. Nothing runs yet. The node starts with Node.Start,
+// the speech service probe with Bridge.StartProbe.
 func newApp(cfg config.Config, site fs.FS, logger *slog.Logger, started time.Time) (*app, error) {
 	var n *local.Node
 	machines := machine.NewHub(cfg.ConfigDir, cfg.AuthToken)
@@ -357,15 +360,29 @@ func newApp(cfg config.Config, site fs.FS, logger *slog.Logger, started time.Tim
 	e.Handle(machine.StreamPath, machines)
 	e.Handle(machine.MachinesPath, machines)
 	// The hub checks the token. The node checks the path and opens the
-	// file.
-	e.Handle(filehttp.Path, filehttp.New(filehttp.Options{
+	// file. The same handler mints the tickets media elements load with.
+	files := filehttp.New(filehttp.Options{
 		Token: cfg.AuthToken,
 		Resolve: func(id string) (node.FileOpener, error) {
 			_, opener, _, _, err := machines.Resolve(id)
 			return opener, err
 		},
 		Logger: logger,
-	}))
+	})
+	e.Handle(filehttp.Path, files)
+	e.Handle(filehttp.TicketPath, files)
+	// User documents live beside machines.json. Each save is announced to
+	// every authenticated browser socket on every machine.
+	documents := settings.New(settings.Options{
+		Token: cfg.AuthToken,
+		Store: &settings.Store{Dir: cfg.ConfigDir},
+		Notify: func(name, etag string) {
+			relay.Conns().Broadcast(&server.SettingsChanged{Type: "settings:changed", Name: name, ETag: etag}, nil)
+		},
+		Logger: logger,
+	})
+	e.Handle(settings.SettingsPath, documents)
+	e.Handle(settings.KeybindingsPath, documents)
 	return &app{handler: e, relay: relay, node: n, machines: machines, dictation: dict}, nil
 }
 

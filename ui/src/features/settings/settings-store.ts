@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import type { CommitFilterMode } from "@/features/repository/commit-file-filter";
 
 /**
@@ -298,18 +297,14 @@ interface SettingsStore {
 }
 
 /**
- * Merge new default keys into a user's stored row.
+ * Build the toolbar row from stored visibility.
  *
- * Without this the whole change above is invisible to everyone who has ever
- * opened the app: `persist` writes the array to localStorage on first run and
- * hands that frozen copy back forever, so a key added to `defaultToolbarKeys`
- * reaches new installs only.
- *
- * The user's own `visible` choices win — they turned those on and off on
- * purpose — but the sequence, label, group and hint always come from the
- * default, so a typo in a control code can be fixed by a release rather than by
- * asking people to clear their site data. Keys no longer in the defaults are
- * dropped; there is no way to author a custom one, so a leftover id is a
+ * The settings document keeps only the ids of visible keys, and old browsers
+ * kept whole rows in localStorage. Both come through here. The stored
+ * `visible` choices win. The sequence, label, group and hint always come from
+ * the default, so a typo in a control code is fixed by a release rather than
+ * by asking people to clear their site data. Keys no longer in the defaults
+ * are dropped. There is no way to author a custom one, so a leftover id is a
  * removed key rather than something of the user's.
  */
 export function mergeToolbarKeys(stored: readonly Partial<ToolbarKey>[] | undefined): ToolbarKey[] {
@@ -327,104 +322,43 @@ export function mergeToolbarKeys(stored: readonly Partial<ToolbarKey>[] | undefi
 }
 
 /**
- * Keep the gestures that still exist, and only those.
+ * Settings for touch, files, changes and panes.
  *
- * `{ ...current, ...stored }` was the old line, and it copies a *removed* key
- * straight back out of localStorage on every load — for as long as that
- * browser profile lives. Nothing renders it, so nothing goes visibly wrong;
- * the persisted blob just quietly becomes a second, longer list of what the
- * app supports than the app's own. Iterating the current keys instead means
- * deleting a gesture from the interface above is the whole deletion.
+ * Not persisted here. `settings-bridge.ts` applies the synced settings
+ * document into this store and writes changes made through the actions back
+ * to it, so call sites keep using the store as before.
  */
-export function mergeGestures(
-  stored: Partial<GestureSettings> | undefined,
-  current: GestureSettings,
-): GestureSettings {
-  const merged = { ...current };
-  for (const key of Object.keys(current) as (keyof GestureSettings)[]) {
-    const value = stored?.[key];
-    if (typeof value === "boolean") merged[key] = value;
-  }
-  return merged;
-}
-
-type CommitFilterSettings = Pick<SettingsStore, "commitFilterPatterns" | "commitFilterMode">;
-
-/**
- * Keep the stored commit filter only when it has the right shape. A blob
- * from before the filter, or a hand edit, falls back to the defaults.
- */
-export function mergeCommitFilter(
-  stored: Partial<CommitFilterSettings> | undefined,
-  current: CommitFilterSettings,
-): CommitFilterSettings {
-  const patterns = stored?.commitFilterPatterns;
-  const mode = stored?.commitFilterMode;
-  return {
-    commitFilterPatterns: typeof patterns === "string" ? patterns : current.commitFilterPatterns,
-    commitFilterMode: mode === "hide" || mode === "only" ? mode : current.commitFilterMode,
-  };
-}
-
-export const useSettingsStore = create<SettingsStore>()(
-  persist(
-    (set) => ({
-      toolbarKeys: defaultToolbarKeys,
-      gestures: {
-        swipeToSwitchSessions: true,
-        swipeToSwitchPanes: true,
-        dragToScroll: true,
-        pinchToZoom: true,
-        longPressPaneMenu: true,
-      },
-      hapticEnabled: true,
-      autoZoom: true,
-      wrapLines: false,
-      markdownPreview: true,
-      commitFilterPatterns: "",
-      commitFilterMode: "hide",
-      showPaneIndexes: true,
-      setToolbarKeys: (toolbarKeys) => set({ toolbarKeys }),
-      toggleToolbarKey: (id) =>
-        set((s) => ({
-          toolbarKeys: s.toolbarKeys.map((k) => (k.id === id ? { ...k, visible: !k.visible } : k)),
-        })),
-      resetToolbarKeys: () => set({ toolbarKeys: defaultToolbarKeys }),
-      setGesture: (key, value) => set((s) => ({ gestures: { ...s.gestures, [key]: value } })),
-      setHapticEnabled: (hapticEnabled) => set({ hapticEnabled }),
-      setAutoZoom: (autoZoom) => set({ autoZoom }),
-      setWrapLines: (wrapLines) => set({ wrapLines }),
-      setMarkdownPreview: (markdownPreview) => set({ markdownPreview }),
-      setCommitFilterPatterns: (commitFilterPatterns) => set({ commitFilterPatterns }),
-      setCommitFilterMode: (commitFilterMode) => set({ commitFilterMode }),
-      setShowPaneIndexes: (showPaneIndexes) => set({ showPaneIndexes }),
-    }),
-    {
-      name: "ccremote-settings",
-      version: 2,
-      // Runs for a stored version below 2 — and `merge` below covers the case
-      // `migrate` cannot see, where the persisted blob is already version 2 but
-      // predates a key added afterwards.
-      migrate: (persisted) => {
-        const state = persisted as Partial<SettingsStore> | undefined;
-        return {
-          ...state,
-          toolbarKeys: mergeToolbarKeys(state?.toolbarKeys),
-        } as SettingsStore;
-      },
-      merge: (persisted, current) => {
-        const state = persisted as Partial<SettingsStore> | undefined;
-        return {
-          ...current,
-          ...state,
-          gestures: mergeGestures(state?.gestures, current.gestures),
-          toolbarKeys: mergeToolbarKeys(state?.toolbarKeys),
-          ...mergeCommitFilter(state, current),
-        };
-      },
-    },
-  ),
-);
+export const useSettingsStore = create<SettingsStore>()((set) => ({
+  toolbarKeys: defaultToolbarKeys,
+  gestures: {
+    swipeToSwitchSessions: true,
+    swipeToSwitchPanes: true,
+    dragToScroll: true,
+    pinchToZoom: true,
+    longPressPaneMenu: true,
+  },
+  hapticEnabled: true,
+  autoZoom: true,
+  wrapLines: false,
+  markdownPreview: true,
+  commitFilterPatterns: "",
+  commitFilterMode: "hide",
+  showPaneIndexes: true,
+  setToolbarKeys: (toolbarKeys) => set({ toolbarKeys }),
+  toggleToolbarKey: (id) =>
+    set((s) => ({
+      toolbarKeys: s.toolbarKeys.map((k) => (k.id === id ? { ...k, visible: !k.visible } : k)),
+    })),
+  resetToolbarKeys: () => set({ toolbarKeys: defaultToolbarKeys }),
+  setGesture: (key, value) => set((s) => ({ gestures: { ...s.gestures, [key]: value } })),
+  setHapticEnabled: (hapticEnabled) => set({ hapticEnabled }),
+  setAutoZoom: (autoZoom) => set({ autoZoom }),
+  setWrapLines: (wrapLines) => set({ wrapLines }),
+  setMarkdownPreview: (markdownPreview) => set({ markdownPreview }),
+  setCommitFilterPatterns: (commitFilterPatterns) => set({ commitFilterPatterns }),
+  setCommitFilterMode: (commitFilterMode) => set({ commitFilterMode }),
+  setShowPaneIndexes: (showPaneIndexes) => set({ showPaneIndexes }),
+}));
 
 export { defaultToolbarKeys, GROUP_LABELS };
 export type { ToolbarKey, ToolbarKeyGroup, GestureSettings };

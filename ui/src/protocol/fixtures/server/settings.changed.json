@@ -1,0 +1,12 @@
+[
+  {
+    "type": "settings:changed",
+    "name": "settings",
+    "etag": "\"44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\""
+  },
+  {
+    "type": "settings:changed",
+    "name": "keybindings",
+    "etag": "\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\""
+  }
+]
