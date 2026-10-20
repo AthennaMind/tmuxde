@@ -22,6 +22,7 @@ jobs:
     uses: ./.github/workflows/checks.yml
     with:
       full-checks: true
+      skip-binary-builds: true
 
   binaries:
     needs: checks

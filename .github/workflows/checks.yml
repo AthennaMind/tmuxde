@@ -11,6 +11,10 @@ on:
         description: Run Go and UI checks regardless of changed paths
         type: boolean
         default: false
+      skip-binary-builds:
+        description: Skip tmuxde builds when caller builds release binaries
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -164,6 +168,7 @@ jobs:
           version: v2.18.0
           args: check
       - name: Compile tmuxde for every release platform
+        if: ${{ !inputs.skip-binary-builds }}
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
           version: v2.18.0
