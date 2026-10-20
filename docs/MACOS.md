@@ -37,6 +37,8 @@ Transfer token securely to Mac at `~/.config/tmuxde/agent-token`, then remove tr
 chmod 600 "$HOME/.config/tmuxde/agent-token"
 umask 077
 cat > "$HOME/.config/tmuxde/start-agent" <<'EOF'
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+export LC_ALL=en_US.UTF-8
 export TMUXDE_SERVER_URL=https://tmux.example.com
 export TMUXDE_AGENT_TOKEN_FILE="$HOME/.config/tmuxde/agent-token"
 export ALLOWED_PATHS="$HOME"

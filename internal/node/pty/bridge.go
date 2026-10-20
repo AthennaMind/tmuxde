@@ -30,6 +30,7 @@ import (
 	"unsafe"
 
 	cpty "github.com/creack/pty"
+	"golang.org/x/sys/unix"
 
 	"tmuxde/internal/config"
 )
@@ -262,16 +263,16 @@ func start(ctx context.Context, cmd *exec.Cmd, session string, o Options) (*Brid
 		// directory", so name the directory too.
 		return nil, fmt.Errorf("pty: start %s in %q: %w", cmd.Path, cmd.Dir, err)
 	}
-	// creack/pty calls File.Fd, and Fd puts the descriptor in blocking
-	// mode. A blocking read ties up a thread and Close can not interrupt
-	// it, so a stuck tmux would leak the reader. Back to non blocking, so
-	// reads park in the Go poller and Close and deadlines work.
-	if err := setNonblock(master); err != nil {
+	// Register a nonblocking descriptor with Go's poller. Setting the flag
+	// alone does not register masters created with NewFile on macOS/BSD.
+	pollable, err := pollableMaster(master)
+	_ = master.Close()
+	if err != nil {
 		_ = cmd.Process.Kill()
-		_ = master.Close()
 		_ = cmd.Wait()
-		return nil, fmt.Errorf("pty: nonblock: %w", err)
+		return nil, fmt.Errorf("pty: poller: %w", err)
 	}
+	master = pollable
 
 	b := &Bridge{
 		session:    session,
@@ -547,17 +548,35 @@ func isEndOfPty(err error) bool {
 		errors.Is(err, errStopped)
 }
 
-// setNonblock sets O_NONBLOCK without File.Fd, which would undo it.
-func setNonblock(f *os.File) error {
+// pollableMaster duplicates f and sets O_NONBLOCK before NewFile, so Go
+// registers the new file with its poller. The caller still owns f.
+func pollableMaster(f *os.File) (*os.File, error) {
 	rc, err := f.SyscallConn()
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var fd int
 	var serr error
-	if err := rc.Control(func(fd uintptr) { serr = syscall.SetNonblock(int(fd), true) }); err != nil {
-		return err
+	if err := rc.Control(func(original uintptr) {
+		fd, serr = unix.FcntlInt(original, unix.F_DUPFD_CLOEXEC, 0)
+	}); err != nil {
+		return nil, err
 	}
-	return serr
+	if serr != nil {
+		return nil, serr
+	}
+	if err := unix.SetNonblock(fd, true); err != nil {
+		_ = unix.Close(fd)
+		return nil, err
+	}
+	master := os.NewFile(uintptr(fd), f.Name())
+	// Fail attachment if this platform cannot poll the descriptor. Otherwise
+	// an idle read would return EAGAIN and silently stop live output.
+	if err := master.SetReadDeadline(time.Time{}); err != nil {
+		_ = master.Close()
+		return nil, err
+	}
+	return master, nil
 }
 
 // setSize is cpty.Setsize without File.Fd. Setsize calls Fd, which would
