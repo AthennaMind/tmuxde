@@ -6,8 +6,11 @@ builds:
     main: ./cmd/tmuxde
     binary: tmuxde
     env: [CGO_ENABLED=0, GOPROXY=off, GOTOOLCHAIN=local]
-    goos: [linux]
+    goos: [linux, darwin, freebsd, openbsd, netbsd, dragonfly]
     goarch: [amd64, arm64]
+    ignore:
+      - goos: dragonfly
+        goarch: arm64
     flags: [-trimpath, -mod=vendor]
     ldflags:
       - -s -w -buildid= -X main.version={{.Version}}

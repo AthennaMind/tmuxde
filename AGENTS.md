@@ -128,7 +128,7 @@ CI uses direct native commands and official setup, golangci-lint, GoReleaser and
 
 Preserve caches for Go, pnpm, tmux, Gitleaks and verified speech downloads. Main warms speech assets. Image builds use per-image GHCR `buildcache` tags across releases.
 
-GoReleaser publishes stripped Linux amd64/arm64 archives for `tmuxde` and `tmuxde-stt`. Build UI into `web/dist` before compiling server. Speech libraries and model hashes come from `cmd/tmuxde-stt/assets.json`; released speech binary includes its models.
+GoReleaser publishes stripped `tmuxde` archives for Linux, macOS, FreeBSD, OpenBSD and NetBSD on amd64/arm64, plus DragonFly BSD on amd64. Go checks compile every `tmuxde` release target through GoReleaser. Native macOS and BSD runtime checks are not yet in CI. `tmuxde-stt` archives remain Linux amd64/arm64 only. Build UI into `web/dist` before compiling server. Speech libraries and model hashes come from `cmd/tmuxde-stt/assets.json`; released speech binary includes its models. macOS agent launchd setup lives in `docs/MACOS.md`.
 
 Production Dockerfile builds from source without external build artifacts. Default `tmuxde` target includes UI, tmux, Git and Bash on Alpine. `tmuxde-stt` target contains static bundled speech binary on distroless. Both images support amd64/arm64. Server and agent use same image.
 

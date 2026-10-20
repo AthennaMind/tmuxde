@@ -17,6 +17,7 @@ TmuxDE (Tmux Development Environment) is a self-hosted DE built on top of tmux. 
 - [How it works](#how-it-works)
 - [Showcase](docs/SHOWCASE.md)
 - [Install guide](docs/INSTALL.md)
+- [macOS agent setup](docs/MACOS.md)
 - [Development guide](docs/DEVELOPMENT.md)
 - [Credits](#credits)
 
@@ -65,6 +66,8 @@ flowchart LR
 ```
 
 Same Go binary runs as server or agent. Server serves browser UI and manages local tmux. Agents connect remote machines, each with its own tmux, files and Git. One browser controls them all. Optional speech service turns dictation into text at your cursor.
+
+Native `tmuxde` archives target Linux, macOS, FreeBSD, OpenBSD and NetBSD on amd64 and arm64, plus DragonFly BSD on amd64. [Install guide](docs/INSTALL.md) covers platform setup. Bundled `tmuxde-stt` speech service and container images target Linux only.
 
 ## Credits
 

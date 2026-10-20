@@ -30,7 +30,8 @@ Never use browser AUTH_TOKEN as agent token.
 
 ## Agent
 
-Use same tmuxde binary build on central server and agents. Agent machine needs
+Use same tmuxde release version on central server and agents, with native archive
+for each machine's OS and CPU. Agent machine needs
 tmux and git in PATH. Set up existing binary under `~/.local/bin/tmuxde`, then run:
 
 ```sh
@@ -55,6 +56,10 @@ Agent also supports `TMUX_SOCKET`, `TMUX_DEFAULT_SHELL`, `TMUXDE_CONFIG_DIR` and
 origins and dictation socket.
 
 ## User service
+
+On macOS, follow [launchd agent setup](../../docs/MACOS.md). On BSD, use
+native service manager and `TMUXDE_TMUX_LAUNCHER=none`. Settings below are Linux
+systemd only.
 
 Create `~/.config/systemd/user/tmuxde-agent.service` on agent machine:
 
