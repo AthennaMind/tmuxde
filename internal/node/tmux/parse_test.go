@@ -434,6 +434,8 @@ func TestSubcommand(t *testing.T) {
 		{[]string{"-V"}, "-V"},
 		{[]string{"-N", "-V"}, "-V"},
 		{[]string{"-N", "-S", "/s", "new-session", "-d"}, "new-session"},
+		{[]string{"-u", "list-sessions", "-F", "x"}, "list-sessions"},
+		{[]string{"-N", "-u", "-S", "/s", "new-session", "-d"}, "new-session"},
 		{nil, ""},
 	}
 	for _, tt := range tests {

@@ -15,9 +15,9 @@ import (
 	"time"
 )
 
-// fakeClient runs bin instead of tmux. Socket stays empty, so argv reaches
-// bin as given. The launcher is off unless opts names one, so a test run
-// inside a systemd unit sees the same argv.
+// fakeClient runs bin instead of tmux. exec passes argv as given; run adds
+// tmux client flags. The launcher is off unless opts names one, so a test
+// run inside a systemd unit sees the same argv.
 func fakeClient(t *testing.T, bin string, opts Options) *Client {
 	t.Helper()
 	path, err := exec.LookPath(bin)
@@ -54,7 +54,7 @@ func TestIntegrationExecReportsExitAndStderr(t *testing.T) {
 func TestIntegrationExecTimesOut(t *testing.T) {
 	c := fakeClient(t, "sleep", Options{Timeout: 50 * time.Millisecond})
 	start := time.Now()
-	_, err := c.run(context.Background(), "5")
+	_, _, err := c.exec(context.Background(), []string{"5"})
 	if err == nil {
 		t.Fatal("no error")
 	}
@@ -73,7 +73,7 @@ func TestIntegrationExecHonoursCallerContext(t *testing.T) {
 	c := fakeClient(t, "sleep", Options{})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := c.run(ctx, "5")
+	_, _, err := c.exec(ctx, []string{"5"})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want Canceled", err)
 	}
@@ -128,8 +128,8 @@ func TestIntegrationSelectPaneProbeCachesOnlyAnswers(t *testing.T) {
 // With no DefaultShell and no command tmux gets none and applies its own
 // default-command and default-shell options.
 func TestIntegrationNewCommandArgs(t *testing.T) {
-	create := []string{"new-session", "-d", "-P", "-F", createFormat, "-s", "w"}
-	window := []string{"new-window", "-t", "=w:", "-n", "x"}
+	create := []string{"-u", "new-session", "-d", "-P", "-F", createFormat, "-s", "w"}
+	window := []string{"-u", "new-window", "-t", "=w:", "-n", "x"}
 	tests := []struct {
 		name, shell, command string
 		window               bool

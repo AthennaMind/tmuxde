@@ -268,7 +268,7 @@ func isNoServer(stderr string) bool {
 	return errors.Is(err, fs.ErrNotExist)
 }
 
-// subcommand returns the tmux command name in args, after any -N and -S
+// subcommand returns the tmux command name in args, after any -u, -N and -S
 // flag.
 func subcommand(args []string) string {
 	for i := 0; i < len(args); i++ {
@@ -276,7 +276,7 @@ func subcommand(args []string) string {
 		case "-S":
 			i++
 			continue
-		case "-N":
+		case "-u", "-N":
 			continue
 		}
 		return args[i]
@@ -284,17 +284,20 @@ func subcommand(args []string) string {
 	return ""
 }
 
-// run runs tmux with the socket flag and returns stdout.
+// run runs tmux with UTF-8 output and the socket flag and returns stdout.
 func (c *Client) run(ctx context.Context, args ...string) (string, error) {
 	out, _, err := c.exec(ctx, c.withSocket(args))
 	return out, err
 }
 
 func (c *Client) withSocket(args []string) []string {
-	if c.opts.Socket == "" {
-		return args
+	// Without -u, a C or unset locale makes tmux replace tabs and
+	// Unicode with underscores. Inventory parsers need those tabs.
+	flags := []string{"-u"}
+	if c.opts.Socket != "" {
+		flags = append(flags, "-S", c.opts.Socket)
 	}
-	return append([]string{"-S", c.opts.Socket}, args...)
+	return append(flags, args...)
 }
 
 // exec runs tmux with argv. It reports whether stdout was cut at
