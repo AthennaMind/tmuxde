@@ -1,6 +1,5 @@
 import { useEffect, useId, useMemo } from "react";
 import {
-  FileJson,
   GitCommitHorizontal,
   GitCompareArrows,
   GitGraph,
@@ -19,16 +18,13 @@ import { cn } from "@/shared/utils";
 import { RepositoryFileIcon } from "@/features/files/repository-file-icon";
 import {
   inGroup,
-  jsonSettingsTabLabel,
   reconcileTabOrder,
   useMainTabsStore,
   TERMINAL_TAB,
   type CloseGroup,
   type FileTab,
-  type JsonSettingsTab,
   type TabOrigin,
 } from "./main-tabs-store";
-import { hasUnsavedDraft, setJsonDraft } from "@/features/settings/settings-json-drafts";
 import { useMachineStore } from "@/features/connection/machine-store";
 import { LAST_SESSION_KEY, clearStored } from "@/features/connection/storage-keys";
 import { activateView, openMachineSession } from "./workspace-target";
@@ -45,26 +41,9 @@ function tabLabel(tab: FileTab) {
   return tab.path.split("/").pop() || tab.path;
 }
 
-const JSON_TAB_TITLES = {
-  settings: "Settings file, synced through the server",
-  keybindings: "Keybindings file, synced through the server",
-} as const;
-
 /**
- * Closing a settings file tab with unsaved text asks first. The draft stays
- * in memory until then, so a plain switch away loses nothing.
- */
-function confirmCloseJsonTab(tab: JsonSettingsTab): boolean {
-  if (!hasUnsavedDraft(tab.name)) return true;
-  if (!window.confirm(`Discard unsaved changes to ${jsonSettingsTabLabel(tab.name)}?`))
-    return false;
-  setJsonDraft(tab.name, null);
-  return true;
-}
-
-/**
- * Terminal plus every open file, settings, the overview and the settings
- * files, above the desktop main area.
+ * Terminal plus every open file, settings and the overview, above the
+ * desktop main area.
  *
  * Session tabs are unique per machine and session. File and repository tabs
  * retain their origin when another terminal becomes active.
@@ -212,21 +191,6 @@ export function MainTabs() {
                   active={active === tab.id}
                   onSelect={() => activate(tab.id)}
                   onClose={() => {
-                    closeTab(tab.id);
-                    activateView(useMainTabsStore.getState().active);
-                  }}
-                />
-              ) : tab.kind === "json-settings" ? (
-                <Tab
-                  key={tab.id}
-                  {...reorderProps(tab.id)}
-                  label={jsonSettingsTabLabel(tab.name)}
-                  title={JSON_TAB_TITLES[tab.name]}
-                  icon={<FileJson className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-                  active={active === tab.id}
-                  onSelect={() => activate(tab.id)}
-                  onClose={() => {
-                    if (!confirmCloseJsonTab(tab)) return;
                     closeTab(tab.id);
                     activateView(useMainTabsStore.getState().active);
                   }}

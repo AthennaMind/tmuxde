@@ -62,11 +62,6 @@ const CopyModeOverlay = lazyComponent(() =>
   import("@/features/mobile/copy-mode-overlay").then((m) => m.CopyModeOverlay),
 );
 
-// Brings Monaco, like the file editor, so it loads on first open.
-const SettingsJsonTab = lazyComponent(() =>
-  import("@/features/settings/settings-json-tab").then((m) => m.SettingsJsonTab),
-);
-
 /** Shared workspace chrome stays mounted across session and machine changes. */
 export function TerminalWorkspace() {
   const isMobile = useStableMediaQuery(MOBILE_MEDIA_QUERY);
@@ -201,12 +196,6 @@ export function TerminalWorkspace() {
   // still render on every inventory update of every machine.
   const overview =
     activeTab?.kind === "overview" ? <OverviewView className="absolute inset-0" /> : null;
-  // The hub keeps the settings files, so the editor stays outside
-  // `MachineContent` too. A machine switch does not remount it.
-  const jsonSettings =
-    activeTab?.kind === "json-settings" ? (
-      <SettingsJsonTab key={activeTab.id} name={activeTab.name} className="absolute inset-0" />
-    ) : null;
 
   const tabContent = (
     <MachineContent>
@@ -304,7 +293,6 @@ export function TerminalWorkspace() {
               )}
               {tabContent}
               {overview}
-              {jsonSettings}
             </div>
           </div>
         </div>
@@ -417,7 +405,6 @@ export function TerminalWorkspace() {
           </div>
           {tabContent}
           {overview}
-          {jsonSettings}
           <FloatingAlerts />
           {/* Outside the terminal box, which turns invisible under a file
               tab. A live microphone must stay visible whatever is open. */}

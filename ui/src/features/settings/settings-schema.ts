@@ -14,8 +14,7 @@ import { defaultToolbarKeys } from "./settings-store";
  *
  * The server keeps `settings.json` as flat dotted keys, VS Code style, and
  * only values that differ from the defaults below. Every key carries its Zod
- * value schema, a JSON schema fragment for the Monaco editor, a default, a
- * scope, a section and a label.
+ * value schema, a default, a scope, a section and a label.
  *
  * User scope keys live in the server document and follow the user to every
  * browser. Device scope keys live in this browser only, see
@@ -34,11 +33,8 @@ export type SettingSection =
   | "Touch"
   | "Pinned terminal keys";
 
-type JsonSchema = Record<string, unknown>;
-
 interface SettingValue<T> {
   schema: z.ZodType<T, z.ZodTypeDef, unknown>;
-  json: JsonSchema;
 }
 
 export interface SettingDefinition<
@@ -58,25 +54,19 @@ const KEY_PATTERN = /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$/;
 const MAX_KEYS = 512;
 
 function booleanValue(): SettingValue<boolean> {
-  return { schema: z.boolean(), json: { type: "boolean" } };
+  return { schema: z.boolean() };
 }
 
 function integerValue(minimum: number, maximum: number): SettingValue<number> {
-  return {
-    schema: z.number().int().min(minimum).max(maximum),
-    json: { type: "integer", minimum, maximum },
-  };
+  return { schema: z.number().int().min(minimum).max(maximum) };
 }
 
 function numberValue(minimum: number, maximum: number): SettingValue<number> {
-  return {
-    schema: z.number().min(minimum).max(maximum),
-    json: { type: "number", minimum, maximum },
-  };
+  return { schema: z.number().min(minimum).max(maximum) };
 }
 
 function stringValue(): SettingValue<string> {
-  return { schema: z.string(), json: { type: "string" } };
+  return { schema: z.string() };
 }
 
 function oneOf<const T extends readonly (string | number)[]>(values: T): SettingValue<T[number]> {
@@ -85,7 +75,6 @@ function oneOf<const T extends readonly (string | number)[]>(values: T): Setting
     schema: z.custom<T[number]>((value) => allowed.includes(value), {
       message: `Expected one of ${values.map((value) => JSON.stringify(value)).join(", ")}`,
     }),
-    json: { enum: [...values] },
   };
 }
 
@@ -100,7 +89,6 @@ function toolbarKeyIds(): SettingValue<string[]> {
     schema: z
       .array(z.string())
       .transform((ids) => TOOLBAR_KEY_IDS.filter((id) => ids.includes(id))),
-    json: { type: "array", items: { enum: TOOLBAR_KEY_IDS }, uniqueItems: true },
   };
 }
 
@@ -463,6 +451,17 @@ export function validateSettingsDocument(input: unknown): {
   return { document, issues };
 }
 
+/** Keys in the settings text. Null when it is not a JSON object. */
+export function settingsCount(text: string): number | null {
+  try {
+    const data: unknown = JSON.parse(text);
+    if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+    return Object.keys(data).length;
+  } catch {
+    return null;
+  }
+}
+
 /** Parse and check settings text. Broken JSON yields an empty document. */
 export function parseSettingsText(text: string): {
   document: SettingsDocument;
@@ -485,31 +484,5 @@ export function parseSettingsText(text: string): {
     document,
     issues,
     valid: !!parsed && typeof parsed === "object" && !Array.isArray(parsed),
-  };
-}
-
-/**
- * JSON schema of the settings document for Monaco completion and hovers.
- *
- * Device scope keys are left out. They are edited in Settings and with the
- * zoom shortcuts, not in the JSON file.
- */
-export function settingsJsonSchema(): JsonSchema {
-  const properties: Record<string, JsonSchema> = {};
-  for (const key of SETTINGS_KEYS) {
-    const entry = SETTINGS[key];
-    if (entry.scope !== "user") continue;
-    properties[key] = {
-      ...entry.json,
-      default: settingDefault(key),
-      description: `${entry.label}. ${entry.description}`,
-    };
-  }
-  return {
-    type: "object",
-    properties,
-    propertyNames: { pattern: KEY_PATTERN.source },
-    maxProperties: MAX_KEYS,
-    additionalProperties: true,
   };
 }

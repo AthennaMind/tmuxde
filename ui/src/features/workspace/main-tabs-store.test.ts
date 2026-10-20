@@ -9,8 +9,6 @@ import {
   commitTabId,
   graphTabId,
   isMachineTab,
-  jsonSettingsTabId,
-  jsonSettingsTabLabel,
   restoreTabs,
   reconcileTabOrder,
   moveTabInOrder,
@@ -114,35 +112,6 @@ describe("main tabs", () => {
     expect(isMachineTab(overview!)).toBe(false);
     expect(isMachineTab(opened!)).toBe(true);
     expect(isMachineTab({ kind: "settings", id: SETTINGS_TAB })).toBe(false);
-  });
-
-  it("opens one JSON tab per settings file, without an origin", () => {
-    setMachineId("beta");
-    useSessionStore.getState().setActiveSession("dev");
-    const tabs = useMainTabsStore.getState();
-    tabs.openJsonSettings("settings");
-    tabs.openJsonSettings("keybindings");
-    tabs.openFile(file("/a.ts"));
-    tabs.openJsonSettings("settings");
-    const s = useMainTabsStore.getState();
-    expect(s.active).toBe(jsonSettingsTabId("settings"));
-    expect(s.tabs.slice(0, 2)).toEqual([
-      { kind: "json-settings", id: "json-settings:settings", name: "settings" },
-      { kind: "json-settings", id: "json-settings:keybindings", name: "keybindings" },
-    ]);
-    expect(s.tabs).toHaveLength(3);
-    expect(s.tabs.slice(0, 2).some(isMachineTab)).toBe(false);
-    expect(jsonSettingsTabLabel("keybindings")).toBe("keybindings.json");
-  });
-
-  it("closes JSON tabs with all only", () => {
-    const tabs = useMainTabsStore.getState();
-    tabs.openJsonSettings("keybindings");
-    tabs.closeTabs("files");
-    tabs.closeTabs("diffs");
-    expect(useMainTabsStore.getState().tabs).toHaveLength(1);
-    tabs.closeTabs("all");
-    expect(useMainTabsStore.getState()).toMatchObject({ tabs: [], active: TERMINAL_TAB });
   });
 
   it("closes the overview with all only and lands on the terminal", () => {
@@ -393,23 +362,6 @@ describe("restoreTabs", () => {
     expect(restored.active).toBe(OVERVIEW_TAB);
   });
 
-  it("restores JSON tabs and drops malformed ones", () => {
-    const restored = restoreTabs({
-      tabs: [
-        { kind: "json-settings", id: jsonSettingsTabId("keybindings"), name: "keybindings" },
-        { kind: "json-settings", id: "json-settings:settings", name: "keybindings" },
-        { kind: "json-settings", id: "json-settings:other", name: "other" },
-        { kind: "json-settings", id: jsonSettingsTabId("settings") },
-        { kind: "json-settings", name: "settings" },
-      ],
-      active: jsonSettingsTabId("keybindings"),
-    });
-    expect(restored.tabs).toEqual([
-      { kind: "json-settings", id: "json-settings:keybindings", name: "keybindings" },
-    ]);
-    expect(restored.active).toBe("json-settings:keybindings");
-  });
-
   it("drops malformed tabs and an active id that names none", () => {
     const restored = restoreTabs({
       tabs: [
@@ -582,19 +534,6 @@ describe("tab persistence", () => {
     const s = useMainTabsStore.getState();
     expect(s.tabs).toEqual([{ kind: "overview", id: OVERVIEW_TAB }]);
     expect(s.active).toBe(OVERVIEW_TAB);
-  });
-
-  it("brings a JSON tab back after a reload", async () => {
-    useMainTabsStore.getState().openJsonSettings("settings");
-    const saved = local.getItem(KEY);
-    useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB, order: [] });
-    local.setItem(KEY, saved!);
-    await useMainTabsStore.persist.rehydrate();
-    const s = useMainTabsStore.getState();
-    expect(s.tabs).toEqual([
-      { kind: "json-settings", id: "json-settings:settings", name: "settings" },
-    ]);
-    expect(s.active).toBe(jsonSettingsTabId("settings"));
   });
 
   it("comes back after a reload", async () => {

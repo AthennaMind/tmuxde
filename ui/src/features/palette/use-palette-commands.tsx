@@ -7,7 +7,6 @@ import {
   CircleX,
   Columns2,
   Eraser,
-  FileJson,
   FileSearch,
   FolderTree,
   GitCommitHorizontal,
@@ -58,7 +57,9 @@ import { useDictationAvailable } from "@/features/dictation/use-dictation-availa
 import { getRelayClient, useRelayClient } from "@/features/connection/use-websocket";
 import { useStableMediaQuery } from "@/shared/use-media-query";
 import { useTheme } from "@/shared/use-theme";
+import { noteEnteredCopyMode } from "@/features/terminal/copy-mode-belief";
 import { MOBILE_MEDIA_QUERY } from "@/shared/mobile-query";
+import { zoomPane } from "@/features/panes/pane-zoom";
 import type { CommandId } from "@/features/keybindings/command-ids";
 import { runCommand } from "@/features/keybindings/commands";
 import { useKeybindingsStore } from "@/features/keybindings/keybindings-store";
@@ -80,7 +81,6 @@ import { useMachineStore } from "@/features/connection/machine-store";
 import {
   TERMINAL_TAB,
   inGroup,
-  jsonSettingsTabLabel,
   useMainTabsStore,
   type MainTab,
   type TabOrigin,
@@ -89,6 +89,7 @@ import { confirmAfterPalette, promptInPalette } from "./palette-store";
 import { usePaneStore } from "@/features/panes/pane-store";
 import { useSessionStore } from "@/features/session/session-store";
 import { useSessionTreeStore } from "@/features/session/session-tree-store";
+import { useSettingsStore } from "@/features/settings/settings-store";
 import {
   clampFontSize,
   getDefaultFontSize,
@@ -180,12 +181,6 @@ function describeTab(
         detail: join([folderName(tab.contextPath), origin(tab)]),
         icon: <GitCompareArrows />,
         keywords: ["git", "diff", "status"],
-      };
-    case "json-settings":
-      return {
-        label: jsonSettingsTabLabel(tab.name),
-        icon: <FileJson />,
-        keywords: ["settings", "keybindings", "json"],
       };
     default:
       return {
@@ -338,7 +333,10 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       label: "New session…",
       keywords: ["create", "start", "tmux"],
       icon: <Plus />,
-      run: invoke("tmux.newSession"),
+      run: () => {
+        useMachineStore.setState({ createSession: true });
+        finish();
+      },
     });
   }
   add("sessions", "Sessions", sessions);
@@ -533,33 +531,33 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
         label: "Interrupt",
         detail: "Ctrl+C to the running process",
         icon: <CircleX />,
-        shortcut: hint("terminal.interrupt"),
+        shortcut: ["^C"],
         destructive: true,
-        run: invoke("terminal.interrupt", "terminal"),
+        run: terminal([{ type: "command:interrupt" }]),
       },
       {
         id: "term:eof",
         label: "End input",
         detail: "Ctrl+D",
         icon: <CircleStop />,
-        shortcut: hint("terminal.eof"),
-        run: invoke("terminal.eof", "terminal"),
+        shortcut: ["^D"],
+        run: terminal([{ type: "command:eof" }]),
       },
       {
         id: "term:clear",
         label: "Clear screen",
         detail: "Ctrl+L",
         icon: <Eraser />,
-        shortcut: hint("terminal.clear"),
-        run: invoke("terminal.clear", "terminal"),
+        shortcut: ["^L"],
+        run: terminal([{ type: "command:clear" }]),
       },
       {
         id: "term:suspend",
         label: "Suspend process",
         detail: "Ctrl+Z",
         icon: <Pause />,
-        shortcut: hint("terminal.suspend"),
-        run: invoke("terminal.suspend", "terminal"),
+        shortcut: ["^Z"],
+        run: terminal([{ type: "command:suspend" }]),
       },
       {
         id: "term:prefix",
@@ -567,8 +565,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
         detail: "Then press a tmux key",
         keywords: ["ctrl+b"],
         icon: <Radio />,
-        shortcut: hint("terminal.prefix"),
-        run: invoke("terminal.prefix", "terminal"),
+        run: terminal([{ type: "tmux:prefix" }]),
       },
       {
         id: "term:copy-mode",
@@ -576,16 +573,18 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
         detail: "tmux copy mode",
         keywords: ["scrollback", "copy mode"],
         icon: <ScrollText />,
-        shortcut: hint("terminal.copyMode"),
-        run: invoke("terminal.copyMode", "terminal"),
+        run: () => {
+          send({ type: "tmux:copy-mode" });
+          noteEnteredCopyMode(session);
+          finish("terminal");
+        },
       },
       {
         id: "term:detach",
         label: "Detach session",
         keywords: ["leave", "disconnect tmux"],
         icon: <LogOut />,
-        shortcut: hint("tmux.detach"),
-        run: invoke("tmux.detach", "terminal"),
+        run: terminal([{ type: "session:detach" }]),
       },
     ];
     if (dictationAvailable) {
@@ -620,6 +619,12 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
 
   // Panes, windows and sessions of the attached session.
   if (inTmux && session) {
+    const split = (direction: "h" | "v") => () => {
+      send({ type: "pane:split", direction });
+      if (mobile && useSettingsStore.getState().autoZoom)
+        usePaneStore.getState().setPendingAutoZoom(true);
+      finish("terminal");
+    };
     const several = panes.length > 1;
     const step = supportsStep(features);
     const windowName = windows.find((window) => window.id === activeWindowId)?.name ?? "";
@@ -629,16 +634,14 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
         label: "Split pane right",
         keywords: ["horizontal", "vertical split", "new pane"],
         icon: <Columns2 />,
-        shortcut: hint("tmux.splitRight"),
-        run: invoke("tmux.splitRight", "terminal"),
+        run: split("h"),
       },
       {
         id: "tmux:split-down",
         label: "Split pane down",
         keywords: ["vertical", "horizontal split", "new pane"],
         icon: <Rows2 />,
-        shortcut: hint("tmux.splitDown"),
-        run: invoke("tmux.splitDown", "terminal"),
+        run: split("v"),
       },
     ];
     if (several || zoomedPaneId) {
@@ -647,8 +650,10 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
         label: zoomedPaneId ? "Unzoom pane" : "Zoom pane",
         keywords: ["maximize", "focus", "full"],
         icon: zoomedPaneId ? <Minimize2 /> : <Maximize2 />,
-        shortcut: hint("tmux.zoomPane"),
-        run: invoke("tmux.zoomPane", "terminal"),
+        run: () => {
+          zoomPane();
+          finish("terminal");
+        },
       });
     }
     if (several && step) {
@@ -657,16 +662,14 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
         label: "Next pane",
         keywords: ["focus", "cycle"],
         icon: <StepForward />,
-        shortcut: hint("tmux.nextPane"),
-        run: invoke("tmux.nextPane", "terminal"),
+        run: terminal([{ type: "pane:step", delta: 1 }]),
       });
       items.push({
         id: "tmux:previous-pane",
         label: "Previous pane",
         keywords: ["focus", "cycle"],
         icon: <StepBack />,
-        shortcut: hint("tmux.previousPane"),
-        run: invoke("tmux.previousPane", "terminal"),
+        run: terminal([{ type: "pane:step", delta: -1 }]),
       });
     }
     if (several && activePaneId) {
@@ -704,8 +707,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       label: "New window",
       keywords: ["tab", "create"],
       icon: <Plus />,
-      shortcut: hint("tmux.newWindow"),
-      run: invoke("tmux.newWindow", "terminal"),
+      run: terminal([{ type: "window:create" }]),
     });
     if (activeWindowId) {
       items.push({
@@ -730,16 +732,14 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
         label: "Next window",
         keywords: ["cycle", "switch"],
         icon: <StepForward />,
-        shortcut: hint("tmux.nextWindow"),
-        run: invoke("tmux.nextWindow", "terminal"),
+        run: terminal([{ type: "window:step", delta: 1 }]),
       });
       items.push({
         id: "tmux:previous-window",
         label: "Previous window",
         keywords: ["cycle", "switch"],
         icon: <StepBack />,
-        shortcut: hint("tmux.previousWindow"),
-        run: invoke("tmux.previousWindow", "terminal"),
+        run: terminal([{ type: "window:step", delta: -1 }]),
       });
     }
     if (several && activePaneId) {
@@ -749,9 +749,14 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
         keywords: ["close", "terminate"],
         icon: <Trash2 />,
         destructive: true,
-        shortcut: hint("tmux.killPane"),
-        // The confirmation closes the palette itself.
-        run: () => runCommand("tmux.killPane"),
+        run: () =>
+          confirmAfterPalette({
+            title: "Kill this pane?",
+            description:
+              "The pane and every process running in it are terminated. This cannot be undone.",
+            label: "Kill pane",
+            run: () => send({ type: "pane:kill", id: activePaneId }),
+          }),
       });
     }
     if (activeWindowId) {
@@ -762,9 +767,14 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
         keywords: ["close", "terminate"],
         icon: <Trash2 />,
         destructive: true,
-        shortcut: hint("tmux.killWindow"),
-        // The confirmation closes the palette itself.
-        run: () => runCommand("tmux.killWindow"),
+        run: () =>
+          confirmAfterPalette({
+            title: windowName ? `Kill window “${windowName}”?` : "Kill this window?",
+            description:
+              "The window, all of its panes and every process in them are terminated. This cannot be undone.",
+            label: "Kill window",
+            run: () => send({ type: "window:kill", id: activeWindowId }),
+          }),
       });
     }
     items.push({

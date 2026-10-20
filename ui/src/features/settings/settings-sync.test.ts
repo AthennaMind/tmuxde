@@ -6,7 +6,6 @@ import { useKeybindingsStore } from "@/features/keybindings/keybindings-store";
 import {
   documentToast,
   isEmptySettingsText,
-  keybindingDocumentIssues,
   migrationStep,
   shouldFinishMigration,
   shouldLoadDocuments,
@@ -89,8 +88,6 @@ function state(partial: Partial<UserDocumentState>): UserDocumentState {
     text: "{}",
     etag: '"e"',
     status: "ready",
-    issues: [],
-    rejectedText: null,
     lastError: null,
     ...partial,
   };
@@ -205,22 +202,6 @@ describe("documentToast", () => {
   });
 });
 
-describe("keybindingDocumentIssues", () => {
-  it("turns entry index and field into a path", () => {
-    expect(
-      keybindingDocumentIssues([
-        { index: null, message: "Not valid JSON", severity: "error" },
-        { index: 2, message: "Entry must be an object", severity: "error" },
-        { index: 3, field: "key", message: "Use lower case", severity: "warning" },
-      ]),
-    ).toEqual([
-      { severity: "error", message: "Not valid JSON" },
-      { severity: "error", path: "[2]", message: "Entry must be an object" },
-      { severity: "warning", path: "[3].key", message: "Use lower case" },
-    ]);
-  });
-});
-
 /*
  * The tests below share the module's boot state and run in order. Boot read
  * the legacy blob and hydrated the cached keybindings.
@@ -238,10 +219,6 @@ describe("boot", () => {
     ]);
     const document = useUserDocumentsStore.getState().documents.keybindings;
     expect(document).toMatchObject({ text: KEYBINDINGS, etag: '"k1"' });
-    expect(document.issues.map((issue) => [issue.path, issue.severity])).toEqual([
-      ["[1].command", "warning"],
-      ["[2].key", "error"],
-    ]);
     // Nothing applied the empty settings document yet, so the theme stays.
     expect(getThemeSetting()).toBe("light");
   });

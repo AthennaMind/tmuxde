@@ -8,8 +8,7 @@ import { parseKeybindingsDocument } from "@/features/keybindings/keybindings-sto
 import { validateSettingsDocument, type DocumentIssue } from "./settings-schema";
 
 /**
- * Checks for a settings or keybindings text before it is saved, for the
- * JSON editor and for import.
+ * Checks for a settings or keybindings text before an import saves it.
  *
  * Two layers. The protocol schemas hold the hub's structural rules, so they
  * decide `valid`: false means the hub would refuse the text. The feature

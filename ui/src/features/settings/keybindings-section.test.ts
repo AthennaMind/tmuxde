@@ -41,9 +41,13 @@ describe("KeyboardShortcutsSection", () => {
     const markup = render(false);
     expect(markup).toContain("Keyboard shortcuts");
     expect(markup).toContain('data-settings-section="keyboard-shortcuts"');
-    for (const group of ["Palette", "Workspace", "Terminal", "tmux", "Security"]) {
+    for (const group of ["Palette", "Workspace", "Terminal", "Security"]) {
       expect(markup).toContain(`>${group}</h3>`);
     }
+    // tmux keys belong to the user's tmux config.
+    expect(markup).not.toContain(">tmux</h3>");
+    expect(markup).not.toContain(">Split pane right</span>");
+    expect(markup).not.toContain(">Send tmux prefix</span>");
     const palette = row(markup, "Command palette");
     expect(palette).toContain("Ctrl K");
     expect(palette).toContain("Control K");
@@ -66,26 +70,26 @@ describe("KeyboardShortcutsSection", () => {
 
   it("offers Add for a command without a shortcut, and Reset all", () => {
     const markup = render(false);
-    const newWindow = row(markup, "New window");
-    expect(newWindow).toContain("No shortcut");
-    expect(newWindow).toContain('aria-label="Add shortcut for New window"');
-    expect(buttons(newWindow)).toEqual(["Add"]);
+    const closeAll = row(markup, "Close all views");
+    expect(closeAll).toContain("No shortcut");
+    expect(closeAll).toContain('aria-label="Add shortcut for Close all views"');
+    expect(buttons(closeAll)).toEqual(["Add"]);
     expect(markup).toContain(">Reset all</button>");
   });
 
   it("offers Remove and Reset for the one command a document binds", () => {
     const text = JSON.stringify([
-      { key: "ctrl+alt+n", command: "tmux.newWindow", scope: "global" },
+      { key: "ctrl+alt+n", command: "views.closeAll", scope: "global" },
     ]);
     const markup = render(false, text);
-    const newWindow = row(markup, "New window");
-    expect(newWindow).toContain("Ctrl Alt N");
-    expect(newWindow).toContain('aria-label="Change shortcut for New window"');
-    expect(newWindow).toContain('aria-label="Remove shortcut for New window"');
+    const closeAll = row(markup, "Close all views");
+    expect(closeAll).toContain("Ctrl Alt N");
+    expect(closeAll).toContain('aria-label="Change shortcut for Close all views"');
+    expect(closeAll).toContain('aria-label="Remove shortcut for Close all views"');
     // No default, so Reset takes it back to no shortcut.
-    expect(newWindow).toContain('aria-label="Reset New window to no shortcut"');
-    expect(buttons(newWindow)).toEqual(["Change", "Remove", "Reset"]);
-    for (const title of ["Detach session", "Kill pane"]) {
+    expect(closeAll).toContain('aria-label="Reset Close all views to no shortcut"');
+    expect(buttons(closeAll)).toEqual(["Change", "Remove", "Reset"]);
+    for (const title of ["Open settings", "Light theme"]) {
       const unbound = row(markup, title);
       expect(unbound).toContain(`aria-label="Add shortcut for ${title}"`);
       expect(buttons(unbound)).toEqual(["Add"]);
@@ -111,8 +115,8 @@ describe("KeyboardShortcutsSection", () => {
   it("puts the file actions next to Reset all in the header", () => {
     const markup = render(false);
     const header = markup.slice(0, markup.indexOf("</h3>"));
-    expect(buttons(header)).toEqual(["Edit JSON", "Export", "Import", "Reset all"]);
-    expect(header).toContain('aria-label="Edit JSON for keybindings"');
+    expect(buttons(header)).toEqual(["Export", "Import", "Reset all"]);
+    expect(header).not.toContain("Edit JSON");
     expect(header).toContain('aria-label="Export keybindings"');
     expect(header).toContain('aria-label="Import keybindings"');
     expect(header).toContain('accept="application/json,.json"');

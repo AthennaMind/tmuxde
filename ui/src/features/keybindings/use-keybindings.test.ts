@@ -142,9 +142,9 @@ describe("decideBinding", () => {
 
   it("fires terminal scope only in the terminal", () => {
     const user: KeybindingEntry[] = [
-      { key: "ctrl+j", command: "terminal.prefix", scope: "terminal" },
+      { key: "ctrl+j", command: "terminal.search", scope: "terminal" },
     ];
-    expect(commandOf(ctrl("j"), TERMINAL, { user })).toBe("terminal.prefix");
+    expect(commandOf(ctrl("j"), TERMINAL, { user })).toBe("terminal.search");
     expect(commandOf(ctrl("j"), PAGE, { user })).toBeNull();
   });
 

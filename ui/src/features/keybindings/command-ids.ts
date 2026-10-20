@@ -4,13 +4,15 @@
  * Ids are stable. They live in user keybindings files, so a rename breaks
  * someone's bindings. Kept apart from `commands.ts` so the keymap, the store
  * and their tests do not load every feature store.
+ *
+ * Only app commands are bound. Keys for tmux and the shell stay with the
+ * user's tmux config, so tmux actions run from the palette only.
  */
 
 export const COMMAND_GROUPS = [
   { id: "palette", title: "Palette" },
   { id: "workspace", title: "Workspace" },
   { id: "terminal", title: "Terminal" },
-  { id: "tmux", title: "tmux" },
   { id: "dictation", title: "Dictation" },
   { id: "security", title: "Security" },
   { id: "appearance", title: "Appearance" },
@@ -46,25 +48,6 @@ export const COMMAND_INFO = {
   "terminal.zoomOut": { title: "Smaller text, terminal or open file", group: "terminal" },
   "terminal.zoomReset": { title: "Reset text size", group: "terminal" },
   "terminal.search": { title: "Find in terminal", group: "terminal", toggle: true },
-  "terminal.interrupt": { title: "Interrupt", group: "terminal" },
-  "terminal.eof": { title: "End input", group: "terminal" },
-  "terminal.clear": { title: "Clear screen", group: "terminal" },
-  "terminal.suspend": { title: "Suspend process", group: "terminal" },
-  "terminal.prefix": { title: "Send tmux prefix", group: "terminal" },
-  "terminal.copyMode": { title: "Scroll history", group: "terminal", toggle: true },
-
-  "tmux.newSession": { title: "New session", group: "tmux", toggle: true },
-  "tmux.newWindow": { title: "New window", group: "tmux", toggle: true },
-  "tmux.nextWindow": { title: "Next window", group: "tmux" },
-  "tmux.previousWindow": { title: "Previous window", group: "tmux" },
-  "tmux.nextPane": { title: "Next pane", group: "tmux" },
-  "tmux.previousPane": { title: "Previous pane", group: "tmux" },
-  "tmux.splitRight": { title: "Split pane right", group: "tmux", toggle: true },
-  "tmux.splitDown": { title: "Split pane down", group: "tmux", toggle: true },
-  "tmux.zoomPane": { title: "Zoom or unzoom pane", group: "tmux", toggle: true },
-  "tmux.killPane": { title: "Kill pane", group: "tmux", toggle: true },
-  "tmux.killWindow": { title: "Kill window", group: "tmux", toggle: true },
-  "tmux.detach": { title: "Detach session", group: "tmux", toggle: true },
 
   "dictation.toggle": { title: "Start or stop dictation", group: "dictation", toggle: true },
 

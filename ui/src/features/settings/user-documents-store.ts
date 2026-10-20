@@ -27,8 +27,7 @@ import {
  * this file free of imports from those features.
  *
  * Conflict: a `412` reloads the server copy, which wins and applies. Status
- * turns `conflict` and the text the server refused stays in `rejectedText`
- * for the editor, until `dismissConflict` or a save of that text.
+ * turns `conflict` until `dismissConflict` or the next save.
  *
  * `updateSettings` waits out a pause before it saves. `flushSettingsSave`
  * ends the pause early, for a lock, a hidden page or an unmount. When no
@@ -48,9 +47,6 @@ export interface UserDocumentState {
   /** Etag of `text`. Null until a load or the cache provides one. */
   etag: string | null;
   status: UserDocumentStatus;
-  issues: DocumentIssue[];
-  /** Text a save sent and the server refused with `412`. */
-  rejectedText: string | null;
   lastError: string | null;
 }
 
@@ -68,7 +64,7 @@ interface UserDocumentsStore {
   noteChanged: (name: UserDocumentName, etag: string) => Promise<void>;
   /** Apply the cached copies. True when anything was cached. */
   hydrateFromCache: () => boolean;
-  /** Forget refused text after the user picked the server copy. */
+  /** Back to ready after the user saw the server copy win. */
   dismissConflict: (name: UserDocumentName) => void;
 }
 
@@ -79,8 +75,6 @@ function emptyDocument(name: UserDocumentName): UserDocumentState {
     text: EMPTY_TEXT[name],
     etag: null,
     status: "idle",
-    issues: [],
-    rejectedText: null,
     lastError: null,
   };
 }
@@ -90,8 +84,7 @@ function emptyDocuments(): Record<UserDocumentName, UserDocumentState> {
 }
 
 type SettingsSink = (document: SettingsDocument) => void;
-/** May return issues for the editor. Without them, only JSON syntax is checked. */
-type KeybindingsSink = (text: string) => DocumentIssue[] | void;
+type KeybindingsSink = (text: string) => void;
 
 let settingsSink: SettingsSink | null = null;
 let keybindingsSink: KeybindingsSink | null = null;
@@ -147,14 +140,6 @@ function jsonIssue(text: string): DocumentIssue | null {
     const reason = error instanceof Error ? error.message : "parse error";
     return { severity: "error", message: `Invalid JSON: ${reason}` };
   }
-}
-
-function keybindingsIssues(text: string): DocumentIssue[] {
-  const syntax = jsonIssue(text);
-  if (syntax) return [syntax];
-  return Array.isArray(JSON.parse(text))
-    ? []
-    : [{ severity: "error", message: "Keybindings must be a JSON array." }];
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -220,15 +205,15 @@ function withPendingPatch(document: SettingsDocument): SettingsDocument {
   return next;
 }
 
-/** Hand a document to its sink. Returns the issues to show for it. */
-function deliver(name: UserDocumentName, text: string): DocumentIssue[] {
+/** Hand a document to its sink. */
+function deliver(name: UserDocumentName, text: string): void {
   if (name === "settings") {
     const parsed = readSettingsText(text);
     // Broken text leaves the current values alone rather than resetting them.
     if (parsed.valid) settingsSink?.(withPendingPatch(parsed.document));
-    return parsed.issues;
+    return;
   }
-  return keybindingsSink?.(text) ?? keybindingsIssues(text);
+  keybindingsSink?.(text);
 }
 
 function failureMessage(result: Exclude<UserDocumentResult, { kind: "ok" }>): string {
@@ -305,14 +290,8 @@ async function loadNow(name: UserDocumentName, at: number): Promise<boolean> {
     update(name, at, { status: "error", lastError: failureMessage(result) });
     return false;
   }
-  const issues = deliver(name, result.text);
-  update(name, at, {
-    text: result.text,
-    etag: result.etag,
-    status: "ready",
-    issues,
-    lastError: null,
-  });
+  deliver(name, result.text);
+  update(name, at, { text: result.text, etag: result.etag, status: "ready", lastError: null });
   writeCache(at);
   return true;
 }
@@ -323,9 +302,9 @@ async function ensureEtag(name: UserDocumentName, at: number): Promise<boolean> 
   return at === epoch && current(name).etag !== null;
 }
 
-/** Keep refused text beside the server copy, which is already loaded. */
-function refuse(name: UserDocumentName, text: string, at: number): SaveOutcome {
-  update(name, at, { status: "conflict", rejectedText: text, lastError: CONFLICT_MESSAGE });
+/** The server copy, already loaded, won over this save. */
+function refuse(name: UserDocumentName, at: number): SaveOutcome {
+  update(name, at, { status: "conflict", lastError: CONFLICT_MESSAGE });
   return "conflict";
 }
 
@@ -337,18 +316,14 @@ async function putNow(
 ): Promise<SaveOutcome> {
   const before = current(name);
   if (text === before.text) {
-    if (before.rejectedText === text || before.status === "error") {
-      update(name, at, {
-        status: "ready",
-        lastError: null,
-        rejectedText: before.rejectedText === text ? null : before.rejectedText,
-      });
+    if (before.status === "conflict" || before.status === "error") {
+      update(name, at, { status: "ready", lastError: null });
     }
     return "unchanged";
   }
   const syntax = jsonIssue(text);
   if (syntax) {
-    update(name, at, { status: "error", lastError: syntax.message, issues: [syntax] });
+    update(name, at, { status: "error", lastError: syntax.message });
     return "invalid";
   }
 
@@ -359,22 +334,14 @@ async function putNow(
 
   switch (result.kind) {
     case "ok": {
-      const issues = deliver(name, text);
-      const rejectedText = current(name).rejectedText === text ? null : current(name).rejectedText;
-      update(name, at, {
-        text,
-        etag: result.etag,
-        status: "ready",
-        issues,
-        rejectedText,
-        lastError: null,
-      });
+      deliver(name, text);
+      update(name, at, { text, etag: result.etag, status: "ready", lastError: null });
       writeCache(at);
       return "saved";
     }
     case "conflict":
       await loadNow(name, at);
-      return refuse(name, text, at);
+      return refuse(name, at);
     case "invalid":
       update(name, at, { status: "error", lastError: result.message });
       return "invalid";
@@ -440,7 +407,7 @@ export function flushSettingsSave(options: { keepalive?: boolean } = {}): Promis
       if (!next) {
         update("settings", at, {
           status: "error",
-          lastError: "Settings file is not a JSON object. Fix it in the editor.",
+          lastError: "Settings file is not a JSON object. Import a working file or reset settings.",
         });
         return "invalid";
       }
@@ -466,7 +433,7 @@ export const useUserDocumentsStore = create<UserDocumentsStore>()(() => ({
     return serial(name, async () => {
       if (!(await ensureEtag(name, at))) return "error";
       const now = current(name);
-      if (base !== null && now.etag !== base && now.text !== text) return refuse(name, text, at);
+      if (base !== null && now.etag !== base && now.text !== text) return refuse(name, at);
       return putNow(name, text, at);
     });
   },
@@ -492,8 +459,8 @@ export const useUserDocumentsStore = create<UserDocumentsStore>()(() => ({
       const entry = cache[name];
       // A server copy is newer than any cache.
       if (!entry || current(name).etag !== null) continue;
-      const issues = deliver(name, entry.text);
-      update(name, epoch, { text: entry.text, etag: entry.etag, issues });
+      deliver(name, entry.text);
+      update(name, epoch, { text: entry.text, etag: entry.etag });
       hydrated = true;
     }
     return hydrated;
@@ -501,7 +468,6 @@ export const useUserDocumentsStore = create<UserDocumentsStore>()(() => ({
   dismissConflict: (name) => {
     const doc = current(name);
     update(name, epoch, {
-      rejectedText: null,
       status: doc.status === "conflict" ? "ready" : doc.status,
       lastError: doc.status === "conflict" ? null : doc.lastError,
     });
@@ -511,7 +477,7 @@ export const useUserDocumentsStore = create<UserDocumentsStore>()(() => ({
 function deliverCurrent(name: UserDocumentName): void {
   const doc = current(name);
   if (doc.etag === null) return;
-  update(name, epoch, { issues: deliver(name, doc.text) });
+  deliver(name, doc.text);
 }
 
 /** The settings bridge applies each settings document through this. */

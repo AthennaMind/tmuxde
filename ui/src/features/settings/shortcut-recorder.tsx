@@ -27,8 +27,6 @@ export interface RecordedShortcut {
 
 export interface RecorderError {
   text: string;
-  /** A follow up, such as opening the keybindings file. */
-  action?: { label: string; run: () => void };
 }
 
 interface Message {
@@ -234,22 +232,10 @@ export function ShortcutRecorder({
       </div>
 
       {error && (
-        <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <p className="flex min-w-0 flex-1 items-start gap-2 text-[13px] leading-5 text-destructive">
-            <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-            <span className="text-pretty">{error.text}</span>
-          </p>
-          {error.action && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="pointer-coarse:h-11"
-              onClick={error.action.run}
-            >
-              {error.action.label}
-            </Button>
-          )}
-        </div>
+        <p role="alert" className="flex items-start gap-2 text-[13px] leading-5 text-destructive">
+          <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span className="text-pretty">{error.text}</span>
+        </p>
       )}
 
       <div className="flex gap-2">

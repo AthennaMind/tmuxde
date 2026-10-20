@@ -1,12 +1,4 @@
-import type { ClientMessage } from "@/protocol";
-import {
-  filesDisabled,
-  isReadOnly,
-  supportsStep,
-  useConnectionStore,
-} from "@/features/connection/connection-store";
-import { useMachineStore } from "@/features/connection/machine-store";
-import { getRelayClient } from "@/features/connection/use-websocket";
+import { filesDisabled, useConnectionStore } from "@/features/connection/connection-store";
 import { toggleDictation } from "@/features/dictation/dictation";
 import { lockNow } from "@/features/lock/lock-controller";
 import { disconnectDevice } from "@/features/lock/sign-out";
@@ -14,12 +6,7 @@ import { isEnrolled, isUnlocked } from "@/features/lock/unlocked";
 import type { PaletteMode } from "@/features/palette/palette-key";
 import { confirmAfterPalette, togglePalette } from "@/features/palette/palette-store";
 import { useShortcutsDialog } from "@/features/palette/shortcuts-dialog-store";
-import { usePaneStore } from "@/features/panes/pane-store";
-import { zoomPane } from "@/features/panes/pane-zoom";
 import { useSessionStore } from "@/features/session/session-store";
-import { useSessionTreeStore } from "@/features/session/session-tree-store";
-import { useSettingsStore } from "@/features/settings/settings-store";
-import { noteEnteredCopyMode } from "@/features/terminal/copy-mode-belief";
 import { applyFontZoom, fontZoomSurface } from "@/features/terminal/font-zoom";
 import { getTerminalHandle } from "@/features/terminal/terminal-handle";
 import { OVERVIEW_TAB, TERMINAL_TAB, useMainTabsStore } from "@/features/workspace/main-tabs-store";
@@ -53,37 +40,6 @@ type Behaviour = Pick<Command, "run" | "enabled">;
 
 const PALETTE_MODES: readonly PaletteMode[] = ["commands", "files", "terminals"];
 
-function send(message: ClientMessage): void {
-  getRelayClient()?.send(message);
-}
-
-function connected(): boolean {
-  return useConnectionStore.getState().status === "connected" && getRelayClient() !== null;
-}
-
-function canType(): boolean {
-  return (
-    connected() &&
-    !isReadOnly(useConnectionStore.getState().capabilities) &&
-    !!useSessionStore.getState().activeSessionId
-  );
-}
-
-/** Typing is allowed and the active session is the attached tmux session. */
-function inTmux(): boolean {
-  if (!canType()) return false;
-  const attached = useSessionTreeStore.getState().attachedSession;
-  return attached !== null && attached === useSessionStore.getState().activeSessionId;
-}
-
-function severalPanes(): boolean {
-  return usePaneStore.getState().panes.length > 1;
-}
-
-function canStep(): boolean {
-  return supportsStep(useConnectionStore.getState().features);
-}
-
 /** The key landed in a dialog other than the palette. */
 function inOtherDialog(event: KeyboardEvent | undefined): boolean {
   const target = event?.target as Element | null | undefined;
@@ -102,14 +58,6 @@ function palette(mode: PaletteMode): Behaviour {
   };
 }
 
-function signal(message: ClientMessage): Behaviour {
-  return { enabled: canType, run: () => send(message) };
-}
-
-function tmux(message: ClientMessage, enabled: () => boolean = inTmux): Behaviour {
-  return { enabled, run: () => send(message) };
-}
-
 /** Ctrl with -, = or 0 sizes the focused terminal or code view. */
 function zoom(step: -1 | 0 | 1): Behaviour {
   return {
@@ -119,18 +67,6 @@ function zoom(step: -1 | 0 | 1): Behaviour {
       // Nothing to size. The browser keeps the key for page zoom.
       if (!surface) return false;
       applyFontZoom(surface, step);
-    },
-  };
-}
-
-function split(direction: "h" | "v"): Behaviour {
-  return {
-    enabled: inTmux,
-    run: () => {
-      send({ type: "pane:split", direction });
-      if (isMobileViewport() && useSettingsStore.getState().autoZoom) {
-        usePaneStore.getState().setPendingAutoZoom(true);
-      }
     },
   };
 }
@@ -207,66 +143,6 @@ const BEHAVIOUR: Record<CommandId, Behaviour> = {
     enabled: () => !!useSessionStore.getState().activeSessionId,
     run: () => useUiStore.getState().setTerminalSearchOpen(true),
   },
-  "terminal.interrupt": signal({ type: "command:interrupt" }),
-  "terminal.eof": signal({ type: "command:eof" }),
-  "terminal.clear": signal({ type: "command:clear" }),
-  "terminal.suspend": signal({ type: "command:suspend" }),
-  "terminal.prefix": signal({ type: "tmux:prefix" }),
-  "terminal.copyMode": {
-    enabled: canType,
-    run: () => {
-      send({ type: "tmux:copy-mode" });
-      noteEnteredCopyMode(useSessionStore.getState().activeSessionId);
-    },
-  },
-
-  "tmux.newSession": {
-    enabled: connected,
-    run: () => {
-      useMachineStore.setState({ createSession: true });
-    },
-  },
-  "tmux.newWindow": tmux({ type: "window:create" }),
-  "tmux.nextWindow": tmux({ type: "window:step", delta: 1 }, windowStepEnabled),
-  "tmux.previousWindow": tmux({ type: "window:step", delta: -1 }, windowStepEnabled),
-  "tmux.nextPane": tmux({ type: "pane:step", delta: 1 }, paneStepEnabled),
-  "tmux.previousPane": tmux({ type: "pane:step", delta: -1 }, paneStepEnabled),
-  "tmux.splitRight": split("h"),
-  "tmux.splitDown": split("v"),
-  "tmux.zoomPane": {
-    enabled: () => inTmux() && (severalPanes() || !!usePaneStore.getState().zoomedPaneId),
-    run: () => zoomPane(),
-  },
-  "tmux.killPane": {
-    enabled: () => inTmux() && severalPanes() && !!usePaneStore.getState().activePaneId,
-    run: () => {
-      const id = usePaneStore.getState().activePaneId;
-      if (!id) return;
-      confirmAfterPalette({
-        title: "Kill this pane?",
-        description:
-          "The pane and every process running in it are terminated. This cannot be undone.",
-        label: "Kill pane",
-        run: () => send({ type: "pane:kill", id }),
-      });
-    },
-  },
-  "tmux.killWindow": {
-    enabled: () => inTmux() && !!usePaneStore.getState().activeWindowId,
-    run: () => {
-      const { activeWindowId: id, windows } = usePaneStore.getState();
-      if (!id) return;
-      const name = windows.find((window) => window.id === id)?.name ?? "";
-      confirmAfterPalette({
-        title: name ? `Kill window “${name}”?` : "Kill this window?",
-        description:
-          "The window, all of its panes and every process in them are terminated. This cannot be undone.",
-        label: "Kill window",
-        run: () => send({ type: "window:kill", id }),
-      });
-    },
-  },
-  "tmux.detach": signal({ type: "session:detach" }),
 
   "dictation.toggle": {
     enabled: () => useConnectionStore.getState().features.has("dictation"),
@@ -294,14 +170,6 @@ const BEHAVIOUR: Record<CommandId, Behaviour> = {
   "theme.dark": { run: () => setThemeFromCommand("dark") },
   "theme.system": { run: () => setThemeFromCommand("system") },
 };
-
-function windowStepEnabled(): boolean {
-  return inTmux() && usePaneStore.getState().windows.length > 1 && canStep();
-}
-
-function paneStepEnabled(): boolean {
-  return inTmux() && severalPanes() && canStep();
-}
 
 const COMMANDS = new Map<string, Command>(
   COMMAND_IDS.map((id) => [id, { id, ...COMMAND_INFO[id], ...BEHAVIOUR[id] }]),

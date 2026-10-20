@@ -71,7 +71,7 @@ describe("defaults", () => {
     expect(shortcutLabel("sidebar.toggle", resolve([], "mac"))).toBe("⌘B");
     expect(shortcutLabel("sidebar.toggle", resolve([]))).toBe("Ctrl B");
     expect(shortcutLabel("terminal.zoomIn", resolve([]))).toBe("Ctrl =");
-    expect(shortcutLabel("tmux.newWindow", resolve([]))).toBeUndefined();
+    expect(shortcutLabel("views.closeAll", resolve([]))).toBeUndefined();
   });
 });
 
@@ -125,8 +125,8 @@ describe("resolveKeymap", () => {
   });
 
   it("does not report scopes that never overlap", () => {
-    const keymap = resolve([{ key: "ctrl+b", command: "terminal.prefix", scope: "terminal" }]);
-    expect(on(keymap, "ctrl+b")).toEqual(["terminal.prefix", "sidebar.toggle"]);
+    const keymap = resolve([{ key: "ctrl+b", command: "terminal.search", scope: "terminal" }]);
+    expect(on(keymap, "ctrl+b")).toEqual(["terminal.search", "sidebar.toggle"]);
     expect(keymap.conflicts).toEqual([]);
     expect(keymap.bindingsFor("sidebar.toggle")).toHaveLength(1);
   });
@@ -134,7 +134,7 @@ describe("resolveKeymap", () => {
   it("keeps args of any JSON type", () => {
     const keymap = resolve([
       { key: "ctrl+j", command: "views.close", args: null },
-      { key: "ctrl+shift+j", command: "terminal.prefix", args: [1, "two", true] },
+      { key: "ctrl+shift+j", command: "terminal.search", args: [1, "two", true] },
     ]);
     expect(keymap.lookup.get(key("ctrl+j"))?.[0]).toHaveProperty("args", null);
     expect(keymap.lookup.get(key("ctrl+shift+j"))?.[0]?.args).toEqual([1, "two", true]);

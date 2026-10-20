@@ -150,11 +150,11 @@ describe("applyShortcutChange", () => {
   it("adds a binding to a command without one", () => {
     const result = applyShortcutChange(
       "",
-      { command: "tmux.newWindow", chord: chord("ctrl+alt+n"), scope: "global" },
+      { command: "views.closeAll", chord: chord("ctrl+alt+n"), scope: "global" },
       "other",
     );
     expect(result.ok && edited(result.text)).toEqual([
-      { key: "ctrl+alt+n", command: "tmux.newWindow", scope: "global" },
+      { key: "ctrl+alt+n", command: "views.closeAll", scope: "global" },
     ]);
   });
 
@@ -179,7 +179,7 @@ describe("applyShortcutChange", () => {
     );
     const result = applyShortcutChange(
       full,
-      { command: "tmux.detach", chord: chord("ctrl+alt+d"), scope: "global" },
+      { command: "theme.dark", chord: chord("ctrl+alt+d"), scope: "global" },
       "other",
     );
     expect(result.ok).toBe(false);
@@ -196,13 +196,13 @@ describe("removeShortcut", () => {
 
   it("drops the entry that added the shortcut", () => {
     const text = JSON.stringify([
-      { key: "ctrl+alt+n", command: "tmux.newWindow", scope: "global" },
+      { key: "ctrl+alt+n", command: "views.closeAll", scope: "global" },
       { key: "ctrl+alt+l", command: "lock.now" },
     ]);
-    const result = removePrimary(text, "tmux.newWindow");
+    const result = removePrimary(text, "views.closeAll");
     if (!result.ok) throw new Error(result.error);
     expect(edited(result.text)).toEqual([{ key: "ctrl+alt+l", command: "lock.now" }]);
-    expect(keymapOf(result.text, "other").bindingsFor("tmux.newWindow")).toEqual([]);
+    expect(keymapOf(result.text, "other").bindingsFor("views.closeAll")).toEqual([]);
   });
 
   it("writes a removal entry for a default", () => {

@@ -4,10 +4,7 @@ import { USER_DOCUMENT_NAMES, type ConnectionState, type UserDocumentName } from
 import { useConnectionStore } from "@/features/connection/connection-store";
 import { readSelfHostedToken } from "@/features/connection/storage-keys";
 import { onBeforeLock } from "@/features/lock/lock-controller";
-import {
-  applyKeybindingsText,
-  type KeybindingIssue,
-} from "@/features/keybindings/keybindings-store";
+import { applyKeybindingsText } from "@/features/keybindings/keybindings-store";
 import { startSettingsBridge } from "./settings-bridge";
 import {
   LEGACY_SETTINGS_KEY,
@@ -15,7 +12,7 @@ import {
   finishLegacyMigration,
   migrateLegacySettings,
 } from "./settings-migration";
-import type { DocumentIssue, SettingsDocument } from "./settings-schema";
+import type { SettingsDocument } from "./settings-schema";
 import {
   CONFLICT_MESSAGE,
   flushSettingsSave,
@@ -138,18 +135,6 @@ export function documentToast(
   return null;
 }
 
-/**
- * Keybinding issues in the shape the documents store keeps for the editor.
- * Paths read `[2].key`, as in the editor's Problems list.
- */
-export function keybindingDocumentIssues(issues: readonly KeybindingIssue[]): DocumentIssue[] {
-  return issues.map(({ index, field, message, severity }) => ({
-    severity,
-    message,
-    ...(index === null ? {} : { path: field ? `[${index}].${field}` : `[${index}]` }),
-  }));
-}
-
 function legacyStoresPresent(): boolean {
   try {
     if (typeof localStorage === "undefined") return false;
@@ -184,7 +169,9 @@ export function initUserDocuments(): void {
     legacy = { overrides: migrateLegacySettings() };
   }
   startSettingsBridge();
-  registerKeybindingsSink((text) => keybindingDocumentIssues(applyKeybindingsText(text)));
+  registerKeybindingsSink((text) => {
+    applyKeybindingsText(text);
+  });
   onBeforeLock(() => void flushSettingsSave());
 }
 
@@ -201,7 +188,7 @@ async function migrateOnce(): Promise<void> {
     return;
   }
   const outcome = await store.save("settings", step.text);
-  // The server copy won. No editor holds the refused text, so drop it.
+  // The server copy won. Nothing to retry, so the conflict ends here.
   if (outcome === "conflict") store.dismissConflict("settings");
   if (shouldFinishMigration(outcome)) finishLegacyMigration();
 }

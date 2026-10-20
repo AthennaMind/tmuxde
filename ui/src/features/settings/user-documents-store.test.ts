@@ -82,7 +82,6 @@ describe("load", () => {
       text: '{"files.wrapLines": true}',
       etag: '"s0"',
       status: "ready",
-      issues: [],
     });
     expect(sink).toHaveBeenCalledWith({ "files.wrapLines": true });
     expect(JSON.parse(storage.getItem(USER_DOCUMENTS_CACHE_KEY)!)).toEqual({
@@ -90,24 +89,21 @@ describe("load", () => {
     });
   });
 
-  it("reports issues and keeps current values when the text is broken", async () => {
+  it("keeps current values when the text is broken", async () => {
     serve({ settings: "{" });
     const sink = vi.fn();
     registerSettingsSink(sink);
     await store().load("settings");
     expect(sink).not.toHaveBeenCalled();
-    expect(settings().issues[0]?.message).toMatch(/^Invalid JSON/);
+    expect(settings()).toMatchObject({ text: "{", status: "ready" });
   });
 
-  it("sends keybindings text to the keybindings sink and keeps its issues", async () => {
+  it("sends keybindings text to the keybindings sink", async () => {
     serve({ keybindings: '[{"key": "ctrl+k", "command": "palette.commands"}]' });
-    const sink = vi.fn(() => [{ severity: "warning" as const, message: "Shadowed" }]);
+    const sink = vi.fn();
     registerKeybindingsSink(sink);
     await store().load("keybindings");
     expect(sink).toHaveBeenCalledWith('[{"key": "ctrl+k", "command": "palette.commands"}]');
-    expect(store().documents.keybindings.issues).toEqual([
-      { severity: "warning", message: "Shadowed" },
-    ]);
   });
 
   it("marks an error and keeps the text when the hub is unreachable", async () => {
@@ -146,7 +142,6 @@ describe("readSettingsText", () => {
     registerSettingsSink(sink);
     await store().load("settings");
     expect(sink).toHaveBeenCalledWith({ "files.wrapLines": true, Bad: 1 });
-    expect(settings().issues).toHaveLength(1);
   });
 });
 
@@ -337,7 +332,7 @@ describe("updateSettings", () => {
 });
 
 describe("conflict", () => {
-  it("reloads the server copy and keeps the refused text", async () => {
+  it("reloads the server copy, which wins", async () => {
     const server = serve({ settings: '{"files.wrapLines": true}' });
     await store().load("settings");
     // Another browser saves in between.
@@ -350,7 +345,6 @@ describe("conflict", () => {
       status: "conflict",
       text: '{"touch.haptics": false}',
       etag: '"other"',
-      rejectedText: mine,
       lastError: CONFLICT_MESSAGE,
     });
     expect(sink).toHaveBeenLastCalledWith({ "touch.haptics": false });
@@ -364,7 +358,7 @@ describe("conflict", () => {
     await store().save("settings", mine);
     expect(await store().save("settings", mine)).toBe("saved");
     expect(server.settings.text).toBe(mine);
-    expect(settings()).toMatchObject({ status: "ready", rejectedText: null });
+    expect(settings()).toMatchObject({ status: "ready", lastError: null });
   });
 
   it("refuses text built from a copy that a reload replaced before the PUT", async () => {
@@ -382,18 +376,17 @@ describe("conflict", () => {
     expect(settings()).toMatchObject({
       status: "conflict",
       etag: '"other"',
-      rejectedText: mine,
       lastError: CONFLICT_MESSAGE,
     });
   });
 
-  it("dismisses the refused text", async () => {
+  it("dismisses the conflict", async () => {
     const server = serve();
     await store().load("settings");
     server.settings = { text: '{"touch.haptics": false}', etag: '"other"' };
     await store().save("settings", '{"files.wrapLines": false}');
     store().dismissConflict("settings");
-    expect(settings()).toMatchObject({ status: "ready", rejectedText: null, lastError: null });
+    expect(settings()).toMatchObject({ status: "ready", lastError: null });
   });
 });
 

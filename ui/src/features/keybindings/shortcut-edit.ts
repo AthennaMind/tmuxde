@@ -122,8 +122,9 @@ export function recorderKey(event: RecorderEvent, recorded: boolean): RecorderKe
 
 export type DocumentEdit = { ok: true; text: string } | { ok: false; error: string };
 
-export const BROKEN_DOCUMENT = "The keybindings file has errors. Fix it in the editor first.";
-const FULL_DOCUMENT = `The keybindings file holds ${USER_DOCUMENT_MAX_ENTRIES} entries. Remove some in the editor first.`;
+export const BROKEN_DOCUMENT =
+  "The keybindings file has errors. Import a working file or use Reset all.";
+const FULL_DOCUMENT = `The keybindings file holds ${USER_DOCUMENT_MAX_ENTRIES} entries. Reset some shortcuts first.`;
 
 function readEntries(text: string): unknown[] | null {
   if (!text.trim()) return [];

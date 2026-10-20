@@ -6,7 +6,6 @@ import {
   parseSettingsText,
   resolveSettings,
   settingDefault,
-  settingsJsonSchema,
   validateSettingsDocument,
   type Settings,
 } from "./settings-schema";
@@ -169,41 +168,5 @@ describe("validateSettingsDocument", () => {
     const broken = parseSettingsText("{");
     expect(broken.valid).toBe(false);
     expect(broken.issues[0]?.message).toMatch(/^Invalid JSON/);
-  });
-});
-
-describe("settingsJsonSchema", () => {
-  const schema = settingsJsonSchema() as {
-    type: string;
-    properties: Record<string, Record<string, unknown>>;
-    propertyNames: { pattern: string };
-  };
-
-  it("describes user keys with enums, ranges and descriptions", () => {
-    expect(schema.type).toBe("object");
-    expect(schema.properties["appearance.theme"]).toMatchObject({
-      enum: ["light", "dark", "system"],
-      default: "dark",
-    });
-    expect(schema.properties["terminal.scrollback"]).toMatchObject({
-      type: "integer",
-      minimum: 100,
-      maximum: 100000,
-    });
-    expect(schema.properties["terminal.fontWeight"]?.enum).toEqual([400, 500, 600, 700]);
-    for (const property of Object.values(schema.properties)) {
-      expect(typeof property.description).toBe("string");
-    }
-  });
-
-  it("leaves device keys to the settings page", () => {
-    expect(Object.keys(schema.properties)).not.toContain("terminal.fontSize");
-    expect(Object.keys(schema.properties)).not.toContain("editor.zoom");
-    expect(Object.keys(schema.properties)).toHaveLength(22);
-  });
-
-  it("is plain JSON", () => {
-    expect(JSON.parse(JSON.stringify(schema))).toEqual(schema);
-    expect(new RegExp(schema.propertyNames.pattern).test("terminal.fontSize")).toBe(true);
   });
 });

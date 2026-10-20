@@ -1,6 +1,5 @@
 import { machineId } from "@/features/connection/machine-context";
 import { create } from "zustand";
-import { USER_DOCUMENT_NAMES, type UserDocumentName } from "@/protocol";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { useSessionStore } from "@/features/session/session-store";
 import { isEnrolled } from "@/features/lock/unlocked";
@@ -103,34 +102,13 @@ export interface OverviewTab {
   id: typeof OVERVIEW_TAB;
 }
 
-/**
- * One of the hub's user documents as JSON, in the editor. At most one per
- * document. It belongs to no machine, since the hub keeps both documents.
- */
-export interface JsonSettingsTab {
-  kind: "json-settings";
-  id: string;
-  /** Hub document the tab edits. */
-  name: UserDocumentName;
-}
+export type MainTab = FileTab | CommitTab | GraphTab | ChangesTab | SettingsTab | OverviewTab;
 
-export type MainTab =
-  | FileTab
-  | CommitTab
-  | GraphTab
-  | ChangesTab
-  | SettingsTab
-  | OverviewTab
-  | JsonSettingsTab;
-
-/**
- * Tabs opened from one machine and session. Settings, the overview and the
- * settings files belong to none.
- */
+/** Tabs opened from one machine and session. Settings and the overview belong to none. */
 export type MachineTab = FileTab | CommitTab | GraphTab | ChangesTab;
 
 export function isMachineTab(tab: MainTab): tab is MachineTab {
-  return tab.kind !== "settings" && tab.kind !== "overview" && tab.kind !== "json-settings";
+  return tab.kind !== "settings" && tab.kind !== "overview";
 }
 
 /**
@@ -160,19 +138,6 @@ export function changesTabId(contextPath: string, machine?: string): string {
   return scopedId(`changes:${contextPath}`, machine);
 }
 
-export function jsonSettingsTabId(name: UserDocumentName): string {
-  return `json-settings:${name}`;
-}
-
-/** Tab label, the file name the hub keeps the document in. */
-export function jsonSettingsTabLabel(name: UserDocumentName): string {
-  return `${name}.json`;
-}
-
-function isUserDocumentName(value: unknown): value is UserDocumentName {
-  return (USER_DOCUMENT_NAMES as readonly unknown[]).includes(value);
-}
-
 interface MainTabsStore {
   tabs: MainTab[];
   order: string[];
@@ -191,8 +156,6 @@ interface MainTabsStore {
   openGraph: (tab: Omit<GraphTab, "id" | "kind">) => void;
   openSettings: () => void;
   openOverview: () => void;
-  /** Open or bring to front the JSON editor of a user document. */
-  openJsonSettings: (name: UserDocumentName) => void;
   closeTab: (id: string) => void;
   closeTabs: (group: CloseGroup) => void;
   activate: (id: string) => void;
@@ -202,8 +165,8 @@ interface MainTabsStore {
 /**
  * Cut the strip down to `MAX_TABS`. The oldest file or commit goes first.
  * Graphs hold loaded pages and are where commits are opened from, and
- * settings, the overview and the settings files are single tabs, so those
- * go only when nothing else can. A tab in `keep` never goes.
+ * settings and the overview are single tabs, so those go only when nothing
+ * else can. A tab in `keep` never goes.
  */
 export function trimTabs(tabs: MainTab[], keep: ReadonlySet<string>): MainTab[] {
   if (tabs.length <= MAX_TABS) return tabs;
@@ -245,12 +208,9 @@ function isMainTab(value: unknown): value is MainTab {
     | Partial<ChangesTab>
     | Partial<SettingsTab>
     | Partial<OverviewTab>
-    | Partial<JsonSettingsTab>
     | null;
   if (tab?.kind === "settings") return tab.id === SETTINGS_TAB;
   if (tab?.kind === "overview") return tab.id === OVERVIEW_TAB;
-  if (tab?.kind === "json-settings")
-    return isUserDocumentName(tab.name) && tab.id === jsonSettingsTabId(tab.name);
   if (!tab) return false;
   const origin = tab as TabOrigin;
   if (
@@ -426,14 +386,6 @@ export const useMainTabsStore = create<MainTabsStore>()(
           tabs: upsert(s.tabs, { kind: "overview", id: OVERVIEW_TAB }, s.active),
           active: OVERVIEW_TAB,
         })),
-      openJsonSettings: (name) =>
-        set((s) => {
-          const id = jsonSettingsTabId(name);
-          return {
-            tabs: upsert(s.tabs, { kind: "json-settings", id, name }, s.active),
-            active: id,
-          };
-        }),
       closeTab: (id) =>
         set((s) => {
           const index = s.tabs.findIndex((t) => t.id === id);

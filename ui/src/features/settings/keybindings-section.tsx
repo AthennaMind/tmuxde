@@ -25,7 +25,6 @@ import { useKeybindingsStore } from "@/features/keybindings/keybindings-store";
 import { resolveKeymap, type Keymap, type ResolvedBinding } from "@/features/keybindings/keymap";
 import type { Platform } from "@/features/keybindings/platform";
 import {
-  BROKEN_DOCUMENT,
   SCOPE_LABELS,
   applyShortcutChange,
   changedCommands,
@@ -37,7 +36,6 @@ import {
 } from "@/features/keybindings/shortcut-edit";
 import { Kbd } from "@/features/palette/palette-primitives";
 import { DocumentImport } from "./document-import";
-import { openSettingsFile } from "./open-settings-file";
 import { exportUserDocument } from "./settings-export";
 import { SettingsSection } from "./settings-rows";
 import { KEYBOARD_SHORTCUTS_SECTION } from "./settings-reveal";
@@ -56,13 +54,7 @@ const SECTION_TITLE = "Keyboard shortcuts";
 type RowAction = "change" | "remove" | "reset";
 
 function toastError(result: RecorderError): void {
-  toast.error(result.text, {
-    duration: Infinity,
-    closeButton: true,
-    ...(result.action
-      ? { action: { label: result.action.label, onClick: result.action.run } }
-      : {}),
-  });
+  toast.error(result.text, { duration: Infinity, closeButton: true });
 }
 
 /**
@@ -98,21 +90,7 @@ async function editKeybindings(edit: (text: string) => DocumentEdit): Promise<Ed
   const store = useUserDocumentsStore.getState();
   if (store.documents.keybindings.etag === null) await store.load("keybindings");
   const result = edit(useUserDocumentsStore.getState().documents.keybindings.text);
-  if (!result.ok) {
-    return {
-      ok: false,
-      fromStore: false,
-      text: result.error,
-      ...(result.error === BROKEN_DOCUMENT
-        ? {
-            action: {
-              label: "Edit keybindings JSON",
-              run: () => openSettingsFile("keybindings"),
-            },
-          }
-        : {}),
-    };
-  }
+  if (!result.ok) return { ok: false, fromStore: false, text: result.error };
   const outcome = await useUserDocumentsStore.getState().save("keybindings", result.text);
   if (outcome === "saved" || outcome === "unchanged") return { ok: true };
   if (outcome === "conflict") {
@@ -140,9 +118,9 @@ async function editKeybindings(edit: (text: string) => DocumentEdit): Promise<Ed
  * new entry plus a removal of the replaced default into the keybindings
  * document, which syncs to every browser. Remove takes that binding off
  * without a new one. Reset drops the document's entries for one command,
- * Reset all empties the document. The header also edits, exports and
- * imports the keybindings file. Touch layouts keep everything but Add and
- * Change, since recording needs a keyboard.
+ * Reset all empties the document. The header also exports and imports the
+ * keybindings file. Touch layouts keep everything but Add and Change, since
+ * recording needs a keyboard.
  */
 export function KeyboardShortcutsSection({ touch = false }: { touch?: boolean }) {
   const keymap = useKeybindingsStore((s) => s.keymap);
@@ -314,19 +292,10 @@ export function KeyboardShortcutsList({
             : "Global works everywhere. Outside terminal leaves the key to the shell while the terminal has focus. Changes sync to every browser."
         }
         action={
-          // A full line under the description. Beside it, four buttons would
+          // A full line under the description. Beside it, three buttons would
           // squeeze the text into a narrow column.
           <div className="flex basis-full flex-wrap items-center gap-x-4 gap-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="pointer-coarse:h-11"
-                aria-label="Edit JSON for keybindings"
-                onClick={() => openSettingsFile("keybindings")}
-              >
-                Edit JSON
-              </Button>
               <Button
                 variant="outline"
                 size="sm"
