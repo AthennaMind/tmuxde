@@ -13,11 +13,13 @@ export function PanelHeader({
   title,
   children,
   className,
+  showSidebarToggle = true,
 }: {
   title: React.ReactNode;
   /** View actions, drawn before the collapse button. */
   children?: React.ReactNode;
   className?: string;
+  showSidebarToggle?: boolean;
 }) {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const hideLabel = useShortcutTitle("Hide sidebar", "sidebar.toggle");
@@ -25,7 +27,9 @@ export function PanelHeader({
     <div className={cn("flex min-h-11 shrink-0 items-center gap-1 border-b ps-3 pe-1", className)}>
       <h2 className="min-w-0 flex-1 truncate font-chrome text-[13px] font-medium">{title}</h2>
       {children}
-      <PanelIconButton label={hideLabel} onClick={toggleSidebar} icon={PanelLeftClose} />
+      {showSidebarToggle && (
+        <PanelIconButton label={hideLabel} onClick={toggleSidebar} icon={PanelLeftClose} />
+      )}
     </div>
   );
 }

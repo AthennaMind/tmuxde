@@ -1,16 +1,27 @@
-import { QuickOpenTrigger } from "./quick-open-trigger";
+import { FileContextMenu } from "./file-context-menu";
+import { FileDeleteDialog, type DeleteTarget } from "./file-delete-dialog";
+import { FileNameInput } from "./file-name-input";
+import { renameFileEntry } from "./file-move";
+import { useFileMoves } from "./use-file-moves";
+import { FileMoveDialog } from "./file-move-dialog";
+import { pathWithin } from "./file-drafts";
+import { createFileEntry, newEntryPath, type CreateKind } from "./file-create-request";
 import { useMemo, useRef, useState } from "react";
 import {
   ClipboardCopy,
   Download,
   Upload,
   FileText,
+  FilePlus,
+  FolderPlus,
+  FolderInput,
   GitBranch,
   ListCollapse,
   Pencil,
+  PanelLeftClose,
   RefreshCw,
-  Search,
   TextCursorInput,
+  Trash2,
 } from "lucide-react";
 import { UploadControl, type UploadPicker } from "./transfer-controls";
 import { startDownload, useTransferStore } from "./transfer-store";
@@ -20,7 +31,6 @@ import { cn } from "@/shared/utils";
 import { copyFailureReason, copyText } from "@/shared/clipboard";
 import { shortenPath } from "@/shared/tmux-labels";
 import { useAlertStore } from "@/shared/alert-store";
-import { useFileStore } from "./file-store";
 import { useUiStore } from "@/features/workspace/ui-store";
 import { Button } from "@/components/ui/button";
 import { isReadOnly, useConnectionStore } from "@/features/connection/connection-store";
@@ -31,7 +41,7 @@ import { useRepositoryQuery } from "@/features/repository/use-repository-query";
 import { changeTouchesFolder } from "@/features/repository/repo-change";
 import { useRepoChangeCount } from "@/features/repository/repo-watch-store";
 import type { RepositoryClient } from "@/features/repository/repository-request";
-import { PanelHeader, PanelIconButton } from "@/features/workspace/panel-header";
+import { PanelHeader } from "@/features/workspace/panel-header";
 import { TreeRow, type TreeAction, type TreeRowModel } from "@/features/workspace/tree-row";
 import { useTreeKeyboard } from "@/features/workspace/use-tree-keyboard";
 import type { RepositoryState } from "@/features/repository/use-repository-state";
@@ -75,19 +85,35 @@ function ancestors(root: string, path: string): string[] {
   return out;
 }
 
+type NameTarget = {
+  client: RepositoryClient;
+  machine: string;
+  paneId: string;
+  directory: string;
+} & ({ kind: CreateKind; entry?: never } | { kind: "rename"; entry: FileEntry });
+
+type Naming = {
+  target: NameTarget;
+  submit: (name: string, signal: AbortSignal) => Promise<void>;
+  cancel: () => void;
+  pendingChanged: (pending: boolean) => void;
+};
+
 interface TreeState {
+  naming: Naming | null;
+  moves: ReturnType<typeof useFileMoves>;
   client: RepositoryClient;
   paneId: string;
   refreshKey: number;
-  filter: string;
   expanded: Set<string>;
   toggle: (path: string) => void;
   changes: Map<string, ChangeCode>;
   changedDirs: Set<string>;
   focusKey: string | null;
   setFocusKey: (key: string) => void;
-  menuKey: string | null;
-  setMenuKey: (key: string | null) => void;
+  rename: (entry: FileEntry) => void;
+  remove: (entry: FileEntry) => void;
+  folderActions: (path: string) => TreeAction[];
   actionsFor: (entry: FileEntry) => TreeAction[];
   open: (entry: FileEntry) => void;
 }
@@ -102,13 +128,43 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
   const readOnly = isReadOnly(capabilities);
   const { client, paneId, context, status } = repo;
   const root = context ? (context.root ?? context.path) : null;
-  const [filter, setFilter] = useState("");
+  const [nameTarget, setNameTarget] = useState<NameTarget | null>(null);
+  const [namingPending, setNamingPending] = useState(false);
+  if (
+    nameTarget &&
+    (nameTarget.client !== client ||
+      nameTarget.paneId !== paneId ||
+      nameTarget.machine !== machineId())
+  )
+    setNameTarget(null);
+  const [created, setCreated] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [focusKey, setFocusKey] = useState<string | null>(null);
-  const [menuKey, setMenuKey] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const { ref: treeRef, onKeyDown: onTreeKeyDown } = useTreeKeyboard();
+  const focusTree = () => {
+    const target =
+      treeRef.current?.querySelector<HTMLElement>('[data-tree-row][tabindex="0"]') ??
+      treeRef.current?.closest<HTMLElement>("[data-file-tree-root]");
+    target?.focus({ preventScroll: true });
+  };
   const uploaded = useTransferStore((s) => s.revisions[machineId()] ?? 0);
   const uploadPicker = useRef<UploadPicker>(null);
+  const onMoved = (from: string, to: string) => {
+    setCreated((value) => value + 1);
+    setExpanded(
+      (previous) =>
+        new Set([
+          ...[...previous].map((path) =>
+            pathWithin(path, from) ? to + path.slice(from.length) : path,
+          ),
+          ...ancestors(root ?? "/", to.slice(0, to.lastIndexOf("/")) || "/"),
+        ]),
+    );
+    setFocusKey(to);
+    repo.refresh();
+  };
+  const moves = useFileMoves(client, onMoved);
 
   // A new pane folder opens the tree down to it. In the same repository the
   // folders opened by hand stay open. This adjusts state during render, so
@@ -119,6 +175,7 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
   });
   if (openedFor.root !== root || openedFor.path !== contextPath) {
     setOpenedFor({ root, path: contextPath });
+    setNameTarget(null);
     if (root && contextPath) {
       const path = ancestors(root, contextPath);
       setExpanded((prev) => (prev.has(root) ? new Set([...prev, ...path]) : new Set(path)));
@@ -150,6 +207,9 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
   }, [status]);
 
   const toggle = (path: string) => {
+    if (namingPending) return;
+    if (nameTarget && expanded.has(path) && pathWithin(nameTarget.directory, path))
+      setNameTarget(null);
     // Focus inside a closing folder moves to the folder.
     if (expanded.has(path) && focusKey?.startsWith(`${path}/`)) {
       setFocusKey(path);
@@ -175,58 +235,175 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
     terminal.focus();
   };
 
-  const actionsFor = (entry: FileEntry): TreeAction[] => [
-    ...(entry.type === "file"
-      ? [{ label: "Download", icon: Download, onSelect: () => startDownload(entry.path) }]
-      : []),
-    ...(entry.type === "directory" && !readOnly && (!capabilities || capabilities.files === "write")
+  const canCreate =
+    client?.status === "connected" &&
+    !readOnly &&
+    (!capabilities || capabilities.files === "write");
+  const cancelNaming = () => {
+    setNameTarget(null);
+    requestAnimationFrame(focusTree);
+  };
+  const startCreate = (kind: CreateKind, directory: string) => {
+    if (!canCreate || !client || !paneId || namingPending || moves.moving) return;
+    setExpanded((previous) => new Set([...previous, ...ancestors(root ?? directory, directory)]));
+    setNameTarget({ kind, directory, machine: machineId(), paneId, client });
+  };
+  const rename = (entry: FileEntry) => {
+    if (!moves.allowed || !client || !paneId || namingPending || moves.moving) return;
+    setFocusKey(entry.path);
+    setNameTarget({
+      kind: "rename",
+      entry,
+      directory: entry.path.slice(0, entry.path.lastIndexOf("/")) || "/",
+      machine: machineId(),
+      paneId,
+      client,
+    });
+  };
+  const submitName = async (name: string, signal: AbortSignal) => {
+    const target = nameTarget;
+    if (!target || target.client !== client || target.machine !== machineId() || !canCreate)
+      throw new Error("Connect to change files.");
+    const path = newEntryPath(target.directory, name);
+    if (target.kind === "rename") {
+      if (!moves.allowed || moves.moving) throw new Error("Wait for current move to finish.");
+      await renameFileEntry(target.client, target.machine, target.entry.path, path, signal);
+      if (signal.aborted) return;
+      onMoved(target.entry.path, path);
+    } else {
+      await createFileEntry(target.client, path, target.kind, signal);
+      if (signal.aborted) return;
+      setCreated((value) => value + 1);
+      if (target.kind === "folder") setExpanded((previous) => new Set([...previous, path]));
+      setFocusKey(path);
+      repo.refresh();
+      if (target.kind === "file")
+        useMainTabsStore
+          .getState()
+          .openFile({ machineId: target.machine, paneId: target.paneId, path });
+    }
+    setNameTarget(null);
+    if (target.kind !== "file") requestAnimationFrame(focusTree);
+  };
+  const naming: Naming | null =
+    nameTarget &&
+    nameTarget.client === client &&
+    nameTarget.machine === machineId() &&
+    nameTarget.paneId === paneId
+      ? {
+          target: nameTarget,
+          submit: submitName,
+          cancel: cancelNaming,
+          pendingChanged: setNamingPending,
+        }
+      : null;
+  const collapse = () => {
+    if (!root || namingPending) return;
+    setNameTarget(null);
+    setExpanded(new Set([root]));
+  };
+  const remove = (entry: FileEntry) => {
+    if (canCreate && client && !namingPending)
+      setDeleteTarget({ entry, client, machine: machineId() });
+  };
+  const copyPath = (path: string) =>
+    void copyText(path).then((ok) =>
+      useAlertStore
+        .getState()
+        .push(ok ? "success" : "error", ok ? "Copied path" : copyFailureReason()),
+    );
+  const createActions = (directory: string): TreeAction[] =>
+    canCreate
       ? [
+          { label: "New file", icon: FilePlus, onSelect: () => startCreate("file", directory) },
+          {
+            label: "New folder",
+            icon: FolderPlus,
+            onSelect: () => startCreate("folder", directory),
+          },
           {
             label: "Upload files here",
             icon: Upload,
-            onSelect: () => uploadPicker.current?.choose(entry.path),
+            onSelect: () => uploadPicker.current?.choose(directory),
+          },
+        ]
+      : [];
+  const folderActions = (path: string): TreeAction[] => [
+    ...createActions(path),
+    { label: "Refresh", icon: RefreshCw, separated: canCreate, onSelect: repo.refresh },
+    {
+      label: "Collapse folders",
+      icon: ListCollapse,
+      onSelect: collapse,
+    },
+    { label: "Copy path", icon: ClipboardCopy, separated: true, onSelect: () => copyPath(path) },
+    {
+      label: "Hide sidebar",
+      icon: PanelLeftClose,
+      separated: true,
+      onSelect: () => useUiStore.getState().toggleSidebar(),
+    },
+  ];
+  const actionsFor = (entry: FileEntry): TreeAction[] => [
+    ...(entry.type !== "directory"
+      ? [{ label: "Open", icon: FileText, onSelect: () => open(entry) }]
+      : []),
+    ...createActions(
+      entry.type === "directory"
+        ? entry.path
+        : entry.path.slice(0, entry.path.lastIndexOf("/")) || "/",
+    ),
+    ...(moves.allowed
+      ? [
+          {
+            label: "Rename…",
+            icon: Pencil,
+            separated: true,
+            shortcut: "F2",
+            onSelect: () => rename(entry),
+          },
+          {
+            label: "Move to folder…",
+            icon: FolderInput,
+            onSelect: () => {
+              if (!namingPending) {
+                setNameTarget(null);
+                moves.setSelection(entry);
+              }
+            },
           },
         ]
       : []),
-    ...(entry.type === "directory"
-      ? []
-      : [
-          {
-            label: "Open",
-            icon: FileText,
-            onSelect: () => open(entry),
-          },
-        ]),
     {
       label: "Copy path",
       icon: ClipboardCopy,
-      onSelect: () =>
-        void copyText(entry.path).then((ok) =>
-          useAlertStore
-            .getState()
-            .push(ok ? "success" : "error", ok ? "Copied path" : copyFailureReason()),
-        ),
+      separated: true,
+      onSelect: () => copyPath(entry.path),
     },
-    ...(readOnly
-      ? []
-      : [
-          ...(entry.type === "file"
-            ? [
-                {
-                  // The Monaco editor, which saves back to the machine.
-                  // Open shows a read only preview in a tab.
-                  label: "Open in editor",
-                  icon: Pencil,
-                  onSelect: () => useFileStore.getState().openEditor(entry.path),
-                },
-              ]
-            : []),
+    ...(entry.type === "file"
+      ? [{ label: "Download", icon: Download, onSelect: () => startDownload(entry.path) }]
+      : []),
+    ...(!readOnly
+      ? [
           {
             label: "Insert path in terminal",
             icon: TextCursorInput,
             onSelect: () => insertPath(entry.path),
           },
-        ]),
+        ]
+      : []),
+    ...(canCreate
+      ? [
+          {
+            label: "Delete",
+            icon: Trash2,
+            destructive: true,
+            separated: true,
+            shortcut: "Delete",
+            onSelect: () => remove(entry),
+          },
+        ]
+      : []),
   ];
 
   const open = (entry: FileEntry) => {
@@ -243,10 +420,32 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {moves.selection && <FileMoveDialog moves={moves} />}
+      {deleteTarget && deleteTarget.client === client && deleteTarget.machine === machineId() && (
+        <FileDeleteDialog
+          target={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onReturnFocus={focusTree}
+          onDeleted={() => {
+            setDeleteTarget(null);
+            setCreated((value) => value + 1);
+            setFocusKey(null);
+            repo.refresh();
+          }}
+        />
+      )}
       <PanelHeader
+        showSidebarToggle={false}
         title={
           <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate" title={root ?? undefined}>
+            <span
+              {...moves.dropProps(root)}
+              className={cn(
+                "truncate",
+                moves.over === root && "bg-primary/15 outline outline-1 outline-primary",
+              )}
+              title={root ?? undefined}
+            >
               {root ? basename(root) : "Files"}
             </span>
             {branch && (
@@ -260,24 +459,10 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
             )}
           </span>
         }
-      >
-        {contextPath && <UploadControl directory={contextPath} pickerRef={uploadPicker} />}
-        <PanelIconButton
-          label="Collapse folders"
-          icon={ListCollapse}
-          onClick={() => root && setExpanded(new Set([root]))}
-          disabled={!root}
-        />
-        <PanelIconButton
-          label="Refresh files"
-          icon={RefreshCw}
-          onClick={repo.refresh}
-          disabled={!client}
-          spinning={repo.loading}
-        />
-      </PanelHeader>
-      <QuickOpenTrigger />
-
+      />
+      {contextPath && (
+        <UploadControl directory={contextPath} pickerRef={uploadPicker} showButton={false} />
+      )}
       {repo.unavailable ? (
         <Note>{repo.unavailable}</Note>
       ) : repo.error && !context ? (
@@ -314,59 +499,59 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
         <Note>Finding pane folder</Note>
       ) : (
         <>
-          <div className="shrink-0 px-2 py-2">
-            <label className="flex h-8 items-center gap-2 rounded-md border border-input bg-background px-2 focus-within:ring-1 focus-within:ring-ring">
-              <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-              <input
-                aria-label="Filter open folders"
-                placeholder="Filter open folders"
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") setFilter("");
-                }}
-                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              />
-            </label>
-          </div>
-          <div className="min-h-0 flex-1 overflow-auto px-1.5 pb-2">
+          <FileContextMenu actions={folderActions(root)}>
             <div
-              ref={treeRef}
-              data-tree
-              role="group"
-              aria-label={`Files in ${basename(root)}`}
-              onKeyDown={onTreeKeyDown}
-              className="space-y-px"
+              data-file-tree-root
+              tabIndex={0}
+              aria-label="File tree background"
+              {...moves.dropProps(root)}
+              className={cn(
+                "min-h-0 flex-1 overflow-auto px-1.5 pb-2",
+                moves.over === root &&
+                  "bg-primary/10 outline outline-1 -outline-offset-1 outline-primary",
+              )}
             >
-              <FolderChildren
-                key={root}
-                path={root}
-                depth={0}
-                parentKey={null}
-                state={{
-                  client,
-                  paneId,
-                  refreshKey: repo.refreshKey + uploaded,
-                  filter: filter.trim().toLocaleLowerCase(),
-                  expanded,
-                  toggle,
-                  changes,
-                  changedDirs,
-                  focusKey,
-                  setFocusKey,
-                  menuKey,
-                  setMenuKey,
-                  actionsFor,
-                  open,
-                }}
-              />
+              <div
+                ref={treeRef}
+                data-tree
+                role="group"
+                aria-label={`Files in ${basename(root)}`}
+                onKeyDown={onTreeKeyDown}
+                className="space-y-px"
+              >
+                <FolderChildren
+                  key={root}
+                  path={root}
+                  depth={0}
+                  parentKey={null}
+                  state={{
+                    naming,
+                    client,
+                    paneId,
+                    moves,
+                    refreshKey: repo.refreshKey + uploaded + created,
+                    expanded,
+                    toggle,
+                    changes,
+                    changedDirs,
+                    focusKey,
+                    setFocusKey,
+                    rename,
+                    remove,
+                    folderActions,
+                    actionsFor,
+                    open,
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          </FileContextMenu>
           <p
             className="shrink-0 truncate border-t px-3 py-2 text-xs text-muted-foreground"
             title={context?.path}
           >
-            Follows active pane · {shortenPath(context?.path ?? "")}
+            {moves.moving ? "Moving… · " : ""}Follows active pane ·{" "}
+            {shortenPath(context?.path ?? "")}
           </p>
         </>
       )}
@@ -397,25 +582,43 @@ function FolderChildren({
     { keepPrevious: true },
   );
   const indent = 4 + depth * 14 + 22;
+  const naming = state.naming;
+  const creator =
+    naming && naming.target.kind !== "rename" && naming.target.directory === path ? (
+      <FileNameInput
+        key={naming.target.kind}
+        type={naming.target.kind === "folder" ? "directory" : "file"}
+        depth={depth}
+        onSubmit={naming.submit}
+        onCancel={naming.cancel}
+        onPendingChange={naming.pendingChanged}
+      />
+    ) : null;
 
   if (listing.loading && !listing.result && !listing.error)
     return (
-      <div
-        className="flex h-7 items-center text-xs text-muted-foreground"
-        style={{ paddingInlineStart: indent }}
-      >
-        Loading
-      </div>
+      <>
+        {creator}
+        <div
+          className="flex h-7 items-center text-xs text-muted-foreground"
+          style={{ paddingInlineStart: indent }}
+        >
+          Loading
+        </div>
+      </>
     );
   if (listing.error)
     return (
-      <div
-        role="alert"
-        className="flex min-h-7 items-center text-xs text-destructive"
-        style={{ paddingInlineStart: indent }}
-      >
-        {listing.error}
-      </div>
+      <>
+        {creator}
+        <div
+          role="alert"
+          className="flex min-h-7 items-center text-xs text-destructive"
+          style={{ paddingInlineStart: indent }}
+        >
+          {listing.error}
+        </div>
+      </>
     );
 
   const result = listing.result?.kind === "list" ? listing.result : undefined;
@@ -424,31 +627,31 @@ function FolderChildren({
     const dirB = b.type === "directory" ? 0 : 1;
     return dirA - dirB || a.name.localeCompare(b.name);
   });
-  const visible = state.filter
-    ? entries.filter(
-        (entry) =>
-          entry.name.toLocaleLowerCase().includes(state.filter) ||
-          (entry.type === "directory" && state.expanded.has(entry.path)),
-      )
-    : entries;
-
-  if (!visible.length)
+  if (!entries.length)
     return (
-      <div
-        className="flex h-7 items-center text-xs text-muted-foreground"
-        style={{ paddingInlineStart: indent }}
-      >
-        {state.filter ? "No matches" : "Empty folder"}
-      </div>
+      <>
+        {creator}
+        {!creator && (
+          <FileContextMenu actions={state.folderActions(path)}>
+            <div
+              className="flex h-7 items-center text-xs text-muted-foreground"
+              style={{ paddingInlineStart: indent }}
+            >
+              Empty folder
+            </div>
+          </FileContextMenu>
+        )}
+      </>
     );
 
   // The first row of the tree takes Tab until another row has focus.
   const isRoot = depth === 0;
-  const tabStopKey = state.focusKey ?? (isRoot ? visible[0]!.path : null);
+  const tabStopKey = state.focusKey ?? (isRoot ? entries[0]!.path : null);
 
   return (
     <>
-      {visible.map((entry) => {
+      {creator}
+      {entries.map((entry) => {
         const isDir = entry.type === "directory";
         const open = isDir && state.expanded.has(entry.path);
         const change = state.changes.get(entry.path);
@@ -485,12 +688,12 @@ function FolderChildren({
               title="Contains changes"
             />
           ) : undefined,
-          menu: state.actionsFor(entry),
         };
         return (
           <FileTreeEntry
             key={entry.path}
             row={row}
+            entry={entry}
             open={open}
             state={state}
             tabStop={tabStopKey === entry.path}
@@ -511,27 +714,64 @@ function FolderChildren({
 
 function FileTreeEntry({
   row,
+  entry,
   open,
   state,
   tabStop,
 }: {
   row: TreeRowModel;
+  entry: FileEntry;
   open: boolean;
   state: TreeState;
   tabStop: boolean;
 }) {
   return (
     <>
-      <TreeRow
-        row={row}
-        tabStop={tabStop}
-        onFocusRow={state.setFocusKey}
-        menuOpen={state.menuKey === row.key}
-        onMenuOpenChange={(value) => state.setMenuKey(value ? row.key : null)}
-        renaming={false}
-        onRenameStart={() => {}}
-        onRenameEnd={() => {}}
-      />
+      {state.naming?.target.kind === "rename" && state.naming.target.entry.path === entry.path ? (
+        <FileNameInput
+          initialName={entry.name}
+          type={entry.type}
+          depth={row.depth}
+          onSubmit={state.naming.submit}
+          onCancel={state.naming.cancel}
+          onPendingChange={state.naming.pendingChanged}
+        />
+      ) : (
+        <FileContextMenu actions={state.actionsFor(entry)}>
+          <div
+            onContextMenu={() => state.setFocusKey(entry.path)}
+            onKeyDown={(event) => {
+              if (event.defaultPrevented) return;
+              if (event.key === "F2") {
+                event.preventDefault();
+                state.rename(entry);
+              }
+              if (event.key === "Delete") {
+                event.preventDefault();
+                state.remove(entry);
+              }
+            }}
+            {...(!state.naming ? state.moves.dragProps(entry) : {})}
+            {...state.moves.dropProps(entry.type === "directory" ? entry.path : null)}
+            className={cn(
+              "rounded-md",
+              state.moves.over === entry.path &&
+                "bg-primary/15 outline outline-1 -outline-offset-1 outline-primary",
+            )}
+          >
+            <TreeRow
+              row={row}
+              tabStop={tabStop}
+              onFocusRow={state.setFocusKey}
+              menuOpen={false}
+              onMenuOpenChange={() => {}}
+              renaming={false}
+              onRenameStart={() => {}}
+              onRenameEnd={() => {}}
+            />
+          </div>
+        </FileContextMenu>
+      )}
       {open && (
         <FolderChildren path={row.key} depth={row.depth + 1} parentKey={row.key} state={state} />
       )}

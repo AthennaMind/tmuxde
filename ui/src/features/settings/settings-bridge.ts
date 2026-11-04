@@ -57,7 +57,9 @@ function settingsValues(state: SettingsState): Values {
   return {
     "panes.autoZoom": state.autoZoom,
     "panes.showIndexes": state.showPaneIndexes,
+    "tabs.terminalsFirst": state.keepTerminalTabsFirst,
     "files.wrapLines": state.wrapLines,
+    "files.autoSave": state.autoSave,
     "files.markdownPreview": state.markdownPreview,
     "changes.filterPatterns": state.commitFilterPatterns,
     "changes.filterMode": state.commitFilterMode,
@@ -120,7 +122,9 @@ function applySettingsStore(settings: Settings): void {
   const patch = changedFields<SettingsState>(state, {
     autoZoom: settings["panes.autoZoom"],
     showPaneIndexes: settings["panes.showIndexes"],
+    keepTerminalTabsFirst: settings["tabs.terminalsFirst"],
     wrapLines: settings["files.wrapLines"],
+    autoSave: settings["files.autoSave"],
     markdownPreview: settings["files.markdownPreview"],
     commitFilterPatterns: settings["changes.filterPatterns"],
     commitFilterMode: settings["changes.filterMode"],

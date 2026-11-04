@@ -1,4 +1,7 @@
-import { QuickOpenTrigger } from "@/features/files/quick-open-trigger";
+import { useFileMoves } from "@/features/files/use-file-moves";
+import { FileMoveDialog } from "@/features/files/file-move-dialog";
+import { FileCreateDialog, type CreateTarget } from "@/features/files/file-create-dialog";
+import { useFileStore } from "@/features/files/file-store";
 import { useQuickOpenStore } from "@/features/files/quick-open-store";
 import { useEffect, useId, useRef, useState } from "react";
 import {
@@ -11,7 +14,9 @@ import {
   GitCompareArrows,
   History,
   RefreshCw,
-  Search,
+  FilePlus,
+  FolderPlus,
+  FolderInput,
   WrapText,
   X,
 } from "lucide-react";
@@ -148,7 +153,7 @@ function BrowserContents({
 }) {
   const { view, navigate, replace, back, forward, canBack, canForward } =
     useRepositoryHistory(paneId);
-  const { tab, directory, filter, preview } = view;
+  const { tab, directory, preview } = view;
   const commit = view.commit ?? null;
   // A file opened here joins quick open's recent files. Diff previews do not.
   const openedFile = preview && !preview.scope ? preview.path : null;
@@ -159,6 +164,14 @@ function BrowserContents({
   const historySupported = useConnectionStore((s) => s.features.has("repo:history"));
   const tabs: Tab[] = historySupported ? ["files", "changes", "history"] : ["files", "changes"];
   const [refresh, setRefresh] = useState(0);
+  const moves = useFileMoves(client, () => setRefresh((value) => value + 1));
+  const [createTarget, setCreateTarget] = useState<CreateTarget | null>(null);
+  const canCreate = useConnectionStore(
+    (state) =>
+      state.status === "connected" &&
+      !state.capabilities?.readOnly &&
+      (!state.capabilities || state.capabilities.files === "write"),
+  );
   const uploaded = useTransferStore((s) => s.revisions[machineId()] ?? 0);
   // Spins from a Refresh click until every answer lands. Quiet reloads after
   // a change on disk never spin.
@@ -287,9 +300,6 @@ function BrowserContents({
   const openCommit = (hash: string, subject: string) =>
     navigate({ ...view, preview: null, commit: { hash, subject } });
   const entries = listing.result?.kind === "list" ? listing.result.entries : [];
-  const filtered = entries.filter((entry) =>
-    entry.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase()),
-  );
   const go = (nextPath: string) => {
     navigate({ ...view, directory: nextPath, filter: "", preview: null });
   };
@@ -342,6 +352,19 @@ function BrowserContents({
   );
   return (
     <RepositoryNavigationSurface back={back} forward={forward}>
+      {moves.selection && <FileMoveDialog moves={moves} />}
+      {createTarget && (
+        <FileCreateDialog
+          target={createTarget}
+          onClose={() => setCreateTarget(null)}
+          onCreated={(createdPath) => {
+            setRefresh((value) => value + 1);
+            setCreateTarget(null);
+            if (createTarget.kind === "folder") go(createdPath);
+            else useFileStore.getState().openEditor(createdPath);
+          }}
+        />
+      )}
       <div className="flex shrink-0 items-center justify-between gap-1 border-b px-1">
         <div role="tablist" aria-label="Repository views" className="flex">
           {tabs.map(tabButton)}
@@ -387,7 +410,6 @@ function BrowserContents({
           {onClose && <CloseButton onClose={onClose} />}
         </div>
       </div>
-      {tab === "files" && <QuickOpenTrigger />}
       <div
         id={`${id}-panel`}
         role="tabpanel"
@@ -538,33 +560,47 @@ function BrowserContents({
               <>
                 <div className="flex items-center border-b">
                   <div className="min-w-0 flex-1">
-                    <Breadcrumbs path={path ?? context.path} go={go} />
+                    <Breadcrumbs path={path ?? context.path} go={go} moves={moves} />
                   </div>
+                  {(["file", "folder"] as const).map((kind) => {
+                    const Icon = kind === "file" ? FilePlus : FolderPlus;
+                    return (
+                      <Button
+                        key={kind}
+                        variant="ghost"
+                        size="icon"
+                        className="h-11 w-11 shrink-0"
+                        aria-label={`New ${kind}`}
+                        title={`New ${kind}`}
+                        disabled={!canCreate}
+                        onClick={() =>
+                          setCreateTarget({
+                            kind,
+                            directory: path ?? context.path,
+                            machine: machineId(),
+                            paneId,
+                            client,
+                          })
+                        }
+                      >
+                        <Icon className="h-4 w-4" aria-hidden />
+                      </Button>
+                    );
+                  })}
                   <UploadControl directory={path ?? context.path} />
-                </div>
-                <div className="shrink-0 border-b px-3 py-2">
-                  <label className="flex min-h-10 items-center gap-2 rounded-md border border-input bg-background px-2.5 focus-within:ring-1 focus-within:ring-ring">
-                    <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <input
-                      aria-label="Filter files in this folder"
-                      placeholder="Filter this folder"
-                      value={filter}
-                      onChange={(event) => replace({ ...view, filter: event.target.value })}
-                      className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
-                    />
-                  </label>
                 </div>
                 <div className="min-h-0 flex-1 overflow-auto">
                   {listing.error ? (
                     <Notice error>{listing.error}</Notice>
                   ) : empty(listing) ? (
                     <Notice>Loading files...</Notice>
-                  ) : filtered.length ? (
+                  ) : entries.length ? (
                     <ul className="py-1">
-                      {filtered.map((entry) => (
+                      {entries.map((entry) => (
                         <FileRow
                           key={entry.path}
                           entry={entry}
+                          moves={moves}
                           onOpen={() =>
                             entry.type === "directory"
                               ? go(entry.path)
@@ -581,9 +617,7 @@ function BrowserContents({
                       ))}
                     </ul>
                   ) : (
-                    <Notice>
-                      {filter ? "No files match this filter." : "This folder is empty."}
-                    </Notice>
+                    <Notice>This folder is empty.</Notice>
                   )}
                   {listing.result?.kind === "list" && listing.result.truncated && (
                     <Notice>Folder listing shortened. Some entries are not shown.</Notice>
@@ -591,7 +625,7 @@ function BrowserContents({
                 </div>
                 <div className="flex shrink-0 items-center justify-between gap-2 border-t px-3 py-2 text-[11px] text-muted-foreground">
                   <span>
-                    {filtered.length} {filtered.length === 1 ? "entry" : "entries"}
+                    {entries.length} {entries.length === 1 ? "entry" : "entries"}
                   </span>
                 </div>
               </>
@@ -721,7 +755,15 @@ function BranchBlock({ branch, root }: { branch: string | null; root: string | n
   );
 }
 
-function Breadcrumbs({ path, go }: { path: string; go: (path: string) => void }) {
+function Breadcrumbs({
+  path,
+  go,
+  moves,
+}: {
+  path: string;
+  go: (path: string) => void;
+  moves: ReturnType<typeof useFileMoves>;
+}) {
   const parts = path.split("/").filter(Boolean);
   const scrollRef = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -735,6 +777,7 @@ function Breadcrumbs({ path, go }: { path: string; go: (path: string) => void })
     >
       <button
         type="button"
+        {...moves.dropProps("/")}
         onClick={() => go("/")}
         className="min-h-11 shrink-0 px-2 font-mono hover:text-primary"
         aria-label="Filesystem root"
@@ -750,8 +793,13 @@ function Breadcrumbs({ path, go }: { path: string; go: (path: string) => void })
               type="button"
               aria-current={index === parts.length - 1 ? "location" : undefined}
               title={target}
+              {...moves.dropProps(target)}
               onClick={() => go(target)}
-              className="min-h-11 max-w-48 truncate px-2 font-mono hover:text-primary"
+              className={cn(
+                "min-h-11 max-w-48 truncate px-2 font-mono hover:text-primary",
+                moves.over === target &&
+                  "bg-primary/15 outline outline-1 -outline-offset-1 outline-primary",
+              )}
             >
               {part}
             </button>
@@ -762,10 +810,26 @@ function Breadcrumbs({ path, go }: { path: string; go: (path: string) => void })
   );
 }
 
-function FileRow({ entry, onOpen }: { entry: FileEntry; onOpen: () => void }) {
+function FileRow({
+  entry,
+  onOpen,
+  moves,
+}: {
+  entry: FileEntry;
+  onOpen: () => void;
+  moves: ReturnType<typeof useFileMoves>;
+}) {
   const isDirectory = entry.type === "directory";
   return (
-    <li className="flex items-center">
+    <li
+      {...moves.dragProps(entry)}
+      {...moves.dropProps(isDirectory ? entry.path : null)}
+      className={cn(
+        "flex items-center",
+        moves.over === entry.path &&
+          "bg-primary/15 outline outline-1 -outline-offset-1 outline-primary",
+      )}
+    >
       <button
         type="button"
         onClick={onOpen}
@@ -782,6 +846,17 @@ function FileRow({ entry, onOpen }: { entry: FileEntry; onOpen: () => void }) {
           </span>
         )}
       </button>
+      {moves.allowed && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 shrink-0"
+          aria-label={`Move ${entry.name}`}
+          onClick={() => moves.setSelection(entry)}
+        >
+          <FolderInput className="h-4 w-4" aria-hidden />
+        </Button>
+      )}
       {entry.type === "file" && <DownloadButton path={entry.path} />}
     </li>
   );

@@ -54,6 +54,12 @@ const (
 // checks it again.
 func (n *Node) routeFile(ctx context.Context, c *conn, msg client.Message) error {
 	switch m := msg.(type) {
+	case *client.FileEditRead:
+		doc, err := n.files.ReadDocument(ctx, m.Path)
+		return c.send(ctx, editResult(m.RequestID, m.Path, doc, false, err))
+	case *client.FileEditSave:
+		doc, conflict, err := n.files.SaveDocument(ctx, m.Path, m.Content, m.Revision)
+		return c.send(ctx, editResult(m.RequestID, m.Path, doc, conflict, err))
 	case *client.FileList:
 		return n.guarded(ctx, c, func() error {
 			entries, err := n.files.List(ctx, m.Path)
@@ -123,7 +129,12 @@ func (n *Node) routeFile(ctx context.Context, c *conn, msg client.Message) error
 		}, m.Path)
 	case *client.FileRename:
 		return n.guarded(ctx, c, func() error {
-			err := n.files.Rename(ctx, m.OldPath, m.NewPath)
+			var err error
+			if m.NoReplace != nil && *m.NoReplace {
+				err = n.files.Move(ctx, m.OldPath, m.NewPath)
+			} else {
+				err = n.files.Rename(ctx, m.OldPath, m.NewPath)
+			}
 			// The reply names the new path, as in the relay.
 			return c.send(ctx, opResult("rename", m.NewPath, err, fallbackRename))
 		}, m.OldPath, m.NewPath)
@@ -395,4 +406,23 @@ scan:
 	// Node ignores them.
 	k, _ := base64.RawStdEncoding.Decode(out, clean)
 	return out[:k]
+}
+
+func editResult(id, path string, doc protocol.FileDocument, conflict bool, err error) *server.FileEditResult {
+	result := server.FileEditOutcome{Status: "ok", Document: &doc}
+	if conflict {
+		result.Status = "conflict"
+	}
+	if err != nil {
+		result = server.FileEditOutcome{
+			Status: "error",
+			Error:  ptrTo(files.Message(err)),
+		}
+	}
+	return &server.FileEditResult{
+		Type:      "file:edit:result",
+		RequestID: id,
+		Path:      path,
+		Result:    result,
+	}
 }

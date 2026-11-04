@@ -859,3 +859,51 @@ func TestNewWiresFiles(t *testing.T) {
 		t.Fatalf("OpenFile without files = %v", err)
 	}
 }
+
+func TestVersionedFileReplies(t *testing.T) {
+	fh := newFileHarness(t)
+	sink := fh.open(1)
+	path := fh.path("edit.txt")
+	writeFile(t, path, "base")
+
+	fh.must(1, &client.FileEditRead{Type: "file:edit:read", RequestID: "read", Path: path})
+	read := only[*server.FileEditResult](t, sink)
+	if read.RequestID != "read" || read.Path != path || read.Result.Status != "ok" || read.Result.Document == nil {
+		t.Fatalf("read = %+v", read)
+	}
+	writeFile(t, path, "external")
+	fh.must(1, &client.FileEditSave{
+		Type:      "file:edit:save",
+		RequestID: "save",
+		Path:      path,
+		Content:   "mine",
+		Revision:  read.Result.Document.Revision,
+	})
+	saved := only[*server.FileEditResult](t, sink)
+	if saved.RequestID != "save" || saved.Result.Status != "conflict" || readFile(t, path) != "external" {
+		t.Fatalf("save = %+v", saved)
+	}
+
+	fh.must(1, &client.FileEditRead{Type: "file:edit:read", RequestID: "missing", Path: fh.path("missing")})
+	missing := only[*server.FileEditResult](t, sink)
+	if missing.RequestID != "missing" || missing.Result.Status != "error" || missing.Result.Error == nil {
+		t.Fatalf("error = %+v", missing)
+	}
+}
+
+func TestGuardedMoveReply(t *testing.T) {
+	fh := newFileHarness(t)
+	sink := fh.open(1)
+	from, to := fh.path("source.txt"), fh.path("destination.txt")
+	writeFile(t, from, "source")
+	writeFile(t, to, "destination")
+	noReplace := true
+	fh.must(1, &client.FileRename{Type: "file:rename", OldPath: from, NewPath: to, NoReplace: &noReplace})
+	result := only[*server.FileOpResult](t, sink)
+	if result.Success || result.Path != to || result.Op != "rename" {
+		t.Fatalf("result: %+v", result)
+	}
+	if readFile(t, from) != "source" || readFile(t, to) != "destination" {
+		t.Fatal("move changed files")
+	}
+}

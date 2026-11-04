@@ -107,6 +107,7 @@ export function SettingsPanel({
         </header>
         <AppearanceSection />
         <TextSection touch={touch} />
+        <FileEditingSection />
         <TerminalSection touch={touch} />
         <SessionsSection />
         <KeyboardShortcutsSection touch={touch} />
@@ -447,9 +448,17 @@ function TerminalSection({ touch }: { touch: boolean }) {
 function SessionsSection() {
   const showPaneIndexes = useSettingsStore((s) => s.showPaneIndexes);
   const setShowPaneIndexes = useSettingsStore((s) => s.setShowPaneIndexes);
+  const terminalsFirst = useSettingsStore((s) => s.keepTerminalTabsFirst);
+  const setTerminalsFirst = useSettingsStore((s) => s.setKeepTerminalTabsFirst);
 
   return (
     <SettingsSection title="Sessions">
+      <SwitchRow
+        label="Keep terminal tabs first"
+        hint="Keep sessions before other tabs. New tabs open after last terminal. Reorder within each group."
+        checked={terminalsFirst}
+        onChange={setTerminalsFirst}
+      />
       <SwitchRow
         label="Show pane indexes"
         hint="The number tmux gives each pane, in the corner of its box."
@@ -578,6 +587,37 @@ function TouchSection() {
         onChange={setAutoZoom}
       />
       <SwitchRow label="Vibrate on key press" checked={hapticEnabled} onChange={setHapticEnabled} />
+    </SettingsSection>
+  );
+}
+
+function FileEditingSection() {
+  const autoSave = useSettingsStore((state) => state.autoSave);
+  const setAutoSave = useSettingsStore((state) => state.setAutoSave);
+  const wrap = useSettingsStore((state) => state.wrapLines);
+  const setWrap = useSettingsStore((state) => state.setWrapLines);
+  const rendered = useSettingsStore((state) => state.markdownPreview);
+  const setRendered = useSettingsStore((state) => state.setMarkdownPreview);
+  return (
+    <SettingsSection title="File editing">
+      <SwitchRow
+        label="Autosave"
+        hint="Save after one second without typing. Conflicts and connection loss pause autosave."
+        checked={autoSave}
+        onChange={setAutoSave}
+      />
+      <SwitchRow
+        label="Wrap long lines"
+        hint="Fit long lines to editor width in files and diffs."
+        checked={wrap}
+        onChange={setWrap}
+      />
+      <SwitchRow
+        label="Render Markdown"
+        hint="Show Markdown preview. Turn off to edit source."
+        checked={rendered}
+        onChange={setRendered}
+      />
     </SettingsSection>
   );
 }

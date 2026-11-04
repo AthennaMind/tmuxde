@@ -4,7 +4,11 @@ import { moveTabInOrder } from "./main-tabs-store";
 type DropTarget = { id: string; side: "before" | "after" };
 
 /** Native dragging keeps clicks and Escape under browser control. */
-export function useTabReorder(order: string[], setOrder: (order: string[]) => void) {
+export function useTabReorder(
+  order: string[],
+  setOrder: (order: string[]) => void,
+  canMove: (id: string, target: string) => boolean = () => true,
+) {
   const nav = useRef<HTMLElement>(null);
   const source = useRef<string | null>(null);
   const pointer = useRef<{ x: number; y: number } | null>(null);
@@ -34,12 +38,15 @@ export function useTabReorder(order: string[], setOrder: (order: string[]) => vo
   function dragOver(event: DragEvent<HTMLElement>) {
     if (!source.current) return;
     event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
+    const destination = targetAt(event.clientX);
+    const allowed = destination && canMove(source.current, destination.id);
+    event.dataTransfer.dropEffect = allowed ? "move" : "none";
     pointer.current = { x: event.clientX, y: event.clientY };
-    setTarget(targetAt(event.clientX));
+    setTarget(allowed ? destination : null);
   }
 
   function move(id: string, destination: DropTarget) {
+    if (!canMove(id, destination.id)) return;
     const next = moveTabInOrder(order, id, destination.id, destination.side);
     if (next.every((item, index) => item === order[index])) return;
     setOrder(next);
@@ -71,7 +78,12 @@ export function useTabReorder(order: string[], setOrder: (order: string[]) => vo
           const delta = point.x < rect.left + 36 ? -8 : point.x > rect.right - 36 ? 8 : 0;
           if (delta) {
             element.scrollLeft += delta;
-            setTarget(targetAt(point.x));
+            const destination = targetAt(point.x);
+            setTarget(
+              destination && source.current && canMove(source.current, destination.id)
+                ? destination
+                : null,
+            );
           }
         }
       }
@@ -79,7 +91,7 @@ export function useTabReorder(order: string[], setOrder: (order: string[]) => vo
     }
     frame = requestAnimationFrame(scroll);
     return () => cancelAnimationFrame(frame);
-  }, [dragging]);
+  }, [dragging, canMove]);
 
   return {
     dragging,

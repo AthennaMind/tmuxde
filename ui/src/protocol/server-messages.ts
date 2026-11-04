@@ -1,3 +1,4 @@
+import { FileDocumentSchema } from "./file-edit";
 import { z } from "zod";
 import { RepoChangedMessage, RepoResponse, RepoWatchResultMessage } from "./repository";
 import {
@@ -161,6 +162,17 @@ export const FileChangedMessage = z.object({
   event: z.enum(["add", "change", "unlink", "addDir", "unlinkDir"]),
 });
 
+export const FileEditResultMessage = z.object({
+  type: z.literal("file:edit:result"),
+  requestId: z.string().min(1).max(128),
+  path: z.string(),
+  result: z.discriminatedUnion("status", [
+    z.object({ status: z.literal("ok"), document: FileDocumentSchema }),
+    z.object({ status: z.literal("conflict"), document: FileDocumentSchema }),
+    z.object({ status: z.literal("error"), error: z.string().min(1) }),
+  ]),
+});
+
 // File write/operation results
 export const FileWriteResultMessage = z.object({
   type: z.literal("file:write:result"),
@@ -320,6 +332,7 @@ export const ServerMessage = z.discriminatedUnion("type", [
   FileStatResponse,
   FileChangedMessage,
   FileWriteResultMessage,
+  FileEditResultMessage,
   FileOpResultMessage,
   PaneListResponse,
   WindowListResponse,

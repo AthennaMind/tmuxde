@@ -156,9 +156,10 @@ func (m *FileDelete) Validate() error {
 
 // FileRename renames or moves a path.
 type FileRename struct {
-	Type    string `json:"type"`
-	OldPath string `json:"oldPath"`
-	NewPath string `json:"newPath"`
+	Type      string `json:"type"`
+	OldPath   string `json:"oldPath"`
+	NewPath   string `json:"newPath"`
+	NoReplace *bool  `json:"noReplace,omitempty"`
 }
 
 func (*FileRename) WireType() string { return "file:rename" }

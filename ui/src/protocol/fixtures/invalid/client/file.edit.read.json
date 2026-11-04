@@ -1,0 +1,10 @@
+[
+  {
+    "field": "requestId",
+    "message": {
+      "type": "file:edit:read",
+      "requestId": "",
+      "path": "/workspace/notes.txt"
+    }
+  }
+]

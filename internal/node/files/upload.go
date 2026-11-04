@@ -139,6 +139,8 @@ func (u *Uploads) add(real string, data []byte, final bool) error {
 		return nil
 	}
 	delete(u.open, real)
+	u.svc.writeMu.Lock()
+	defer u.svc.writeMu.Unlock()
 	if err := os.Rename(up.temp, real); err != nil {
 		u.remove(up.temp)
 		return fail(err)

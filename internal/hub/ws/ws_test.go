@@ -171,7 +171,7 @@ func TestAuthSuccess(t *testing.T) {
 		h := newHarness(t, func(o *Options) { o.DictationAvailable = func() bool { return true } })
 		c := h.dial(t, nil)
 		c.authWith(testToken)
-		c.expect(strings.Replace(wantAuthSuccess, `"repo:search"]`, `"repo:search","dictation"]`, 1))
+		c.expect(strings.Replace(wantAuthSuccess, `"file:rename:no-replace"]`, `"file:rename:no-replace","dictation"]`, 1))
 		c.expect(wantServerInfo)
 	})
 

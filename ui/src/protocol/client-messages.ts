@@ -1,3 +1,4 @@
+import { FileRevision } from "./file-edit";
 import { z } from "zod";
 import { RepoRequest, RepoUnwatchMessage, RepoWatchMessage } from "./repository";
 import { TerminalSizeSchema } from "./types";
@@ -129,6 +130,20 @@ export const CommandSuspendMessage = z.object({
   type: z.literal("command:suspend"),
 });
 
+export const FileEditReadMessage = z.object({
+  type: z.literal("file:edit:read"),
+  requestId: z.string().min(1).max(128),
+  path: z.string(),
+});
+
+export const FileEditSaveMessage = z.object({
+  type: z.literal("file:edit:save"),
+  requestId: z.string().min(1).max(128),
+  path: z.string(),
+  content: z.string(),
+  revision: FileRevision,
+});
+
 // File write/management messages
 export const FileWriteMessage = z.object({
   type: z.literal("file:write"),
@@ -156,6 +171,7 @@ export const FileRenameMessage = z.object({
   type: z.literal("file:rename"),
   oldPath: z.string(),
   newPath: z.string(),
+  noReplace: z.boolean().optional(),
 });
 
 export const FileUploadMessage = z.object({
@@ -436,6 +452,8 @@ const ClientMessageUnion = z.discriminatedUnion("type", [
   FileWatchMessage,
   FileUnwatchMessage,
   FileWriteMessage,
+  FileEditReadMessage,
+  FileEditSaveMessage,
   FileCreateMessage,
   FileMkdirMessage,
   FileDeleteMessage,

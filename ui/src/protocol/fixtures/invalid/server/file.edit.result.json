@@ -1,0 +1,30 @@
+[
+  {
+    "field": "result.document.revision",
+    "message": {
+      "type": "file:edit:result",
+      "requestId": "edit-1",
+      "path": "/workspace/notes.txt",
+      "result": {
+        "status": "ok",
+        "document": {
+          "content": "old text\n",
+          "revision": "old",
+          "writable": true
+        }
+      }
+    }
+  },
+  {
+    "field": "result.error",
+    "message": {
+      "type": "file:edit:result",
+      "requestId": "edit-1",
+      "path": "/workspace/notes.txt",
+      "result": {
+        "status": "error",
+        "error": ""
+      }
+    }
+  }
+]

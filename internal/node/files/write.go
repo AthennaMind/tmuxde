@@ -25,6 +25,12 @@ import (
 // something: other hard links, an owner other than this process, or a
 // directory this process may not write.
 func (s *Service) Write(ctx context.Context, path, content string) (int, error) {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.write(ctx, path, content)
+}
+
+func (s *Service) write(ctx context.Context, path, content string) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
@@ -144,6 +150,9 @@ func createTemp(target, kind string) (*os.File, string, error) {
 // Create makes a new file with content, mode 0666 before umask. An
 // existing name fails with "File exists", a dangling symlink included.
 func (s *Service) Create(ctx context.Context, path, content string) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -168,6 +177,9 @@ func (s *Service) Create(ctx context.Context, path, content string) error {
 
 // Mkdir makes one directory, mode 0777 before umask. Parents must exist.
 func (s *Service) Mkdir(ctx context.Context, path string) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -184,6 +196,9 @@ func (s *Service) Mkdir(ctx context.Context, path string) error {
 // and the recursive delete never follows a link. A missing path is an
 // error, as rm -r without force was in the relay.
 func (s *Service) Delete(ctx context.Context, path string) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -219,6 +234,18 @@ func (s *Service) Delete(ctx context.Context, path string) error {
 // name, and a rename must not move that link or put another one in its
 // place.
 func (s *Service) Rename(ctx context.Context, oldPath, newPath string) error {
+	return s.rename(ctx, oldPath, newPath, false)
+}
+
+// Move refuses an occupied destination, including dangling symlinks.
+func (s *Service) Move(ctx context.Context, oldPath, newPath string) error {
+	return s.rename(ctx, oldPath, newPath, true)
+}
+
+func (s *Service) rename(ctx context.Context, oldPath, newPath string, noReplace bool) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -235,6 +262,9 @@ func (s *Service) Rename(ctx context.Context, oldPath, newPath string) error {
 		return &Error{msg: msgRootRename, err: errRootRename}
 	case s.guard.holdsDenied(oldLexical) || s.guard.holdsDenied(oldReal):
 		return fail(node.ErrDenied)
+	}
+	if noReplace {
+		return fail(renameExclusive(oldLexical, newLexical))
 	}
 	return fail(os.Rename(oldLexical, newLexical))
 }

@@ -20,6 +20,7 @@ func TestLogRedactsPayload(t *testing.T) {
 		{&Auth{Type: "auth", Token: secret}, ""},
 		{&TerminalInput{Type: "terminal:input", Data: secret}, "dataLength"},
 		{&CommandSend{Type: "command:send", Command: secret}, "commandLength"},
+		{&FileEditSave{Type: "file:edit:save", Path: "/p", Content: secret}, "contentLength"},
 		{&FileWrite{Type: "file:write", Path: "/p", Content: secret}, "contentLength"},
 		{&FileCreate{Type: "file:create", Path: "/p", Content: &content}, "contentLength"},
 		{&FileUpload{Type: "file:upload", Path: "/p", Content: secret}, "contentLength"},

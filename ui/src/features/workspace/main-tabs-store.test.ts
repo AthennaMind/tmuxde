@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { draftKey, editDraft, openDraft, useFileDrafts } from "@/features/files/file-drafts";
 import { setEnrolled } from "@/features/lock/unlocked";
 import { setMachineId } from "@/features/connection/machine-context";
 import { useSessionStore } from "@/features/session/session-store";
@@ -25,17 +26,60 @@ const commit = (subject = "Fix it", hash = HASH) => ({
 });
 
 beforeEach(() => {
+  useFileDrafts.setState({ drafts: {} });
   setMachineId(null);
   useSessionStore.setState({ activeSessionId: null });
   useMainTabsStore.setState({ tabs: [], active: TERMINAL_TAB, order: [] });
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   setMachineId(null);
   useSessionStore.setState({ activeSessionId: null });
 });
 
+function dirtyFile(path: string) {
+  useMainTabsStore.getState().openFile(file(path));
+  openDraft(undefined, path);
+  const key = draftKey(undefined, path);
+  useFileDrafts.setState((state) => ({
+    drafts: {
+      ...state.drafts,
+      [key]: {
+        ...state.drafts[key]!,
+        base: { content: "base", revision: "a".repeat(64), writable: true },
+      },
+    },
+  }));
+  editDraft(key, "draft");
+}
+
 describe("main tabs", () => {
+  it("asks before closing dirty tabs and clears only confirmed drafts", () => {
+    dirtyFile("/draft.txt");
+    const confirm = vi.fn(() => false);
+    vi.stubGlobal("window", {
+      confirm,
+      localStorage: memoryStorage(),
+      sessionStorage: memoryStorage(),
+    });
+    const store = useMainTabsStore.getState();
+    store.closeTab("file:/draft.txt");
+    expect(useMainTabsStore.getState().tabs).toHaveLength(1);
+    expect(useFileDrafts.getState().drafts[draftKey(undefined, "/draft.txt")]).toBeDefined();
+    confirm.mockReturnValue(true);
+    store.closeTab("file:/draft.txt");
+    expect(useMainTabsStore.getState().tabs).toHaveLength(0);
+    expect(useFileDrafts.getState().drafts).toEqual({});
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps dirty files when every tab would otherwise be evicted", () => {
+    for (let i = 0; i < 15; i++) dirtyFile(`/draft-${i}.txt`);
+    expect(useMainTabsStore.getState().tabs).toHaveLength(15);
+    expect(Object.keys(useFileDrafts.getState().drafts)).toHaveLength(15);
+  });
+
   it("keeps files, diffs and graphs from different machines in one strip", () => {
     const store = useMainTabsStore.getState();
     for (const machine of ["alpha", "beta"]) {
@@ -476,6 +520,40 @@ describe("tab order", () => {
       SETTINGS_TAB,
       terminalA,
       "file:/a.ts",
+      OVERVIEW_TAB,
+    ]);
+  });
+
+  it("groups existing terminals first without changing order within groups", () => {
+    const mixed = [SETTINGS_TAB, terminalB, "file:/a.ts", terminalA];
+    expect(reconcileTabOrder(mixed, initial, [terminalA, terminalB])).toEqual([
+      terminalB,
+      terminalA,
+      SETTINGS_TAB,
+      "file:/a.ts",
+    ]);
+  });
+
+  it("inserts new buffers after the last terminal and keeps reopened tabs in place", () => {
+    const visible = [...initial, OVERVIEW_TAB];
+    const next = reconcileTabOrder(initial, visible, [terminalA, terminalB]);
+    expect(next).toEqual([terminalA, terminalB, OVERVIEW_TAB, SETTINGS_TAB, "file:/a.ts"]);
+    expect(reconcileTabOrder(next, visible, [terminalA, terminalB])).toEqual(next);
+  });
+
+  it("appends new terminals to their group and removes closed views", () => {
+    expect(
+      reconcileTabOrder([terminalB, SETTINGS_TAB, "closed"], initial, [terminalA, terminalB]),
+    ).toEqual([terminalB, terminalA, "file:/a.ts", SETTINGS_TAB]);
+  });
+
+  it("inserts at the beginning when enabled without terminals", () => {
+    expect(reconcileTabOrder([SETTINGS_TAB], [SETTINGS_TAB, OVERVIEW_TAB], [])).toEqual([
+      OVERVIEW_TAB,
+      SETTINGS_TAB,
+    ]);
+    expect(reconcileTabOrder([SETTINGS_TAB], [SETTINGS_TAB, OVERVIEW_TAB])).toEqual([
+      SETTINGS_TAB,
       OVERVIEW_TAB,
     ]);
   });

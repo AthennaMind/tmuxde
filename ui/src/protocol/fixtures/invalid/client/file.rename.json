@@ -1,0 +1,11 @@
+[
+  {
+    "field": "noReplace",
+    "message": {
+      "type": "file:rename",
+      "oldPath": "/workspace/a",
+      "newPath": "/workspace/b",
+      "noReplace": "yes"
+    }
+  }
+]

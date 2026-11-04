@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+
+	"tmuxde/internal/protocol"
 )
 
 // TestLogRedactsPayload checks that messages with user content log their
@@ -18,6 +20,7 @@ func TestLogRedactsPayload(t *testing.T) {
 		{&TerminalOutput{Type: "terminal:output", Data: secret}, "dataLength"},
 		{&PaneCaptured{Type: "pane:captured", ID: "%1", Content: secret}, "contentLength"},
 		{&DictationText{Type: "dictation:text", ID: "d1", Text: secret}, "textLength"},
+		{&FileEditResult{Type: "file:edit:result", Result: FileEditOutcome{Status: "ok", Document: &protocol.FileDocument{Content: secret}}}, ""},
 		{&FileContent{Type: "file:content", Path: "/p", Content: secret}, "contentLength"},
 	}
 	for _, tt := range tests {
@@ -31,7 +34,7 @@ func TestLogRedactsPayload(t *testing.T) {
 			if !strings.Contains(out, `"type":"`+tt.msg.WireType()+`"`) {
 				t.Fatalf("type missing from log: %s", out)
 			}
-			if !strings.Contains(out, `"`+tt.size+`":20`) {
+			if tt.size != "" && !strings.Contains(out, `"`+tt.size+`":20`) {
 				t.Fatalf("size %s missing from log: %s", tt.size, out)
 			}
 		})

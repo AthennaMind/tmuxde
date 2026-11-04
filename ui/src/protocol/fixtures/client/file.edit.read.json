@@ -1,0 +1,7 @@
+[
+  {
+    "type": "file:edit:read",
+    "requestId": "edit-1",
+    "path": "/workspace/notes.txt"
+  }
+]

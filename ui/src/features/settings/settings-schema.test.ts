@@ -14,7 +14,7 @@ import { getDefaultFontSize } from "@/features/terminal/terminal-store";
 
 describe("settings registry", () => {
   it("holds the keys of the plan", () => {
-    expect(SETTINGS_KEYS).toHaveLength(25);
+    expect(SETTINGS_KEYS).toHaveLength(27);
     expect(SETTINGS_KEYS.filter((key) => SETTINGS[key].scope === "device").sort()).toEqual([
       "editor.zoom",
       "terminal.fontSize",

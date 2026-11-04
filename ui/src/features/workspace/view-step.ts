@@ -1,3 +1,4 @@
+import { useSettingsStore } from "@/features/settings/settings-store";
 import { useMachineStore, type TerminalTab } from "@/features/connection/machine-store";
 import { useSessionStore } from "@/features/session/session-store";
 import { getTerminalHandle } from "@/features/terminal/terminal-handle";
@@ -17,6 +18,7 @@ export function terminalViewId(terminal: TerminalTab): string {
 
 export interface ViewState {
   order: readonly string[];
+  keepTerminalTabsFirst?: boolean;
   terminals: readonly TerminalTab[];
   tabIds: readonly string[];
   /** `TERMINAL_TAB` or a tab id. */
@@ -30,6 +32,7 @@ export function viewOrder(state: ViewState): { order: string[]; current: string 
   const order = reconcileTabOrder(
     [...state.order],
     [...state.terminals.map(terminalViewId), ...state.tabIds],
+    state.keepTerminalTabsFirst ? state.terminals.map(terminalViewId) : undefined,
   );
   let current: string | null = state.active;
   if (state.active === TERMINAL_TAB) {
@@ -62,6 +65,7 @@ function currentState(): ViewState {
   const machines = useMachineStore.getState();
   return {
     order: tabs.order,
+    keepTerminalTabsFirst: useSettingsStore.getState().keepTerminalTabsFirst,
     terminals: machines.terminals,
     tabIds: tabs.tabs.map((tab) => tab.id),
     active: tabs.active,
