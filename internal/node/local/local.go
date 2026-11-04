@@ -200,11 +200,11 @@ func (n *Node) Start(ctx context.Context) error {
 		return fmt.Errorf("%w: %w", ErrNoTmux, err)
 	}
 	n.log.Info("tmux found", "version", version, "socket", n.cfg.TmuxSocket)
-	n.started = true
 	// Clones die with their connection, but a crash skips that. The tmux
 	// client logs the count.
 	n.tmux.SweepOrphanClones(ctx)
 	if n.newMonitor == nil {
+		n.started = true
 		return nil
 	}
 	// The hooks list panes under this context. Stop cancels it.
@@ -224,6 +224,7 @@ func (n *Node) Start(ctx context.Context) error {
 		return fmt.Errorf("local: start session monitor: %w", err)
 	}
 	n.monitor, n.stopRun = m, cancel
+	n.started = true
 	return nil
 }
 

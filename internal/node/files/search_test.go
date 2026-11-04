@@ -2,11 +2,54 @@ package files
 
 import (
 	"context"
+	"fmt"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"slices"
 	"testing"
 )
+
+func searchCandidates(count int) []searchMatch {
+	rng := rand.New(rand.NewPCG(1, 2))
+	matches := make([]searchMatch, count)
+	for i := range matches {
+		matches[i] = searchMatch{path: fmt.Sprintf("src/folder-%d/file-%d.go", rng.IntN(100), i), score: rng.IntN(5) * 100}
+	}
+	return matches
+}
+
+func TestKeepSearchMatch(t *testing.T) {
+	candidates := searchCandidates(1000)
+	for _, limit := range []int{0, 1, 7, searchResultLimit} {
+		var got []searchMatch
+		for i, candidate := range candidates {
+			var overflow bool
+			got, overflow = keepSearchMatch(got, candidate, limit)
+			want := slices.Clone(candidates[:i+1])
+			slices.SortFunc(want, compareSearchMatches)
+			want = want[:min(len(want), limit)]
+			if !slices.Equal(got, want) || overflow != (i >= limit) {
+				t.Fatalf("limit %d, candidate %d: got %v, overflow %v, want %v", limit, i, got, overflow, want)
+			}
+		}
+	}
+}
+
+// Measures ranking separately from filesystem traversal and path guards.
+func BenchmarkSearchRanking(b *testing.B) {
+	candidates := searchCandidates(searchEntryLimit)
+	b.ReportAllocs()
+	for b.Loop() {
+		matches := make([]searchMatch, 0, searchResultLimit+1)
+		for _, candidate := range candidates {
+			matches, _ = keepSearchMatch(matches, candidate, searchResultLimit)
+		}
+		if len(matches) != searchResultLimit {
+			b.Fatal("wrong result count")
+		}
+	}
+}
 
 func TestSearchGuardScopeAndRanking(t *testing.T) {
 	root := t.TempDir()

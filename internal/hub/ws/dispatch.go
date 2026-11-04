@@ -207,13 +207,18 @@ func (k *socket) nodeID() node.ConnID {
 	return node.ConnID(k.conn.Seq())
 }
 
-// enqueue adds work to the connection's serial queue. After the close path
-// has started the queue refuses it, and the work is dropped.
+// enqueue closes an overloaded connection so the browser sees pending
+// requests fail instead of silently losing mutations.
 func (k *socket) enqueue(work func(ctx context.Context)) {
-	k.conn.Enqueue(func(ctx context.Context) error {
+	accepted := k.conn.Enqueue(func(ctx context.Context) error {
 		work(ctx)
 		return nil
 	})
+	if !accepted && !k.conn.Closing() {
+		k.conn.SetClosing()
+		k.setPhase(phaseFailed)
+		k.closeAsync(websocket.StatusTryAgainLater, "Too many pending requests")
+	}
 }
 
 // dispatch routes one message after auth. The hub answers auth, ping and

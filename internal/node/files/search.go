@@ -32,6 +32,30 @@ type searchMatch struct {
 	score int
 }
 
+func compareSearchMatches(a, b searchMatch) int {
+	if a.score != b.score {
+		return a.score - b.score
+	}
+	if len(a.path) != len(b.path) {
+		return len(a.path) - len(b.path)
+	}
+	return strings.Compare(a.path, b.path)
+}
+
+func keepSearchMatch(matches []searchMatch, match searchMatch, limit int) ([]searchMatch, bool) {
+	// Keep the best results sorted. Most candidates cannot enter a full
+	// result set, so discard them without sorting or shifting existing items.
+	at, _ := slices.BinarySearchFunc(matches, match, compareSearchMatches)
+	if at >= limit {
+		return matches, true
+	}
+	overflow := len(matches) == limit
+	if overflow {
+		matches = matches[:limit-1]
+	}
+	return slices.Insert(matches, at, match), overflow
+}
+
 // Search reads names only. Root confines filesystem reads even if a directory
 // is replaced with a symlink during traversal. Policy is checked for each path.
 func Search(ctx context.Context, guard SearchGuard, path, query string) (SearchResult, error) {
@@ -57,15 +81,6 @@ func search(ctx context.Context, guard SearchGuard, path, query string, entryLim
 	deadline := time.Now().Add(searchTimeout)
 	scanned := 0
 	matches := make([]searchMatch, 0, resultLimit+1)
-	compare := func(a, b searchMatch) int {
-		if a.score != b.score {
-			return a.score - b.score
-		}
-		if len(a.path) != len(b.path) {
-			return len(a.path) - len(b.path)
-		}
-		return strings.Compare(a.path, b.path)
-	}
 	var walk func(string, int) error
 	walk = func(dir string, depth int) error {
 		if err := ctx.Err(); err != nil {
@@ -133,12 +148,9 @@ func search(ctx context.Context, guard SearchGuard, path, query string, entryLim
 					result.Truncated = true
 					continue
 				}
-				matches = append(matches, searchMatch{path: filepath.ToSlash(rel), score: score})
-				slices.SortFunc(matches, compare)
-				if len(matches) > resultLimit {
-					matches = matches[:resultLimit]
-					result.Truncated = true
-				}
+				var overflow bool
+				matches, overflow = keepSearchMatch(matches, searchMatch{path: filepath.ToSlash(rel), score: score}, resultLimit)
+				result.Truncated = result.Truncated || overflow
 			}
 			if readErr != nil {
 				if !errors.Is(readErr, io.EOF) {
