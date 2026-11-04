@@ -16,8 +16,8 @@ const invalidDir = path.join(fixturesDir, "invalid");
 const fixtureFileName = (type: string) => `${type.replaceAll(":", ".")}.json`;
 
 // Union members come from the schemas, never from a hand written list.
-// ClientMessage wraps its union in a refinement for rules across fields.
-const clientUnion = ClientMessage.innerType();
+// Zod 4 keeps cross-field refinements on the union itself.
+const clientUnion = ClientMessage;
 const clientTypes = clientUnion.options.map((option) => option.shape.type.value);
 const serverTypes = ServerMessage.options.map((option) => option.shape.type.value);
 
@@ -55,10 +55,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 // Zod path as the Go server writes it: panes[0].dimensions.cols.
-const formatPath = (issuePath: (string | number)[]) =>
+const formatPath = (issuePath: PropertyKey[]) =>
   issuePath
     .map((part, index) =>
-      typeof part === "number" ? `[${part}]` : index === 0 ? part : `.${part}`,
+      typeof part === "number" ? `[${part}]` : index === 0 ? String(part) : `.${String(part)}`,
     )
     .join("");
 
