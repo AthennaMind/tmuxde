@@ -8,9 +8,8 @@
 // checks every path against its own guards and never trusts the hub for
 // paths.
 //
-// Today the node runs in the same process as the hub. A remote node later
-// implements the same interface over a network link, so nothing here may
-// assume shared memory beyond the messages themselves.
+// Local nodes run beside the hub. Remote nodes implement the same interface
+// over an agent connection. Neither transport assumes shared message state.
 package node
 
 import (

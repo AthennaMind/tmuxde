@@ -23,6 +23,36 @@ func drain(t *testing.T, c *Conn) {
 }
 
 func TestEnqueue(t *testing.T) {
+	t.Run("bounds pending work and accepts again after draining", func(t *testing.T) {
+		e := newEnv(t)
+		c, _ := e.add(t, "10.0.0.1")
+		started := make(chan struct{})
+		release, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		c.Enqueue(func(ctx context.Context) error {
+			close(started)
+			select {
+			case <-release.Done():
+			case <-ctx.Done():
+			}
+			return nil
+		})
+		<-started
+		for range MaxPendingTasks {
+			if !c.Enqueue(func(context.Context) error { return nil }) {
+				t.Fatal("refused work before queue limit")
+			}
+		}
+		if c.Enqueue(func(context.Context) error { return nil }) {
+			t.Fatal("accepted work beyond queue limit")
+		}
+		cancel()
+		drain(t, c)
+		if !c.Enqueue(func(context.Context) error { return nil }) {
+			t.Fatal("refused work after draining")
+		}
+		drain(t, c)
+	})
 	t.Run("runs tasks one at a time in order", func(t *testing.T) {
 		e := newEnv(t)
 		c, _ := e.add(t, "10.0.0.1")
@@ -67,7 +97,7 @@ func TestEnqueue(t *testing.T) {
 		var wg sync.WaitGroup
 		for range 8 {
 			wg.Go(func() {
-				for range 50 {
+				for range MaxPendingTasks / 8 {
 					c.Enqueue(func(context.Context) error {
 						if running.Add(1) != 1 {
 							overlap.Add(1)
@@ -81,7 +111,7 @@ func TestEnqueue(t *testing.T) {
 		}
 		wg.Wait()
 		drain(t, c)
-		if overlap.Load() != 0 || ran.Load() != 400 {
+		if overlap.Load() != 0 || ran.Load() != MaxPendingTasks {
 			t.Fatalf("ran %d, overlapped %d", ran.Load(), overlap.Load())
 		}
 	})

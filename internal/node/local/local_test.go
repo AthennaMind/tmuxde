@@ -245,4 +245,14 @@ func TestStartMonitorError(t *testing.T) {
 	if err := h.n.Start(context.Background()); !errors.Is(err, errBoom) {
 		t.Fatalf("Start = %v, want errBoom", err)
 	}
+	if h.mon.ctx.Err() != context.Canceled {
+		t.Fatal("failed monitor context remains live")
+	}
+	h.mon.startErr = nil
+	if err := h.n.Start(context.Background()); err != nil {
+		t.Fatalf("retry Start: %v", err)
+	}
+	if h.mon.started != 2 || h.mon.ctx.Err() != nil {
+		t.Fatal("retry did not start a live monitor")
+	}
 }

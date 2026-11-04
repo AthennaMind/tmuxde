@@ -16,12 +16,45 @@ import (
 
 	"tmuxde/internal/hub/accesslog"
 	"tmuxde/internal/hub/auth"
+	"tmuxde/internal/hub/conns"
 	"tmuxde/internal/hub/dictation"
 	"tmuxde/internal/protocol/client"
 	"tmuxde/internal/protocol/server"
 )
 
 const chromeOnLinux = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+
+func TestPendingRequestLimit(t *testing.T) {
+	h := newHarness(t, nil)
+	c := h.dial(t, nil)
+	c.auth()
+	conn, ok := h.srv.Conns().Get("conn-1")
+	if !ok {
+		t.Fatal("authenticated connection missing")
+	}
+	started := make(chan struct{})
+	release, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	conn.Enqueue(func(context.Context) error {
+		close(started)
+		<-release.Done()
+		return nil
+	})
+	receive(t, "blocked handler", started)
+	for range conns.MaxPendingTasks {
+		if !conn.Enqueue(func(context.Context) error { return nil }) {
+			t.Fatal("queue filled early")
+		}
+	}
+	c.ping(1)
+	c.expectClose(websocket.StatusTryAgainLater, "Too many pending requests")
+	cancel()
+	waitFor(t, "overloaded connection removal", func() bool { return h.srv.Conns().Count() == 0 })
+	other := h.dial(t, nil)
+	other.auth()
+	other.ping(2)
+	other.expect(pong(2))
+}
 
 func TestOrigin(t *testing.T) {
 	tests := []struct {

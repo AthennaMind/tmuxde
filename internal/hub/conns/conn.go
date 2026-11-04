@@ -12,6 +12,10 @@ import (
 	"tmuxde/internal/protocol/server"
 )
 
+// MaxPendingTasks caps decoded requests waiting behind a running handler.
+// Rate limiting alone cannot bound this backlog when a handler stalls.
+const MaxPendingTasks = 256
+
 // Conn is one browser connection. Its methods are safe for concurrent use.
 // The ws layer keeps its own socket state, such as the rate limiter and
 // the auth timer, next to it.
@@ -187,15 +191,15 @@ func (c *Conn) Closing() bool {
 // a goroutine the queue starts when it has work and ends when it is
 // empty. So two messages from one browser never race each other.
 //
-// After SetClosing or Remove, Enqueue does nothing and returns false.
+// After SetClosing or Remove, or at MaxPendingTasks, Enqueue returns false.
 // task gets Context, which Remove cancels. An error or a panic from task
 // is logged and the next task still runs. The ws layer turns handler
-// errors into HANDLER_ERROR inside task itself. The queue is not bounded
-// here. The per connection rate limit bounds it.
+// errors into HANDLER_ERROR inside task itself. Callers must handle refusal
+// so a full queue cannot silently discard a mutation.
 func (c *Conn) Enqueue(task func(ctx context.Context) error) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.closing {
+	if c.closing || len(c.queue) >= MaxPendingTasks {
 		return false
 	}
 	c.queue = append(c.queue, task)
@@ -212,6 +216,7 @@ func (c *Conn) work() {
 	for {
 		c.mu.Lock()
 		if len(c.queue) == 0 {
+			c.queue = nil
 			c.running = false
 			close(c.idle)
 			c.mu.Unlock()
