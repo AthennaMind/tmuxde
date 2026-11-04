@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
+	"tmuxde/internal/buildinfo"
 )
 
-const ProtocolVersion = 1
+const ProtocolVersion = buildinfo.ProtocolVersion
 const AgentPath = "/_agent"
 const StreamPath = "/_agent/stream"
 const MachinesPath = "/machines"

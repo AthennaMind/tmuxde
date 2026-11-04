@@ -27,7 +27,11 @@ const maxFrameBytes = 256 << 10
 
 // ServerOptions configure NewServer.
 type ServerOptions struct {
-	Transcriber Transcriber
+	Version       string
+	UpdateControl string
+	Binary        string
+	PID           int
+	Transcriber   Transcriber
 	// Model is the name /health reports.
 	Model string
 	// MaxSessions is the number of dictations at once. More are closed
@@ -113,10 +117,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.RequestURI == HealthPath && r.Method == http.MethodGet && !isUpgrade(r):
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(struct {
-			OK       bool   `json:"ok"`
-			Model    string `json:"model"`
-			Sessions int    `json:"sessions"`
-		}{true, s.opts.Model, s.Sessions()})
+			OK            bool   `json:"ok"`
+			Model         string `json:"model"`
+			Sessions      int    `json:"sessions"`
+			Version       string `json:"version"`
+			UpdateControl string `json:"updateControl"`
+			Binary        string `json:"binary"`
+			PID           int    `json:"pid"`
+		}{
+			OK:            true,
+			Model:         s.opts.Model,
+			Sessions:      s.Sessions(),
+			Version:       s.opts.Version,
+			UpdateControl: s.opts.UpdateControl,
+			Binary:        s.opts.Binary,
+			PID:           s.opts.PID,
+		})
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}

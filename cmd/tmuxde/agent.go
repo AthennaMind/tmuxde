@@ -6,15 +6,15 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"runtime"
-	"syscall"
 
 	"tmuxde/internal/config"
 	"tmuxde/internal/hub/ws"
 	"tmuxde/internal/machine"
 	"tmuxde/internal/node/local"
+	"tmuxde/internal/update"
+	"tmuxde/internal/update/ready"
 )
 
 const agentUsage = `Usage: tmuxde agent
@@ -48,7 +48,7 @@ func runAgent(args []string, stderr io.Writer) int {
 			return 1
 		}
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := ready.Context(context.Background())
 	defer stop()
 	go func() {
 		<-ctx.Done()
@@ -62,19 +62,28 @@ func runAgent(args []string, stderr io.Writer) int {
 	}
 	defer n.Stop()
 	hostname, _ := os.Hostname()
+	updater := update.NewHost("agent", hostname, "agent", version)
+	updateInfo := updater.Info(ctx)
 	agent := &machine.Agent{
-		URL:    cfg.URL,
-		Token:  cfg.Token,
-		CAFile: cfg.CAFile,
-		Node:   n,
-		Files:  n,
-		Logger: logger,
+		OnReady: func() {
+			if err := ready.Mark(version); err != nil {
+				logger.Warn("update startup receipt failed", "error", err)
+			}
+		},
+		Updater: updater,
+		URL:     cfg.URL,
+		Token:   cfg.Token,
+		CAFile:  cfg.CAFile,
+		Node:    n,
+		Files:   n,
+		Logger:  logger,
 		Info: machine.Info{
+			Update:      &updateInfo,
 			Hostname:    hostname,
 			Platform:    runtime.GOOS,
 			DefaultPath: ws.DefaultPath(cfg.Node.AllowedPaths, cfg.Node.Home),
 			Version:     version,
-			Features:    ws.Features(false),
+			Features:    append(ws.Features(false), update.Feature),
 		},
 	}
 	if err := agent.Run(ctx); err != nil {

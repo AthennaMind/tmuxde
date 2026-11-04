@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"tmuxde/internal/update"
 )
 
 // Record is persisted without plaintext credentials.
@@ -26,14 +28,15 @@ type Record struct {
 
 // Info is safe to expose to an authenticated browser.
 type Info struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Online      bool     `json:"online"`
-	Hostname    string   `json:"hostname"`
-	Platform    string   `json:"platform"`
-	DefaultPath string   `json:"defaultPath"`
-	Version     string   `json:"version"`
-	Features    []string `json:"features"`
+	Update      *update.Component `json:"update,omitempty"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Online      bool              `json:"online"`
+	Hostname    string            `json:"hostname"`
+	Platform    string            `json:"platform"`
+	DefaultPath string            `json:"defaultPath"`
+	Version     string            `json:"version"`
+	Features    []string          `json:"features"`
 }
 
 func secret() string {

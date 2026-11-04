@@ -155,10 +155,27 @@ systemctl --user enable --now tmuxde-agent.service
 
 ## Update
 
-Sessions keep running across restarts.
+Settings > Updates offers manual Check for updates and Update for each eligible
+server or agent. Speech appears separately when configured. Nothing checks GitHub
+on startup, login or timer. Update selected stages selected components first,
+then restarts agents, speech and server in that order. Reload updated UI when done.
+
+First updater-capable release needs manual install. Updates verify signed release
+checksums, then read compatibility from downloaded binary before restarting.
+Incompatible protocols require coordinated manual upgrade. Native updates use
+built-in supervisor and dedicated update exit code. No service manager is required.
+Executable must be writable and owned by running user. Docker,
+custom builds and shared executable installations show manual update reason.
+See [updates guide](UPDATES.md) for steps, requirements and recovery.
+
+For manual update, verify downloaded release as above, then replace executable
+through temporary file. Sessions stay running when tmux launcher keeps them in
+separate scope, which is default under systemd.
 
 ```bash
-install -m 755 tmuxde ~/.local/bin/tmuxde
+install -m 755 tmuxde ~/.local/bin/tmuxde.new
+cp -p ~/.local/bin/tmuxde ~/.local/bin/tmuxde.previous
+mv ~/.local/bin/tmuxde.new ~/.local/bin/tmuxde
 systemctl --user restart tmuxde.service
 ```
 

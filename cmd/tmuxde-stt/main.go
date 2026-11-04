@@ -22,14 +22,15 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"tmuxde/cmd/tmuxde-stt/internal/bundle"
+	"tmuxde/internal/buildinfo"
 	"tmuxde/internal/stt"
 	"tmuxde/internal/stt/sherpa"
+	"tmuxde/internal/update"
+	"tmuxde/internal/update/ready"
 )
 
 // version is set at build time: -ldflags "-X main.version=1.2.3".
@@ -69,7 +70,10 @@ const shutdownTimeout = 2 * time.Second
 const healthTimeout = 2 * time.Second
 
 func main() {
-	os.Exit(run(os.Args[1:], os.LookupEnv, os.Stdout, os.Stderr))
+	if code, handled := update.Supervise(os.Args[1:], true, os.Stdin, os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
+	os.Exit(ready.ExitCode(run(os.Args[1:], os.LookupEnv, os.Stdout, os.Stderr)))
 }
 
 func run(args []string, lookup func(string) (string, bool), stdout, stderr io.Writer) int {
@@ -89,11 +93,7 @@ func run(args []string, lookup func(string) (string, bool), stdout, stderr io.Wr
 		}
 		return runHealth(lookup, stderr)
 	case "version":
-		if code, ok := parseFlags("version", "Usage: tmuxde-stt version\n", args, stderr); !ok {
-			return code
-		}
-		fmt.Fprintln(stdout, version)
-		return 0
+		return buildinfo.Command("tmuxde-stt", version, args, stdout, stderr)
 	case "help", "-h", "-help", "--help":
 		fmt.Fprint(stdout, usage)
 		return 0
@@ -152,7 +152,7 @@ func runServe(lookup func(string) (string, bool), stdout io.Writer) int {
 		"ms", time.Since(started).Milliseconds(),
 	)
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	ctx, stop := ready.Context(context.Background())
 	defer stop()
 	return serve(ctx, cfg, stt.ServerOptions{
 		Transcriber:  transcriber,
@@ -191,6 +191,10 @@ func loadConfig(lookup func(string) (string, bool)) (stt.Config, error) {
 // closes the server, which drops every session and removes the socket,
 // and returns 0 within shutdownTimeout.
 func serve(ctx context.Context, cfg stt.Config, opts stt.ServerOptions) int {
+	opts.Version = version
+	opts.UpdateControl = ready.Control()
+	opts.PID = os.Getpid()
+	opts.Binary, _ = os.Executable()
 	logger := opts.Logger
 	srv := stt.NewServer(opts)
 	ln, err := stt.Listen(cfg.Socket)
@@ -201,6 +205,9 @@ func serve(ctx context.Context, cfg stt.Config, opts stt.ServerOptions) int {
 	served := make(chan error, 1)
 	go func() { served <- srv.Serve(ln) }()
 	logger.Info("Speech service listening", "socket", cfg.Socket)
+	if err := ready.Mark(version); err != nil {
+		logger.Warn("update startup receipt failed", "error", err)
+	}
 
 	select {
 	case err := <-served:
