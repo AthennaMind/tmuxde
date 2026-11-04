@@ -25,12 +25,11 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"runtime"
 	"sync"
-	"syscall"
 	"time"
 
+	"tmuxde/internal/buildinfo"
 	"tmuxde/internal/config"
 	"tmuxde/internal/hub/accesslog"
 	"tmuxde/internal/hub/dictation"
@@ -38,11 +37,14 @@ import (
 	"tmuxde/internal/hub/filehttp"
 	"tmuxde/internal/hub/settings"
 	"tmuxde/internal/hub/static"
+	"tmuxde/internal/hub/updates"
 	"tmuxde/internal/hub/ws"
 	"tmuxde/internal/machine"
 	"tmuxde/internal/node"
 	"tmuxde/internal/node/local"
 	"tmuxde/internal/protocol/server"
+	"tmuxde/internal/update"
+	"tmuxde/internal/update/ready"
 	"tmuxde/web"
 )
 
@@ -90,7 +92,10 @@ Environment:
 const shutdownTimeout = 5 * time.Second
 
 func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+	if code, handled := update.Supervise(os.Args[1:], false, os.Stdin, os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
+	os.Exit(ready.ExitCode(run(os.Args[1:], os.Stdout, os.Stderr)))
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -106,7 +111,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "machine":
 		return runMachine(args[1:], stdout, stderr)
 	case "version":
-		return runVersion(args[1:], stdout, stderr)
+		return buildinfo.Command("tmuxde", version, args[1:], stdout, stderr)
 	case "help", "-h", "-help", "--help":
 		fmt.Fprint(stdout, usage)
 		return 0
@@ -135,14 +140,6 @@ func parseFlags(name, help string, args []string, stderr io.Writer) (int, bool) 
 	return 0, true
 }
 
-func runVersion(args []string, stdout, stderr io.Writer) int {
-	if code, ok := parseFlags("version", "Usage: tmuxde version\n", args, stderr); !ok {
-		return code
-	}
-	fmt.Fprintln(stdout, version)
-	return 0
-}
-
 func runServe(args []string, stderr io.Writer) int {
 	if code, ok := parseFlags("serve", serveUsage, args, stderr); !ok {
 		return code
@@ -156,7 +153,7 @@ func runServe(args []string, stderr io.Writer) int {
 		return 1
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := ready.Context(context.Background())
 	defer stop()
 	// After the first signal a second one kills the process at once.
 	go func() {
@@ -192,6 +189,7 @@ func runApp(ctx context.Context, cfg config.Config, logger *slog.Logger, started
 		return 1
 	}
 	defer a.machines.Close()
+	defer a.updater.Close()
 	if err := a.startNode(ctx); err != nil {
 		if ctx.Err() != nil {
 			// A signal during the check. tmux -V was cut short, it did
@@ -225,6 +223,9 @@ func runApp(ctx context.Context, cfg config.Config, logger *slog.Logger, started
 		attrs = append(attrs, "devWebURL", cfg.DevWebURL.String())
 	}
 	logger.Info("listening", attrs...)
+	if err := ready.Mark(version); err != nil {
+		logger.Warn("update startup receipt failed", "error", err)
+	}
 	err = serve(ctx, ln, a, logger)
 	// serve has closed every WebSocket, and with them every pty.
 	a.stopNode()
@@ -285,6 +286,7 @@ type app struct {
 	node      *local.Node
 	machines  *machine.Hub
 	dictation *dictation.Bridge
+	updater   *update.Manager
 }
 
 // newApp builds the local node, the dictation bridge and the hub edge. It
@@ -383,7 +385,14 @@ func newApp(cfg config.Config, site fs.FS, logger *slog.Logger, started time.Tim
 	})
 	e.Handle(settings.SettingsPath, documents)
 	e.Handle(settings.KeybindingsPath, documents)
-	return &app{handler: e, relay: relay, node: n, machines: machines, dictation: dict}, nil
+	updater, err := newUpdater(cfg, machines)
+	if err != nil {
+		return nil, fmt.Errorf("updates: %w", err)
+	}
+	updateHandler := &updates.Handler{Token: cfg.AuthToken, Origins: cfg.CORSOrigins, Manager: updater}
+	e.Handle("/updates", updateHandler)
+	e.Handle("/updates/", updateHandler)
+	return &app{handler: e, relay: relay, node: n, machines: machines, dictation: dict, updater: updater}, nil
 }
 
 func (a *app) startNode(ctx context.Context) error {

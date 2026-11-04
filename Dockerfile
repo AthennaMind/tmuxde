@@ -24,7 +24,7 @@ COPY web/ web/
 COPY --from=ui-build /ui/dist/ web/dist/
 ARG VERSION=dev
 RUN --network=none CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags "-s -w -buildid= -X main.version=$VERSION" -o /out/tmuxde ./cmd/tmuxde
+    go build -trimpath -ldflags "-s -w -buildid= -X main.version=$VERSION -X tmuxde/internal/update.InstallMode=docker" -o /out/tmuxde ./cmd/tmuxde
 
 # Cross compiled from the build platform, like the GoReleaser job. Emulated
 # bookworm failed to link the arm64 static binary: its glibc static objects

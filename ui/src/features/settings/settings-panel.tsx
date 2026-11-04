@@ -33,6 +33,7 @@ import { useKeybindingsStore } from "@/features/keybindings/keybindings-store";
 import { shortcutLabel } from "@/features/keybindings/shortcut-label";
 import { KeyboardShortcutsSection } from "./keybindings-section";
 import { SettingsFilesSection } from "./settings-files-section";
+import { UpdatesSection } from "@/features/updates/updates-section";
 import {
   Segmented,
   SettingsRow,
@@ -115,6 +116,7 @@ export function SettingsPanel({
         {touch && <KeyboardToolbarSection />}
         {touch && <TouchSection />}
         <SettingsFilesSection />
+        <UpdatesSection />
         <LockSettings />
         <DisconnectSection />
         <InstallAppSection />

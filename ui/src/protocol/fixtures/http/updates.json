@@ -1,0 +1,45 @@
+{
+  "components": [
+    {
+      "id": "server",
+      "name": "Server",
+      "kind": "server",
+      "version": "1.0.0",
+      "os": "linux",
+      "arch": "amd64",
+      "reason": "",
+      "online": true,
+      "eligible": false,
+      "available": "",
+      "size": 0
+    },
+    {
+      "id": "laptop",
+      "name": "Laptop",
+      "kind": "agent",
+      "version": "",
+      "os": "",
+      "arch": "",
+      "reason": "Agent offline",
+      "online": false,
+      "eligible": false,
+      "available": "",
+      "size": 0
+    },
+    {
+      "id": "speech",
+      "name": "Speech",
+      "kind": "speech",
+      "version": "1.0.0",
+      "os": "linux",
+      "arch": "amd64",
+      "reason": "",
+      "online": true,
+      "eligible": false,
+      "available": "",
+      "size": 0
+    }
+  ],
+  "snapshot": null,
+  "job": null
+}

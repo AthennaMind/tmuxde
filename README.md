@@ -17,6 +17,7 @@ TmuxDE (Tmux Development Environment) is a self-hosted DE built on top of tmux. 
 - [How it works](#how-it-works)
 - [Showcase](docs/SHOWCASE.md)
 - [Install guide](docs/INSTALL.md)
+- [Updates](docs/UPDATES.md)
 - [macOS agent setup](docs/MACOS.md)
 - [Development guide](docs/DEVELOPMENT.md)
 - [Credits](#credits)
@@ -32,10 +33,11 @@ TmuxDE (Tmux Development Environment) is a self-hosted DE built on top of tmux. 
 - One command palette with Ctrl/Cmd+K: open views, sessions, windows, panes, tmux actions, appearance, snippets and recent commands.
 - Find files with Ctrl/Cmd+P and search retained terminal history across all machines with Ctrl/Cmd+Shift+F, in the same palette.
 - Optional speech to text at your tmux cursor.
+- Update native server, agents and optional speech from Settings when you choose.
 - No phone home, ever.
     - No telemetry, analytics or crash reporting.
-    - No update checks.
-    - No accounts, cloud services or external APIs.
+    - No automatic update checks. GitHub is contacted only when you check for updates or install one.
+    - No accounts or cloud services required.
     - No CDN assets. Fonts, syntax highlighting and the editor ship in the bundle.
 
 ## Why

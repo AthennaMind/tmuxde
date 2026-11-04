@@ -147,6 +147,20 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if hi.Info.Features == nil {
 		hi.Info.Features = []string{}
 	}
+	if hi.Info.Update != nil {
+		component := hi.Info.Update
+		if component.Kind != "agent" || len(component.Reason) > 512 || (component.Arch != "amd64" && component.Arch != "arm64") {
+			return
+		}
+		component.ID = rec.ID
+		component.Name = rec.Name
+		component.Version = hi.Info.Version
+		component.OS = hi.Info.Platform
+		component.Online = true
+		component.Eligible = false
+		component.Available = ""
+		component.Size = 0
+	}
 	hi.Info.ID = rec.ID
 	hi.Info.Name = rec.Name
 	hi.Info.Online = true

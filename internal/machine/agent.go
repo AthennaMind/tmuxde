@@ -20,24 +20,30 @@ import (
 	"tmuxde/internal/node"
 	"tmuxde/internal/protocol/client"
 	"tmuxde/internal/protocol/server"
+	"tmuxde/internal/update"
 )
 
 // Agent connects a local node to one hub. Each data stream is independent.
 type Agent struct {
-	URL    string
-	Token  string
-	CAFile string
-	Info   Info
-	Node   node.Node
-	Files  node.FileOpener
-	Logger *slog.Logger
-	seq    atomic.Uint64
+	OnReady func()
+	Updater update.Target
+	URL     string
+	Token   string
+	CAFile  string
+	Info    Info
+	Node    node.Node
+	Files   node.FileOpener
+	Logger  *slog.Logger
+	seq     atomic.Uint64
 }
 
 func (a *Agent) Run(ctx context.Context) error {
 	client, err := a.httpClient()
 	if err != nil {
 		return err
+	}
+	if a.OnReady != nil {
+		a.OnReady()
 	}
 	defer client.CloseIdleConnections()
 	delay := time.Second
@@ -145,7 +151,16 @@ func (a *Agent) connect(ctx context.Context, httpClient *http.Client) error {
 		if err := readJSON(ctx, c, &req); err != nil {
 			return err
 		}
-		if len(req.Ticket) != 64 || (req.Kind != "node" && req.Kind != "file") {
+		if len(req.Ticket) != 64 {
+			return errors.New("invalid stream invitation")
+		}
+		switch req.Kind {
+		case "node", "file":
+		case "update":
+			if a.Updater == nil {
+				return errors.New("update stream is unavailable")
+			}
+		default:
 			return errors.New("invalid stream invitation")
 		}
 		select {
@@ -172,6 +187,10 @@ func (a *Agent) serveStream(ctx context.Context, httpClient *http.Client, req in
 	defer c.CloseNow()
 	stop := context.AfterFunc(ctx, func() { c.CloseNow() })
 	defer stop()
+	if req.Kind == "update" {
+		a.serveUpdate(ctx, c)
+		return
+	}
 	if req.Kind == "file" {
 		a.serveFile(ctx, c)
 		return

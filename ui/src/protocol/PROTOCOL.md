@@ -703,3 +703,56 @@ require advertised support and never retry or fall back to an unguarded rename.
 Moves remain scoped to one machine and one filesystem and use existing path guards.
 Linux uses atomic rename with RENAME_NOREPLACE. Other systems check destination
 before rename under service mutex; external writers can race that portable check.
+
+### Manual binary updates
+
+Updates use authenticated HTTP routes on hub, separate from node messages.
+Browser token stays in `Authorization: Bearer`. Origin restrictions still apply.
+`updates.ts` owns browser schemas. `internal/update` owns Go types and validation.
+Shared fixtures live in `fixtures/http/updates.json` and `update-requests.json`.
+
+| Method | Route | Effect |
+| --- | --- | --- |
+| GET | `/updates` | Read inventory, last check and current job |
+| POST | `/updates/check` | Explicit latest stable GitHub release lookup |
+| POST | `/updates/jobs` | Start selected components from checked snapshot |
+| GET | `/updates/jobs/:id` | Read current job |
+| POST | `/updates/jobs/:id/cancel` | Cancel preparation or clean interrupted staging |
+
+Start body is `{id, snapshot, targets}`. IDs contain 1 to 80 ASCII letters,
+digits, underscores or hyphens. Targets must be unique, with 1 to 64 entries.
+Snapshot expires after one hour. Caller cannot supply URLs, commands or paths.
+Same current request ID returns same job. Previously consumed IDs cannot start
+another job. Browser never retries a lost install request automatically.
+
+Status has `components`, nullable `snapshot` and nullable `job`. Each component
+reports identity, kind, version, OS, architecture, online status, eligibility,
+reason, available version and download size. Kinds are server, agent and speech.
+Jobs include pinned snapshot, target version, creation time, active flag and
+per-component transactions. Phases are pending, downloading, verifying, staged,
+starting, installing, restarting, rolling-back, awaiting-reconnect, updated,
+failed, rolled-back, rollback-failed, cancelled and interrupted.
+
+Settings mount, status polling and reconnect never perform release discovery.
+Only explicit check reads public metadata. Only explicit install downloads assets.
+Agent `update-v1` capability adds optional `update` inventory and dedicated
+authenticated `update` stream. Existing node messages and terminal streams are
+unchanged. Older agents stay visible with manual bootstrap reason.
+
+Update stream starts with JSON `{operation, id, package}`. Operations are stage,
+apply, status and cancel. Package carries tag, asset, checksums and Sigstore bundle.
+Byte fields use JSON base64. Agent verifies metadata
+before acknowledging stage, then receives archive in binary frames up to 64 KiB.
+Archive is capped at 1 GiB. Agent independently verifies archive and executable.
+After verification, candidate `version --json` must report matching release version,
+communication protocol and updater protocol from `internal/buildinfo/info.go`.
+All selected components pass staging before any component restarts.
+Replies are `{error, result, notFound?}`. No command or host path crosses stream.
+Apply dispatches once. Lost replies are reconciled through status, never replayed.
+
+Native application exits with code 75 only for supervisor update signal.
+Supervisor requires matching persisted authorization before installing. Normal
+process failures never apply staged files. Parent stays alive across update and
+retains original launch settings. No systemd or launchd API is called. Speech
+health adds `version`, `binary`, `pid` and `updateControl` on private Unix socket.
+Those fields identify native installation; public browser inventory omits paths.

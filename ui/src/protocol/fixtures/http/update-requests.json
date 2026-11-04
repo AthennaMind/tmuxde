@@ -1,0 +1,14 @@
+{
+  "valid": [
+    {"id": "request", "snapshot": "snapshot", "targets": ["server"]},
+    {"id": "batch", "snapshot": "snapshot", "targets": ["laptop", "speech", "server"]}
+  ],
+  "invalid": [
+    {"id": "../request", "snapshot": "snapshot", "targets": ["server"]},
+    {"id": "request", "snapshot": "", "targets": ["server"]},
+    {"id": "request", "snapshot": "snapshot", "targets": []},
+    {"id": "request", "snapshot": "snapshot", "targets": ["server", "server"]},
+    {"id": "request", "snapshot": "snapshot", "targets": ["../speech"]},
+    {"id": "request", "snapshot": "snapshot", "targets": ["server"], "url": "https://example.com/update"}
+  ]
+}
