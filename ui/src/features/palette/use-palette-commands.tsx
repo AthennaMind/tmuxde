@@ -2,6 +2,7 @@ import {
   AppWindow,
   ArrowLeftRight,
   Bookmark,
+  BookOpen,
   ChevronsLeftRight,
   CircleStop,
   CircleX,
@@ -52,6 +53,8 @@ import {
 } from "lucide-react";
 import type { ClientMessage } from "@/protocol";
 import { RepositoryFileIcon } from "@/features/files/repository-file-icon";
+import { draftKey, useFileDrafts } from "@/features/files/file-drafts";
+import { isMarkdownPath } from "@/features/files/markdown";
 import { useQuickOpenQuery } from "./use-quick-open-query";
 import { useDictationAvailable } from "@/features/dictation/use-dictation-available";
 import { getRelayClient, useRelayClient } from "@/features/connection/use-websocket";
@@ -222,6 +225,13 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
   const activeMachine = useMachineStore((s) => s.activeMachine);
   const tabs = useMainTabsStore((s) => s.tabs);
   const activeTab = useMainTabsStore((s) => s.active);
+  const file = tabs.find((tab) => tab.id === activeTab);
+  const markdown =
+    !mobile && file?.kind === "file" && !file.scope && isMarkdownPath(file.path) ? file : null;
+  const markdownDraft = useFileDrafts((s) =>
+    markdown ? s.drafts[draftKey(markdown.machineId, markdown.path)] : undefined,
+  );
+  const markdownPreview = useSettingsStore((s) => s.markdownPreview);
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const { theme, setTheme } = useTheme();
   const themeName = useTerminalStore((s) => s.themeName);
@@ -304,6 +314,40 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
     });
   }
   add("views", "Open views", views);
+
+  if (markdown && markdownDraft?.base) {
+    const readOnly =
+      markdownDraft.moving ||
+      !markdownDraft.base.writable ||
+      isReadOnly(capabilities) ||
+      (capabilities !== null && capabilities.files !== "write");
+    add("markdown", "Markdown", [
+      {
+        id: "markdown:edit",
+        label: readOnly ? "Show Markdown source" : "Edit Markdown",
+        detail: markdown.path,
+        keywords: ["md", "source", "text", "editor"],
+        icon: <PenLine />,
+        current: !markdownPreview,
+        run: () => {
+          useSettingsStore.getState().setMarkdownPreview(false);
+          finish();
+        },
+      },
+      {
+        id: "markdown:preview",
+        label: "Preview Markdown",
+        detail: markdown.path,
+        keywords: ["md", "render", "read"],
+        icon: <BookOpen />,
+        current: markdownPreview,
+        run: () => {
+          useSettingsStore.getState().setMarkdownPreview(true);
+          finish();
+        },
+      },
+    ]);
+  }
 
   // Sessions on every online machine, then windows and panes of this one.
   const sessions: PaletteItem[] = [];

@@ -46,6 +46,7 @@ export function EditableFileTab({
   const autoSave = useSettingsStore((state) => state.autoSave);
   const wrap = useSettingsStore((state) => state.wrapLines);
   const rendered = useSettingsStore((state) => state.markdownPreview);
+  const setRendered = useSettingsStore((state) => state.setMarkdownPreview);
   const capabilities = useConnectionStore((state) => state.capabilities);
   const [compare, setCompare] = useState(false);
   const client = get(tab.machineId ?? "local");
@@ -56,6 +57,7 @@ export function EditableFileTab({
     !!capabilities?.readOnly ||
     (capabilities !== null && capabilities.files !== "write");
   const modified = draftModified(draft);
+  const comparing = compare && !!draft?.conflict;
   const canSave =
     !readOnly && modified && draft?.online && !draft.saving && !draft.checking && !draft.needsCheck;
   const save = () => {
@@ -141,7 +143,7 @@ export function EditableFileTab({
         </p>
       ) : null}
       {draft?.base ? (
-        compare && draft.conflict ? (
+        comparing && draft.conflict ? (
           <FileConflict path={tab.path} disk={draft.conflict.content} draft={draft.content} />
         ) : markdown && rendered ? (
           <div className="min-h-0 flex-1 overflow-auto">
@@ -169,6 +171,32 @@ export function EditableFileTab({
         preview
       ) : (
         <Notice>{draft?.online ? "Loading file" : "Connect to edit this file."}</Notice>
+      )}
+      {markdown && draft?.base && (
+        <div
+          role="group"
+          aria-label="Markdown view"
+          className="flex shrink-0 justify-end gap-1 border-t px-2 py-1"
+        >
+          {[
+            { label: readOnly ? "Source" : "Edit", value: false },
+            { label: "Preview", value: true },
+          ].map(({ label, value }) => (
+            <Button
+              key={String(value)}
+              size="sm"
+              variant="ghost"
+              aria-pressed={!comparing && rendered === value}
+              className={cn("h-7 text-xs", !comparing && rendered === value && "bg-accent")}
+              onClick={() => {
+                setCompare(false);
+                setRendered(value);
+              }}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
       )}
     </section>
   );
