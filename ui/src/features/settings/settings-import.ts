@@ -46,10 +46,12 @@ function parseJson(
   }
 }
 
-function zodPath(path: readonly (string | number)[]): string | undefined {
+function zodPath(path: readonly PropertyKey[]): string | undefined {
   if (path.length === 0) return undefined;
   return path
-    .map((part, index) => (typeof part === "number" ? `[${part}]` : index ? `.${part}` : part))
+    .map((part, index) =>
+      typeof part === "number" ? `[${part}]` : index ? `.${String(part)}` : String(part),
+    )
     .join("");
 }
 

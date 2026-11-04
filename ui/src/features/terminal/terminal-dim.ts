@@ -8,7 +8,7 @@ type XtermInternals = {
 };
 
 /**
- * xterm 5.5's DOM renderer halves opacity for dim default and ANSI colors.
+ * xterm's DOM renderer halves opacity for dim default and ANSI colors.
  * Raise that to 80%. Keep RGB channels, inline contrast corrections,
  * and terminal buffer attributes intact. Truecolor spans already stay opaque.
  *

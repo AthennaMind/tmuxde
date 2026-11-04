@@ -34,7 +34,7 @@ export type SettingSection =
   | "Pinned terminal keys";
 
 interface SettingValue<T> {
-  schema: z.ZodType<T, z.ZodTypeDef, unknown>;
+  schema: z.ZodType<T, unknown>;
 }
 
 export interface SettingDefinition<

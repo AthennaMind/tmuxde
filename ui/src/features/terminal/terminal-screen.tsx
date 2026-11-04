@@ -41,7 +41,7 @@ export function TerminalScreen({
       cursorBlink: false,
       theme: terminalThemeToXterm(theme),
       allowProposedApi: true,
-      overviewRulerWidth: 0,
+      overviewRuler: { width: 0 },
     });
     const unicode = new Unicode11Addon();
     term.loadAddon(unicode);

@@ -44,7 +44,7 @@ export type XtermOptions = {
 /**
  * Make xterm's `RenderService.dimensions` getter null-safe.
  *
- * xterm.js 5.5.0 reads `this._renderer.value!.dimensions` behind a non-null
+ * xterm.js 6.0.0 reads `this._renderer.value!.dimensions` behind a non-null
  * assertion, but `_renderer.value` *can* be undefined: while the WebGL addon is
  * replacing the canvas renderer, the Viewport's deferred
  * `setTimeout(() => syncScrollArea())` can fire mid-swap. The result is
@@ -154,7 +154,7 @@ export function createXterm(options: XtermOptions): XtermBundle {
 
   patchRenderServiceDimensions(terminal);
   void refreshWhenFontLoads(terminal, document.fonts, () => {
-    // xterm 5 does not remeasure characters after web fonts finish loading.
+    // Remeasure character metrics before fitting with loaded web fonts.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (terminal as any)._core?._charSizeService?.measure();
     fitAddon.fit();
