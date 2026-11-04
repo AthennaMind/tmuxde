@@ -1,8 +1,10 @@
+import { useFileDrafts } from "./file-drafts";
 import Editor, { loader } from "@monaco-editor/react";
 import type { OnMount, OnChange } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useEffectEvent, useState } from "react";
 import { useTerminalStore } from "@/features/terminal/terminal-store";
+import { applyMonacoTheme, useMonacoTheme } from "./monaco-theme";
 // Before loader.config, so Monaco finds the bundled workers.
 import "./monaco-workers";
 
@@ -35,6 +37,8 @@ interface MonacoEditorProps {
    * `revision` changes. Edits in the editor do not come back through it.
    */
   content: string;
+  /** Retain model and view state while a file tab is inactive. */
+  modelPath?: string;
   /**
    * Changes when `content` is replaced from outside, as by a load. Typing
    * leaves it alone. Defaults to `content`, so every new text counts.
@@ -44,22 +48,22 @@ interface MonacoEditorProps {
   readOnly?: boolean;
   onChange?: (value: string) => void;
   onSave?: () => void;
-  theme?: "vs-dark" | "light";
   wordWrap?: "on" | "off";
   fontSize?: number;
 }
 
 export function MonacoEditor({
   content,
+  modelPath,
   revision = content,
   language,
   readOnly = false,
   onChange,
   onSave,
-  theme = "vs-dark",
   wordWrap = "on",
   fontSize: fixedFontSize,
 }: MonacoEditorProps) {
+  const theme = useMonacoTheme();
   // Set once Monaco has mounted. The effects below reach it through this.
   const [editor, setEditor] = useState<CodeEditor | null>(null);
   const codeWeight = useTerminalStore((s) => s.codeWeight);
@@ -77,7 +81,8 @@ export function MonacoEditor({
       .load('400 16px "Cascadia Code"', "W")
       .then(() => monacoApi.editor.remeasureFonts())
       .catch(() => {});
-    mounted.focus();
+    // A slow editor mount must not interrupt naming another file in the tree.
+    if (!document.querySelector("[data-file-name-input]")) mounted.focus();
   }, []);
 
   /*
@@ -129,15 +134,21 @@ export function MonacoEditor({
   return (
     <Editor
       height="100%"
+      path={modelPath}
+      keepCurrentModel={!!modelPath}
+      saveViewState
       language={language}
       defaultValue={content}
       theme={theme}
+      beforeMount={applyMonacoTheme}
       loading={loadingSkeleton}
       onChange={handleChange}
       onMount={handleMount}
       options={{
+        // Retained models must not restore pending occurrence requests.
+        occurrencesHighlight: modelPath ? "off" : "singleFile",
         readOnly,
-        minimap: { enabled: true },
+        minimap: { enabled: false },
         lineNumbers: "on",
         wordWrap,
         fontSize,
@@ -154,3 +165,13 @@ export function MonacoEditor({
     />
   );
 }
+
+useFileDrafts.subscribe((state, previous) => {
+  const retained = new Set(Object.values(state.drafts).map((draft) => draft.modelKey));
+  for (const draft of Object.values(previous.drafts)) {
+    if (!retained.has(draft.modelKey))
+      monaco.editor
+        .getModel(monaco.Uri.parse(`tmuxde-file://draft/${encodeURIComponent(draft.modelKey)}`))
+        ?.dispose();
+  }
+});

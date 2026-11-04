@@ -1,4 +1,6 @@
-import { useEffect, useId, useMemo } from "react";
+import { useSettingsStore } from "@/features/settings/settings-store";
+import { draftKey, draftModified, useFileDrafts } from "@/features/files/file-drafts";
+import { useCallback, useEffect, useId, useMemo } from "react";
 import {
   GitCommitHorizontal,
   GitCompareArrows,
@@ -48,10 +50,12 @@ function tabLabel(tab: FileTab) {
 export function MainTabs() {
   const tabs = useMainTabsStore((s) => s.tabs);
   const active = useMainTabsStore((s) => s.active);
+  const terminalsFirst = useSettingsStore((s) => s.keepTerminalTabsFirst);
   const savedOrder = useMainTabsStore((s) => s.order);
   const setOrder = useMainTabsStore((s) => s.setOrder);
   const reorderHelp = useId();
   const activate = activateView;
+  const drafts = useFileDrafts((state) => state.drafts);
   const closeTab = useMainTabsStore((s) => s.closeTab);
   const closeTabs = useMainTabsStore((s) => s.closeTabs);
   const session = useSessionStore((s) => s.activeSessionId);
@@ -76,15 +80,23 @@ export function MainTabs() {
     }
   };
 
+  const terminalIds = useMemo(() => terminals.map(terminalViewId), [terminals]);
+  const terminalSet = useMemo(() => new Set(terminalIds), [terminalIds]);
   const order = useMemo(
     () =>
-      reconcileTabOrder(savedOrder, [
-        ...terminals.map(terminalViewId),
-        ...tabs.map((tab) => tab.id),
-      ]),
-    [savedOrder, terminals, tabs],
+      reconcileTabOrder(
+        savedOrder,
+        [...terminalIds, ...tabs.map((tab) => tab.id)],
+        terminalsFirst ? terminalIds : undefined,
+      ),
+    [savedOrder, terminalIds, tabs, terminalsFirst],
   );
-  const { navProps, dragging, target, announcement } = useTabReorder(order, setOrder);
+  const canMove = useCallback(
+    (id: string, destination: string) =>
+      !terminalsFirst || terminalSet.has(id) === terminalSet.has(destination),
+    [terminalsFirst, terminalSet],
+  );
+  const { navProps, dragging, target, announcement } = useTabReorder(order, setOrder, canMove);
   useEffect(() => {
     setOrder(order);
   }, [order, setOrder]);
@@ -199,7 +211,7 @@ export function MainTabs() {
                 <Tab
                   key={tab.id}
                   {...reorderProps(tab.id)}
-                  label={tabLabel(tab)}
+                  label={`${tabLabel(tab)}${!tab.scope && draftModified(drafts[draftKey(tab.machineId, tab.path)]) ? " *" : ""}`}
                   detail={[tab.scope ? SCOPE_SHORT[tab.scope] : undefined, originName(tab)]
                     .filter(Boolean)
                     .join(" · ")}
@@ -217,6 +229,7 @@ export function MainTabs() {
           ].sort((a, b) => order.indexOf(String(a.key)) - order.indexOf(String(b.key)))}
           <span id={reorderHelp} className="sr-only">
             Drag to reorder, or press Alt+ArrowLeft or Alt+ArrowRight.
+            {terminalsFirst && " Terminal tabs stay first. Reorder within each group."}
           </span>
           <span className="sr-only" role="status">
             {announcement}

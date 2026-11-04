@@ -3,5 +3,17 @@
     "type": "file:rename",
     "oldPath": "/home/dev/projects/tmuxde/notes.md",
     "newPath": "/home/dev/projects/tmuxde/docs/notes.md"
+  },
+  {
+    "type": "file:rename",
+    "oldPath": "/home/dev/projects/tmuxde/notes.md",
+    "newPath": "/home/dev/projects/tmuxde/docs/notes.md",
+    "noReplace": true
+  },
+  {
+    "type": "file:rename",
+    "oldPath": "/home/dev/projects/tmuxde/notes.md",
+    "newPath": "/home/dev/projects/tmuxde/docs/notes.md",
+    "noReplace": false
   }
 ]

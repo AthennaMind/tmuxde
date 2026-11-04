@@ -130,7 +130,7 @@ app handles scrolling, so shell history rail stays hidden during TUI use.
 | `file:create` | `path`, `content?` | Create a file |
 | `file:mkdir` | `path` | Create a directory |
 | `file:delete` | `path` | Delete a file or directory |
-| `file:rename` | `oldPath`, `newPath` | Rename or move |
+| `file:rename` | `oldPath`, `newPath`, `noReplace?` | Rename or move |
 | `file:upload` | `path`, `content` (base64), `final`, `ack?` | Chunked upload (max 1 GiB with `file:upload:1gib` in machine features, otherwise 10 MiB). With `ack: true`, each chunk returns `file:op:result` with `final` echoed after write completes. Wait for acknowledgement before sending next chunk. Requires `file:upload:ack` in `auth:success.features`. General file transfers use a dedicated machine-bound socket. Closing it discards partial files; final acknowledgement confirms atomic replacement. Transfers do not resume after disconnect. |
 | `file:watch` | `path` | Watch a directory (`depth: 0`) |
 | `file:unwatch` | `path` | Stop watching |
@@ -672,3 +672,34 @@ matches, scan limits or unreadable subdirectories set `truncated`. Callers must
 show partial results and offer a narrower query. Concurrent requests receive
 correlated error with retry guidance. Disconnect cancels work. Search requests
 are not replayed after reconnect. Browser discards stale query/context replies.
+
+### Versioned file editing
+
+`file:edit:read` accepts `requestId` (1 to 128 characters) and `path`.
+`file:edit:save` also requires `content` and `revision` (64 lowercase SHA-256 hex
+characters). Revisions describe exact UTF-8 file bytes. Editing is limited to
+complete text files up to 1 MiB. JSON-encoded content must also fit within the
+connection frame limit. Binary and oversized files keep their previews.
+
+Both answer `file:edit:result` with matching `requestId`, `path` and `result`.
+Result is `{status: "ok", document}` or `{status: "conflict", document}`, where
+document contains `content`, `revision` and `writable`. Failures return
+`{status: "error", error}`. Conflict returns current disk text without writing.
+
+Clients keep drafts scoped to machine and path. Disconnected writes are never
+queued or replayed. Reconnect reads disk again before saving. An explicit conflict
+resolution still uses the latest observed revision, never an unconditional write.
+Older agents do not support these messages; editors must not fall back to
+`file:write`. Service writes are serialized, but external programs do not share
+that lock. Revision checking is not a filesystem-wide atomic compare-and-swap.
+
+### Guarded file moves
+
+Machines advertising `file:rename:no-replace` accept `noReplace: true` on
+`file:rename`. Existing destination files, folders and symlinks are refused.
+Reply remains `file:op:result` with `op: "rename"` and destination `path`.
+Legacy requests without this option retain replacement behavior. Clients must
+require advertised support and never retry or fall back to an unguarded rename.
+Moves remain scoped to one machine and one filesystem and use existing path guards.
+Linux uses atomic rename with RENAME_NOREPLACE. Other systems check destination
+before rename under service mutex; external writers can race that portable check.

@@ -229,6 +229,9 @@ export function useWebSocket(url: string, token: string): void {
         case "repo:changed":
           useRepoWatchStore.getState().applyChange(msg);
           break;
+        case "file:edit:result":
+          // File drafts correlate versioned reads and saves by request ID.
+          break;
         case "file:write:result":
           // Handled in file-editor component via onMessage subscription
           break;

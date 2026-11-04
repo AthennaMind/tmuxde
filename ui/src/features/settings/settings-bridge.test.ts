@@ -76,6 +76,17 @@ describe("settings bridge", () => {
     );
   });
 
+  it("syncs terminal grouping and clears the preference when disabled", () => {
+    applySettings(resolveSettings({ "tabs.terminalsFirst": true }));
+    expect(useSettingsStore.getState().keepTerminalTabsFirst).toBe(true);
+    expect(settingsFromStores()["tabs.terminalsFirst"]).toBe(true);
+    expect(updateSettings).not.toHaveBeenCalled();
+    useSettingsStore.getState().setKeepTerminalTabsFirst(false);
+    expect(updateSettings).toHaveBeenLastCalledWith({ "tabs.terminalsFirst": undefined });
+    useSettingsStore.getState().setKeepTerminalTabsFirst(true);
+    expect(updateSettings).toHaveBeenLastCalledWith({ "tabs.terminalsFirst": true });
+  });
+
   it("never writes back while applying", () => {
     applySettings(
       resolveSettings({

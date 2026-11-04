@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unicode/utf8"
@@ -78,6 +79,7 @@ type Options struct {
 // Service runs file operations for the browser. It is safe for concurrent
 // use. Upload state lives in Uploads, one per connection.
 type Service struct {
+	writeMu     sync.Mutex
 	guard       *Guard
 	readLimit   int64
 	writeLimit  int64

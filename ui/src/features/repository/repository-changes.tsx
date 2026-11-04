@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronRight, Folder, List, ListTree } from "lucide-react";
+import { ChevronRight, Folder, GitBranch, List, ListTree } from "lucide-react";
 import type { RepoResult } from "@/protocol";
 import { cn } from "@/shared/utils";
 import { buildChangeTree, type ChangeNode } from "./repository-tree";
@@ -28,11 +28,14 @@ export function ChangesList({
   entries,
   onOpen,
   dense = false,
+  branch,
 }: {
   entries: ChangeEntry[];
   onOpen: (path: string, scope: Scope) => void;
   /** Mouse density for the desktop sidebar. Touch rows stay 44px. */
   dense?: boolean;
+  /** Optional branch beside layout controls in the desktop sidebar. */
+  branch?: string | null;
 }) {
   const [view, setView] = useState(savedView);
   const selectView = (value: "list" | "tree") => {
@@ -64,31 +67,52 @@ export function ChangesList({
   return (
     <div className={dense ? "py-1" : "py-2"}>
       <div
-        role="group"
-        aria-label="Changed file layout"
-        className={cn("flex justify-end gap-1 border-b", dense ? "px-2 pb-1" : "px-3 pb-2")}
+        className={cn(
+          "flex min-w-0 items-center justify-between gap-3",
+          dense ? "px-3 pb-1" : "border-b px-3 pb-2",
+        )}
       >
-        {(["list", "tree"] as const).map((value) => {
-          const Icon = value === "tree" ? ListTree : List;
-          return (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={view === value}
-              onClick={() => selectView(value)}
-              className={cn(
-                "flex items-center gap-2 rounded-md text-sm",
-                dense ? "min-h-8 px-2" : "min-h-11 px-3",
-                view === value
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted/60",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {value === "tree" ? "Tree" : "List"}
-            </button>
-          );
-        })}
+        {branch ? (
+          <span className="flex min-w-0 items-center gap-2 text-[13px]" title={branch}>
+            <GitBranch className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="truncate">{branch}</span>
+          </span>
+        ) : (
+          <span />
+        )}
+        <div
+          role="group"
+          aria-label="Changed file layout"
+          className={cn(
+            "flex shrink-0 items-center",
+            dense ? "gap-0.5 rounded-md bg-muted/50 p-0.5" : "gap-1",
+          )}
+        >
+          {(["list", "tree"] as const).map((value) => {
+            const Icon = value === "tree" ? ListTree : List;
+            const label = value === "tree" ? "Tree" : "List";
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-label={dense ? `${label} view` : label}
+                title={`${label} view`}
+                aria-pressed={view === value}
+                onClick={() => selectView(value)}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  dense ? "h-7 w-7 pointer-coarse:h-11 pointer-coarse:w-11" : "min-h-11 px-3",
+                  view === value
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:bg-accent/60",
+                )}
+              >
+                <Icon className="h-4 w-4" aria-hidden />
+                {!dense && label}
+              </button>
+            );
+          })}
+        </div>
       </div>
       {groups
         .filter((group) => group.files.length)

@@ -1,3 +1,4 @@
+import { closeDraft, draftKey, draftProtected, useFileDrafts } from "@/features/files/file-drafts";
 import { machineId } from "@/features/connection/machine-context";
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
@@ -138,6 +139,26 @@ export function changesTabId(contextPath: string, machine?: string): string {
   return scopedId(`changes:${contextPath}`, machine);
 }
 
+function hasDraft(tab: MainTab): boolean {
+  return (
+    tab.kind === "file" &&
+    !tab.scope &&
+    draftProtected(useFileDrafts.getState().drafts[draftKey(tab.machineId, tab.path)])
+  );
+}
+
+function confirmClose(tabs: MainTab[]): boolean {
+  const dirty = tabs.filter(hasDraft);
+  return (
+    dirty.length === 0 ||
+    window.confirm(
+      dirty.length === 1
+        ? "Discard unsaved edits and close this file?"
+        : `Discard unsaved edits in ${dirty.length} files?`,
+    )
+  );
+}
+
 interface MainTabsStore {
   tabs: MainTab[];
   order: string[];
@@ -171,12 +192,16 @@ interface MainTabsStore {
 export function trimTabs(tabs: MainTab[], keep: ReadonlySet<string>): MainTab[] {
   if (tabs.length <= MAX_TABS) return tabs;
   const next = [...tabs];
+  const protectedIds = new Set([...keep, ...tabs.filter(hasDraft).map((tab) => tab.id)]);
   while (next.length > MAX_TABS) {
     let index = next.findIndex(
-      (t) => (t.kind === "file" || t.kind === "commit" || t.kind === "changes") && !keep.has(t.id),
+      (t) =>
+        (t.kind === "file" || t.kind === "commit" || t.kind === "changes") &&
+        !protectedIds.has(t.id),
     );
-    if (index < 0) index = next.findIndex((t) => !keep.has(t.id));
-    next.splice(Math.max(index, 0), 1);
+    if (index < 0) index = next.findIndex((t) => !protectedIds.has(t.id));
+    if (index < 0) break;
+    next.splice(index, 1);
   }
   return next;
 }
@@ -255,11 +280,22 @@ export function restoreTabs(persisted: unknown): Pick<MainTabsStore, "tabs" | "a
   return { tabs, active, order };
 }
 
-/** Preserve saved positions, remove closed views and append new views. */
-export function reconcileTabOrder(order: string[], visible: string[]): string[] {
+/** Preserve positions, optionally grouping terminals before newly opened buffers. */
+export function reconcileTabOrder(
+  order: string[],
+  visible: string[],
+  terminalsFirst?: readonly string[],
+): string[] {
   const remaining = new Set(visible);
   const next = order.filter((id) => remaining.delete(id));
-  return [...next, ...remaining];
+  if (!terminalsFirst) return [...next, ...remaining];
+  const terminals = new Set(terminalsFirst);
+  return [
+    ...next.filter((id) => terminals.has(id)),
+    ...[...remaining].filter((id) => terminals.has(id)),
+    ...[...remaining].filter((id) => !terminals.has(id)),
+    ...next.filter((id) => !terminals.has(id)),
+  ];
 }
 
 export function moveTabInOrder(
@@ -389,7 +425,7 @@ export const useMainTabsStore = create<MainTabsStore>()(
       closeTab: (id) =>
         set((s) => {
           const index = s.tabs.findIndex((t) => t.id === id);
-          if (index < 0) return s;
+          if (index < 0 || !confirmClose([s.tabs[index]!])) return s;
           const tabs = s.tabs.filter((t) => t.id !== id);
           if (s.active !== id) return { tabs };
           // Closing the open tab lands on its neighbour, then on the terminal.
@@ -398,6 +434,7 @@ export const useMainTabsStore = create<MainTabsStore>()(
         }),
       closeTabs: (group) =>
         set((s) => {
+          if (!confirmClose(s.tabs.filter((tab) => inGroup(tab, group)))) return s;
           const tabs = s.tabs.filter((t) => !inGroup(t, group));
           if (tabs.length === s.tabs.length) return s;
           const index = s.tabs.findIndex((t) => t.id === s.active);
@@ -422,3 +459,12 @@ export const useMainTabsStore = create<MainTabsStore>()(
     },
   ),
 );
+
+// Dispose drafts and retained editor models only after a tab really closes.
+useMainTabsStore.subscribe((state, previous) => {
+  const kept = new Set(state.tabs.map((tab) => tab.id));
+  for (const tab of previous.tabs) {
+    if (tab.kind === "file" && !tab.scope && !kept.has(tab.id))
+      closeDraft(draftKey(tab.machineId, tab.path));
+  }
+});

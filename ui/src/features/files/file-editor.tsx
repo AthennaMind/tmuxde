@@ -1,3 +1,4 @@
+import { holdDirectoryWatch } from "./directory-watch";
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { X, Save, WrapText, Terminal, AlertTriangle, Lock } from "lucide-react";
 import type { ServerMessage } from "@/protocol";
@@ -179,10 +180,8 @@ function OpenFileEditor({ path }: { path: string }) {
     if (!client) return;
     // The server watches folders only. Watch the one that holds the file.
     const folder = parentFolder(path);
-    client.send({ type: "file:watch", path: folder });
-    return () => {
-      getRelayClient()?.send({ type: "file:unwatch", path: folder });
-    };
+    const watch = holdDirectoryWatch(client, folder, () => {});
+    return watch.release;
   }, [path, connectionStatus]);
 
   // The editor's Ctrl+S calls the handler of the latest render, so the text

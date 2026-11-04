@@ -359,7 +359,7 @@ func (n *Node) Handle(ctx context.Context, id node.ConnID, msg client.Message) e
 		return fmt.Errorf("%w: empty message", ErrNotImplemented)
 	}
 	switch msg.(type) {
-	case *client.FileList, *client.FileRead, *client.FileStat, *client.FileWatch,
+	case *client.FileEditRead, *client.FileEditSave, *client.FileList, *client.FileRead, *client.FileStat, *client.FileWatch,
 		*client.FileUnwatch, *client.FileWrite, *client.FileCreate, *client.FileMkdir,
 		*client.FileDelete, *client.FileRename, *client.FileUpload:
 		if n.files == nil {

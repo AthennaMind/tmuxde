@@ -216,6 +216,14 @@ export const SETTINGS = {
     label: "Zoom the active pane",
     description: "Zoom the active pane when a session opens or a pane splits.",
   }),
+  "tabs.terminalsFirst": setting({
+    ...booleanValue(),
+    default: false,
+    scope: "user",
+    section: "Sessions",
+    label: "Keep terminal tabs first",
+    description: "Keep sessions before other tabs. New tabs open after the last terminal.",
+  }),
   "panes.showIndexes": setting({
     ...booleanValue(),
     default: true,
@@ -224,13 +232,22 @@ export const SETTINGS = {
     label: "Show pane indexes",
     description: "Show the tmux pane index in the corner of each pane.",
   }),
+  "files.autoSave": setting({
+    ...booleanValue(),
+    default: false,
+    scope: "user",
+    section: "Files",
+    label: "Autosave",
+    description:
+      "Save file edits after one second without typing. Pause on conflicts or connection loss.",
+  }),
   "files.wrapLines": setting({
     ...booleanValue(),
     default: false,
     scope: "user",
     section: "Files",
     label: "Wrap long lines",
-    description: "Soft wrap long lines in file and diff previews.",
+    description: "Soft wrap long lines in file editors and diff previews.",
   }),
   "files.markdownPreview": setting({
     ...booleanValue(),

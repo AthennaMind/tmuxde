@@ -275,6 +275,8 @@ interface SettingsStore {
   autoZoom: boolean;
   /** Soft wrap long lines in file and diff previews. */
   wrapLines: boolean;
+  autoSave: boolean;
+  setAutoSave: (autoSave: boolean) => void;
   /** Show Markdown files rendered. Off shows their source. */
   markdownPreview: boolean;
   /** File filter text of the commit view, as typed. Applies to every commit. */
@@ -283,6 +285,8 @@ interface SettingsStore {
   commitFilterMode: CommitFilterMode;
   /** tmux pane index in the corner of each pane grid cell. */
   showPaneIndexes: boolean;
+  keepTerminalTabsFirst: boolean;
+  setKeepTerminalTabsFirst: (enabled: boolean) => void;
   setToolbarKeys: (keys: ToolbarKey[]) => void;
   toggleToolbarKey: (id: string) => void;
   resetToolbarKeys: () => void;
@@ -340,10 +344,14 @@ export const useSettingsStore = create<SettingsStore>()((set) => ({
   hapticEnabled: true,
   autoZoom: true,
   wrapLines: false,
+  autoSave: false,
+  setAutoSave: (autoSave) => set({ autoSave }),
   markdownPreview: true,
   commitFilterPatterns: "",
   commitFilterMode: "hide",
   showPaneIndexes: true,
+  keepTerminalTabsFirst: false,
+  setKeepTerminalTabsFirst: (keepTerminalTabsFirst) => set({ keepTerminalTabsFirst }),
   setToolbarKeys: (toolbarKeys) => set({ toolbarKeys }),
   toggleToolbarKey: (id) =>
     set((s) => ({

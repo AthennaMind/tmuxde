@@ -45,9 +45,11 @@ export type UploadPicker = { choose: (directory?: string) => void };
 export function UploadControl({
   directory,
   pickerRef,
+  showButton = true,
 }: {
   directory: string;
   pickerRef?: Ref<UploadPicker>;
+  showButton?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   // Captured when the picker opens. The confirmation shows it and the upload
@@ -80,17 +82,19 @@ export function UploadControl({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-11 w-11 shrink-0"
-        aria-label="Upload files"
-        title={`Upload to ${directory}`}
-        disabled={!allowed}
-        onClick={() => open()}
-      >
-        <Upload className="h-4 w-4" aria-hidden />
-      </Button>
+      {showButton && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 shrink-0"
+          aria-label="Upload files"
+          title={`Upload to ${directory}`}
+          disabled={!allowed}
+          onClick={() => open()}
+        >
+          <Upload className="h-4 w-4" aria-hidden />
+        </Button>
+      )}
       <input
         ref={input}
         type="file"

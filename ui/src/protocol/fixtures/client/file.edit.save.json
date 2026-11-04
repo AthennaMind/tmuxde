@@ -1,0 +1,16 @@
+[
+  {
+    "type": "file:edit:save",
+    "requestId": "edit-2",
+    "path": "/workspace/notes.txt",
+    "content": "new text\n",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  {
+    "type": "file:edit:save",
+    "requestId": "edit-2",
+    "path": "/workspace/notes.txt",
+    "content": "",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+]

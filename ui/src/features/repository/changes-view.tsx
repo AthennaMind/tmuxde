@@ -1,4 +1,4 @@
-import { GitBranch, GitCompareArrows, RefreshCw } from "lucide-react";
+import { GitBranch, GitCompareArrows } from "lucide-react";
 import { cn } from "@/shared/utils";
 import { ChangesList } from "./repository-changes";
 import { useMainTabsStore } from "@/features/workspace/main-tabs-store";
@@ -9,6 +9,8 @@ import type { RepositoryState } from "./use-repository-state";
 export function ChangesView({ repo }: { repo: RepositoryState }) {
   const { context, status, paneId } = repo;
   const count = status?.entries.length ?? 0;
+  const branch = status?.branch ?? context?.branch ?? (context?.root ? "Detached HEAD" : null);
+  const showList = !repo.unavailable && !repo.error && !!status?.root && count > 0;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -25,36 +27,20 @@ export function ChangesView({ repo }: { repo: RepositoryState }) {
           </span>
         }
       >
-        <PanelIconButton
-          label="Refresh changes"
-          icon={RefreshCw}
-          onClick={repo.refreshStatus}
-          disabled={!repo.client}
-          spinning={repo.loading}
-        />
-      </PanelHeader>
-
-      <BranchRow repo={repo} />
-
-      {status?.root && count > 0 && (
-        <div className="shrink-0 border-b px-3 py-2">
-          <button
-            type="button"
+        {status?.root && count > 0 && (
+          <PanelIconButton
+            label="View all changes"
+            icon={GitCompareArrows}
             disabled={!repo.client || !paneId}
             onClick={() => {
               if (!paneId || !status.root) return;
-              useMainTabsStore.getState().openChanges({
-                paneId,
-                contextPath: status.root,
-              });
+              useMainTabsStore.getState().openChanges({ paneId, contextPath: status.root });
             }}
-            className="flex min-h-8 w-full items-center justify-center gap-2 rounded-md border px-3 text-[13px] hover:bg-accent disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <GitCompareArrows className="h-4 w-4" aria-hidden />
-            View all changes
-          </button>
-        </div>
-      )}
+          />
+        )}
+      </PanelHeader>
+
+      {!showList && <BranchRow repo={repo} />}
 
       <div className="min-h-0 flex-1 overflow-auto">
         {repo.unavailable ? (
@@ -76,6 +62,7 @@ export function ChangesView({ repo }: { repo: RepositoryState }) {
         ) : (
           <ChangesList
             dense
+            branch={branch}
             entries={status.entries}
             onOpen={(path, scope) => {
               if (!paneId || !context) return;

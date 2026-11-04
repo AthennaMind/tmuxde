@@ -1,3 +1,4 @@
+import { FileDraftSync } from "@/features/files/file-draft-sync";
 import { Fragment, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useMachines } from "@/features/connection/use-machines";
@@ -91,6 +92,7 @@ export function MachineWorkspace({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
+      <FileDraftSync />
       <RequireUnlockDialog
         open={unlockTarget !== null}
         sessionName={unlockTarget?.sessionName ?? ""}

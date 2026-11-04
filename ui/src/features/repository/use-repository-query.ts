@@ -1,4 +1,5 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useDirectoryWatch } from "@/features/files/use-directory-watch";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { RepoResult } from "@/protocol";
 import { useSessionTreeStore } from "@/features/session/session-tree-store";
 import {
@@ -48,8 +49,22 @@ export function useRepositoryQuery(
     result?: RepositoryResult;
     error?: string;
   }>();
+  const [liveRefresh, setLiveRefresh] = useState(0);
+  const revision = refresh + liveRefresh;
+  const busy = useRef(false);
+  const again = useRef(false);
+  useDirectoryWatch(
+    client,
+    attached && query?.action === "list" ? (query.path ?? null) : null,
+    () => {
+      if (busy.current) again.current = true;
+      else setLiveRefresh((value) => value + 1);
+    },
+  );
   useEffect(() => {
-    if (key === "null" || !attached) return;
+    if (key === "null" || !attached || client.status !== "connected") return;
+    busy.current = true;
+    again.current = false;
     const controller = new AbortController();
     repositoryRequest(
       client,
@@ -57,19 +72,31 @@ export function useRepositoryQuery(
       controller.signal,
     )
       .then((result) => {
-        if (!controller.signal.aborted) setState({ key, refresh, result });
+        if (!controller.signal.aborted) setState({ key, refresh: revision, result });
       })
       .catch((error: unknown) => {
         if (!controller.signal.aborted)
           setState({
             key,
-            refresh,
+            refresh: revision,
             error: error instanceof Error ? error.message : "Could not load files.",
           });
+      })
+      .finally(() => {
+        if (controller.signal.aborted) return;
+        busy.current = false;
+        if (again.current) {
+          again.current = false;
+          setLiveRefresh((value) => value + 1);
+        }
       });
-    return () => controller.abort();
-  }, [attached, client, key, refresh]);
-  const current = state?.key === key && state.refresh === refresh ? state : undefined;
+    return () => {
+      controller.abort();
+      busy.current = false;
+      again.current = false;
+    };
+  }, [attached, client, key, revision]);
+  const current = state?.key === key && state.refresh === revision ? state : undefined;
   const shown =
     current ??
     (query !== null && (keepPrevious || (keepOnRefresh && state?.key === key)) ? state : undefined);

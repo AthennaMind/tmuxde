@@ -1,0 +1,37 @@
+[
+  {
+    "type": "file:edit:result",
+    "requestId": "edit-1",
+    "path": "/workspace/notes.txt",
+    "result": {
+      "status": "ok",
+      "document": {
+        "content": "old text\n",
+        "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "writable": true
+      }
+    }
+  },
+  {
+    "type": "file:edit:result",
+    "requestId": "edit-1",
+    "path": "/workspace/notes.txt",
+    "result": {
+      "status": "conflict",
+      "document": {
+        "content": "old text\n",
+        "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "writable": true
+      }
+    }
+  },
+  {
+    "type": "file:edit:result",
+    "requestId": "edit-1",
+    "path": "/workspace/notes.txt",
+    "result": {
+      "status": "error",
+      "error": "Permission denied"
+    }
+  }
+]

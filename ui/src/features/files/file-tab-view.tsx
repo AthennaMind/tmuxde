@@ -1,49 +1,54 @@
-import { useCallback, useEffect, useState } from "react";
-import { BookOpen, RefreshCw, WrapText, X } from "lucide-react";
-import { DownloadButton } from "./transfer-controls";
+import { EditableFileTab } from "./editable-file-tab";
 import { cn } from "@/shared/utils";
 import { useRelayClient } from "@/features/connection/use-websocket";
 import { isMarkdownPath } from "./markdown";
 import { getFileViewMode } from "./file-utils";
 import { changeTouchesDiff, changeTouchesFile } from "@/features/repository/repo-change";
 import { useRepoChangeCount } from "@/features/repository/repo-watch-store";
-import { shortenPath } from "@/shared/tmux-labels";
 import { useConnectionStore } from "@/features/connection/connection-store";
 import { useMainTabsStore, type FileTab } from "@/features/workspace/main-tabs-store";
-import { HeaderButton } from "@/features/workspace/panel-header";
 import { useSettingsStore } from "@/features/settings/settings-store";
-import { RepositoryFileIcon } from "./repository-file-icon";
 import { FilePreview } from "@/features/repository/repository-preview";
 import { Notice } from "@/shared/notice";
 import { useRepositoryQuery } from "@/features/repository/use-repository-query";
 import type { RepositoryClient } from "@/features/repository/repository-request";
 
-const SCOPE_LABELS = {
-  staged: "Staged changes",
-  unstaged: "Unstaged changes",
-  untracked: "Untracked file",
-};
-
 /** A file or diff in the desktop main area, opened from the sidebar. */
-export function FileTabView({ tab, className }: { tab: FileTab; className?: string }) {
+export function FileTabView(props: { tab: FileTab; className?: string }) {
+  if (!props.tab.scope && getFileViewMode(props.tab.path) === "text") {
+    return <EditableFileTab {...props} preview={<FileTabFallback tab={props.tab} />} />;
+  }
+  return <PreviewFileTab {...props} />;
+}
+
+function FileTabFallback({ tab }: { tab: FileTab }) {
+  const client = useRelayClient();
+  const wrap = useSettingsStore((state) => state.wrapLines);
+  if (!client || client.status !== "connected")
+    return <Notice>Connect to preview this file.</Notice>;
+  return (
+    <FileTabBody
+      client={client}
+      tab={tab}
+      refresh={0}
+      wrap={wrap}
+      fullPath={tab.path}
+      rendered={false}
+      onOpenPath={() => {}}
+    />
+  );
+}
+
+function PreviewFileTab({ tab, className }: { tab: FileTab; className?: string }) {
   const client = useRelayClient();
   const status = useConnectionStore((s) => s.status);
-  const closeTab = useMainTabsStore((s) => s.closeTab);
-  const [refresh, setRefresh] = useState(0);
-  // Spins from a Reload click until its answer lands.
-  const [reloading, setReloading] = useState(false);
-  const settled = useCallback(() => setReloading(false), []);
   const wrap = useSettingsStore((s) => s.wrapLines);
-  const setWrap = useSettingsStore((s) => s.setWrapLines);
   const rendered = useSettingsStore((s) => s.markdownPreview);
-  const setRendered = useSettingsStore((s) => s.setMarkdownPreview);
   const openFile = useMainTabsStore((s) => s.openFile);
   const fullPath = tab.scope && tab.root ? `${tab.root.replace(/\/$/, "")}/${tab.path}` : tab.path;
   const name = tab.path.split("/").pop() || tab.path;
   const markdown = !tab.scope && isMarkdownPath(fullPath);
   const showRendered = markdown && rendered;
-  // Media and other binaries have no lines to wrap.
-  const text = !!tab.scope || getFileViewMode(fullPath) === "text";
   // A push that touches the file reloads it quietly. Staged and unstaged
   // diffs also follow the index and HEAD.
   const pushed = useRepoChangeCount((change) =>
@@ -63,53 +68,11 @@ export function FileTabView({ tab, className }: { tab: FileTab; className?: stri
         className,
       )}
     >
-      <div className="flex min-h-11 shrink-0 items-center gap-2 border-b ps-3 pe-1 font-chrome">
-        <RepositoryFileIcon path={fullPath} />
-        <span className="shrink-0 text-[13px] font-medium">{name}</span>
-        {tab.scope && (
-          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-            {SCOPE_LABELS[tab.scope]}
-          </span>
-        )}
-        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={fullPath}>
-          {shortenPath(fullPath)}
-        </span>
-        {!tab.scope && <DownloadButton path={fullPath} target={tab.machineId} />}
-        {markdown && (
-          <HeaderButton
-            label="Render Markdown"
-            pressed={rendered}
-            onClick={() => setRendered(!rendered)}
-          >
-            <BookOpen className={cn("h-4 w-4", rendered && "text-primary")} />
-          </HeaderButton>
-        )}
-        {text && !showRendered && (
-          <HeaderButton label="Wrap lines" pressed={wrap} onClick={() => setWrap(!wrap)}>
-            <WrapText className={cn("h-4 w-4", wrap && "text-primary")} />
-          </HeaderButton>
-        )}
-        <HeaderButton
-          label="Reload"
-          onClick={() => {
-            setRefresh((value) => value + 1);
-            setReloading(true);
-          }}
-        >
-          <RefreshCw
-            className={cn("h-4 w-4", reloading && "animate-spin motion-reduce:animate-none")}
-          />
-        </HeaderButton>
-        <HeaderButton label="Close" onClick={() => closeTab(tab.id)}>
-          <X className="h-4 w-4" />
-        </HeaderButton>
-      </div>
       {client && status === "connected" ? (
         <FileTabBody
           client={client}
           tab={tab}
-          refresh={refresh + pushed}
-          onSettled={settled}
+          refresh={pushed}
           wrap={wrap}
           fullPath={fullPath}
           rendered={showRendered}
@@ -133,7 +96,6 @@ function FileTabBody({
   client,
   tab,
   refresh,
-  onSettled,
   wrap,
   fullPath,
   rendered,
@@ -142,8 +104,6 @@ function FileTabBody({
   client: RepositoryClient;
   tab: FileTab;
   refresh: number;
-  /** The answer for the current `refresh` landed. */
-  onSettled: () => void;
   wrap: boolean;
   fullPath: string;
   rendered: boolean;
@@ -166,9 +126,6 @@ function FileTabBody({
   );
   const content =
     query.result?.kind === "read" || query.result?.kind === "diff" ? query.result : undefined;
-  useEffect(() => {
-    if (!query.loading) onSettled();
-  }, [query.loading, onSettled]);
   if (query.error) return <Notice error>{query.error}</Notice>;
   if (query.loading && !content) return <Notice>Loading</Notice>;
   if (!content) return null;

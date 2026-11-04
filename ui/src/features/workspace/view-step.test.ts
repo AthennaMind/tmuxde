@@ -32,6 +32,18 @@ describe("viewOrder", () => {
     expect(order).toEqual(["file:/a.ts", terminalViewId(OPS), terminalViewId(DEV), "settings"]);
   });
 
+  it("navigates the terminal group and newly inserted buffer in displayed order", () => {
+    const { order, current } = viewOrder(
+      state({
+        order: ["settings", terminalViewId(OPS), terminalViewId(DEV)],
+        keepTerminalTabsFirst: true,
+      }),
+    );
+    expect(order).toEqual([terminalViewId(OPS), terminalViewId(DEV), "file:/a.ts", "settings"]);
+    expect(neighbourView(order, current, 1)).toBe("file:/a.ts");
+    expect(neighbourView(order, "file:/a.ts", -1)).toBe(terminalViewId(DEV));
+  });
+
   it("names a tab as current, or nothing the strip lacks", () => {
     expect(viewOrder(state({ active: "settings" })).current).toBe("settings");
     expect(viewOrder(state({ activeSession: null })).current).toBeNull();

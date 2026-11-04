@@ -8,3 +8,5 @@ export * from "./user-documents";
 
 export * from "./terminal-preview";
 export { TerminalPreviewFrameMessage } from "./server-messages";
+
+export type { FileDocument } from "./file-edit";
