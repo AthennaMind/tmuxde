@@ -8,6 +8,8 @@ import { usePaneStore } from "@/features/panes/pane-store";
 import { filesDisabled, useConnectionStore } from "@/features/connection/connection-store";
 import { useSessionTreeStore } from "@/features/session/session-tree-store";
 import { repositoryRequest, type RepositoryClient } from "./repository-request";
+import { machineId } from "@/features/connection/machine-context";
+import { useExplorerStore } from "@/features/workspace/explorer-store";
 
 export type RepositoryContext = Extract<RepoResult, { kind: "context" }>;
 export type RepositoryStatus = Extract<RepoResult, { kind: "status" }>;
@@ -139,6 +141,7 @@ export function useRepositoryState(watching: boolean): RepositoryState {
   useEffect(() => {
     const paneId = statusPane();
     if (!statusRequestKey || !client || !paneId || !contextPath) return;
+    const machine = machineId();
     const controller = new AbortController();
     statusBusy.current = true;
     const settle = () => {
@@ -155,12 +158,14 @@ export function useRepositoryState(watching: boolean): RepositoryState {
     )
       .then((result) => {
         if (controller.signal.aborted) return;
-        if (result.kind === "status")
+        if (result.kind === "status") {
+          useExplorerStore.getState().reconcileGit(machine, result);
           setStatus({
             key: statusRequestKey,
             path: contextPath,
             value: result,
           });
+        }
         settle();
       })
       .catch((error: unknown) => {

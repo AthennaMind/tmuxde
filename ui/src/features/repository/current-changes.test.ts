@@ -1,7 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RepoResult } from "@/protocol";
 import { currentChangeFiles, loadCurrentChanges } from "./current-changes";
 import { repositoryRequest, type RepositoryClient } from "./repository-request";
+import { explorerTreeKey, useExplorerStore } from "@/features/workspace/explorer-store";
+import { setMachineId } from "@/features/connection/machine-context";
 
 vi.mock("./repository-request", () => ({ repositoryRequest: vi.fn() }));
 const request = vi.mocked(repositoryRequest);
@@ -28,7 +30,10 @@ const load = (signal = new AbortController().signal) =>
 
 beforeEach(() => {
   request.mockReset();
+  useExplorerStore.setState({ folders: {} });
+  setMachineId(null);
 });
+afterEach(() => setMachineId(null));
 
 describe("current changes", () => {
   it("keeps partially staged files in both scopes and untracked files once", () => {
@@ -134,5 +139,48 @@ describe("current changes", () => {
     request.mockResolvedValueOnce(status([]));
     expect((await load()).files).toEqual([]);
     expect(request).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("current changes folder cleanup", () => {
+  const local = explorerTreeKey("local", "changes:staged", "/repo", "/repo");
+  const beta = explorerTreeKey("beta", "changes:staged", "/repo", "/repo");
+  const seed = () => {
+    for (const key of [local, beta])
+      useExplorerStore.getState().updateFolders(key, () => new Set(["src"]));
+  };
+
+  it("cleans captured machine after successful status even if active machine changed", async () => {
+    seed();
+    let resolveStatus!: (value: ReturnType<typeof status>) => void;
+    request.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveStatus = resolve;
+      }),
+    );
+    const pending = load();
+    setMachineId("beta");
+    resolveStatus(status([]));
+    await pending;
+    expect(useExplorerStore.getState().folders[local]).toBeUndefined();
+    expect(useExplorerStore.getState().folders[beta]).toEqual(["src"]);
+  });
+
+  it("does not clean cancelled status that resolves after cancellation", async () => {
+    seed();
+    const controller = new AbortController();
+    request.mockImplementationOnce(async () => {
+      controller.abort();
+      return status([]);
+    });
+    await expect(load(controller.signal)).rejects.toMatchObject({ name: "AbortError" });
+    expect(useExplorerStore.getState().folders[local]).toEqual(["src"]);
+  });
+
+  it("leaves saved folders on failed status", async () => {
+    seed();
+    request.mockRejectedValueOnce(new Error("Connection lost"));
+    await expect(load()).rejects.toThrow("Connection lost");
+    expect(useExplorerStore.getState().folders[local]).toEqual(["src"]);
   });
 });

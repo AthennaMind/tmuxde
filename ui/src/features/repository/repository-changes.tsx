@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react";
-import { ChevronRight, Folder, GitBranch, List, ListTree } from "lucide-react";
+import { ChevronRight, Folder, GitBranch, List, ListCollapse, ListTree } from "lucide-react";
 import type { RepoResult } from "@/protocol";
 import { cn } from "@/shared/utils";
 import { buildChangeTree, type ChangeNode } from "./repository-tree";
 import { RepositoryFileIcon } from "@/features/files/repository-file-icon";
+import { machineId } from "@/features/connection/machine-context";
+import { explorerTreeKey, useExplorerStore } from "@/features/workspace/explorer-store";
+import { useExplorerFolders } from "@/features/workspace/use-explorer-folders";
 
 type Scope = "staged" | "unstaged" | "untracked";
 const SCOPE_LABELS = {
@@ -25,11 +28,15 @@ function savedView(): "list" | "tree" {
 
 type ChangeEntry = Extract<RepoResult, { kind: "status" }>["entries"][number];
 export function ChangesList({
+  root,
+  workdir,
   entries,
   onOpen,
   dense = false,
   branch,
 }: {
+  root: string;
+  workdir: string;
   entries: ChangeEntry[];
   onOpen: (path: string, scope: Scope) => void;
   /** Mouse density for the desktop sidebar. Touch rows stay 44px. */
@@ -64,6 +71,26 @@ export function ChangesList({
       files: entries.filter((entry) => entry.index === "?" || entry.worktree === "?"),
     },
   ];
+  const collapseAll = () => {
+    for (const { scope, files } of groups) {
+      const folders = new Set<string>();
+      const collect = (nodes: ChangeNode<ChangeEntry>[]) => {
+        for (const node of nodes) {
+          if (!node.children) continue;
+          folders.add(node.path);
+          collect(node.children);
+        }
+      };
+      collect(buildChangeTree(files));
+      if (!folders.size) continue;
+      useExplorerStore
+        .getState()
+        .updateFolders(
+          explorerTreeKey(machineId(), `changes:${scope}`, root, workdir),
+          (previous) => new Set([...(previous ?? []), ...folders]),
+        );
+    }
+  };
   return (
     <div className={dense ? "py-1" : "py-2"}>
       <div
@@ -80,38 +107,55 @@ export function ChangesList({
         ) : (
           <span />
         )}
-        <div
-          role="group"
-          aria-label="Changed file layout"
-          className={cn(
-            "flex shrink-0 items-center",
-            dense ? "gap-0.5 rounded-md bg-muted/50 p-0.5" : "gap-1",
+        <div className="flex shrink-0 items-center gap-1">
+          {view === "tree" && (
+            <button
+              type="button"
+              aria-label="Collapse all"
+              title="Collapse all"
+              onClick={collapseAll}
+              disabled={!entries.some((entry) => entry.path.includes("/"))}
+              className={cn(
+                "flex shrink-0 items-center justify-center rounded text-muted-foreground enabled:hover:bg-accent/60 enabled:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40",
+                dense ? "h-7 w-7 pointer-coarse:h-11 pointer-coarse:w-11" : "h-11 w-11",
+              )}
+            >
+              <ListCollapse className="h-4 w-4" aria-hidden />
+            </button>
           )}
-        >
-          {(["list", "tree"] as const).map((value) => {
-            const Icon = value === "tree" ? ListTree : List;
-            const label = value === "tree" ? "Tree" : "List";
-            return (
-              <button
-                key={value}
-                type="button"
-                aria-label={dense ? `${label} view` : label}
-                title={`${label} view`}
-                aria-pressed={view === value}
-                onClick={() => selectView(value)}
-                className={cn(
-                  "flex items-center justify-center gap-2 rounded text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  dense ? "h-7 w-7 pointer-coarse:h-11 pointer-coarse:w-11" : "min-h-11 px-3",
-                  view === value
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/60",
-                )}
-              >
-                <Icon className="h-4 w-4" aria-hidden />
-                {!dense && label}
-              </button>
-            );
-          })}
+          <div
+            role="group"
+            aria-label="Changed file layout"
+            className={cn(
+              "flex shrink-0 items-center",
+              dense ? "gap-0.5 rounded-md bg-muted/50 p-0.5" : "gap-1",
+            )}
+          >
+            {(["list", "tree"] as const).map((value) => {
+              const Icon = value === "tree" ? ListTree : List;
+              const label = value === "tree" ? "Tree" : "List";
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-label={dense ? `${label} view` : label}
+                  title={`${label} view`}
+                  aria-pressed={view === value}
+                  onClick={() => selectView(value)}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    dense ? "h-7 w-7 pointer-coarse:h-11 pointer-coarse:w-11" : "min-h-11 px-3",
+                    view === value
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent/60",
+                  )}
+                >
+                  <Icon className="h-4 w-4" aria-hidden />
+                  {!dense && label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
       {groups
@@ -133,7 +177,14 @@ export function ChangesList({
               <span className="tabular-nums">{files.length}</span>
             </h3>
             {view === "tree" ? (
-              <ChangeTree files={files} scope={scope} onOpen={onOpen} dense={dense} />
+              <ChangeTree
+                root={root}
+                workdir={workdir}
+                files={files}
+                scope={scope}
+                onOpen={onOpen}
+                dense={dense}
+              />
             ) : (
               <ul>
                 {files.map((entry) => (
@@ -150,24 +201,43 @@ export function ChangesList({
 }
 
 function ChangeTree({
+  root,
+  workdir,
   files,
   scope,
   onOpen,
   dense,
 }: {
+  root: string;
+  workdir: string;
   files: ChangeEntry[];
   scope: Scope;
   onOpen: (path: string, scope: Scope) => void;
   dense: boolean;
 }) {
+  const [collapsed, setCollapsed] = useExplorerFolders(
+    explorerTreeKey(machineId(), `changes:${scope}`, root, workdir),
+  );
   const nodes = useMemo(() => buildChangeTree(files), [files]);
   const renderNodes = (items: ChangeNode<ChangeEntry>[], depth = 0): React.ReactNode => (
     <ul>
       {items.map((node) => (
         <li key={node.path}>
           {node.children ? (
-            <details open className="[&[open]>summary>svg:first-child]:rotate-90">
+            <details
+              open={!collapsed.has(node.path)}
+              className="[&[open]>summary>svg:first-child]:rotate-90"
+            >
               <summary
+                onClick={(event) => {
+                  event.preventDefault();
+                  setCollapsed((previous) => {
+                    const next = new Set(previous);
+                    if (next.has(node.path)) next.delete(node.path);
+                    else next.add(node.path);
+                    return next;
+                  });
+                }}
                 className={cn(
                   "flex cursor-pointer list-none items-center gap-2 text-sm hover:bg-muted/60 [&::-webkit-details-marker]:hidden",
                   dense ? "min-h-7 px-3 py-0.5" : "min-h-11 px-4 py-2",

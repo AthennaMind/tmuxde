@@ -663,6 +663,8 @@ function BrowserContents({
                     </div>
                   ) : (
                     <ChangesList
+                      root={status.root}
+                      workdir={context.path}
                       entries={status.entries}
                       onOpen={(file, scope) =>
                         navigate({ ...view, preview: { path: file, scope } })

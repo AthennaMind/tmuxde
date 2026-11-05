@@ -61,6 +61,8 @@ export function ChangesView({ repo }: { repo: RepositoryState }) {
           </div>
         ) : (
           <ChangesList
+            root={status.root}
+            workdir={context?.path ?? status.root}
             dense
             branch={branch}
             entries={status.entries}
