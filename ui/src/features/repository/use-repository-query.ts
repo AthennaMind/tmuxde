@@ -2,6 +2,8 @@ import { useDirectoryWatch } from "@/features/files/use-directory-watch";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { RepoResult } from "@/protocol";
 import { useSessionTreeStore } from "@/features/session/session-tree-store";
+import { machineId } from "@/features/connection/machine-context";
+import { useExplorerStore } from "@/features/workspace/explorer-store";
 import {
   isPaneFree,
   repositoryRequest,
@@ -63,6 +65,7 @@ export function useRepositoryQuery(
   );
   useEffect(() => {
     if (key === "null" || !attached || client.status !== "connected") return;
+    const machine = machineId();
     busy.current = true;
     again.current = false;
     const controller = new AbortController();
@@ -72,7 +75,9 @@ export function useRepositoryQuery(
       controller.signal,
     )
       .then((result) => {
-        if (!controller.signal.aborted) setState({ key, refresh: revision, result });
+        if (controller.signal.aborted) return;
+        if (result.kind === "status") useExplorerStore.getState().reconcileGit(machine, result);
+        setState({ key, refresh: revision, result });
       })
       .catch((error: unknown) => {
         if (!controller.signal.aborted)

@@ -62,12 +62,14 @@ export interface TreeRowModel {
   expanded?: boolean;
   /** The one highlighted row. */
   selected?: boolean;
+  /** File selection uses pressed state independently of current workspace. */
+  selection?: boolean;
   /** On the path to the selected row. */
   current?: boolean;
   /** A switch is on the wire and not confirmed yet. */
   pending?: boolean;
   muted?: boolean;
-  activate: () => void;
+  activate: (event: React.MouseEvent<HTMLButtonElement>) => void;
   toggle?: () => void;
   doubleClick?: () => void;
   rename?: { value: string; submit: (name: string) => void };
@@ -173,7 +175,9 @@ export function TreeRow({
         "group/row relative flex items-center gap-0.5 rounded-md pe-0.5 text-[13px]",
         row.description ? "min-h-11 py-1" : "h-7",
         "has-[[data-tree-row]:focus-visible]:ring-2 has-[[data-tree-row]:focus-visible]:ring-ring",
-        row.selected ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent/50",
+        row.selected || row.selection
+          ? "bg-accent text-accent-foreground"
+          : "text-foreground hover:bg-accent/50",
         row.muted && !row.selected && "text-muted-foreground",
         row.pending && "opacity-70",
       )}
@@ -232,7 +236,8 @@ export function TreeRow({
           type="button"
           data-tree-row={row.key}
           tabIndex={tabStop ? 0 : -1}
-          aria-current={row.selected ? "true" : undefined}
+          aria-current={row.selection === undefined && row.selected ? "true" : undefined}
+          aria-pressed={row.selection}
           aria-expanded={row.expandable ? row.expanded : undefined}
           title={peek.enabled ? undefined : (row.title ?? row.label)}
           aria-keyshortcuts={peek.enabled ? "P" : undefined}
@@ -243,8 +248,8 @@ export function TreeRow({
           onPointerMove={peek.pointerMove}
           onPointerUp={peek.pointerUp}
           onPointerCancel={peek.pointerUp}
-          onClick={() => {
-            if (!peek.consumeClick()) row.activate();
+          onClick={(event) => {
+            if (!peek.consumeClick()) row.activate(event);
           }}
           onDoubleClick={row.doubleClick}
           onKeyDown={handleKey}

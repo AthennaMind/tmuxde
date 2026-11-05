@@ -2,6 +2,8 @@ import type { RepoResult } from "@/protocol";
 import { parsePatch } from "./commit-diff";
 import type { DiffFile, FileChangesResult } from "./commit-view";
 import { repositoryRequest, type RepositoryClient } from "./repository-request";
+import { machineId } from "@/features/connection/machine-context";
+import { useExplorerStore } from "@/features/workspace/explorer-store";
 
 type Status = Extract<RepoResult, { kind: "status" }>;
 type Scope = "staged" | "unstaged" | "untracked";
@@ -45,8 +47,11 @@ export async function loadCurrentChanges(
   path: string,
   signal: AbortSignal,
 ): Promise<CurrentChangesResult> {
+  const machine = machineId();
   const status = await repositoryRequest(client, { id: paneId, action: "status", path }, signal);
+  signal.throwIfAborted();
   if (status.kind !== "status") throw new Error("Unexpected changes response.");
+  useExplorerStore.getState().reconcileGit(machine, status);
   const files = currentChangeFiles(status.entries);
   const result: CurrentChangesResult = {
     root: status.root,

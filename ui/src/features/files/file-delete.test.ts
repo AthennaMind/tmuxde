@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ServerMessage } from "@/protocol";
+import type { FileEntry, ServerMessage } from "@/protocol";
 import type { RepositoryClient } from "@/features/repository/repository-request";
 import { fileTabId, useMainTabsStore, type FileTab } from "@/features/workspace/main-tabs-store";
 import { draftKey, editDraft, openDraft, useFileDrafts } from "./file-drafts";
 import { useFileStore } from "./file-store";
-import { deleteFileEntry } from "./file-delete";
+import { deleteFileEntries, deleteFileEntry, deleteRoots } from "./file-delete";
 
 function connection() {
   const messages = new Set<(message: ServerMessage) => void>();
@@ -74,6 +74,117 @@ beforeEach(() => {
   useMainTabsStore.setState({ tabs: [], active: "terminal", order: [] });
   useFileDrafts.setState({ drafts: {} });
   useFileStore.setState({ editorFile: null });
+});
+
+function entry(path: string, type: FileEntry["type"] = "file"): FileEntry {
+  return { path, name: path.split("/").pop()!, type, size: 0, modified: "" };
+}
+
+describe("bulk file deletion", () => {
+  it("removes duplicate paths and descendants of selected folders", () => {
+    const parent = entry("/work/folder", "directory");
+    const adjacent = entry("/work/folder-extra/note");
+    expect(
+      deleteRoots([
+        entry("/work/folder/nested/note"),
+        parent,
+        adjacent,
+        parent,
+        entry("/work/folder/nested", "directory"),
+      ]),
+    ).toEqual([parent, adjacent]);
+  });
+
+  it("does not treat symlinks as selected parent folders", () => {
+    const entries = [entry("/work/link", "symlink"), entry("/work/link/note")];
+    expect(deleteRoots(entries)).toEqual(entries);
+  });
+
+  it("checks every target before deleting any file", async () => {
+    const fake = connection();
+    const key = open("alpha", "/work/b");
+    editDraft(key, "unsaved");
+    await expect(
+      deleteFileEntries(
+        fake.client,
+        "alpha",
+        [entry("/work/a"), entry("/work/b")],
+        new AbortController().signal,
+        vi.fn(),
+      ),
+    ).rejects.toThrow("Save or close");
+    expect(fake.client.send).not.toHaveBeenCalled();
+  });
+
+  it("deletes sequentially and reports only confirmed targets", async () => {
+    const fake = connection();
+    const onDeleted = vi.fn();
+    const parent = entry("/work/folder", "directory");
+    const next = entry("/work/note");
+    const pending = deleteFileEntries(
+      fake.client,
+      "alpha",
+      [parent, entry("/work/folder/child"), next],
+      new AbortController().signal,
+      onDeleted,
+    );
+    expect(fake.client.send).toHaveBeenCalledTimes(1);
+    expect(onDeleted).not.toHaveBeenCalled();
+    fake.reply(parent.path);
+    await vi.waitFor(() => expect(fake.client.send).toHaveBeenCalledTimes(2));
+    expect(onDeleted).toHaveBeenCalledExactlyOnceWith(parent);
+    fake.reply(next.path);
+    await pending;
+    expect(onDeleted.mock.calls).toEqual([[parent], [next]]);
+    expect(fake.client.send).toHaveBeenNthCalledWith(2, { type: "file:delete", path: next.path });
+  });
+
+  it.each(["rejected", "disconnected", "aborted"])(
+    "stops remaining batch after %s request and never replays",
+    async (failure) => {
+      const fake = connection();
+      const onDeleted = vi.fn();
+      const controller = new AbortController();
+      const pending = deleteFileEntries(
+        fake.client,
+        "alpha",
+        [entry("/work/a"), entry("/work/b"), entry("/work/c")],
+        controller.signal,
+        onDeleted,
+      );
+      const result = expect(pending).rejects.toThrow();
+      fake.reply("/work/a");
+      await vi.waitFor(() => expect(fake.client.send).toHaveBeenCalledTimes(2));
+      if (failure === "rejected") fake.reply("/work/b", false);
+      else if (failure === "aborted") controller.abort();
+      else for (const handler of fake.statuses) handler("reconnecting");
+      await result;
+      for (const handler of fake.statuses) handler("connected");
+      expect(fake.client.send).toHaveBeenCalledTimes(2);
+      expect(onDeleted).toHaveBeenCalledExactlyOnceWith(entry("/work/a"));
+      expect(fake.messages.size + fake.statuses.size).toBe(0);
+    },
+  );
+
+  it("rechecks files edited while earlier deletion is pending", async () => {
+    const fake = connection();
+    const key = open("alpha", "/work/b");
+    const onDeleted = vi.fn();
+    const pending = deleteFileEntries(
+      fake.client,
+      "alpha",
+      [entry("/work/a"), entry("/work/b")],
+      new AbortController().signal,
+      onDeleted,
+    );
+    const result = expect(pending).rejects.toThrow("Save or close");
+    editDraft(key, "new edit");
+    fake.reply("/work/a");
+    await result;
+    expect(fake.client.send).toHaveBeenCalledTimes(1);
+    expect(onDeleted).toHaveBeenCalledTimes(1);
+    expect(useFileDrafts.getState().drafts[key]?.content).toBe("new edit");
+  });
 });
 
 describe("file deletion", () => {

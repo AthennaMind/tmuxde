@@ -27,13 +27,13 @@ export function machineBasePath(): string {
  * Per browser keys cleared with the workspace data.
  *
  * Machine scoped keys above match by prefix, since each remote machine adds
- * its own suffix. This one exists once per browser, so it matches by exact
- * name. `tmuxde-user-documents` caches the hub's settings and keybindings,
+ * its own suffix. Caches match by exact name. `tmuxde-explorer-folders` holds
+ * paths. `tmuxde-user-documents` caches the hub's settings and keybindings,
  * which a disconnected or erased device must not keep. The hub copy stays the
  * source. `tmuxde-device-settings` stays, as the font size did before it
  * moved there. It holds sizes and a renderer choice, nothing private.
  */
-const CACHE_KEYS = new Set(["tmuxde-user-documents"]);
+const CACHE_KEYS = new Set(["tmuxde-user-documents", "tmuxde-explorer-folders"]);
 
 /** Remove saved workspace data for every machine on device erasure. */
 export function clearMachineStorage(): void {

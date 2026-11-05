@@ -45,11 +45,14 @@ function memoryStorage(): Storage {
 describe("clearMachineStorage", () => {
   it("removes the user documents cache with workspace data", () => {
     const local = memoryStorage();
-    vi.stubGlobal("window", { localStorage: local, sessionStorage: memoryStorage() });
+    const session = memoryStorage();
+    vi.stubGlobal("window", { localStorage: local, sessionStorage: session });
+    session.setItem("tmuxde-explorer-folders", "saved folders");
     for (const key of [
       USER_DOCUMENTS_CACHE_KEY,
       DEVICE_SETTINGS_KEY,
       "tmuxde-main-tabs:machine:alpha",
+      "tmuxde-explorer-folders",
       "theme",
       "tmuxde-sidebar",
     ]) {
@@ -58,6 +61,8 @@ describe("clearMachineStorage", () => {
     clearMachineStorage();
     expect(local.getItem(USER_DOCUMENTS_CACHE_KEY)).toBeNull();
     expect(local.getItem("tmuxde-main-tabs:machine:alpha")).toBeNull();
+    expect(local.getItem("tmuxde-explorer-folders")).toBeNull();
+    expect(session.getItem("tmuxde-explorer-folders")).toBeNull();
     // Preferences outside the synced settings stay, as before. Device sizes
     // stay too, as the font size did in its old store.
     expect(local.getItem(DEVICE_SETTINGS_KEY)).toBe("x");

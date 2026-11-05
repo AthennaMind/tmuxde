@@ -3,14 +3,9 @@ import { useMainTabsStore, TERMINAL_TAB } from "@/features/workspace/main-tabs-s
 import { draftKey, draftProtected, pathWithin, useFileDrafts } from "./file-drafts";
 import { useFileStore } from "./file-store";
 import { fileOperation } from "./file-operation";
+import type { FileEntry } from "@/protocol";
 
-/** Delete only after dialog confirmation. Unconfirmed requests keep tabs and drafts. */
-export async function deleteFileEntry(
-  client: RepositoryClient,
-  machine: string,
-  path: string,
-  signal: AbortSignal,
-): Promise<void> {
+function assertDeletable(machine: string, path: string) {
   if (
     Object.values(useFileDrafts.getState().drafts).some(
       (draft) => draft.machine === machine && pathWithin(draft.path, path) && draftProtected(draft),
@@ -22,6 +17,52 @@ export async function deleteFileEntry(
   const overlay = useFileStore.getState().editorFile;
   if (overlay && pathWithin(overlay, path))
     throw new Error("Close overlay editor before deleting this file.");
+}
+
+/** Selected folders already include their descendants. */
+export function deleteRoots(entries: FileEntry[]): FileEntry[] {
+  return entries.filter(
+    (entry, index) =>
+      entries.findIndex((other) => other.path === entry.path) === index &&
+      !entries.some(
+        (parent) =>
+          parent.type === "directory" &&
+          parent.path !== entry.path &&
+          pathWithin(entry.path, parent.path),
+      ),
+  );
+}
+
+/** Preflight every target. Stop at first failure and never replay mutations. */
+export async function deleteFileEntries(
+  client: RepositoryClient,
+  machine: string,
+  entries: FileEntry[],
+  signal: AbortSignal,
+  onDeleted: (entry: FileEntry) => void,
+): Promise<void> {
+  const roots = deleteRoots(entries);
+  for (const entry of roots) assertDeletable(machine, entry.path);
+  for (const entry of roots) {
+    try {
+      await deleteFileEntry(client, machine, entry.path, signal);
+      if (signal.aborted) return;
+      onDeleted(entry);
+    } catch (cause) {
+      if (signal.aborted) throw cause;
+      throw new Error(`${entry.path}: ${(cause as Error).message}`);
+    }
+  }
+}
+
+/** Delete only after dialog confirmation. Unconfirmed requests keep tabs and drafts. */
+export async function deleteFileEntry(
+  client: RepositoryClient,
+  machine: string,
+  path: string,
+  signal: AbortSignal,
+): Promise<void> {
+  assertDeletable(machine, path);
   await fileOperation(client, { type: "file:delete", path }, signal);
   useMainTabsStore.setState((state) => {
     const tabs = state.tabs.filter((tab) => {
