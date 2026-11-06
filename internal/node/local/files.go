@@ -231,7 +231,8 @@ func (n *Node) fileUpload(ctx context.Context, c *conn, m *client.FileUpload) er
 	return c.send(ctx, res)
 }
 
-// repoRequest answers repo:request. The pane must belong to the attached
+// repoRequest answers repository reads, content searches and mutations.
+// The pane must belong to the attached
 // session, the ownership rule, and its directory comes from tmux, never
 // from the browser. One unscoped list-panes gives both. Every refusal is a
 // repo:result of kind error with the request id, so the browser can match
@@ -258,14 +259,11 @@ func (n *Node) repoRequest(ctx context.Context, c *conn, m *client.RepoRequest) 
 	if dir == nil || *dir == "" {
 		return c.send(ctx, repo.ErrorResult(m.RequestID, textNoPaneDirectory))
 	}
-	if m.Action == "search" {
-		searchCtx, cancel := context.WithCancel(ctx)
-		defer cancel()
-		stop := context.AfterFunc(c.ctx, cancel)
-		defer stop()
-		return c.send(ctx, n.repo.Request(searchCtx, *dir, m))
-	}
-	return c.send(ctx, n.repo.Request(ctx, *dir, m))
+	requestCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	stop := context.AfterFunc(c.ctx, cancel)
+	defer stop()
+	return c.send(ctx, n.repo.Request(requestCtx, *dir, m))
 }
 
 // repoWatch answers repo:watch. The pane must belong to the attached

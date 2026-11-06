@@ -202,23 +202,35 @@ func (m *FileUpload) LogValue() slog.Value {
 // RepoRequest asks the repository viewer for one action on the pane ID.
 // The schema does not tie fields to actions. Which fields an action needs
 // is checked by the handler, which answers repo:result with kind error.
-// Skip and All are for log, Commit for show.
+// Skip and All are for log, Commit for show. Mutations require File and Scope.
 type RepoRequest struct {
-	Type      string  `json:"type"`
-	RequestID string  `json:"requestId"`
-	ID        string  `json:"id"`
-	Action    string  `json:"action"`
-	Query     *string `json:"query,omitempty"`
-	Path      *string `json:"path,omitempty"`
-	File      *string `json:"file,omitempty"`
-	Scope     *string `json:"scope,omitempty"`
-	Skip      *int    `json:"skip,omitempty"`
-	Commit    *string `json:"commit,omitempty"`
+	Type          string  `json:"type"`
+	RequestID     string  `json:"requestId"`
+	ID            string  `json:"id"`
+	Action        string  `json:"action"`
+	Query         *string `json:"query,omitempty"`
+	Include       *string `json:"include,omitempty"`
+	Exclude       *string `json:"exclude,omitempty"`
+	CaseSensitive *bool   `json:"caseSensitive,omitempty"`
+	Path          *string `json:"path,omitempty"`
+	File          *string `json:"file,omitempty"`
+	Scope         *string `json:"scope,omitempty"`
+	Skip          *int    `json:"skip,omitempty"`
+	Commit        *string `json:"commit,omitempty"`
 	// All asks log for every branch, tag and remote branch, not only HEAD.
 	All *bool `json:"all,omitempty"`
 }
 
 func (*RepoRequest) WireType() string { return "repo:request" }
+
+// LogValue omits search text, filters and file paths.
+func (m *RepoRequest) LogValue() slog.Value {
+	length := 0
+	if m.Query != nil {
+		length = len(*m.Query)
+	}
+	return slog.GroupValue(slog.String("type", m.Type), slog.String("requestId", m.RequestID), slog.String("action", m.Action), slog.Int("queryLength", length))
+}
 
 func (m *RepoRequest) Validate() error {
 	err := errors.Join(
@@ -229,6 +241,12 @@ func (m *RepoRequest) Validate() error {
 	)
 	if m.Query != nil {
 		err = errors.Join(err, protocol.LengthBetween("query", *m.Query, 1, 256))
+	}
+	if m.Include != nil {
+		err = errors.Join(err, protocol.LengthBetween("include", *m.Include, 0, 512))
+	}
+	if m.Exclude != nil {
+		err = errors.Join(err, protocol.LengthBetween("exclude", *m.Exclude, 0, 512))
 	}
 	if m.Scope != nil {
 		err = errors.Join(err, protocol.OneOf("scope", *m.Scope, protocol.RepoScopes...))

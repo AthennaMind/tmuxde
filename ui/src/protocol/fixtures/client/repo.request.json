@@ -65,5 +65,72 @@
     "action": "search",
     "path": "/workspace",
     "query": "keyboard toolbar"
+  },
+  {
+    "type": "repo:request",
+    "requestId": "stage-unstaged",
+    "id": "%3",
+    "action": "stage",
+    "path": "/workspace/project",
+    "file": "src/main.go",
+    "scope": "unstaged"
+  },
+  {
+    "type": "repo:request",
+    "requestId": "stage-untracked",
+    "id": "%3",
+    "action": "stage",
+    "path": "/workspace/project",
+    "file": "src/main.go",
+    "scope": "untracked"
+  },
+  {
+    "type": "repo:request",
+    "requestId": "unstage-staged",
+    "id": "%3",
+    "action": "unstage",
+    "path": "/workspace/project",
+    "file": "src/main.go",
+    "scope": "staged"
+  },
+  {
+    "type": "repo:request",
+    "requestId": "discard-unstaged",
+    "id": "%3",
+    "action": "discard",
+    "path": "/workspace/project",
+    "file": "src/main.go",
+    "scope": "unstaged"
+  },
+  {
+    "type": "repo:request",
+    "requestId": "discard-untracked",
+    "id": "%3",
+    "action": "discard",
+    "path": "/workspace/project",
+    "file": "src/main.go",
+    "scope": "untracked"
+  },
+  {
+    "type": "repo:request",
+    "requestId": "content-1",
+    "id": "%1",
+    "action": "content-search",
+    "path": "/repo",
+    "query": "needle",
+    "include": "*.go, src/**",
+    "exclude": "vendor/**",
+    "caseSensitive": true
+  },
+  {
+    "type": "repo:request",
+    "requestId": "content-2",
+    "id": "%1",
+    "action": "content-search",
+    "path": "/repo",
+    "query": "needle",
+    "include": "",
+    "exclude": "",
+    "caseSensitive": false
   }
 ]

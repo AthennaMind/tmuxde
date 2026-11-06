@@ -55,6 +55,27 @@ function dirtyFile(path: string) {
 }
 
 describe("main tabs", () => {
+  it("opens search lines on their machine without replacing drafts or duplicate tabs", () => {
+    dirtyFile("/draft.txt");
+    const store = useMainTabsStore.getState();
+    const position = { line: 12, column: 4, endColumn: 10, requestId: "first" };
+    store.openFile({ ...file("/draft.txt"), position });
+    expect(useMainTabsStore.getState().tabs).toHaveLength(1);
+    expect(useFileDrafts.getState().drafts[draftKey(undefined, "/draft.txt")]?.content).toBe(
+      "draft",
+    );
+    store.openFile({ ...file("/draft.txt"), position: { ...position, requestId: "second" } });
+    store.clearFilePosition("file:/draft.txt", "first");
+    expect(useMainTabsStore.getState().tabs[0]).toMatchObject({
+      position: { requestId: "second" },
+    });
+    store.openFile({ ...file("/draft.txt"), machineId: "alpha", position });
+    expect(useMainTabsStore.getState().tabs).toHaveLength(2);
+    store.clearFilePosition("file:/draft.txt", "second");
+    expect(useMainTabsStore.getState().tabs[0]).toMatchObject({ position: undefined });
+    expect(useMainTabsStore.getState().tabs[1]).toMatchObject({ machineId: "alpha", position });
+  });
+
   it("asks before closing dirty tabs and clears only confirmed drafts", () => {
     dirtyFile("/draft.txt");
     const confirm = vi.fn(() => false);

@@ -32,6 +32,7 @@ TmuxDE (Tmux Development Environment) is a self-hosted DE built on top of tmux. 
 - Create files and folders. Drag them onto folders to move them, or use Move to folder. Open drafts follow moved paths.
 - One command palette with Ctrl/Cmd+K: open views, sessions, windows, panes, tmux actions, appearance, snippets and recent commands.
 - Find files with Ctrl/Cmd+P and search retained terminal history across all machines with Ctrl/Cmd+Shift+F, in the same palette.
+- Search repository text from Code in command palette. Filter files, match case and open results at matching lines.
 - Optional speech to text at your tmux cursor.
 - Update native server, agents and optional speech from Settings when you choose.
 - No phone home, ever.

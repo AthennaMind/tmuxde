@@ -3,8 +3,8 @@ import type { PaletteMode } from "./palette-key";
 
 export interface PaletteContextValue {
   query: string;
-  /** Close, then return focus to the opener or to the terminal. */
-  finish: (focus?: "terminal") => void;
+  /** Close and choose focus destination. Editor navigation owns its focus. */
+  finish: (focus?: "terminal" | "editor") => void;
   setMode: (mode: PaletteMode) => void;
   /** Show a spinner in the input while a mode waits on the network. */
   setBusy: (busy: boolean) => void;

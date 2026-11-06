@@ -141,5 +141,166 @@
         "truncated": false
       }
     }
+  },
+  {
+    "field": "result.matches[0].line",
+    "message": {
+      "type": "repo:result",
+      "requestId": "content-1",
+      "result": {
+        "kind": "content-search",
+        "root": "/repo",
+        "matches": [
+          {
+            "path": "src/main.go",
+            "line": 0,
+            "column": 4,
+            "endColumn": 10,
+            "preview": "   needle here",
+            "matchStart": 3,
+            "matchEnd": 9
+          }
+        ],
+        "truncated": false
+      }
+    }
+  },
+  {
+    "field": "result.matches[0].column",
+    "message": {
+      "type": "repo:result",
+      "requestId": "content-1",
+      "result": {
+        "kind": "content-search",
+        "root": "/repo",
+        "matches": [
+          {
+            "path": "src/main.go",
+            "line": 2,
+            "column": -1,
+            "endColumn": 10,
+            "preview": "   needle here",
+            "matchStart": 3,
+            "matchEnd": 9
+          }
+        ],
+        "truncated": false
+      }
+    }
+  },
+  {
+    "field": "result.matches[0].endColumn",
+    "message": {
+      "type": "repo:result",
+      "requestId": "content-1",
+      "result": {
+        "kind": "content-search",
+        "root": "/repo",
+        "matches": [
+          {
+            "path": "src/main.go",
+            "line": 2,
+            "column": 4,
+            "endColumn": 0,
+            "preview": "   needle here",
+            "matchStart": 3,
+            "matchEnd": 9
+          }
+        ],
+        "truncated": false
+      }
+    }
+  },
+  {
+    "field": "result.matches[0].matchStart",
+    "message": {
+      "type": "repo:result",
+      "requestId": "content-1",
+      "result": {
+        "kind": "content-search",
+        "root": "/repo",
+        "matches": [
+          {
+            "path": "src/main.go",
+            "line": 2,
+            "column": 4,
+            "endColumn": 10,
+            "preview": "   needle here",
+            "matchStart": -1,
+            "matchEnd": 9
+          }
+        ],
+        "truncated": false
+      }
+    }
+  },
+  {
+    "field": "result.matches[0].matchEnd",
+    "message": {
+      "type": "repo:result",
+      "requestId": "content-1",
+      "result": {
+        "kind": "content-search",
+        "root": "/repo",
+        "matches": [
+          {
+            "path": "src/main.go",
+            "line": 2,
+            "column": 4,
+            "endColumn": 10,
+            "preview": "   needle here",
+            "matchStart": 3,
+            "matchEnd": 601
+          }
+        ],
+        "truncated": false
+      }
+    }
+  },
+  {
+    "field": "result.matches[0].preview",
+    "message": {
+      "type": "repo:result",
+      "requestId": "content-1",
+      "result": {
+        "kind": "content-search",
+        "root": "/repo",
+        "matches": [
+          {
+            "path": "src/main.go",
+            "line": 2,
+            "column": 4,
+            "endColumn": 10,
+            "preview": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "matchStart": 3,
+            "matchEnd": 9
+          }
+        ],
+        "truncated": false
+      }
+    }
+  },
+  {
+    "field": "result.matches[0].path",
+    "message": {
+      "type": "repo:result",
+      "requestId": "content-1",
+      "result": {
+        "kind": "content-search",
+        "root": "/repo",
+        "matches": [
+          {
+            "path": "",
+            "line": 2,
+            "column": 4,
+            "endColumn": 10,
+            "preview": "   needle here",
+            "matchStart": 3,
+            "matchEnd": 9
+          }
+        ],
+        "truncated": false
+      }
+    }
   }
 ]

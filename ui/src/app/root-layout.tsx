@@ -4,8 +4,8 @@ import { ToastProvider } from "./toast-provider";
 import { PwaProvider } from "@/features/pwa/pwa-provider";
 
 /**
- * Wraps every route. Title, metadata, viewport and icons are static tags in
- * index.html.
+ * Wraps every route. Base metadata lives in index.html. Workspace titles
+ * follow active view inside terminal layout.
  */
 export function RootLayout() {
   return (

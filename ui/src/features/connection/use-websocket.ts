@@ -220,7 +220,7 @@ export function useWebSocket(url: string, token: string): void {
           break;
         }
         case "repo:result":
-          // Repository browser correlates replies to its active request.
+          // Repository clients correlate reads, content searches and mutations by request ID.
           break;
         case "repo:watch:result":
           // A refusal is quiet. The views keep polling without the watch.

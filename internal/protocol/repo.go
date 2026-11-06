@@ -12,7 +12,7 @@ import (
 // packages. This file holds what they carry.
 
 // RepoActions are the values of repo:request action.
-var RepoActions = []string{"context", "list", "read", "status", "diff", "log", "show", "search"}
+var RepoActions = []string{"context", "list", "read", "status", "diff", "log", "show", "search", "content-search", "stage", "unstage", "discard"}
 
 // RepoScopes mirrors RepoScope.
 var RepoScopes = []string{"unstaged", "staged", "untracked"}
@@ -31,19 +31,20 @@ type RepoResult interface {
 
 // repoKinds maps result.kind to an empty payload.
 var repoKinds = map[string]func() RepoResult{
-	"context": func() RepoResult { return &RepoContext{} },
-	"list":    func() RepoResult { return &RepoList{} },
-	"read":    func() RepoResult { return &RepoRead{} },
-	"status":  func() RepoResult { return &RepoStatus{} },
-	"diff":    func() RepoResult { return &RepoDiff{} },
-	"log":     func() RepoResult { return &RepoLog{} },
-	"show":    func() RepoResult { return &RepoShow{} },
-	"search":  func() RepoResult { return &RepoSearch{} },
-	"error":   func() RepoResult { return &RepoError{} },
+	"context":        func() RepoResult { return &RepoContext{} },
+	"list":           func() RepoResult { return &RepoList{} },
+	"read":           func() RepoResult { return &RepoRead{} },
+	"status":         func() RepoResult { return &RepoStatus{} },
+	"diff":           func() RepoResult { return &RepoDiff{} },
+	"log":            func() RepoResult { return &RepoLog{} },
+	"show":           func() RepoResult { return &RepoShow{} },
+	"search":         func() RepoResult { return &RepoSearch{} },
+	"content-search": func() RepoResult { return &RepoContentSearch{} },
+	"error":          func() RepoResult { return &RepoError{} },
 }
 
 // RepoKinds lists the values of result.kind, in the order of the union.
-var RepoKinds = []string{"context", "list", "read", "status", "diff", "log", "show", "search", "error"}
+var RepoKinds = []string{"context", "list", "read", "status", "diff", "log", "show", "search", "content-search", "error"}
 
 // errNotResultObject is returned for a result that is not a JSON object.
 // Within adds the field name.

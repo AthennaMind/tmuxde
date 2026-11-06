@@ -192,8 +192,7 @@ func (h *handler) serve(w http.ResponseWriter, r *http.Request, name string, f f
 	header.Set("Content-Type", f.contentType)
 	header.Set("Cache-Control", f.cacheControl)
 	header.Set("ETag", f.etag)
-	// The edge leaves asset paths without security headers. The type
-	// above is exact, so browsers must not guess another one.
+	// Keep exact content types when this handler is used without edge.
 	header.Set("X-Content-Type-Options", "nosniff")
 	http.ServeContent(w, r, name, time.Time{}, content)
 }

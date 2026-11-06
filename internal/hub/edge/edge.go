@@ -40,8 +40,9 @@ type Edge struct {
 	mux *http.ServeMux
 	// web serves what no route claims: the dev proxy or Static. Nil when
 	// neither is configured.
-	web     http.Handler
-	started time.Time
+	web         http.Handler
+	started     time.Time
+	development bool
 }
 
 // codeEntryPaths are upstream code entry routes. The web app has no use for
@@ -54,7 +55,7 @@ func New(opts Options) *Edge {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	e := &Edge{mux: http.NewServeMux(), started: opts.Started}
+	e := &Edge{mux: http.NewServeMux(), started: opts.Started, development: opts.DevWebURL != nil}
 	if e.started.IsZero() {
 		e.started = time.Now()
 	}
@@ -88,15 +89,11 @@ func (e *Edge) Handle(pattern string, h http.Handler) {
 // ServeHTTP answers OPTIONS on any path, sets the security headers and
 // routes the request.
 func (e *Edge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	setSecurityHeaders(w.Header(), r, e.development)
 	// Handle preflight before routing. Browser requests use the same origin.
 	if r.Method == http.MethodOptions {
-		setSecurityHeaders(w.Header(), socketOrigin(r))
 		w.WriteHeader(http.StatusNoContent)
 		return
-	}
-	// Assets pass through with headers from the web handler.
-	if e.web == nil || !isAsset(r.URL.Path) {
-		setSecurityHeaders(w.Header(), socketOrigin(r))
 	}
 	e.mux.ServeHTTP(w, r)
 }

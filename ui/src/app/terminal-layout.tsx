@@ -6,6 +6,7 @@ import { TerminalWorkspace } from "@/features/workspace/terminal-workspace";
 import { useMachineStore } from "@/features/connection/machine-store";
 import { MachineWorkspace } from "@/features/workspace/machine-workspace";
 import { useActiveTabMachine } from "@/features/workspace/use-active-tab-machine";
+import { useWorkspaceTitle } from "@/features/workspace/use-workspace-title";
 import { AppShell } from "./app-shell";
 import { useWebSocket } from "@/features/connection/use-websocket";
 import { useUserDocumentsSync } from "@/features/settings/settings-sync";
@@ -63,6 +64,7 @@ export function TerminalLayout() {
 }
 
 function TerminalLayoutInner() {
+  useWorkspaceTitle();
   const navigate = useNavigate();
   // The token from login, or the lock store after an unlock. Read once per
   // mount: the read is synchronous, and `LockGate` mounts this anew after
@@ -161,7 +163,7 @@ function TerminalLayoutInner() {
     // tell "leaving" apart from "crashed".
     return (
       <div
-        className="flex min-h-[100dvh] items-center justify-center bg-background"
+        className="flex min-h-[var(--app-height)] items-center justify-center bg-background"
         role="status"
         aria-live="polite"
       >

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
  */
 export function NotFound() {
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-background px-4 py-16 text-center">
+    <div className="flex min-h-[var(--app-height)] flex-col items-center justify-center bg-background px-4 py-16 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
         <Compass className="h-6 w-6 text-muted-foreground" aria-hidden />
       </div>
@@ -22,7 +22,7 @@ export function NotFound() {
         The link may be old, or the address may have a typo in it.
       </p>
       <Button asChild className="mt-6 h-11">
-        <Link to="/login">Go to tmuxde</Link>
+        <Link to="/login">Go to TmuxDE</Link>
       </Button>
     </div>
   );

@@ -1,3 +1,4 @@
+import type { FileTab } from "@/features/workspace/main-tabs-store";
 import { useFileDrafts } from "./file-drafts";
 import Editor, { loader } from "@monaco-editor/react";
 import type { OnMount, OnChange } from "@monaco-editor/react";
@@ -50,6 +51,8 @@ interface MonacoEditorProps {
   onSave?: () => void;
   wordWrap?: "on" | "off";
   fontSize?: number;
+  position?: FileTab["position"];
+  onNavigate?: () => void;
 }
 
 export function MonacoEditor({
@@ -62,6 +65,8 @@ export function MonacoEditor({
   onSave,
   wordWrap = "on",
   fontSize: fixedFontSize,
+  position,
+  onNavigate,
 }: MonacoEditorProps) {
   const theme = useMonacoTheme();
   // Set once Monaco has mounted. The effects below reach it through this.
@@ -109,6 +114,21 @@ export function MonacoEditor({
   useEffect(() => {
     if (editor) showContent(editor);
   }, [editor, revision]);
+
+  const navigated = useEffectEvent(() => onNavigate?.());
+  useEffect(() => {
+    if (!editor || !position) return;
+    const range = {
+      startLineNumber: position.line,
+      endLineNumber: position.line,
+      startColumn: position.column,
+      endColumn: position.endColumn,
+    };
+    editor.setSelection(range);
+    editor.revealRangeInCenter(range);
+    editor.focus();
+    navigated();
+  }, [editor, position]);
 
   // Ctrl+S / Cmd+S runs the `onSave` of the latest render.
   const save = useEffectEvent(() => onSave?.());

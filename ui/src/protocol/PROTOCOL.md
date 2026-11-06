@@ -148,7 +148,7 @@ inside attached session. Each request receives `repo:result` with matching
   type: "repo:request";
   requestId: string;
   id: string; // Target pane ID. Required for every action.
-  action: "context" | "list" | "read" | "status" | "diff" | "log" | "show";
+  action: "context" | "list" | "read" | "status" | "diff" | "log" | "show" | "search" | "stage" | "unstage" | "discard";
   path?: string;
   file?: string;
   scope?: "unstaged" | "staged" | "untracked";
@@ -673,6 +673,49 @@ show partial results and offer a narrower query. Concurrent requests receive
 correlated error with retry guidance. Disconnect cancels work. Search requests
 are not replayed after reconnect. Browser discards stale query/context replies.
 
+### Repository content search
+
+`repo:content-search` enables `repo:request` action `content-search`. Attached
+pane ownership and file read capabilities apply. `path` selects repository
+context; absent path uses pane directory. Search always covers discovered
+repository root on selected machine. Outside Git repositories it returns error.
+
+`query` is required by handler: one nonblank line, up to 256 UTF-16 units, no NUL.
+Matching is literal. Optional `caseSensitive` defaults to false and uses Unicode
+simple case folding. Optional `include` and `exclude` are comma-separated patterns,
+up to 512 UTF-16 units and 16 patterns each. `*` matches within one path component,
+`**` crosses folders, `**/` includes zero folders and `?` matches one character.
+Other characters are literal. Patterns without slashes match basenames at any
+depth. Patterns with slashes start at repository root. Filters are case-sensitive.
+Empty include selects all files. Exclude wins over include.
+
+Git enumerates tracked files and untracked files outside ignore rules. Tracked
+files remain searchable even if later ignored. File guards apply before reading
+current disk content. Symlinks, binary and non-UTF-8 files are skipped. Unsaved
+browser drafts and index-only content are not searched. No Git hooks or filters run.
+
+Result is `{kind: "content-search", root, matches, truncated}`. Each match has
+`path` relative to root, one-based `line`, one-based UTF-16 `column` and exclusive
+`endColumn`, plain-text `preview`, and zero-based UTF-16 `matchStart` and exclusive
+`matchEnd` within preview. One result per matching line highlights first match.
+Results sort by path and line. Preview retains up to 60 Unicode code points on
+each side of matched text. Position is from disk snapshot; later edits may move it.
+
+Filename and content searches share one scan slot per repository service. Git
+listing uses existing Git timeout and output limit. Content scan stops after
+three seconds, 100,000 candidate paths, 32 MiB read, 200 matching lines or 256 KiB
+of JSON-encoded match objects. Files larger than 1 MiB are skipped. `truncated`
+reports limits, oversized files and failed reads. Partial no-match results must
+be labelled partial. Policy-denied and binary files are intentionally excluded.
+Disconnect cancels work. Existing machine forwarding and request correlation
+carry new payload unchanged. Browser drops superseded query and context results.
+Reconnect starts a fresh read under current workspace context. Queries and
+previews stay in memory. Query text, filters and previews are omitted from logs.
+
+Code mode lives in existing palette. `palette.code` can receive custom shortcut;
+terminal search keeps its existing shortcut. Opening result selects editor range,
+keeps existing draft and consumes navigation so later tab switches retain view state.
+
 ### Versioned file editing
 
 `file:edit:read` accepts `requestId` (1 to 128 characters) and `path`.
@@ -756,3 +799,25 @@ process failures never apply staged files. Parent stays alive across update and
 retains original launch settings. No systemd or launchd API is called. Speech
 health adds `version`, `binary`, `pid` and `updateControl` on private Unix socket.
 Those fields identify native installation; public browser inventory omits paths.
+
+### Changed file mutations
+
+`repo:mutate` in machine features enables `repo:request` actions `stage`,
+`unstage` and `discard`. Each requires `file`, relative to repository root,
+and `scope`. `path` pins repository context. Attached-session pane ownership
+and file path guards apply. Existing machine forwarding carries requests
+and correlated results unchanged. Full authenticated machine access is required.
+
+`stage` accepts unstaged or untracked files. `unstage` accepts staged files
+and preserves worktree content, including before first commit. Both handle
+rename source and destination together. `discard` accepts unstaged or untracked
+files. Unstaged discard restores worktree from index and preserves staged work.
+Untracked discard deletes exactly selected file. Staged discard is refused.
+Directories, symlink paths, Git metadata, merge conflicts and files outside
+current change group are refused. Success returns fresh `status`; failure
+returns `error`. Browser confirms discard and protects unsaved drafts.
+
+Folder menus send listed descendant files one at a time, stop at first
+failure and report progress. Requests are bound to original machine and
+connection. They are never queued or replayed after disconnect. Refresh after
+uncertain results. Partial folder operations are possible.

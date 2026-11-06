@@ -7,6 +7,7 @@ interface FileStore {
   serverPathApplied: boolean;
   entries: FileEntry[];
   selectedFile: string | null;
+  revealPath: string | null;
   fileContent: string | null;
   fileStat: FileStat | null;
   isLoading: boolean;
@@ -23,6 +24,7 @@ interface FileStore {
   applyServerDefaultPath: (path: string) => void;
   setEntries: (entries: FileEntry[]) => void;
   setSelectedFile: (path: string | null) => void;
+  setRevealPath: (path: string | null) => void;
   setFileContent: (content: string | null) => void;
   setFileStat: (stat: FileStat | null) => void;
   setIsLoading: (loading: boolean) => void;
@@ -40,6 +42,7 @@ export const useFileStore = create<FileStore>((set) => ({
   serverPathApplied: false,
   entries: [],
   selectedFile: null,
+  revealPath: null,
   fileContent: null,
   fileStat: null,
   isLoading: false,
@@ -57,6 +60,7 @@ export const useFileStore = create<FileStore>((set) => ({
     set((s) => (s.serverPathApplied ? s : { currentPath: path, serverPathApplied: true })),
   setEntries: (entries) => set({ entries }),
   setSelectedFile: (selectedFile) => set({ selectedFile }),
+  setRevealPath: (revealPath) => set({ revealPath }),
   setFileContent: (fileContent) => set({ fileContent }),
   setFileStat: (fileStat) => set({ fileStat }),
   setIsLoading: (isLoading) => set({ isLoading }),

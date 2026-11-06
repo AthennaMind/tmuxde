@@ -18,7 +18,7 @@
  * to nothing that changes between deploys, so a stale copy is still a correct
  * copy. Bump CACHE_NAME by hand if that page's contents ever change.
  */
-const CACHE_NAME = "tmuxde-offline-v2";
+const CACHE_NAME = "tmuxde-offline-v3";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {
@@ -80,12 +80,19 @@ self.addEventListener("fetch", (event) => {
         const cached = await caches.match(OFFLINE_URL);
         if (cached) return cached;
         return new Response(
-          "<!doctype html><meta charset=utf-8><title>Offline</title><p>You're offline.",
+          "<!doctype html><meta charset=utf-8><title>TmuxDE | Offline</title><p>You're offline.",
           {
             status: 503,
             // Without an explicit type the browser sniffs, and may offer the
             // body as a download rather than rendering it.
-            headers: { "Content-Type": "text/html; charset=utf-8" },
+            headers: {
+              "Content-Type": "text/html; charset=utf-8",
+              "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+              "Referrer-Policy": "no-referrer",
+              "X-Content-Type-Options": "nosniff",
+              "X-Frame-Options": "DENY",
+              "Cache-Control": "no-store",
+            },
           },
         );
       }

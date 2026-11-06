@@ -1,4 +1,5 @@
 import { FileContextMenu } from "./file-context-menu";
+import { useFileStore } from "./file-store";
 import { FileDeleteDialog, type DeleteTarget } from "./file-delete-dialog";
 import { deleteRoots } from "./file-delete";
 import { useFileSelection } from "./use-file-selection";
@@ -152,6 +153,9 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
     setNameTarget(null);
   const [created, setCreated] = useState(0);
   const [focusKey, setFocusKey] = useState<string | null>(null);
+  const revealPath = useFileStore((s) => s.revealPath);
+  if (revealPath && root && pathWithin(revealPath, root) && focusKey !== revealPath)
+    setFocusKey(revealPath);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   if (
     deleteTarget &&
@@ -162,6 +166,22 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
   )
     setDeleteTarget(null);
   const { ref: treeRef, onKeyDown: onTreeKeyDown } = useTreeKeyboard();
+  useLayoutEffect(() => {
+    const tree = treeRef.current;
+    if (!revealPath || !tree) return;
+    const focus = () => {
+      const row = tree.querySelector<HTMLElement>(`[data-tree-row="${CSS.escape(revealPath)}"]`);
+      if (!row) return false;
+      row.scrollIntoView({ block: "nearest" });
+      row.focus({ preventScroll: true });
+      useFileStore.getState().setRevealPath(null);
+      return true;
+    };
+    if (focus()) return;
+    const observer = new MutationObserver(focus);
+    observer.observe(tree, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  });
   const selection = useFileSelection(treeRef, client, machineId(), paneId, root);
   const selectedEntries = selection.selectedEntries();
   const focusTree = () => {

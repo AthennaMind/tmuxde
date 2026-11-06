@@ -3,52 +3,76 @@ package edge
 import (
 	"net"
 	"net/http"
-	"path"
-	"slices"
 	"strings"
 )
 
 // securityHeaders are the header names the edge owns. The dev proxy drops
-// upstream copies of these on pages so the edge values are the only ones.
+// upstream copies so edge values are the only ones.
 var securityHeaders = []string{
 	"Content-Security-Policy",
 	"Permissions-Policy",
 	"X-Frame-Options",
 	"X-Content-Type-Options",
 	"Referrer-Policy",
+	"Strict-Transport-Security",
+	"Cross-Origin-Opener-Policy",
+	"Cross-Origin-Resource-Policy",
+	"Origin-Agent-Cluster",
+	"X-Robots-Tag",
 }
 
-// setSecurityHeaders sets browser protections for pages served by tmuxde.
-// socket comes from socketOrigin.
-func setSecurityHeaders(h http.Header, socket string) {
-	h.Set("Content-Security-Policy", contentSecurityPolicy(socket))
+const permissionsPolicy = "microphone=(self), clipboard-read=(self), clipboard-write=(self), " +
+	"publickey-credentials-get=(self), publickey-credentials-create=(self), fullscreen=(self), " +
+	"camera=(), geolocation=(), display-capture=(), accelerometer=(), gyroscope=(), " +
+	"magnetometer=(), midi=(), payment=(), usb=()"
+
+// setSecurityHeaders protects all responses, including assets and errors.
+func setSecurityHeaders(h http.Header, r *http.Request, development bool) {
+	h.Set("Content-Security-Policy", contentSecurityPolicy(socketOrigin(r), development))
 	// Microphone for dictation, this origin only. Nothing records until
 	// the user presses the mic and the browser asks.
-	h.Set("Permissions-Policy", "microphone=(self), camera=(), geolocation=()")
+	h.Set("Permissions-Policy", permissionsPolicy)
 	h.Set("X-Frame-Options", "DENY")
 	h.Set("X-Content-Type-Options", "nosniff")
-	h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	h.Set("Referrer-Policy", "no-referrer")
+	h.Set("Cross-Origin-Opener-Policy", "same-origin")
+	h.Set("Cross-Origin-Resource-Policy", "same-origin")
+	h.Set("Origin-Agent-Cluster", "?1")
+	h.Set("X-Robots-Tag", "noindex, nofollow, noarchive")
+	if requestScheme(r) == "https" {
+		// Scope to this host. Subdomains may serve unrelated applications.
+		h.Set("Strict-Transport-Security", "max-age=31536000")
+	} else {
+		h.Del("Strict-Transport-Security")
+	}
 }
 
 // contentSecurityPolicy allows local assets and the page's WebSocket origin.
 // Blob sources support file previews, media and workers. An empty socket
 // leaves connect-src limited to self.
-func contentSecurityPolicy(socket string) string {
+func contentSecurityPolicy(socket string, development bool) string {
 	connect := "'self'"
 	if socket != "" {
 		connect += " " + socket
 	}
+	script := "'self'"
+	if development {
+		// Vite injects inline React refresh code into development HTML.
+		script += " 'unsafe-inline'"
+	}
 	return "default-src 'self'; " +
-		"script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+		"script-src " + script + "; " +
+		"script-src-attr 'none'; " +
 		"style-src 'self' 'unsafe-inline'; " +
 		"connect-src " + connect + "; " +
 		"font-src 'self' data: blob:; " +
 		"img-src 'self' data: blob:; " +
 		"media-src 'self' blob:; " +
 		"worker-src 'self' blob:; " +
+		"manifest-src 'self'; " +
 		"frame-src 'self' blob:; " +
 		"object-src 'none'; " +
-		"base-uri 'self'; " +
+		"base-uri 'none'; " +
 		"form-action 'self'; " +
 		"frame-ancestors 'none'"
 }
@@ -96,50 +120,4 @@ func requestScheme(r *http.Request) string {
 		return "https"
 	}
 	return "http"
-}
-
-// Asset paths get no security headers from the edge. They carry no app
-// content. offline.html is served by the service worker from cache.
-// Pages, index.html and every app route, keep the headers.
-//
-// The list follows the Vite build: /assets/ holds the hashed bundles, and
-// the files of ui/public sit at the root, with the fonts below
-// /fonts/.
-//
-// Every asset name has a file extension. A path without one is never an
-// asset, even below /assets/ or /fonts/. The static handler answers such a
-// path with index.html, so it must keep the headers like any page.
-
-// assetPrefixes match a path that starts with them.
-var assetPrefixes = []string{
-	// Vite bundles and public/fonts.
-	"/assets/",
-	"/fonts/",
-}
-
-// assetFiles match exactly.
-var assetFiles = []string{
-	"/favicon.ico",
-	"/icon.svg",
-	"/icon-192.png",
-	"/icon-512.png",
-	"/icon-maskable-512.png",
-	"/apple-icon.png",
-	"/manifest.json",
-	"/offline.html",
-	"/sw.js",
-	"/dictation-worklet.js",
-	"/robots.txt",
-}
-
-func isAsset(urlPath string) bool {
-	if path.Ext(urlPath) == "" {
-		return false
-	}
-	for _, p := range assetPrefixes {
-		if strings.HasPrefix(urlPath, p) {
-			return true
-		}
-	}
-	return slices.Contains(assetFiles, urlPath)
 }

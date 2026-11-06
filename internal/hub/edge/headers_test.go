@@ -2,6 +2,7 @@ package edge
 
 import (
 	"crypto/tls"
+	"net/http"
 	"net/http/httptest"
 	"slices"
 	"strings"
@@ -11,7 +12,7 @@ import (
 func TestContentSecurityPolicy(t *testing.T) {
 	for _, socket := range []string{"", "ws://localhost:24200", "wss://dev.example"} {
 		t.Run(socket, func(t *testing.T) {
-			policy := parseCSP(contentSecurityPolicy(socket))
+			policy := parseCSP(contentSecurityPolicy(socket, false))
 			connect := []string{"'self'"}
 			if socket != "" {
 				connect = append(connect, socket)
@@ -20,13 +21,16 @@ func TestContentSecurityPolicy(t *testing.T) {
 			// and framing by other sites.
 			for directive, want := range map[string][]string{
 				"connect-src":     connect,
+				"script-src":      {"'self'"},
+				"script-src-attr": {"'none'"},
+				"manifest-src":    {"'self'"},
 				"font-src":        {"'self'", "data:", "blob:"},
 				"media-src":       {"'self'", "blob:"},
 				"frame-src":       {"'self'", "blob:"},
 				"worker-src":      {"'self'", "blob:"},
 				"object-src":      {"'none'"},
 				"frame-ancestors": {"'none'"},
-				"base-uri":        {"'self'"},
+				"base-uri":        {"'none'"},
 				"form-action":     {"'self'"},
 			} {
 				if got := policy[directive]; !slices.Equal(got, want) {
@@ -34,6 +38,63 @@ func TestContentSecurityPolicy(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDevelopmentCSPOnlyRelaxesInlineScripts(t *testing.T) {
+	production := parseCSP(contentSecurityPolicy("ws://localhost:24200", false))
+	development := parseCSP(contentSecurityPolicy("ws://localhost:24200", true))
+	if got := development["script-src"]; !slices.Equal(got, []string{"'self'", "'unsafe-inline'"}) {
+		t.Fatalf("development script-src = %q", got)
+	}
+	for directive, want := range production {
+		if directive == "script-src" {
+			continue
+		}
+		if got := development[directive]; !slices.Equal(got, want) {
+			t.Errorf("development %s = %q, want %q", directive, got, want)
+		}
+	}
+	for _, policy := range []string{contentSecurityPolicy("", false), contentSecurityPolicy("", true)} {
+		if strings.Contains(policy, "'unsafe-eval'") {
+			t.Fatal("policy allows eval")
+		}
+	}
+}
+
+func TestHTTPSHeadersOnPagesAssetsAndErrors(t *testing.T) {
+	for _, target := range []string{"/", "/assets/app.js", "/sw.js", "/offline.html", "/missing"} {
+		for _, transport := range []string{"http", "tls", "proxy"} {
+			t.Run(transport+target, func(t *testing.T) {
+				r := httptest.NewRequest(http.MethodGet, "http://tmuxde.test"+target, nil)
+				switch transport {
+				case "tls":
+					r.TLS = &tls.ConnectionState{}
+				case "proxy":
+					r.Header.Set("X-Forwarded-Proto", "https")
+				}
+				rec := httptest.NewRecorder()
+				Handler(Options{}).ServeHTTP(rec, r)
+				socket := "ws://tmuxde.test"
+				if transport != "http" {
+					socket = "wss://tmuxde.test"
+				}
+				wantSecurityHeaders(t, rec.Header(), socket)
+			})
+		}
+	}
+}
+
+func TestPermissionsPolicy(t *testing.T) {
+	for _, permission := range []string{"microphone", "clipboard-read", "clipboard-write", "publickey-credentials-get", "publickey-credentials-create"} {
+		if !strings.Contains(permissionsPolicy, permission+"=(self)") {
+			t.Errorf("%s must remain limited to this origin", permission)
+		}
+	}
+	for _, permission := range []string{"camera", "geolocation", "display-capture", "payment", "usb"} {
+		if !strings.Contains(permissionsPolicy, permission+"=()") {
+			t.Errorf("%s must remain disabled", permission)
+		}
 	}
 }
 
@@ -86,63 +147,6 @@ func TestSocketOrigin(t *testing.T) {
 			}
 			if got := socketOrigin(r); got != tt.want {
 				t.Fatalf("socketOrigin = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestIsAsset(t *testing.T) {
-	tests := []struct {
-		path string
-		want bool
-	}{
-		// Next paths are app paths since the move to Vite.
-		{"/_next/static/chunks/main.js", false},
-		{"/_next/image", false},
-		{"/static/assets/x.js", false},
-		// Vite build.
-		{"/assets/app-abc123.js", true},
-		{"/assets/index-abc123.css", true},
-		{"/fonts/ibm-plex-mono-400.woff2", true},
-		{"/fonts/LICENSE-NerdFonts.txt", true},
-		{"/favicon.ico", true},
-		{"/icon.svg", true},
-		{"/icon-192.png", true},
-		{"/icon-512.png", true},
-		{"/icon-maskable-512.png", true},
-		{"/apple-icon.png", true},
-		{"/manifest.json", true},
-		{"/offline.html", true},
-		{"/sw.js", true},
-		{"/dictation-worklet.js", true},
-		{"/robots.txt", true},
-		// Pages keep the headers.
-		{"/", false},
-		{"/index.html", false},
-		{"/login", false},
-		{"/s/abc", false},
-		{"/s/assets/x.js", false},
-		// Exact files match whole paths only.
-		{"/icon.png", false},
-		{"/icon-1024.png", false},
-		{"/sw.js.map", false},
-		{"/manifest.json/x", false},
-		{"/robots.txt2", false},
-		// Prefixes need the slash.
-		{"/assets", false},
-		{"/assetsx/app.js", false},
-		{"/fonts", false},
-		// No file extension, no asset. The static handler answers these
-		// with index.html.
-		{"/assets/", false},
-		{"/fonts/", false},
-		{"/fonts/x", false},
-		{"/assets/x.d/app", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.path, func(t *testing.T) {
-			if got := isAsset(tt.path); got != tt.want {
-				t.Fatalf("isAsset(%q) = %v, want %v", tt.path, got, tt.want)
 			}
 		})
 	}

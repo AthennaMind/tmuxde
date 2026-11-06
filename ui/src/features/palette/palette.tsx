@@ -34,6 +34,7 @@ import { searchTerminals, useTerminalSearchStore } from "./terminal-search-store
 import { CONTROL_CLASS, Kbd, PaletteFooter } from "./palette-primitives";
 import { PaletteContext } from "./palette-context";
 import { CommandsMode } from "./commands-mode";
+import { CodeMode } from "./code-mode";
 import { FilesMode } from "./files-mode";
 import { TerminalsMode } from "./terminals-mode";
 
@@ -63,6 +64,14 @@ const MODES: {
     placeholder: "Find a file…",
   },
   {
+    id: "code",
+    label: "Code",
+    icon: TextSearch,
+    command: "palette.code",
+    title: "Search repository content",
+    placeholder: "Find text in repository…",
+  },
+  {
     id: "terminals",
     label: "Terminals",
     icon: TextSearch,
@@ -73,7 +82,7 @@ const MODES: {
 ];
 
 /**
- * One dialog for commands, files and terminal history.
+ * One dialog for commands, files, repository content and terminal history.
  *
  * Content mounts on open and unmounts on close, so every opening starts from
  * a clean query and the exit is instant. A confirmation for a destructive
@@ -123,7 +132,7 @@ function PaletteDialog() {
   const [opener] = useState(() =>
     document.activeElement instanceof HTMLElement ? document.activeElement : null,
   );
-  const after = useRef<"terminal" | null>(null);
+  const after = useRef<"terminal" | "editor" | null>(null);
   const keymap = useKeybindingsStore((s) => s.keymap);
   const [seenMode, setSeenMode] = useState(mode);
   const [seenPrompt, setSeenPrompt] = useState(prompt);
@@ -155,7 +164,7 @@ function PaletteDialog() {
   const current = MODES.find((entry) => entry.id === mode) ?? MODES[0]!;
   const Icon = current.icon;
   const setMode = (next: PaletteMode) => usePaletteStore.setState({ mode: next, prompt: null });
-  const finish = (focus?: "terminal") => {
+  const finish = (focus?: "terminal" | "editor") => {
     after.current = focus ?? null;
     closePalette();
   };
@@ -208,7 +217,7 @@ function PaletteDialog() {
             event.preventDefault();
             if (after.current === "terminal") {
               if (!isMobileViewport()) getTerminalHandle()?.focus();
-            } else if (opener?.isConnected) {
+            } else if (after.current !== "editor" && opener?.isConnected) {
               opener.focus();
             }
           }}
@@ -261,7 +270,7 @@ function PaletteDialog() {
                   enterKeyHint={mode === "terminals" ? "search" : "go"}
                   className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
                 />
-                {mode === "terminals" && !prompt && (
+                {(mode === "terminals" || mode === "code") && !prompt && (
                   <button
                     type="button"
                     aria-pressed={caseSensitive}
@@ -297,7 +306,7 @@ function PaletteDialog() {
                 <div
                   role="group"
                   aria-label="Search in"
-                  className="flex items-center gap-1 px-3 pb-2.5"
+                  className="flex flex-wrap items-center gap-1 px-3 pb-2.5"
                 >
                   {MODES.map((entry) => {
                     const active = entry.id === mode;
@@ -320,7 +329,7 @@ function PaletteDialog() {
                         <entry.icon className="size-3.5" aria-hidden />
                         {entry.label}
                         {keys && (
-                          <Kbd aria-hidden className="hidden sm:inline-flex">
+                          <Kbd aria-hidden className="hidden md:inline-flex">
                             {keys}
                           </Kbd>
                         )}
@@ -344,6 +353,8 @@ function PaletteDialog() {
               </>
             ) : mode === "commands" ? (
               <CommandsMode />
+            ) : mode === "code" ? (
+              <CodeMode caseSensitive={caseSensitive} />
             ) : mode === "files" ? (
               <FilesMode />
             ) : (
