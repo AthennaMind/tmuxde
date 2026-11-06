@@ -21,7 +21,7 @@ import {
 } from "./commit-file-filter";
 import { RefChip } from "./commit-log";
 import { formatCommitDate, parseRefs } from "./commit-format";
-import { ChangeCode } from "./repository-changes";
+import { ChangeCode } from "./change-code";
 import { RepositoryFileIcon } from "@/features/files/repository-file-icon";
 import { RepositorySyntaxLine } from "./repository-syntax";
 import { useRepositorySyntax } from "./use-syntax-tokens";

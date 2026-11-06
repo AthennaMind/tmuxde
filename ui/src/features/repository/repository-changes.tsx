@@ -10,6 +10,7 @@ import { useExplorerFolders } from "@/features/workspace/use-explorer-folders";
 import { ChangeContextMenu } from "./change-context-menu";
 import { ChangeDiscardDialog } from "./change-discard-dialog";
 import { useChangeActions } from "./use-change-actions";
+import { ChangeCode } from "./change-code";
 
 type ChangeMenu = ReturnType<typeof useChangeActions>["menu"];
 
@@ -366,41 +367,5 @@ function ChangeButton({
         <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>
     </ChangeContextMenu>
-  );
-}
-
-/** Git status letter, colored, with its meaning for screen readers. */
-export function ChangeCode({ code }: { code: string }) {
-  return (
-    <span
-      className={cn(
-        "w-4 shrink-0 font-mono text-xs font-semibold",
-        code === "D"
-          ? "text-term-removed"
-          : code === "A" || code === "?"
-            ? "text-term-added"
-            : "text-term-path",
-      )}
-    >
-      <span aria-hidden>{code}</span>
-      <span className="sr-only">{changeLabel(code)}</span>
-    </span>
-  );
-}
-
-function changeLabel(code: string) {
-  return (
-    (
-      {
-        M: "Modified",
-        A: "Added",
-        D: "Deleted",
-        R: "Renamed",
-        C: "Copied",
-        U: "Conflict",
-        T: "Type changed",
-        "?": "Untracked",
-      } as Record<string, string>
-    )[code] ?? "Changed"
   );
 }
