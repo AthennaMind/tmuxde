@@ -30,12 +30,13 @@ function useEnvironment() {
   });
 
   useEffect(() => {
-    const standaloneQuery = window.matchMedia("(display-mode: standalone)");
+    const installedQueries = ["standalone", "minimal-ui", "window-controls-overlay"].map((mode) =>
+      window.matchMedia(`(display-mode: ${mode})`),
+    );
     const read = () =>
       setEnv({
         standalone:
-          standaloneQuery.matches ||
-          window.matchMedia("(display-mode: minimal-ui)").matches ||
+          installedQueries.some((query) => query.matches) ||
           // iOS predates the display-mode media query and still needs this.
           (navigator as Navigator & { standalone?: boolean }).standalone === true,
         iosDevice: isIosDevice(navigator),
@@ -44,8 +45,10 @@ function useEnvironment() {
       });
 
     read();
-    standaloneQuery.addEventListener("change", read);
-    return () => standaloneQuery.removeEventListener("change", read);
+    for (const query of installedQueries) query.addEventListener("change", read);
+    return () => {
+      for (const query of installedQueries) query.removeEventListener("change", read);
+    };
   }, []);
 
   return env;
@@ -86,7 +89,7 @@ export function InstallAppSection() {
   return (
     <SettingsSection title="Install">
       {availability === "installed" && (
-        <SettingsRow label="Installed" hint="tmuxde is running as an installed app." textLabel>
+        <SettingsRow label="Installed" hint="TmuxDE is running as an installed app." textLabel>
           {() => <Check className="h-4 w-4 text-primary" aria-hidden />}
         </SettingsRow>
       )}
@@ -112,7 +115,7 @@ export function InstallAppSection() {
               }}
             >
               <Download aria-hidden />
-              Install tmuxde
+              Install TmuxDE
             </Button>
           )}
         </SettingsRow>
@@ -135,7 +138,7 @@ export function InstallAppSection() {
       {availability === "insecure" && (
         <SettingsRow
           label="Install as an app"
-          hint="Installing needs HTTPS. Open tmuxde at its https:// address to install it."
+          hint="Installing needs HTTPS. Open TmuxDE at its https:// address to install it."
         />
       )}
     </SettingsSection>

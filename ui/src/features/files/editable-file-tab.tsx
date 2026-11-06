@@ -157,6 +157,11 @@ export function EditableFileTab({
           <div className="min-h-0 flex-1 overflow-hidden">
             <MonacoEditor
               content={draft.content}
+              position={tab.position}
+              onNavigate={() => {
+                if (tab.position)
+                  useMainTabsStore.getState().clearFilePosition(tab.id, tab.position.requestId);
+              }}
               revision={draft.revision}
               modelPath={`tmuxde-file://draft/${encodeURIComponent(draft.modelKey)}`}
               language={getMonacoLanguage(tab.path)}

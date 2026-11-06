@@ -474,6 +474,14 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
         : showSidebar("files"),
     });
     navigate.push({
+      id: "go:search-code",
+      label: "Search repository content",
+      keywords: ["code", "text", "grep", "find in files"],
+      icon: <TextSearch />,
+      shortcut: hint("palette.code"),
+      run: () => setMode("code"),
+    });
+    navigate.push({
       id: "go:find-files",
       label: "Find files",
       keywords: ["quick open", "search", "jump"],

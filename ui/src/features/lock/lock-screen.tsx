@@ -137,7 +137,7 @@ export function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
   const length = record?.pinLength ?? 6;
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-background px-6">
+    <div className="flex min-h-[var(--app-height)] flex-col items-center justify-center gap-6 bg-background px-6">
       <div className="flex flex-col items-center gap-3 text-center">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
           <Lock className="h-5 w-5 text-muted-foreground" aria-hidden />

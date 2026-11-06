@@ -771,7 +771,7 @@ func TestRepoRequestRouting(t *testing.T) {
 		{name: "refuses a pane without a directory", attached: "work", panes: []protocol.PaneInfo{withPath("%1", "")}, id: "%1", want: "Pane directory is unavailable"},
 	}
 	for _, tt := range refusals {
-		for _, action := range []string{"status", "search"} {
+		for _, action := range []string{"status", "search", "content-search", "stage", "unstage", "discard"} {
 			t.Run(tt.name+"/"+action, func(t *testing.T) {
 				fh := newFileHarness(t)
 				sink := fh.open(1)

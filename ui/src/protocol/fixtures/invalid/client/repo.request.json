@@ -170,5 +170,71 @@
       "action": "search",
       "query": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     }
+  },
+  {
+    "field": "action",
+    "message": {
+      "type": "repo:request",
+      "requestId": "invalid-mutation",
+      "id": "%3",
+      "action": "discard-all",
+      "path": "/workspace/project",
+      "file": "src/main.go",
+      "scope": "unstaged"
+    }
+  },
+  {
+    "field": "scope",
+    "message": {
+      "type": "repo:request",
+      "requestId": "invalid-scope",
+      "id": "%3",
+      "action": "discard",
+      "path": "/workspace/project",
+      "file": "src/main.go",
+      "scope": "all"
+    }
+  },
+  {
+    "field": "include",
+    "message": {
+      "type": "repo:request",
+      "requestId": "content-1",
+      "id": "%1",
+      "action": "content-search",
+      "path": "/repo",
+      "query": "needle",
+      "include": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "exclude": "vendor/**",
+      "caseSensitive": true
+    }
+  },
+  {
+    "field": "exclude",
+    "message": {
+      "type": "repo:request",
+      "requestId": "content-1",
+      "id": "%1",
+      "action": "content-search",
+      "path": "/repo",
+      "query": "needle",
+      "include": "*.go, src/**",
+      "exclude": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "caseSensitive": true
+    }
+  },
+  {
+    "field": "caseSensitive",
+    "message": {
+      "type": "repo:request",
+      "requestId": "content-1",
+      "id": "%1",
+      "action": "content-search",
+      "path": "/repo",
+      "query": "needle",
+      "include": "*.go, src/**",
+      "exclude": "vendor/**",
+      "caseSensitive": "yes"
+    }
   }
 ]

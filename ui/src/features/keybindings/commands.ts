@@ -39,7 +39,7 @@ export interface Command extends CommandInfo {
 
 type Behaviour = Pick<Command, "run" | "enabled">;
 
-const PALETTE_MODES: readonly PaletteMode[] = ["commands", "files", "terminals"];
+const PALETTE_MODES: readonly PaletteMode[] = ["commands", "files", "code", "terminals"];
 
 /** The key landed in a dialog other than the palette. */
 function inOtherDialog(event: KeyboardEvent | undefined): boolean {
@@ -79,6 +79,7 @@ function closeViews(close: () => void): void {
 
 const BEHAVIOUR: Record<CommandId, Behaviour> = {
   "palette.commands": palette("commands"),
+  "palette.code": palette("code"),
   "palette.files": palette("files"),
   "palette.terminals": palette("terminals"),
   // `args.mode` picks the mode. Toggles like the commands above, so a second

@@ -93,10 +93,11 @@ type Options struct {
 // Service answers repo:request for one machine. It is safe for concurrent use.
 // Filename searches run one at a time to bound filesystem work.
 type Service struct {
-	searchMu sync.Mutex
-	guard    Guard
-	opts     Options
-	log      *slog.Logger
+	searchMu   sync.Mutex
+	mutationMu sync.Mutex
+	guard      Guard
+	opts       Options
+	log        *slog.Logger
 	// bin is the Git program. exec looks it up on PATH at each call.
 	bin string
 	// env is the environment every Git call gets, built from the process
@@ -174,6 +175,8 @@ func (s *Service) handle(ctx context.Context, cwd string, req *client.RepoReques
 	}
 	path := deref(req.Path)
 	switch req.Action {
+	case "content-search":
+		return s.contentSearch(ctx, cwd, req)
 	case "search":
 		if !s.searchMu.TryLock() {
 			return nil, fail("Another file search is running. Try again.")
@@ -211,7 +214,7 @@ func (s *Service) handle(ctx context.Context, cwd string, req *client.RepoReques
 			return nil, err
 		}
 		return &protocol.RepoRead{Kind: "read", Path: file, Content: t.content, Truncated: t.truncated, Binary: t.binary}, nil
-	case "context", "status", "diff", "log", "show":
+	case "context", "status", "diff", "log", "show", "stage", "unstage", "discard":
 	default:
 		return nil, fail(msgUnknownAction)
 	}
@@ -260,6 +263,9 @@ func (s *Service) handle(ctx context.Context, cwd string, req *client.RepoReques
 			return nil, fail(msgCommitRequired)
 		}
 		return s.show(ctx, *repo, commit)
+	}
+	if req.Action == "stage" || req.Action == "unstage" || req.Action == "discard" {
+		return s.mutate(ctx, *repo, req.Action, deref(req.File), deref(req.Scope))
 	}
 	return s.diff(ctx, *repo, deref(req.File), deref(req.Scope))
 }

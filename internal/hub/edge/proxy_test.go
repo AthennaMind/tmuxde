@@ -43,6 +43,8 @@ func newUpstream(t *testing.T) *upstream {
 		h.Set("Content-Type", "text/javascript")
 		h.Set("Cache-Control", "public, max-age=31536000, immutable")
 		h.Set("X-Frame-Options", "SAMEORIGIN")
+		h.Set("Strict-Transport-Security", "max-age=1; includeSubDomains")
+		h.Set("Cross-Origin-Resource-Policy", "cross-origin")
 		_, _ = io.WriteString(w, "console.log(1)")
 	})
 	mux.HandleFunc("/stream/events", func(w http.ResponseWriter, r *http.Request) {
@@ -60,6 +62,8 @@ func newUpstream(t *testing.T) *upstream {
 		h := w.Header()
 		h.Set("Content-Type", "text/html; charset=utf-8")
 		h.Set("Content-Security-Policy", "default-src 'none'")
+		h.Set("Strict-Transport-Security", "max-age=1; includeSubDomains")
+		h.Set("Cross-Origin-Opener-Policy", "unsafe-none")
 		h.Set("X-Frame-Options", "SAMEORIGIN")
 		h.Set("X-Seen-Host", r.Host)
 		h.Set("X-Seen-Forwarded-For", strings.Join(r.Header.Values("X-Forwarded-For"), "|"))
@@ -232,7 +236,7 @@ func TestDevProxyPage(t *testing.T) {
 				t.Fatalf("body %q", body)
 			}
 			// Edge values replace the upstream ones, once each.
-			wantSecurityHeaders(t, res.Header, tt.socket)
+			wantSecurityHeaders(t, res.Header, tt.socket, true)
 			seen := map[string]string{
 				"X-Seen-Host":            testHost,
 				"X-Seen-Forwarded-Host":  testHost,
@@ -248,7 +252,7 @@ func TestDevProxyPage(t *testing.T) {
 	}
 }
 
-func TestDevProxyAssetsPassThrough(t *testing.T) {
+func TestDevProxyAssetsKeepCacheAndSecurityHeaders(t *testing.T) {
 	up := newUpstream(t)
 	srv := newEdgeServer(t, up.url(t), nil)
 	res := get(t, srv, "/assets/index-abc123.js", nil)
@@ -258,16 +262,7 @@ func TestDevProxyAssetsPassThrough(t *testing.T) {
 	if got := res.Header.Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
 		t.Errorf("Cache-Control = %q", got)
 	}
-	// Assets never got page headers. Whatever the dev server sends
-	// stays as it is, and the edge adds nothing.
-	if got := res.Header.Values("X-Frame-Options"); len(got) != 1 || got[0] != "SAMEORIGIN" {
-		t.Errorf("X-Frame-Options = %q, want the upstream value", got)
-	}
-	for _, name := range []string{"Content-Security-Policy", "Permissions-Policy", "X-Content-Type-Options", "Referrer-Policy"} {
-		if got := res.Header.Values(name); len(got) != 0 {
-			t.Errorf("%s = %q, want none", name, got)
-		}
-	}
+	wantSecurityHeaders(t, res.Header, "ws://"+testHost, true)
 }
 
 func TestDevProxyStreamsWithoutBuffering(t *testing.T) {
@@ -313,7 +308,7 @@ func TestDevProxyNeverForwardsHubPaths(t *testing.T) {
 			if body := readBody(t, res); res.StatusCode != http.StatusNotFound || body != "Not found" {
 				t.Fatalf("got %d %q, want 404 Not found", res.StatusCode, body)
 			}
-			wantSecurityHeaders(t, res.Header, "ws://"+testHost)
+			wantSecurityHeaders(t, res.Header, "ws://"+testHost, true)
 		})
 	}
 	t.Run("health", func(t *testing.T) {
@@ -415,7 +410,7 @@ func TestDevProxyUnavailable(t *testing.T) {
 				t.Fatalf("got %d %q, want 502 Bad gateway", res.StatusCode, body)
 			}
 			// An answer from the edge itself, so it has the headers.
-			wantSecurityHeaders(t, res.Header, "ws://"+testHost)
+			wantSecurityHeaders(t, res.Header, "ws://"+testHost, true)
 		})
 	}
 	if got := logs.String(); !strings.Contains(got, "web dev server request failed") {

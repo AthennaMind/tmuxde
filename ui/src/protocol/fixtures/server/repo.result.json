@@ -264,5 +264,35 @@
       ],
       "truncated": false
     }
+  },
+  {
+    "type": "repo:result",
+    "requestId": "content-1",
+    "result": {
+      "kind": "content-search",
+      "root": "/repo",
+      "matches": [
+        {
+          "path": "src/main.go",
+          "line": 2,
+          "column": 4,
+          "endColumn": 10,
+          "preview": "   needle here",
+          "matchStart": 3,
+          "matchEnd": 9
+        }
+      ],
+      "truncated": false
+    }
+  },
+  {
+    "type": "repo:result",
+    "requestId": "content-2",
+    "result": {
+      "kind": "content-search",
+      "root": "/repo",
+      "matches": [],
+      "truncated": true
+    }
   }
 ]

@@ -7,6 +7,11 @@ import { RepositoryFileIcon } from "@/features/files/repository-file-icon";
 import { machineId } from "@/features/connection/machine-context";
 import { explorerTreeKey, useExplorerStore } from "@/features/workspace/explorer-store";
 import { useExplorerFolders } from "@/features/workspace/use-explorer-folders";
+import { ChangeContextMenu } from "./change-context-menu";
+import { ChangeDiscardDialog } from "./change-discard-dialog";
+import { useChangeActions } from "./use-change-actions";
+
+type ChangeMenu = ReturnType<typeof useChangeActions>["menu"];
 
 type Scope = "staged" | "unstaged" | "untracked";
 const SCOPE_LABELS = {
@@ -44,6 +49,7 @@ export function ChangesList({
   /** Optional branch beside layout controls in the desktop sidebar. */
   branch?: string | null;
 }) {
+  const actions = useChangeActions(root, workdir, onOpen);
   const [view, setView] = useState(savedView);
   const selectView = (value: "list" | "tree") => {
     setView(value);
@@ -92,7 +98,12 @@ export function ChangesList({
     }
   };
   return (
-    <div className={dense ? "py-1" : "py-2"}>
+    <div
+      key={`${machineId()}:${root}:${workdir}`}
+      data-changes-list
+      tabIndex={-1}
+      className={dense ? "py-1" : "py-2"}
+    >
       <div
         className={cn(
           "flex min-w-0 items-center justify-between gap-3",
@@ -158,6 +169,11 @@ export function ChangesList({
           </div>
         </div>
       </div>
+      {actions.pending && !actions.confirmation && (
+        <p role="status" className="px-3 py-1 text-xs text-muted-foreground">
+          Updating files. {actions.completed} done.
+        </p>
+      )}
       {groups
         .filter((group) => group.files.length)
         .map(({ scope, files }) => (
@@ -183,19 +199,36 @@ export function ChangesList({
                 files={files}
                 scope={scope}
                 onOpen={onOpen}
+                menu={actions.menu}
                 dense={dense}
               />
             ) : (
               <ul>
                 {files.map((entry) => (
                   <li key={entry.path}>
-                    <ChangeButton entry={entry} scope={scope} onOpen={onOpen} dense={dense} />
+                    <ChangeButton
+                      entry={entry}
+                      scope={scope}
+                      onOpen={onOpen}
+                      dense={dense}
+                      menu={actions.menu}
+                    />
                   </li>
                 ))}
               </ul>
             )}
           </section>
         ))}
+      {actions.confirmation && (
+        <ChangeDiscardDialog
+          target={actions.confirmation}
+          pending={actions.pending}
+          completed={actions.completed}
+          error={actions.error}
+          onConfirm={actions.confirm}
+          onClose={actions.close}
+        />
+      )}
     </div>
   );
 }
@@ -206,6 +239,7 @@ function ChangeTree({
   files,
   scope,
   onOpen,
+  menu,
   dense,
 }: {
   root: string;
@@ -213,6 +247,7 @@ function ChangeTree({
   files: ChangeEntry[];
   scope: Scope;
   onOpen: (path: string, scope: Scope) => void;
+  menu: ChangeMenu;
   dense: boolean;
 }) {
   const [collapsed, setCollapsed] = useExplorerFolders(
@@ -228,31 +263,41 @@ function ChangeTree({
               open={!collapsed.has(node.path)}
               className="[&[open]>summary>svg:first-child]:rotate-90"
             >
-              <summary
-                onClick={(event) => {
-                  event.preventDefault();
-                  setCollapsed((previous) => {
-                    const next = new Set(previous);
-                    if (next.has(node.path)) next.delete(node.path);
-                    else next.add(node.path);
-                    return next;
-                  });
-                }}
-                className={cn(
-                  "flex cursor-pointer list-none items-center gap-2 text-sm hover:bg-muted/60 [&::-webkit-details-marker]:hidden",
-                  dense ? "min-h-7 px-3 py-0.5" : "min-h-11 px-4 py-2",
+              <ChangeContextMenu
+                actions={menu(
+                  files.filter((entry) => entry.path.startsWith(`${node.path}/`)),
+                  scope,
+                  node.path,
+                  true,
                 )}
-                style={{
-                  paddingInlineStart: `${(dense ? 12 : 16) + Math.min(depth, 8) * 12}px`,
-                }}
               >
-                <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-                <Folder className="h-4 w-4 shrink-0 text-term-path" />
-                <span className="min-w-0 flex-1 truncate" title={node.path}>
-                  {node.name}
-                </span>
-                <span className="text-xs tabular-nums text-muted-foreground">{node.count}</span>
-              </summary>
+                <summary
+                  data-change-path={node.path}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setCollapsed((previous) => {
+                      const next = new Set(previous);
+                      if (next.has(node.path)) next.delete(node.path);
+                      else next.add(node.path);
+                      return next;
+                    });
+                  }}
+                  className={cn(
+                    "flex cursor-pointer list-none items-center gap-2 text-sm hover:bg-muted/60 [&::-webkit-details-marker]:hidden",
+                    dense ? "min-h-7 px-3 py-0.5" : "min-h-11 px-4 py-2",
+                  )}
+                  style={{
+                    paddingInlineStart: `${(dense ? 12 : 16) + Math.min(depth, 8) * 12}px`,
+                  }}
+                >
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                  <Folder className="h-4 w-4 shrink-0 text-term-path" />
+                  <span className="min-w-0 flex-1 truncate" title={node.path}>
+                    {node.name}
+                  </span>
+                  <span className="text-xs tabular-nums text-muted-foreground">{node.count}</span>
+                </summary>
+              </ChangeContextMenu>
               {renderNodes(node.children, depth + 1)}
             </details>
           ) : (
@@ -260,6 +305,7 @@ function ChangeTree({
               entry={node.entry!}
               scope={scope}
               onOpen={onOpen}
+              menu={menu}
               depth={depth}
               basename
               dense={dense}
@@ -276,6 +322,7 @@ function ChangeButton({
   entry,
   scope,
   onOpen,
+  menu,
   depth = 0,
   basename = false,
   dense = false,
@@ -283,38 +330,42 @@ function ChangeButton({
   entry: ChangeEntry;
   scope: Scope;
   onOpen: (path: string, scope: Scope) => void;
+  menu: ChangeMenu;
   depth?: number;
   basename?: boolean;
   dense?: boolean;
 }) {
   const code = scope === "untracked" ? "?" : scope === "staged" ? entry.index : entry.worktree;
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(entry.path, scope)}
-      title={entry.originalPath ? `${entry.originalPath} → ${entry.path}` : entry.path}
-      className={cn(
-        "flex w-full items-center text-left hover:bg-muted/60 focus-visible:bg-muted",
-        dense ? "min-h-7 gap-2 px-3 py-0.5" : "min-h-11 gap-3 px-4 py-2",
-      )}
-      style={{
-        paddingInlineStart: `${(dense ? 12 : 16) + Math.min(depth, 8) * 12}px`,
-      }}
-    >
-      <ChangeCode code={code} />
-      <RepositoryFileIcon path={entry.path} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm">
-          {basename ? entry.path.split("/").pop() : entry.path}
-        </span>
-        {entry.originalPath && (
-          <span className="block truncate text-[11px] text-muted-foreground">
-            from {entry.originalPath}
-          </span>
+    <ChangeContextMenu actions={menu([entry], scope, entry.path)}>
+      <button
+        data-change-path={entry.path}
+        type="button"
+        onClick={() => onOpen(entry.path, scope)}
+        title={entry.originalPath ? `${entry.originalPath} → ${entry.path}` : entry.path}
+        className={cn(
+          "flex w-full items-center text-left hover:bg-muted/60 focus-visible:bg-muted",
+          dense ? "min-h-7 gap-2 px-3 py-0.5" : "min-h-11 gap-3 px-4 py-2",
         )}
-      </span>
-      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-    </button>
+        style={{
+          paddingInlineStart: `${(dense ? 12 : 16) + Math.min(depth, 8) * 12}px`,
+        }}
+      >
+        <ChangeCode code={code} />
+        <RepositoryFileIcon path={entry.path} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm">
+            {basename ? entry.path.split("/").pop() : entry.path}
+          </span>
+          {entry.originalPath && (
+            <span className="block truncate text-[11px] text-muted-foreground">
+              from {entry.originalPath}
+            </span>
+          )}
+        </span>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      </button>
+    </ChangeContextMenu>
   );
 }
 

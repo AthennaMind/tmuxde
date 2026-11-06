@@ -34,28 +34,28 @@ func record(h http.Handler, method, target string) *httptest.ResponseRecorder {
 }
 
 // wantSecurityHeaders fails unless h has every edge header, once each.
-func wantSecurityHeaders(t *testing.T, h http.Header, socket string) {
+func wantSecurityHeaders(t *testing.T, h http.Header, socket string, development ...bool) {
 	t.Helper()
 	want := map[string]string{
-		"Content-Security-Policy": contentSecurityPolicy(socket),
-		"Permissions-Policy":      "microphone=(self), camera=(), geolocation=()",
-		"X-Frame-Options":         "DENY",
-		"X-Content-Type-Options":  "nosniff",
-		"Referrer-Policy":         "strict-origin-when-cross-origin",
+		"Content-Security-Policy":      contentSecurityPolicy(socket, len(development) > 0 && development[0]),
+		"Permissions-Policy":           permissionsPolicy,
+		"X-Frame-Options":              "DENY",
+		"X-Content-Type-Options":       "nosniff",
+		"Referrer-Policy":              "no-referrer",
+		"Cross-Origin-Opener-Policy":   "same-origin",
+		"Cross-Origin-Resource-Policy": "same-origin",
+		"Origin-Agent-Cluster":         "?1",
+		"X-Robots-Tag":                 "noindex, nofollow, noarchive",
+	}
+	if strings.HasPrefix(socket, "wss://") {
+		want["Strict-Transport-Security"] = "max-age=31536000"
+	} else if h.Get("Strict-Transport-Security") != "" {
+		t.Error("HTTP response has HSTS")
 	}
 	for name, value := range want {
 		got := h.Values(name)
 		if len(got) != 1 || got[0] != value {
 			t.Errorf("%s = %q, want [%q]", name, got, value)
-		}
-	}
-}
-
-func wantNoSecurityHeaders(t *testing.T, h http.Header) {
-	t.Helper()
-	for _, name := range securityHeaders {
-		if got := h.Values(name); len(got) != 0 {
-			t.Errorf("%s = %q, want none", name, got)
 		}
 	}
 }
@@ -111,7 +111,7 @@ func TestOptionsAnyPath(t *testing.T) {
 					if rec.Code != http.StatusNoContent || rec.Body.Len() != 0 {
 						t.Fatalf("status %d body %q, want 204 and no body", rec.Code, rec.Body)
 					}
-					wantSecurityHeaders(t, rec.Header(), "ws://tmuxde.test")
+					wantSecurityHeaders(t, rec.Header(), "ws://tmuxde.test", web != nil)
 				})
 			}
 		})
@@ -133,7 +133,7 @@ func TestCodeEntryRedirects(t *testing.T) {
 			if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/login" {
 				t.Fatalf("status %d Location %q, want 302 to /login", rec.Code, rec.Header().Get("Location"))
 			}
-			wantSecurityHeaders(t, rec.Header(), "ws://tmuxde.test")
+			wantSecurityHeaders(t, rec.Header(), "ws://tmuxde.test", true)
 		})
 	}
 }
@@ -204,47 +204,22 @@ func TestHandleMountsBeforeTheWebApp(t *testing.T) {
 	})
 }
 
-func TestStaticGetsAssetExclusions(t *testing.T) {
-	static := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestStaticSecurityHeaders(t *testing.T) {
+	web := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, "static "+r.URL.Path)
 	})
-	h := Handler(quietOptions(Options{Static: static}))
-
-	tests := []struct {
-		path    string
-		headers bool
-	}{
-		// Pages keep the headers: the app routes and index.html.
-		{"/", true},
-		{"/index.html", true},
-		{"/login", true},
-		{"/s/abc", true},
-		// Below an asset prefix without a file extension the static
-		// handler serves index.html. That is a page too.
-		{"/assets/", true},
-		{"/fonts/", true},
-		{"/fonts/x", true},
-		// Assets pass through as the web app sent them.
-		{"/assets/app-abc123.js", false},
-		{"/fonts/ibm-plex-sans-400.woff2", false},
-		{"/sw.js", false},
-		{"/manifest.json", false},
-		{"/offline.html", false},
-		{"/dictation-worklet.js", false},
-		{"/icon.svg", false},
-		{"/robots.txt", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.path, func(t *testing.T) {
-			rec := record(h, "GET", tt.path)
-			if rec.Body.String() != "static "+tt.path {
+	h := Handler(quietOptions(Options{Static: web}))
+	for _, p := range []string{
+		"/", "/index.html", "/login", "/s/abc", "/assets/", "/fonts/", "/fonts/x",
+		"/assets/app-abc123.js", "/fonts/font.woff2", "/sw.js", "/manifest.json",
+		"/offline.html", "/dictation-worklet.js", "/theme-init.js", "/icon.svg", "/robots.txt",
+	} {
+		t.Run(p, func(t *testing.T) {
+			rec := record(h, "GET", p)
+			if rec.Body.String() != "static "+p {
 				t.Fatalf("body %q", rec.Body)
 			}
-			if tt.headers {
-				wantSecurityHeaders(t, rec.Header(), "ws://tmuxde.test")
-			} else {
-				wantNoSecurityHeaders(t, rec.Header())
-			}
+			wantSecurityHeaders(t, rec.Header(), "ws://tmuxde.test")
 		})
 	}
 }
@@ -277,10 +252,8 @@ func TestStaticIndexKeepsHeaders(t *testing.T) {
 			if rec.Code != http.StatusOK || rec.Body.String() == page {
 				t.Fatalf("status %d, body %q, want the asset", rec.Code, rec.Body)
 			}
-			// The static handler sets nosniff itself. The edge adds nothing.
-			if got := rec.Header().Values("Content-Security-Policy"); len(got) != 0 {
-				t.Fatalf("Content-Security-Policy = %q, want none", got)
-			}
+			// Asset content and cache policy keep browser protections.
+			wantSecurityHeaders(t, rec.Header(), "ws://tmuxde.test")
 		})
 	}
 }

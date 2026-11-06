@@ -97,7 +97,7 @@ export async function enrollPasskeyFactor(userLabel: string): Promise<EnrollResu
     created = (await navigator.credentials.create({
       publicKey: {
         challenge: challenge(),
-        rp: { name: "tmuxde" },
+        rp: { name: "TmuxDE" },
         user: {
           // Local-only: this id is never sent anywhere and never correlated
           // with a tmuxde account.

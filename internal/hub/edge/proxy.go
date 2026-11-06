@@ -10,17 +10,14 @@ import (
 	"net/url"
 )
 
-// devProxy forwards requests to the web dev server. Pages get the edge
-// security headers in place of the upstream ones. Assets pass through as
-// the dev server sent them.
+// devProxy forwards requests to web dev server with edge security headers.
 //
 // WebSocket upgrades such as the HMR socket go through too. ReverseProxy
 // answers 101 itself and then copies bytes both ways. A mis-routed HMR
 // upgrade used to hang, and Chromium, which opens WebSocket handshakes to
 // one host one at a time, then never tried /_relay.
 type devProxy struct {
-	page  *httputil.ReverseProxy
-	asset *httputil.ReverseProxy
+	proxy *httputil.ReverseProxy
 }
 
 func newDevProxy(target *url.URL, logger *slog.Logger) *devProxy {
@@ -28,46 +25,25 @@ func newDevProxy(target *url.URL, logger *slog.Logger) *devProxy {
 	// The dev server is local. Never send it through a proxy from the
 	// environment.
 	transport.Proxy = nil
-	build := func(modify func(*http.Response) error) *httputil.ReverseProxy {
-		return &httputil.ReverseProxy{
-			Rewrite: func(pr *httputil.ProxyRequest) {
-				pr.SetURL(target)
-				// Keep the Host the browser sent. The dev server checks hosts
-				// and builds URLs from it.
-				pr.Out.Host = pr.In.Host
-				// For, Host and Proto from this hop only. Inbound copies
-				// are already dropped by Rewrite.
-				pr.SetXForwarded()
-				// Preserve browser scheme when a proxy terminates TLS.
-				pr.Out.Header.Set("X-Forwarded-Proto", requestScheme(pr.In))
-			},
-			Transport: transport,
-			// Write each chunk at once, so HMR and event streams do not
-			// wait in a buffer.
-			FlushInterval:  -1,
-			ModifyResponse: modify,
-			ErrorHandler:   proxyErrorHandler(logger),
-			ErrorLog:       slog.NewLogLogger(logger.Handler(), slog.LevelWarn),
-		}
-	}
-	return &devProxy{
-		page:  build(dropSecurityHeaders),
-		asset: build(nil),
-	}
+	return &devProxy{proxy: &httputil.ReverseProxy{
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.SetURL(target)
+			// Keep browser host for Vite host and WebSocket origin checks.
+			pr.Out.Host = pr.In.Host
+			pr.SetXForwarded()
+			pr.Out.Header.Set("X-Forwarded-Proto", requestScheme(pr.In))
+		},
+		Transport: transport,
+		// Flush HMR and event streams without waiting for buffers.
+		FlushInterval:  -1,
+		ModifyResponse: dropSecurityHeaders,
+		ErrorHandler:   proxyErrorHandler(logger),
+		ErrorLog:       slog.NewLogLogger(logger.Handler(), slog.LevelWarn),
+	}}
 }
 
-// socketOriginKey carries the socket origin of the browser request to the
-// error handler. ReverseProxy hands that handler the outbound request, whose
-// Host and headers are the proxy's choice, not the browser's.
-type socketOriginKey struct{}
-
 func (p *devProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	r = r.WithContext(context.WithValue(r.Context(), socketOriginKey{}, socketOrigin(r)))
-	if isAsset(r.URL.Path) {
-		p.asset.ServeHTTP(w, r)
-		return
-	}
-	p.page.ServeHTTP(w, r)
+	p.proxy.ServeHTTP(w, r)
 }
 
 // dropSecurityHeaders removes upstream copies of the edge headers. The
@@ -91,10 +67,6 @@ func proxyErrorHandler(logger *slog.Logger) func(http.ResponseWriter, *http.Requ
 		} else {
 			logger.Warn("web dev server request failed", "path", r.URL.Path, "error", err)
 		}
-		// This answer comes from the edge, so it carries the headers even
-		// on an asset path.
-		socket, _ := r.Context().Value(socketOriginKey{}).(string)
-		setSecurityHeaders(w.Header(), socket)
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusBadGateway)
 		_, _ = io.WriteString(w, "Bad gateway")

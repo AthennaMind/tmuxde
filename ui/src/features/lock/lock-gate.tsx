@@ -41,7 +41,7 @@ export function LockGate({ children }: { children: React.ReactNode }) {
   if (!ready) {
     return (
       <div
-        className="flex min-h-[100dvh] items-center justify-center bg-background"
+        className="flex min-h-[var(--app-height)] items-center justify-center bg-background"
         role="status"
         aria-live="polite"
       >

@@ -21,7 +21,7 @@ export function RootError() {
     <div
       style={{
         margin: 0,
-        minHeight: "100dvh",
+        minHeight: "var(--app-height, 100dvh)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -34,7 +34,7 @@ export function RootError() {
         color: "#f4f6f2",
       }}
     >
-      <h1 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }}>tmuxde failed to start</h1>
+      <h1 style={{ fontSize: "1.25rem", fontWeight: 600, margin: 0 }}>TmuxDE failed to start</h1>
       <p
         style={{
           margin: 0,

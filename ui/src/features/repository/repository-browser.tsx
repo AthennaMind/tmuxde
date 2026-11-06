@@ -676,7 +676,7 @@ function BrowserContents({
                   )}
                 </div>
                 <div className="shrink-0 border-t px-3 py-2 text-[11px] text-muted-foreground">
-                  Current working tree · Read only
+                  Current working tree
                 </div>
               </>
             ) : (

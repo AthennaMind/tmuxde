@@ -24,6 +24,8 @@ interface AppShellProps {
  * `CommandComposer` already sized itself this way for the same reason; this is
  * that fix applied where the footer actually lives. On Chromium the two agree,
  * because `--vv-height` and the shrunk `100dvh` are the same number.
+ * Installed desktop windows subtract reserved window controls height. Open
+ * tabs use that space above shell without reducing terminal height twice.
  */
 export function AppShell({ header, toolbar, children, className }: AppShellProps) {
   return (
@@ -35,7 +37,7 @@ export function AppShell({ header, toolbar, children, className }: AppShellProps
         className,
       )}
       style={{
-        height: "var(--vv-height, 100dvh)",
+        height: "calc(var(--vv-height, 100dvh) - var(--window-controls-height))",
         touchAction: "manipulation",
       }}
     >

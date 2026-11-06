@@ -15,7 +15,7 @@ import type { RepositoryClient } from "@/features/repository/repository-request"
 
 /** A file or diff in the desktop main area, opened from the sidebar. */
 export function FileTabView(props: { tab: FileTab; className?: string }) {
-  if (!props.tab.scope && getFileViewMode(props.tab.path) === "text") {
+  if (!props.tab.scope && (props.tab.position || getFileViewMode(props.tab.path) === "text")) {
     return <EditableFileTab {...props} preview={<FileTabFallback tab={props.tab} />} />;
   }
   return <PreviewFileTab {...props} />;

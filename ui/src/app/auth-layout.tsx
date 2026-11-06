@@ -11,7 +11,7 @@ import { EntryHeader } from "./entry-header";
  */
 export function EntryLayout() {
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-background">
+    <div className="flex min-h-[var(--app-height)] flex-col bg-background">
       <EntryHeader />
       <main className="flex flex-1 flex-col">
         <Outlet />

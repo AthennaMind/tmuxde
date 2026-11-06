@@ -32,6 +32,7 @@ export interface CommandInfo {
 
 export const COMMAND_INFO = {
   "palette.commands": { title: "Command palette", group: "palette", toggle: true },
+  "palette.code": { title: "Search repository content", group: "palette", toggle: true },
   "palette.files": { title: "Find files", group: "palette", toggle: true },
   "palette.terminals": { title: "Search terminals", group: "palette", toggle: true },
   "palette.open": { title: "Open palette in a mode", group: "palette", toggle: true },

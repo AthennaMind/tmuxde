@@ -46,6 +46,8 @@ export interface FileTab extends TabOrigin {
   size?: number;
   /** The tree listed the path as a symbolic link. */
   symlink?: boolean;
+  /** Explicit editor navigation. Identity changes on every result selection. */
+  position?: { line: number; column: number; endColumn: number; requestId: string };
 }
 
 /**
@@ -166,6 +168,7 @@ interface MainTabsStore {
   /** `TERMINAL_TAB` or a tab id. */
   active: string;
   openFile: (tab: Omit<FileTab, "id" | "kind">) => void;
+  clearFilePosition: (id: string, requestId: string) => void;
   openCommit: (tab: Omit<CommitTab, "id" | "kind">) => void;
   /**
    * Fill in a subject the opener did not know. Never activates. Takes the
@@ -272,7 +275,16 @@ function isMainTab(value: unknown): value is MainTab {
 export function restoreTabs(persisted: unknown): Pick<MainTabsStore, "tabs" | "active" | "order"> {
   const state = persisted as Partial<MainTabsStore> | undefined;
   const keep = new Set(typeof state?.active === "string" ? [state.active] : []);
-  const tabs = Array.isArray(state?.tabs) ? trimTabs(state.tabs.filter(isMainTab), keep) : [];
+  const tabs = Array.isArray(state?.tabs)
+    ? trimTabs(
+        state.tabs
+          .filter(isMainTab)
+          .map((tab) =>
+            tab.kind === "file" && tab.position ? { ...tab, position: undefined } : tab,
+          ),
+        keep,
+      )
+    : [];
   const active = tabs.find((t) => t.id === state?.active)?.id ?? TERMINAL_TAB;
   const order = Array.isArray(state?.order)
     ? [...new Set(state.order.filter((id): id is string => typeof id === "string"))]
@@ -363,6 +375,14 @@ export const useMainTabsStore = create<MainTabsStore>()(
             : { order },
         ),
       active: TERMINAL_TAB,
+      clearFilePosition: (id, requestId) =>
+        set((s) => ({
+          tabs: s.tabs.map((tab) =>
+            tab.kind === "file" && tab.id === id && tab.position?.requestId === requestId
+              ? { ...tab, position: undefined }
+              : tab,
+          ),
+        })),
       openFile: (input) =>
         set((s) => {
           // Same file again: refresh what it points at, keep its place.

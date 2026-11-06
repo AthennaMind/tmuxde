@@ -117,7 +117,7 @@ export function MainTabs() {
         <nav
           {...navProps}
           aria-label="Open views"
-          className="flex min-h-11 shrink-0 items-end gap-0.5 overflow-x-auto border-b px-1.5 font-chrome scrollbar-none"
+          className="tmuxde-main-tabs flex min-h-11 shrink-0 items-end gap-0.5 overflow-x-auto border-b px-1.5 font-chrome scrollbar-none"
         >
           {[
             ...terminals.map((terminal) => (

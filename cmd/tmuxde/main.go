@@ -495,6 +495,7 @@ func serve(ctx context.Context, ln net.Listener, a *app, logger *slog.Logger) er
 	srv := &http.Server{
 		Handler:           a.handler,
 		ReadHeaderTimeout: 10 * time.Second,
+		MaxHeaderBytes:    64 << 10,
 		IdleTimeout:       2 * time.Minute,
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelWarn),
 		ConnState:         unused.track,
