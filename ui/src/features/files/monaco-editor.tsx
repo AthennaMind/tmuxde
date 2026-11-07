@@ -3,9 +3,10 @@ import { useFileDrafts } from "./file-drafts";
 import Editor, { loader } from "@monaco-editor/react";
 import type { OnMount, OnChange } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useEffectEvent, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useState } from "react";
 import { useTerminalStore } from "@/features/terminal/terminal-store";
 import { applyMonacoTheme, useMonacoTheme } from "./monaco-theme";
+import { FileLoading } from "./file-loading";
 // Before loader.config, so Monaco finds the bundled workers.
 import "./monaco-workers";
 
@@ -15,20 +16,6 @@ const CODE_FONT = '"Cascadia Code", "IBM Plex Mono", monospace';
 // Configure @monaco-editor/react to use the locally installed monaco-editor
 // instead of fetching from CDN
 loader.config({ monaco });
-
-// Shows while Monaco starts. This module is itself lazy loaded, so the editor
-// package needs no lazy import of its own.
-const loadingSkeleton = (
-  <div className="flex-1 space-y-2 p-4">
-    {Array.from({ length: 12 }).map((_, i) => (
-      <div
-        key={i}
-        className="h-4 animate-pulse rounded bg-muted"
-        style={{ width: `${40 + Math.random() * 50}%` }}
-      />
-    ))}
-  </div>
-);
 
 type CodeEditor = Parameters<OnMount>[0];
 
@@ -86,9 +73,17 @@ export function MonacoEditor({
       .load('400 16px "Cascadia Code"', "W")
       .then(() => monacoApi.editor.remeasureFonts())
       .catch(() => {});
-    // A slow editor mount must not interrupt naming another file in the tree.
-    if (!document.querySelector("[data-file-name-input]")) mounted.focus();
   }, []);
+
+  useLayoutEffect(() => {
+    if (!editor) return;
+    // The package creates Monaco in a display:none container. Size and paint
+    // it before revealing it instead of waiting for automaticLayout's observer.
+    editor.layout();
+    editor.render(true);
+    // A slow editor mount must not interrupt naming another file in the tree.
+    if (!document.querySelector("[data-file-name-input]")) editor.focus();
+  }, [editor]);
 
   /*
    * Monaco owns the text while someone types. A controlled `value` raced
@@ -152,37 +147,42 @@ export function MonacoEditor({
   );
 
   return (
-    <Editor
-      height="100%"
-      path={modelPath}
-      keepCurrentModel={!!modelPath}
-      saveViewState
-      language={language}
-      defaultValue={content}
-      theme={theme}
-      beforeMount={applyMonacoTheme}
-      loading={loadingSkeleton}
-      onChange={handleChange}
-      onMount={handleMount}
-      options={{
-        // Retained models must not restore pending occurrence requests.
-        occurrencesHighlight: modelPath ? "off" : "singleFile",
-        readOnly,
-        minimap: { enabled: false },
-        lineNumbers: "on",
-        wordWrap,
-        fontSize,
-        fontFamily: CODE_FONT,
-        fontWeight: String(codeWeight),
-        fontLigatures: true,
-        scrollBeyondLastLine: false,
-        automaticLayout: true,
-        tabSize: 2,
-        renderWhitespace: "selection",
-        bracketPairColorization: { enabled: true },
-        padding: { top: 8 },
-      }}
-    />
+    <div className="relative h-full">
+      {!editor && <FileLoading />}
+      <div className="absolute inset-0" style={{ visibility: editor ? "visible" : "hidden" }}>
+        <Editor
+          height="100%"
+          path={modelPath}
+          keepCurrentModel={!!modelPath}
+          saveViewState
+          language={language}
+          defaultValue={content}
+          theme={theme}
+          beforeMount={applyMonacoTheme}
+          loading={null}
+          onChange={handleChange}
+          onMount={handleMount}
+          options={{
+            // Retained models must not restore pending occurrence requests.
+            occurrencesHighlight: modelPath ? "off" : "singleFile",
+            readOnly,
+            minimap: { enabled: false },
+            lineNumbers: "on",
+            wordWrap,
+            fontSize,
+            fontFamily: CODE_FONT,
+            fontWeight: String(codeWeight),
+            fontLigatures: true,
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            tabSize: 2,
+            renderWhitespace: "selection",
+            bracketPairColorization: { enabled: true },
+            padding: { top: 8 },
+          }}
+        />
+      </div>
+    </div>
   );
 }
 
