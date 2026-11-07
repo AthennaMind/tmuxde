@@ -6,6 +6,7 @@ import { useConnectionStore } from "@/features/connection/connection-store";
 import { get } from "@/features/connection/relay-registry";
 import { lazyComponent } from "@/shared/lazy-component";
 import { Notice } from "@/shared/notice";
+import { FileLoading } from "./file-loading";
 import { cn } from "@/shared/utils";
 import { Button } from "@/components/ui/button";
 import { getMonacoLanguage } from "./file-utils";
@@ -21,8 +22,9 @@ import {
   useFileDrafts,
 } from "./file-drafts";
 
-const MonacoEditor = lazyComponent(() =>
-  import("./monaco-editor").then((module) => module.MonacoEditor),
+const MonacoEditor = lazyComponent(
+  () => import("./monaco-editor").then((module) => module.MonacoEditor),
+  <FileLoading />,
 );
 const MarkdownPreview = lazyComponent(() =>
   import("./markdown-preview").then((module) => module.MarkdownPreview),
@@ -174,8 +176,10 @@ export function EditableFileTab({
         )
       ) : draft?.error ? (
         preview
+      ) : draft?.online || client?.status === "connected" || !draft ? (
+        <FileLoading />
       ) : (
-        <Notice>{draft?.online ? "Loading file" : "Connect to edit this file."}</Notice>
+        <Notice>Connect to edit this file.</Notice>
       )}
       {markdown && draft?.base && (
         <div

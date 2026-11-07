@@ -29,6 +29,7 @@ import { cn } from "@/shared/utils";
 import { getFileViewMode } from "@/features/files/file-utils";
 import { useSessionStore } from "@/features/session/session-store";
 import { useFileStore } from "@/features/files/file-store";
+import { FileLoading } from "@/features/files/file-loading";
 import { useUiStore } from "./ui-store";
 import { TERMINAL_TAB, isMachineTab, useMainTabsStore } from "./main-tabs-store";
 import { useWheelScroll } from "@/features/terminal/use-wheel-scroll";
@@ -36,12 +37,18 @@ import { lazyComponent } from "@/shared/lazy-component";
 import { leaveCopyMode } from "@/features/terminal/terminal-scroll";
 import { getTerminalHandle } from "@/features/terminal/terminal-handle";
 
-const FileEditor = lazyComponent(() =>
-  import("@/features/files/file-editor").then((m) => m.FileEditor),
+const FileEditor = lazyComponent(
+  () => import("@/features/files/file-editor").then((m) => m.FileEditor),
+  <div className="fixed inset-0 z-[var(--z-panel)] bg-background pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
+    <FileLoading />
+  </div>,
 );
 
-const FileTabView = lazyComponent(() =>
-  import("@/features/files/file-tab-view").then((m) => m.FileTabView),
+const FileTabView = lazyComponent(
+  () => import("@/features/files/file-tab-view").then((m) => m.FileTabView),
+  <div className="absolute inset-0">
+    <FileLoading />
+  </div>,
 );
 
 const ChangesTabView = lazyComponent(() =>

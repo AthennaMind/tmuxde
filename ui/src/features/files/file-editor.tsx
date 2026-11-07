@@ -24,6 +24,7 @@ import {
 import { cn } from "@/shared/utils";
 import { useAlertStore } from "@/shared/alert-store";
 import { MonacoEditor } from "./monaco-editor";
+import { FileLoading } from "./file-loading";
 import { getMonacoLanguage, getLanguageLabel } from "./file-utils";
 import { useFileStore } from "./file-store";
 import { useSessionStore } from "@/features/session/session-store";
@@ -378,9 +379,7 @@ function OpenFileEditor({ path }: { path: string }) {
               </Button>
             </div>
           ) : (
-            <div className="flex h-full items-center justify-center">
-              <span className="text-sm text-muted-foreground">Loading...</span>
-            </div>
+            <FileLoading />
           )}
         </div>
 
