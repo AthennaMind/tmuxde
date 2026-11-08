@@ -15,6 +15,13 @@ import "@xterm/xterm/css/xterm.css";
 import { getTerminalTheme, terminalThemeToXterm, type ColorScheme } from "./terminal-themes";
 import { useTheme } from "@/shared/use-theme";
 import { createXterm } from "./xterm-factory";
+import { fileLinkProvider } from "./file-links";
+import { resolveFileLink } from "./resolve-file-link";
+import { useFileStore } from "@/features/files/file-store";
+import { explorerTreeKey, useExplorerStore } from "@/features/workspace/explorer-store";
+import { machineId } from "@/features/connection/machine-context";
+import { useMainTabsStore } from "@/features/workspace/main-tabs-store";
+import { useUiStore } from "@/features/workspace/ui-store";
 import { copyText, copyFailureReason } from "@/shared/clipboard";
 import { decodeOsc52 } from "./osc52";
 import { terminalFontFamily } from "./terminal-font";
@@ -26,7 +33,11 @@ import { usePaneStore } from "@/features/panes/pane-store";
 import { useSettingsStore } from "@/features/settings/settings-store";
 import { isMobileViewport } from "@/shared/mobile-query";
 import { useAlertStore } from "@/shared/alert-store";
-import { isReadOnly, useConnectionStore } from "@/features/connection/connection-store";
+import {
+  filesDisabled,
+  isReadOnly,
+  useConnectionStore,
+} from "@/features/connection/connection-store";
 import { getRelayClient, useRelaySubscription } from "@/features/connection/use-websocket";
 import {
   IDLE,
@@ -365,6 +376,101 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
         }
       });
     };
+    let fileLinkRequest: AbortController | null = null;
+    const fileLinksDisposable = terminal.registerLinkProvider(
+      fileLinkProvider(
+        terminal,
+        () => {
+          const session = attachedName(attachStateRef.current);
+          if (
+            !session ||
+            !shouldWriteOutput(attachStateRef.current) ||
+            filesDisabled(useConnectionStore.getState().capabilities)
+          )
+            return null;
+          return {
+            machineId: machineId(),
+            sessionName: session,
+            panes: usePaneStore.getState().panes,
+          };
+        },
+        (target) => {
+          const client = getRelayClient();
+          if (!client || filesDisabled(useConnectionStore.getState().capabilities)) return;
+          const attachment = attachStateRef.current;
+          fileLinkRequest?.abort();
+          const panePath = usePaneStore
+            .getState()
+            .panes.find((pane) => pane.id === target.paneId)?.path;
+          const request = new AbortController();
+          fileLinkRequest = request;
+          const valid = () =>
+            !request.signal.aborted &&
+            attachStateRef.current === attachment &&
+            !filesDisabled(useConnectionStore.getState().capabilities) &&
+            machineId() === target.machineId &&
+            attachedName(attachStateRef.current) === target.sessionName &&
+            shouldWriteOutput(attachStateRef.current) &&
+            getRelayClient() === client &&
+            usePaneStore
+              .getState()
+              .panes.some((pane) => pane.id === target.paneId && pane.path === panePath);
+          const offStatus = client.onStatusChange((connectionStatus) => {
+            if (connectionStatus !== "connected") request.abort();
+          });
+          request.signal.addEventListener("abort", offStatus, { once: true });
+          void resolveFileLink(client, target, request.signal)
+            .then(({ entry, context }) => {
+              if (!valid()) return;
+              if (entry.type === "directory") {
+                const root = context.root ?? context.path;
+                if (
+                  usePaneStore.getState().activePaneId !== target.paneId ||
+                  (entry.path !== root && !entry.path.startsWith(`${root.replace(/\/$/, "")}/`))
+                ) {
+                  useAlertStore
+                    .getState()
+                    .push("info", `Folder is outside active file tree: ${entry.path}`);
+                  return;
+                }
+                const key = explorerTreeKey(target.machineId, "files", root, context.path);
+                useExplorerStore.getState().updateFolders(key, (previous) => {
+                  const expanded = new Set(previous);
+                  let path = entry.path;
+                  while (path.length >= root.length) {
+                    expanded.add(path);
+                    if (path === root) break;
+                    path = path.slice(0, path.lastIndexOf("/"));
+                  }
+                  return expanded;
+                });
+                useFileStore.getState().setRevealPath(entry.path === root ? null : entry.path);
+                useUiStore.getState().showSidebarView("files");
+                useUiStore.getState().setMobileTab("files");
+                return;
+              }
+              if (entry.type !== "file") {
+                useAlertStore.getState().push("info", `Open this path from Files: ${entry.path}`);
+                return;
+              }
+              const { relativePath: _relativePath, ...file } = target;
+              useMainTabsStore.getState().openFile({ ...file, path: entry.path });
+              useUiStore.getState().setMobileTab("terminal");
+            })
+            .catch((error: unknown) => {
+              if (valid())
+                useAlertStore
+                  .getState()
+                  .push("error", error instanceof Error ? error.message : "Could not open path.");
+            })
+            .finally(() => {
+              offStatus();
+              request.signal.removeEventListener("abort", offStatus);
+            });
+        },
+      ),
+    );
+
     // Tmux and terminal apps copy through OSC 52 when they own selection.
     // Consume queries without replying. Clipboard reads stay in browser.
     const clipboardDisposable = terminal.parser.registerOscHandler(52, (data) => {
@@ -646,6 +752,8 @@ export const TerminalView = forwardRef<TerminalViewHandle, TerminalViewProps>(fu
       dataDisposable.dispose();
       resizeDisposable.dispose();
       clipboardDisposable.dispose();
+      fileLinksDisposable.dispose();
+      fileLinkRequest?.abort();
       terminalElement.removeEventListener("mousedown", startSelectionCopy, true);
       window.removeEventListener("mouseup", finishSelectionCopy);
       window.removeEventListener("blur", cancelSelectionCopy);
