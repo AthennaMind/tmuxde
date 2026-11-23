@@ -55,7 +55,7 @@ jobs:
       - name: Install native tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends g++ g++-aarch64-linux-gnu
+          sudo apt-get install -y --no-install-recommends g++ g++-aarch64-linux-gnu unzip
       - name: Install UI dependencies
         working-directory: ui
         run: |
@@ -79,7 +79,7 @@ jobs:
       - name: Download and verify speech assets
         run: |
           mkdir -p .cache/stt-downloads
-          jq -r '[.header, .libraries[], .c_api_sources[], .c_api_headers[], .models[]] | unique_by(.sha256)[] | [.url, .sha256] | @tsv' cmd/tmuxde-stt/assets.json |
+          jq -r '[.header, .onnxruntime_sdk, .libraries[], .c_api_sources[], .c_api_headers[], .models[]] | unique_by(.sha256)[] | [.url, .sha256] | @tsv' cmd/tmuxde-stt/assets.json |
           while IFS=$'\t' read -r url checksum; do
             asset=".cache/stt-downloads/$checksum"
             if ! echo "$checksum  $asset" | sha256sum --check --status; then
@@ -104,6 +104,8 @@ jobs:
             mkdir -p "$STT_ASSET_DIR/$name"
             tar -xzf ".cache/stt-downloads/$checksum" -C "$STT_ASSET_DIR/$name" --strip-components=1
           done
+          checksum="$(jq -r '.onnxruntime_sdk.sha256' cmd/tmuxde-stt/assets.json)"
+          unzip -joq ".cache/stt-downloads/$checksum" '*/include/onnxruntime*.h' -d "$STT_ASSET_DIR/include"
           jq -r '.c_api_headers | to_entries[] | [.key, .value.sha256] | @tsv' cmd/tmuxde-stt/assets.json |
           while IFS=$'\t' read -r name checksum; do
             mkdir -p "$(dirname "$STT_ASSET_DIR/include/$name")"

@@ -36,7 +36,7 @@ SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 # Later steps source /opt/stt/env.sh for CC and CXX.
 RUN <<'EOF'
 apt-get update
-apt-get install -y --no-install-recommends curl jq bzip2
+apt-get install -y --no-install-recommends curl jq bzip2 unzip
 case "$(dpkg --print-architecture):$TARGETARCH" in
   amd64:amd64 | arm64:arm64) triplet="" ;;
   *:arm64) triplet=aarch64-linux-gnu ;;
@@ -75,6 +75,10 @@ if [ "$TARGETARCH" = arm64 ]; then
     tar -xzf "$name.tar.gz" -C "$name" --strip-components=1
     rm "$name.tar.gz"
   done
+  curl --fail --location --retry 3 "$(jq -r '.onnxruntime_sdk.url' assets.json)" -o onnxruntime.zip
+  echo "$(jq -r '.onnxruntime_sdk.sha256' assets.json)  onnxruntime.zip" | sha256sum --check
+  unzip -joq onnxruntime.zip '*/include/onnxruntime*.h' -d include
+  rm onnxruntime.zip
   jq -r '.c_api_headers | to_entries[] | [.key, .value.url, .value.sha256] | @tsv' assets.json |
   while IFS=$'\t' read -r name url checksum; do
     mkdir -p "$(dirname "include/$name")"
