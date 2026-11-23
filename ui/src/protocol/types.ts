@@ -66,6 +66,7 @@ export const WindowInfoSchema = z.object({
 export type WindowInfo = z.infer<typeof WindowInfoSchema>;
 
 export const FileEntrySchema = z.object({
+  repository: z.boolean().optional(),
   name: z.string(),
   path: z.string(),
   type: z.enum(["file", "directory", "symlink", "other"]),

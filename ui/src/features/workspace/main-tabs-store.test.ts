@@ -125,7 +125,7 @@ describe("main tabs", () => {
     const store = useMainTabsStore.getState();
     store.openCommit({ ...commit(""), machineId: "alpha", sessionName: "dev" });
     store.openCommit({ ...commit(""), machineId: "beta", sessionName: "dev" });
-    store.nameCommit(commitTabId(HASH, "alpha"), "Alpha commit");
+    store.nameCommit(commitTabId(HASH, "/repo", "alpha"), "Alpha commit");
     expect(useMainTabsStore.getState().tabs).toMatchObject([
       { machineId: "alpha", subject: "Alpha commit" },
       { machineId: "beta", subject: "" },
@@ -137,7 +137,7 @@ describe("main tabs", () => {
     const store = useMainTabsStore.getState();
     store.openCommit(commit(""));
     const [tab] = useMainTabsStore.getState().tabs;
-    expect(tab).toMatchObject({ kind: "commit", id: commitTabId(HASH) });
+    expect(tab).toMatchObject({ kind: "commit", id: commitTabId(HASH, "/repo") });
     expect(tab).not.toHaveProperty("machineId");
     setMachineId("beta");
     store.nameCommit(tab!.id, "Local subject");
@@ -268,7 +268,7 @@ describe("main tabs", () => {
     tabs.openFile(file("/a.ts"));
     tabs.openCommit(commit(""));
     const s = useMainTabsStore.getState();
-    expect(s.active).toBe(commitTabId(HASH));
+    expect(s.active).toBe(commitTabId(HASH, "/repo"));
     expect(s.tabs).toHaveLength(2);
     expect(s.tabs[0]).toMatchObject({ kind: "commit", subject: "Fix it" });
   });
@@ -277,8 +277,8 @@ describe("main tabs", () => {
     const tabs = useMainTabsStore.getState();
     tabs.openCommit(commit(""));
     tabs.openFile(file("/a.ts"));
-    tabs.nameCommit(commitTabId(HASH), "Loaded subject");
-    tabs.nameCommit(commitTabId("b".repeat(40)), "Not open");
+    tabs.nameCommit(commitTabId(HASH, "/repo"), "Loaded subject");
+    tabs.nameCommit(commitTabId("b".repeat(40), "/repo"), "Not open");
     const s = useMainTabsStore.getState();
     expect(s.active).toBe("file:/a.ts");
     expect(s.tabs[0]).toMatchObject({ subject: "Loaded subject" });
@@ -290,11 +290,28 @@ describe("main tabs", () => {
     tabs.openFile(file("/a.ts"));
     tabs.openCommit(commit());
     tabs.closeTabs("files");
-    expect(useMainTabsStore.getState().tabs.map((t) => t.id)).toEqual([commitTabId(HASH)]);
+    expect(useMainTabsStore.getState().tabs.map((t) => t.id)).toEqual([commitTabId(HASH, "/repo")]);
     tabs.closeTabs("diffs");
     expect(useMainTabsStore.getState()).toMatchObject({
       tabs: [],
       active: TERMINAL_TAB,
+    });
+  });
+
+  it("keeps same-named diffs in different repositories and restores older IDs", () => {
+    const store = useMainTabsStore.getState();
+    const diff = { paneId: "%1", path: "note.txt", scope: "untracked" as const };
+    store.openFile({ ...diff, root: "/src" });
+    store.openFile({ ...diff, root: "/src/repo2" });
+    expect(useMainTabsStore.getState().tabs.map((tab) => tab.id)).toEqual([
+      "untracked:/src/note.txt",
+      "untracked:/src/repo2/note.txt",
+    ]);
+    const old = { ...diff, kind: "file", root: "/src", id: "untracked:note.txt" };
+    expect(restoreTabs({ tabs: [old], active: old.id, order: [old.id] })).toMatchObject({
+      tabs: [{ id: "untracked:/src/note.txt" }],
+      active: "untracked:/src/note.txt",
+      order: ["untracked:/src/note.txt"],
     });
   });
 
@@ -361,8 +378,8 @@ describe("main tabs", () => {
     const s = useMainTabsStore.getState();
     expect(s.tabs).toHaveLength(12);
     expect(s.tabs[0]!.id).toBe(graphTabId("/repo"));
-    expect(s.tabs.map((t) => t.id)).not.toContain(commitTabId("0".repeat(40)));
-    expect(s.active).toBe(commitTabId("b".padStart(40, "0")));
+    expect(s.tabs.map((t) => t.id)).not.toContain(commitTabId("0".repeat(40), "/repo"));
+    expect(s.active).toBe(commitTabId("b".padStart(40, "0"), "/repo"));
   });
 
   it("keeps three graphs while commits opened from one fill the strip", () => {
@@ -375,7 +392,7 @@ describe("main tabs", () => {
     const ids = useMainTabsStore.getState().tabs.map((t) => t.id);
     expect(ids).toHaveLength(12);
     expect(ids.slice(0, 3)).toEqual(["/a", "/b", "/c"].map((path) => graphTabId(path)));
-    expect(ids).not.toContain(commitTabId("0".repeat(40)));
+    expect(ids).not.toContain(commitTabId("0".repeat(40), "/repo"));
   });
 
   it("keeps the tab in front even when it is the oldest", () => {
@@ -388,7 +405,7 @@ describe("main tabs", () => {
     expect(ids).toHaveLength(12);
     expect(ids[0]).toBe("file:/front.ts");
     expect(ids).not.toContain("file:/0");
-    expect(ids.at(-1)).toBe(commitTabId(HASH));
+    expect(ids.at(-1)).toBe(commitTabId(HASH, "/repo"));
   });
 
   it("drops a graph only when nothing else can go", () => {
@@ -440,14 +457,33 @@ describe("restoreTabs", () => {
     expect(restored).toEqual({ tabs: [], active: TERMINAL_TAB, order: [] });
   });
 
+  it("restores old commit IDs and keeps matching sibling commits separate", () => {
+    const old = { kind: "commit", id: `commit:${HASH}`, ...commit() };
+    const saved = restoreTabs({ tabs: [old], active: old.id, order: [old.id] });
+    const id = commitTabId(HASH, "/repo");
+    expect(saved).toMatchObject({ active: id, order: [id], tabs: [{ id }] });
+    const store = useMainTabsStore.getState();
+    store.openCommit(commit());
+    store.openCommit({ ...commit(), contextPath: "/other" });
+    expect(useMainTabsStore.getState().tabs.map((tab) => tab.id)).toEqual([
+      id,
+      commitTabId(HASH, "/other"),
+    ]);
+  });
+
   it("restores commit tabs with a full hash only", () => {
-    const tab = { kind: "commit", id: commitTabId(HASH), ...commit() };
+    const tab = { kind: "commit", id: commitTabId(HASH, "/repo"), ...commit() };
     const restored = restoreTabs({
       tabs: [
         tab,
-        { ...tab, hash: "abc1234", id: commitTabId("abc1234") },
+        { ...tab, hash: "abc1234", id: commitTabId("abc1234", "/repo") },
         { ...tab, id: "commit:other" },
-        { ...tab, hash: "b".repeat(40), id: commitTabId("b".repeat(40)), subject: undefined },
+        {
+          ...tab,
+          hash: "b".repeat(40),
+          id: commitTabId("b".repeat(40), "/repo"),
+          subject: undefined,
+        },
       ],
       active: tab.id,
     });

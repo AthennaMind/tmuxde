@@ -9,10 +9,7 @@ import {
   ArrowRight,
   BookOpen,
   ChevronRight,
-  GitBranch,
   GitCommitHorizontal,
-  GitCompareArrows,
-  History,
   RefreshCw,
   FilePlus,
   FolderPlus,
@@ -27,19 +24,19 @@ import type { FileEntry } from "@/protocol";
 import { cn } from "@/shared/utils";
 import { Button } from "@/components/ui/button";
 import { useRelayClient } from "@/features/connection/use-websocket";
-import { CommitList } from "./commit-log";
-import { useCommitLog } from "./use-commit-log";
+import { GroupedHistory } from "./grouped-history";
 import { lazyComponent } from "@/shared/lazy-component";
 import { CommitDetail } from "./commit-view";
 import { useRepositoryHistory, type RepositoryView } from "./repository-history";
 import { RepositoryNavigationSurface } from "./repository-navigation-surface";
-import { ChangesList } from "./repository-changes";
+import { GroupedChanges } from "./grouped-changes";
+import { useWorkspaceChanges } from "./use-workspace-changes";
 import { RepositoryFileIcon } from "@/features/files/repository-file-icon";
 import { FilePreview } from "./repository-preview";
 import { Notice } from "@/shared/notice";
 import { useRepositoryQuery } from "./use-repository-query";
 import { formatFileSize } from "@/features/files/file-utils";
-import { isMarkdownPath } from "@/features/files/markdown";
+import { dirname, isMarkdownPath } from "@/features/files/markdown";
 import { changeTouchesDiff, changeTouchesFile, changeTouchesFolder, sameRoot } from "./repo-change";
 import { useRepoChangeCount, useRepoWatch } from "./repo-watch-store";
 import { usePaneStore } from "@/features/panes/pane-store";
@@ -154,6 +151,7 @@ function BrowserContents({
   const { view, navigate, replace, back, forward, canBack, canForward } =
     useRepositoryHistory(paneId);
   const { tab, directory, preview } = view;
+  const revealFile = useRef<string | null>(null);
   const commit = view.commit ?? null;
   // A file opened here joins quick open's recent files. Diff previews do not.
   const openedFile = preview && !preview.scope ? preview.path : null;
@@ -218,11 +216,17 @@ function BrowserContents({
     path ? changeTouchesFolder(change, path) : false,
   );
   const statusPushes = useRepoChangeCount((change) => (root ? sameRoot(change, root) : false));
+  const previewRoot = preview?.root ?? root;
+  useRepoWatch(client, preview?.scope && previewRoot !== root ? previewRoot : null, {
+    paneId,
+    path: previewRoot,
+  });
   const previewPushes = useRepoChangeCount((change) =>
     !preview
       ? false
       : preview.scope
-        ? !!root && changeTouchesDiff(change, root, preview.path, preview.scope !== "untracked")
+        ? !!previewRoot &&
+          changeTouchesDiff(change, previewRoot, preview.path, preview.scope !== "untracked")
         : changeTouchesFile(change, preview.path),
   );
   const listing = useRepositoryQuery(
@@ -240,6 +244,14 @@ function BrowserContents({
     { keepOnRefresh: true },
   );
   const status = statusQuery.result?.kind === "status" ? statusQuery.result : undefined;
+  const workspace = useWorkspaceChanges(
+    client,
+    paneId,
+    context,
+    status,
+    refresh,
+    tab === "changes" || tab === "history",
+  );
   const fileQuery = useRepositoryQuery(
     client,
     preview && context
@@ -247,7 +259,7 @@ function BrowserContents({
         ? {
             id: paneId,
             action: "diff",
-            path: context.path,
+            path: preview.root ?? context.path,
             file: preview.path,
             scope: preview.scope,
           }
@@ -260,19 +272,10 @@ function BrowserContents({
     fileQuery.result?.kind === "read" || fileQuery.result?.kind === "diff"
       ? fileQuery.result
       : undefined;
-  const log = useCommitLog({
-    client: historySupported ? client : null,
-    paneId,
-    path: context?.path,
-    // Asks nothing until History is open.
-    root: tab === "history" ? context?.root : undefined,
-    refresh,
-    tick: statusQuery.result,
-  });
   const commitQuery = useRepositoryQuery(
     client,
     commit && context && historySupported
-      ? { id: paneId, action: "show", path: context.path, commit: commit.hash }
+      ? { id: paneId, action: "show", path: commit.root ?? context.path, commit: commit.hash }
       : null,
     refresh,
   );
@@ -285,8 +288,7 @@ function BrowserContents({
     listing.loading ||
     statusQuery.loading ||
     fileQuery.loading ||
-    commitQuery.loading ||
-    log.refreshing;
+    commitQuery.loading;
   // Every answer landed. Cleared during render, so the spinner stops in the
   // same paint as the last answer.
   if (refreshing && !anyLoading) setRefreshing(false);
@@ -297,15 +299,18 @@ function BrowserContents({
     empty(statusQuery) ||
     empty(fileQuery) ||
     empty(commitQuery);
-  const openCommit = (hash: string, subject: string) =>
-    navigate({ ...view, preview: null, commit: { hash, subject } });
+  const openCommit = (
+    hash: string,
+    subject: string,
+    commitRoot = commit?.root ?? context?.root ?? undefined,
+  ) => navigate({ ...view, preview: null, commit: { hash, subject, root: commitRoot } });
   const entries = listing.result?.kind === "list" ? listing.result.entries : [];
   const go = (nextPath: string) => {
     navigate({ ...view, directory: nextPath, filter: "", preview: null });
   };
   const previewPath =
-    preview?.scope && context?.root
-      ? `${context.root.replace(/\/$/, "")}/${preview.path}`
+    preview?.scope && previewRoot
+      ? `${previewRoot.replace(/\/$/, "")}/${preview.path}`
       : preview?.path;
   const markdown = !!preview && !preview.scope && isMarkdownPath(preview.path);
   const showRendered = markdown && rendered;
@@ -342,10 +347,10 @@ function BrowserContents({
       )}
     >
       {TAB_LABELS[value]}
-      {value === "changes" && status?.entries.length ? (
+      {value === "changes" && workspace.count ? (
         <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] tabular-nums">
-          {status.entries.length}
-          {status.truncated ? "+" : ""}
+          {workspace.count}
+          {workspace.truncated ? "+" : ""}
         </span>
       ) : null}
     </button>
@@ -600,6 +605,12 @@ function BrowserContents({
                         <FileRow
                           key={entry.path}
                           entry={entry}
+                          buttonRef={(button) => {
+                            if (button && revealFile.current === entry.path) {
+                              revealFile.current = null;
+                              button.focus();
+                            }
+                          }}
                           moves={moves}
                           onOpen={() =>
                             entry.type === "directory"
@@ -630,130 +641,44 @@ function BrowserContents({
                 </div>
               </>
             ) : tab === "changes" ? (
-              <>
-                <BranchBlock branch={status?.branch ?? context.branch} root={context.root} />
-                {status?.root && status.entries.length > 0 && (
-                  <div className="shrink-0 border-b px-3 py-2">
-                    <Button
-                      variant="outline"
-                      className="min-h-11 w-full gap-2"
-                      onClick={() => navigate({ ...view, changesPath: status.root })}
-                    >
-                      <GitCompareArrows className="h-4 w-4" aria-hidden />
-                      View all changes
-                    </Button>
-                  </div>
-                )}
-                <div className="min-h-0 flex-1 overflow-auto">
-                  {statusQuery.error ? (
-                    <Notice error>{statusQuery.error}</Notice>
-                  ) : empty(statusQuery) ? (
-                    <Notice>Loading current changes...</Notice>
-                  ) : !status?.root ? (
-                    <Notice>
-                      Pane directory is outside a Git repository. Use Files to browse this folder.
-                    </Notice>
-                  ) : status.entries.length === 0 ? (
-                    <div className="px-4 py-8">
-                      <GitCompareArrows className="mb-3 h-5 w-5 text-muted-foreground" />
-                      <p className="text-sm font-medium">Working tree is clean</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        No staged, unstaged, or untracked files.
-                      </p>
-                    </div>
-                  ) : (
-                    <ChangesList
-                      root={status.root}
-                      workdir={context.path}
-                      entries={status.entries}
-                      onOpen={(file, scope) =>
-                        navigate({ ...view, preview: { path: file, scope } })
-                      }
-                    />
-                  )}
-                  {status?.truncated && (
-                    <Notice>Change list shortened. Some files are not shown.</Notice>
-                  )}
-                </div>
-                <div className="shrink-0 border-t px-3 py-2 text-[11px] text-muted-foreground">
-                  Current working tree
-                </div>
-              </>
+              <div className="min-h-0 flex-1 overflow-auto">
+                <GroupedChanges
+                  context={context}
+                  client={client}
+                  paneId={paneId}
+                  workspace={workspace}
+                  parentError={statusQuery.error}
+                  onReveal={(file) => {
+                    revealFile.current = file;
+                    navigate({ tab: "files", directory: dirname(file), filter: "", preview: null });
+                  }}
+                  onOpen={(repoRoot, file, scope) =>
+                    navigate({ ...view, preview: { root: repoRoot, path: file, scope } })
+                  }
+                  onOpenAll={(repoRoot) => navigate({ ...view, changesPath: repoRoot })}
+                />
+              </div>
             ) : (
-              <>
-                <BranchBlock branch={status?.branch ?? context.branch} root={context.root} />
-                <div className="min-h-0 flex-1 overflow-auto">
-                  {!historySupported ? (
-                    <Notice>Update tmuxde on this machine to browse history.</Notice>
-                  ) : !context.root ? (
-                    <Notice>
-                      Pane directory is outside a Git repository. Use Files to browse this folder.
-                    </Notice>
-                  ) : log.loading ? (
-                    <Notice>Loading history...</Notice>
-                  ) : log.commits.length === 0 && log.error ? (
-                    <Notice error>{log.error}</Notice>
-                  ) : log.commits.length === 0 ? (
-                    <div className="px-4 py-8">
-                      <History className="mb-3 h-5 w-5 text-muted-foreground" />
-                      <p className="text-sm font-medium">No commits yet</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Commits on this branch show here after the first one.
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <CommitList
-                        commits={log.commits}
-                        onOpen={(item) => openCommit(item.hash, item.subject)}
-                      />
-                      {log.error && <Notice error>{log.error}</Notice>}
-                      {log.more && (
-                        <div className="px-4 pt-1 pb-4">
-                          <Button
-                            variant="outline"
-                            className="h-11 w-full gap-2"
-                            disabled={log.loadingMore}
-                            onClick={log.loadMore}
-                          >
-                            {log.loadingMore && (
-                              <RefreshCw
-                                className="h-4 w-4 animate-spin motion-reduce:animate-none"
-                                aria-hidden
-                              />
-                            )}
-                            Load older commits
-                          </Button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-                <div className="shrink-0 border-t px-3 py-2 text-[11px] text-muted-foreground">
-                  History of HEAD · Read only
-                </div>
-              </>
+              <div className="min-h-0 flex-1 overflow-auto">
+                {historySupported ? (
+                  <GroupedHistory
+                    workspace={workspace}
+                    context={context}
+                    paneId={paneId}
+                    client={client}
+                    refresh={refresh}
+                    tick={statusQuery.result}
+                    onOpen={(commitRoot, item) => openCommit(item.hash, item.subject, commitRoot)}
+                  />
+                ) : (
+                  <Notice>Update tmuxde on this machine to browse history.</Notice>
+                )}
+              </div>
             )}
           </>
         )}
       </div>
     </RepositoryNavigationSurface>
-  );
-}
-
-function BranchBlock({ branch, root }: { branch: string | null; root: string | null }) {
-  return (
-    <div className="shrink-0 border-b px-3 py-3">
-      <div className="flex items-center gap-2 text-sm">
-        <GitBranch className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span className="truncate" title={branch ?? undefined}>
-          {branch ?? (root ? "Detached HEAD" : "No repository")}
-        </span>
-      </div>
-      {root && (
-        <p className="mt-1 break-all font-mono text-code-meta text-muted-foreground">{root}</p>
-      )}
-    </div>
   );
 }
 
@@ -814,10 +739,12 @@ function Breadcrumbs({
 
 function FileRow({
   entry,
+  buttonRef,
   onOpen,
   moves,
 }: {
   entry: FileEntry;
+  buttonRef: (button: HTMLButtonElement | null) => void;
   onOpen: () => void;
   moves: ReturnType<typeof useFileMoves>;
 }) {
@@ -834,11 +761,12 @@ function FileRow({
     >
       <button
         type="button"
+        ref={buttonRef}
         onClick={onOpen}
         title={entry.path}
         className="flex min-h-11 min-w-0 flex-1 items-center gap-3 px-4 py-2 text-left hover:bg-muted/60 focus-visible:bg-muted"
       >
-        <RepositoryFileIcon path={entry.path} type={entry.type} />
+        <RepositoryFileIcon path={entry.path} type={entry.type} repository={entry.repository} />
         <span className="min-w-0 flex-1 truncate text-sm">{entry.name}</span>
         {isDirectory ? (
           <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

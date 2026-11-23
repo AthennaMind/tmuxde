@@ -1,6 +1,13 @@
 [
   {
     "type": "repo:request",
+    "requestId": "roots-1",
+    "id": "%1",
+    "action": "roots",
+    "path": "/src"
+  },
+  {
+    "type": "repo:request",
     "requestId": "repo-mgl3k8x2-14",
     "id": "%3",
     "action": "diff",

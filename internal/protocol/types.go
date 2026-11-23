@@ -87,11 +87,12 @@ var FileTypes = []string{"file", "directory", "symlink", "other"}
 
 // FileEntry mirrors FileEntrySchema.
 type FileEntry struct {
-	Name     string  `json:"name"`
-	Path     string  `json:"path"`
-	Type     string  `json:"type"`
-	Size     float64 `json:"size"`
-	Modified string  `json:"modified"`
+	Repository bool    `json:"repository,omitempty"`
+	Name       string  `json:"name"`
+	Path       string  `json:"path"`
+	Type       string  `json:"type"`
+	Size       float64 `json:"size"`
+	Modified   string  `json:"modified"`
 }
 
 func (f FileEntry) Validate() error {

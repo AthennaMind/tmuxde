@@ -42,12 +42,12 @@ import { getTerminalHandle } from "@/features/terminal/terminal-handle";
 import { RepositoryFileIcon } from "./repository-file-icon";
 import { useRepositoryQuery } from "@/features/repository/use-repository-query";
 import { changeTouchesFolder } from "@/features/repository/repo-change";
-import { useRepoChangeCount } from "@/features/repository/repo-watch-store";
+import { useRepoChangeCount, useRepoWatch } from "@/features/repository/repo-watch-store";
 import type { RepositoryClient } from "@/features/repository/repository-request";
 import { PanelHeader, PanelIconButton } from "@/features/workspace/panel-header";
 import { TreeRow, type TreeAction, type TreeRowModel } from "@/features/workspace/tree-row";
 import { useTreeKeyboard } from "@/features/workspace/use-tree-keyboard";
-import type { RepositoryState } from "@/features/repository/use-repository-state";
+import type { RepositoryState, RepositoryStatus } from "@/features/repository/use-repository-state";
 import { explorerTreeKey } from "@/features/workspace/explorer-store";
 import { useExplorerFolders } from "@/features/workspace/use-explorer-folders";
 
@@ -88,6 +88,29 @@ function ancestors(root: string, path: string): string[] {
     out.push(current);
   }
   return out;
+}
+
+function changeBadges(status: RepositoryStatus | undefined) {
+  const files = new Map<string, ChangeCode>();
+  const dirs = new Set<string>();
+  if (!status?.root) return { changes: files, changedDirs: dirs };
+  const base = status.root.replace(/\/$/, "");
+  for (const entry of status.entries) {
+    const code =
+      entry.index === "?" || entry.worktree === "?"
+        ? "?"
+        : entry.worktree !== " "
+          ? entry.worktree
+          : entry.index;
+    const full = `${base}/${entry.path}`;
+    files.set(full, { code, label: CODE_LABELS[code] ?? "Changed" });
+    let dir = full.slice(0, full.lastIndexOf("/"));
+    while (dir.length > base.length) {
+      dirs.add(dir);
+      dir = dir.slice(0, dir.lastIndexOf("/"));
+    }
+  }
+  return { changes: files, changedDirs: dirs };
 }
 
 type NameTarget = {
@@ -219,28 +242,7 @@ export function FilesView({ repo }: { repo: RepositoryState }) {
     setFocusKey(null);
   }
 
-  const { changes, changedDirs } = useMemo(() => {
-    const files = new Map<string, ChangeCode>();
-    const dirs = new Set<string>();
-    if (!status?.root) return { changes: files, changedDirs: dirs };
-    const base = status.root.replace(/\/$/, "");
-    for (const entry of status.entries) {
-      const code =
-        entry.index === "?" || entry.worktree === "?"
-          ? "?"
-          : entry.worktree !== " "
-            ? entry.worktree
-            : entry.index;
-      const full = `${base}/${entry.path}`;
-      files.set(full, { code, label: CODE_LABELS[code] ?? "Changed" });
-      let dir = full.slice(0, full.lastIndexOf("/"));
-      while (dir.length > base.length) {
-        dirs.add(dir);
-        dir = dir.slice(0, dir.lastIndexOf("/"));
-      }
-    }
-    return { changes: files, changedDirs: dirs };
-  }, [status]);
+  const { changes, changedDirs } = useMemo(() => changeBadges(status), [status]);
 
   const toggle = (path: string) => {
     if (namingPending) return;
@@ -770,11 +772,12 @@ function FolderChildren({
           parentKey,
           depth,
           label: entry.name,
-          title: entry.path,
+          title: entry.repository ? `Git repository: ${entry.path}` : entry.path,
           icon: (
             <RepositoryFileIcon
               path={entry.path}
               type={entry.type}
+              repository={entry.repository}
               className="h-3.5 w-3.5 shrink-0"
             />
           ),
@@ -898,10 +901,38 @@ function FileTreeEntry({
           </div>
         </FileContextMenu>
       )}
-      {open && (
-        <FolderChildren path={row.key} depth={row.depth + 1} parentKey={row.key} state={state} />
-      )}
+      {open &&
+        (entry.repository ? (
+          <RepositoryChildren path={row.key} depth={row.depth + 1} state={state} />
+        ) : (
+          <FolderChildren path={row.key} depth={row.depth + 1} parentKey={row.key} state={state} />
+        ))}
     </>
+  );
+}
+
+function RepositoryChildren({
+  path,
+  depth,
+  state,
+}: {
+  path: string;
+  depth: number;
+  state: TreeState;
+}) {
+  useRepoWatch(state.client, path, { paneId: state.paneId, path });
+  const changes = useRepoChangeCount((change) => change.root === path);
+  const query = useRepositoryQuery(
+    state.client,
+    { id: state.paneId, action: "status", path },
+    state.refreshKey + changes,
+    { keepOnRefresh: true },
+  );
+  const status =
+    query.result?.kind === "status" && query.result.root === path ? query.result : undefined;
+  const badges = useMemo(() => changeBadges(status), [status]);
+  return (
+    <FolderChildren path={path} depth={depth} parentKey={path} state={{ ...state, ...badges }} />
   );
 }
 

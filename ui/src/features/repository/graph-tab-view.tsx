@@ -53,7 +53,9 @@ export function GraphTabView({
   // Hash last opened from this graph, while its tab stays open.
   const [opened, setOpened] = useState<string>();
   const selected = useMainTabsStore((s) =>
-    opened && s.tabs.some((t) => t.id === commitTabId(opened, tab.machineId)) ? opened : undefined,
+    opened && s.tabs.some((t) => t.id === commitTabId(opened, tab.contextPath, tab.machineId))
+      ? opened
+      : undefined,
   );
 
   // Watch first, so its pushes count from the start. The root is known once

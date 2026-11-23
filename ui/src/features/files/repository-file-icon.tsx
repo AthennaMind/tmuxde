@@ -52,13 +52,21 @@ const icons = {
 export function RepositoryFileIcon({
   path,
   type = "file",
+  repository,
   className,
 }: {
   path: string;
   type?: FileEntry["type"];
+  repository?: boolean;
   className?: string;
 }) {
-  const kind = type === "file" ? repositoryFileKind(path) : type === "other" ? "file" : type;
+  const kind = repository
+    ? "git"
+    : type === "file"
+      ? repositoryFileKind(path)
+      : type === "other"
+        ? "file"
+        : type;
   const Icon = icons[kind];
   return (
     <Icon

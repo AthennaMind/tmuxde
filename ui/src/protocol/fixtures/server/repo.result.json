@@ -1,6 +1,43 @@
 [
   {
     "type": "repo:result",
+    "requestId": "submodule-status",
+    "result": {
+      "kind": "status",
+      "root": "/src",
+      "branch": "main",
+      "entries": [{ "path": "module", "index": " ", "worktree": "M", "submodule": true }],
+      "truncated": false
+    }
+  },
+  {
+    "type": "repo:result",
+    "requestId": "invalid-metadata",
+    "result": {
+      "kind": "error",
+      "message": "Invalid Git directory pointer",
+      "context": {
+        "kind": "context",
+        "path": "/src/docs",
+        "root": "/src",
+        "branch": null
+      }
+    }
+  },
+  {
+    "type": "repo:result",
+    "requestId": "roots-1",
+    "result": {
+      "kind": "roots",
+      "roots": [
+        "/src",
+        "/src/foo"
+      ],
+      "truncated": false
+    }
+  },
+  {
+    "type": "repo:result",
     "requestId": "repo-mgl3k8x2-1",
     "result": {
       "kind": "context",
@@ -28,6 +65,7 @@
       "entries": [
         {
           "name": "internal",
+          "repository": true,
           "path": "/home/dev/projects/tmuxde/apps/server/internal",
           "type": "directory",
           "size": 4096,

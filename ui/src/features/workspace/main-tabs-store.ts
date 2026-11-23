@@ -125,12 +125,16 @@ export const SETTINGS_TAB = "settings";
 export const OVERVIEW_TAB = "overview";
 const MAX_TABS = 12;
 
-export function fileTabId(tab: Pick<FileTab, "path" | "scope" | "machineId">): string {
-  return scopedId(`${tab.scope ?? "file"}:${tab.path}`, tab.machineId);
+export function fileTabId(
+  tab: Pick<FileTab, "path" | "scope" | "machineId" | "root" | "contextPath">,
+): string {
+  const root = tab.root ?? tab.contextPath;
+  const path = tab.scope && root ? `${root.replace(/\/$/, "")}/${tab.path}` : tab.path;
+  return scopedId(`${tab.scope ?? "file"}:${path}`, tab.machineId);
 }
 
-export function commitTabId(hash: string, machine?: string): string {
-  return scopedId(`commit:${hash}`, machine);
+export function commitTabId(hash: string, contextPath: string, machine?: string): string {
+  return scopedId(`commit:${contextPath}:${hash}`, machine);
 }
 
 export function graphTabId(contextPath: string, machine?: string): string {
@@ -261,13 +265,17 @@ function isMainTab(value: unknown): value is MainTab {
       typeof tab.contextPath === "string" &&
       typeof tab.hash === "string" &&
       /^[0-9a-f]{40,64}$/.test(tab.hash) &&
-      tab.id === commitTabId(tab.hash, tab.machineId)
+      (tab.id === commitTabId(tab.hash, tab.contextPath, tab.machineId) ||
+        tab.id === scopedId(`commit:${tab.hash}`, tab.machineId))
     );
   return (
     tab?.kind === "file" &&
     typeof tab.paneId === "string" &&
     typeof tab.path === "string" &&
-    tab.id === fileTabId(tab as FileTab)
+    (tab.root == null || typeof tab.root === "string") &&
+    (tab.contextPath === undefined || typeof tab.contextPath === "string") &&
+    (tab.id === fileTabId(tab as FileTab) ||
+      tab.id === scopedId(`${tab.scope ?? "file"}:${tab.path}`, tab.machineId))
   );
 }
 
@@ -285,11 +293,26 @@ export function restoreTabs(persisted: unknown): Pick<MainTabsStore, "tabs" | "a
         keep,
       )
     : [];
+  const migrated = new Map<string, string>();
+  const restored = tabs.map((tab) => {
+    if (tab.kind !== "commit" && tab.kind !== "file") return tab;
+    const id =
+      tab.kind === "file" ? fileTabId(tab) : commitTabId(tab.hash, tab.contextPath, tab.machineId);
+    if (id === tab.id) return tab;
+    migrated.set(tab.id, id);
+    return { ...tab, id };
+  });
   const active = tabs.find((t) => t.id === state?.active)?.id ?? TERMINAL_TAB;
   const order = Array.isArray(state?.order)
-    ? [...new Set(state.order.filter((id): id is string => typeof id === "string"))]
+    ? [
+        ...new Set(
+          state.order
+            .filter((id): id is string => typeof id === "string")
+            .map((id) => migrated.get(id) ?? id),
+        ),
+      ]
     : [];
-  return { tabs, active, order };
+  return { tabs: restored, active: migrated.get(active) ?? active, order };
 }
 
 /** Preserve positions, optionally grouping terminals before newly opened buffers. */
@@ -396,7 +419,7 @@ export const useMainTabsStore = create<MainTabsStore>()(
       openCommit: (input) =>
         set((s) => {
           const origin = { ...tabOrigin(), ...input };
-          const id = commitTabId(input.hash, origin.machineId);
+          const id = commitTabId(input.hash, input.contextPath, origin.machineId);
           const known = s.tabs.find((t) => t.id === id);
           // A parent link knows no subject. Keep the one already shown.
           const subject = input.subject || (known?.kind === "commit" ? known.subject : "");

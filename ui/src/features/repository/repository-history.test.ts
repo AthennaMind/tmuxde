@@ -69,6 +69,18 @@ describe("repository history", () => {
     expect(moveRepositoryHistory(history, -1)).toBe(history);
   });
 
+  it("keeps the source repository when clones share a commit", () => {
+    const commit = { hash: "abcdef0", subject: "Shared commit" };
+    const foo = { ...root, commit: { ...commit, root: "/src/foo" } };
+    const bar = { ...root, commit: { ...commit, root: "/src/bar" } };
+    const history = navigateRepositoryHistory(createRepositoryHistory(foo), bar);
+    expect(history.entries.map((entry) => entry.view.commit?.root)).toEqual([
+      "/src/foo",
+      "/src/bar",
+    ]);
+    expect(moveRepositoryHistory(history, -1).index).toBe(0);
+  });
+
   it("skips navigation to equal views", () => {
     const history = createRepositoryHistory(preview);
     expect(

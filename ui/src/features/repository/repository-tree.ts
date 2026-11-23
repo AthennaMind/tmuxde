@@ -13,7 +13,7 @@ export function buildChangeTree<T extends { path: string }>(entries: T[]): Chang
     folders: new Map(),
   };
   for (const entry of entries) {
-    const parts = entry.path.split("/");
+    const parts = entry.path.replace(/\/+$/, "").split("/");
     let branch = root;
     for (let index = 0; index < parts.length - 1; index++) {
       const name = parts[index]!;

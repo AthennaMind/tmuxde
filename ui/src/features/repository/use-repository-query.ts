@@ -27,7 +27,7 @@ export type RepositoryResult = Exclude<RepoResult, { kind: "error" }>;
  * query still starts empty.
  */
 export function useRepositoryQuery(
-  client: RepositoryClient,
+  client: RepositoryClient | null,
   query: RepositoryQuery | null,
   refresh: number,
   {
@@ -64,7 +64,7 @@ export function useRepositoryQuery(
     },
   );
   useEffect(() => {
-    if (key === "null" || !attached || client.status !== "connected") return;
+    if (key === "null" || !attached || !client || client.status !== "connected") return;
     const machine = machineId();
     busy.current = true;
     again.current = false;

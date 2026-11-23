@@ -17,7 +17,6 @@ import { useMainTabsStore } from "@/features/workspace/main-tabs-store";
 import { useUiStore } from "@/features/workspace/ui-store";
 import { explorerTreeKey, useExplorerStore } from "@/features/workspace/explorer-store";
 import { useFileStore } from "@/features/files/file-store";
-import { isMobileViewport } from "@/shared/mobile-query";
 import { copyFailureReason, copyText } from "@/shared/clipboard";
 import { useAlertStore } from "@/shared/alert-store";
 import {
@@ -33,7 +32,9 @@ import type { ChangeMenuAction } from "./change-context-menu";
 export function useChangeActions(
   root: string,
   workdir: string,
+  filesRoot: string,
   onOpen: (path: string, scope: ChangeScope) => void,
+  onReveal?: (path: string) => void,
 ) {
   const client = useRelayClient();
   const paneId = usePaneStore((s) => s.activePaneId);
@@ -104,10 +105,13 @@ export function useChangeActions(
         if (!controller.signal.aborted)
           requestAnimationFrame(() => {
             if (document.activeElement !== document.body) return;
-            const row = document.querySelector<HTMLElement>(
+            const list = document.querySelector<HTMLElement>(
+              `[data-changes-list="${CSS.escape(root)}"]`,
+            );
+            const row = list?.querySelector<HTMLElement>(
               `[data-change-path="${CSS.escape(target.path)}"]`,
             );
-            (row ?? document.querySelector<HTMLElement>("[data-changes-list]"))?.focus({
+            (row ?? list)?.focus({
               preventScroll: true,
             });
           });
@@ -136,7 +140,7 @@ export function useChangeActions(
         {
           label: "Open file",
           icon: FileCode,
-          disabled: deleted || !paneId,
+          disabled: deleted || entries[0]?.submodule || !paneId,
           onSelect: () => {
             if (paneId) {
               useMainTabsStore.getState().openFile({ paneId, path: full });
@@ -152,10 +156,14 @@ export function useChangeActions(
         icon: FolderOpen,
         disabled: deleted,
         onSelect: () => {
-          const parents: string[] = [root];
-          const parts = path.split("/");
+          if (onReveal) {
+            onReveal(full);
+            return;
+          }
+          const parents: string[] = [filesRoot];
+          const parts = full.slice(filesRoot.replace(/\/$/, "").length + 1).split("/");
           if (!folder) parts.pop();
-          let current = root.replace(/\/$/, "");
+          let current = filesRoot.replace(/\/$/, "");
           for (const part of parts) {
             current += `/${part}`;
             parents.push(current);
@@ -163,12 +171,11 @@ export function useChangeActions(
           useExplorerStore
             .getState()
             .updateFolders(
-              explorerTreeKey(machine, "files", root, workdir),
+              explorerTreeKey(machine, "files", filesRoot, workdir),
               (previous) => new Set([...(previous ?? []), ...parents]),
             );
           useFileStore.getState().setRevealPath(full);
           useUiStore.getState().showSidebarView("files");
-          if (isMobileViewport()) useUiStore.getState().setMobileTab("files");
         },
       },
       {
@@ -203,7 +210,7 @@ export function useChangeActions(
           if (target) void run(scope === "staged" ? "unstage" : "stage", target);
         },
       });
-      if (scope !== "staged")
+      if (scope !== "staged" && !entries.some((entry) => entry.submodule))
         actions.push({
           label:
             scope === "untracked" ? (folder ? "Delete files" : "Delete file") : "Discard changes",

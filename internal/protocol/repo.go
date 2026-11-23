@@ -12,7 +12,7 @@ import (
 // packages. This file holds what they carry.
 
 // RepoActions are the values of repo:request action.
-var RepoActions = []string{"context", "list", "read", "status", "diff", "log", "show", "search", "content-search", "stage", "unstage", "discard"}
+var RepoActions = []string{"context", "roots", "list", "read", "status", "diff", "log", "show", "search", "content-search", "stage", "unstage", "discard"}
 
 // RepoScopes mirrors RepoScope.
 var RepoScopes = []string{"unstaged", "staged", "untracked"}
@@ -31,6 +31,7 @@ type RepoResult interface {
 
 // repoKinds maps result.kind to an empty payload.
 var repoKinds = map[string]func() RepoResult{
+	"roots":          func() RepoResult { return &RepoRoots{} },
 	"context":        func() RepoResult { return &RepoContext{} },
 	"list":           func() RepoResult { return &RepoList{} },
 	"read":           func() RepoResult { return &RepoRead{} },
@@ -44,7 +45,7 @@ var repoKinds = map[string]func() RepoResult{
 }
 
 // RepoKinds lists the values of result.kind, in the order of the union.
-var RepoKinds = []string{"context", "list", "read", "status", "diff", "log", "show", "search", "content-search", "error"}
+var RepoKinds = []string{"context", "roots", "list", "read", "status", "diff", "log", "show", "search", "content-search", "error"}
 
 // errNotResultObject is returned for a result that is not a JSON object.
 // Within adds the field name.
@@ -97,6 +98,18 @@ func (*RepoContext) RepoKind() string { return "context" }
 
 func (r *RepoContext) Validate() error {
 	return kindLiteral(r, r.Kind)
+}
+
+// RepoRoots names work trees beneath the requested directory.
+type RepoRoots struct {
+	Kind      string   `json:"kind"`
+	Roots     []string `json:"roots"`
+	Truncated bool     `json:"truncated"`
+}
+
+func (*RepoRoots) RepoKind() string { return "roots" }
+func (r *RepoRoots) Validate() error {
+	return errors.Join(kindLiteral(r, r.Kind), RequiredSlice("roots", r.Roots))
 }
 
 // RepoList answers action list.
@@ -154,6 +167,7 @@ func (r *RepoStatus) Validate() error {
 // root. Index and Worktree keep the porcelain status characters, spaces
 // and "?" included. OriginalPath is set for renames.
 type RepoStatusEntry struct {
+	Submodule    bool    `json:"submodule,omitempty"`
 	Path         string  `json:"path"`
 	OriginalPath *string `json:"originalPath,omitempty"`
 	Index        string  `json:"index"`
@@ -264,13 +278,17 @@ type RepoCommitFile struct {
 // RepoError answers any action that failed, permission denials included.
 // Message is safe to show.
 type RepoError struct {
-	Kind    string `json:"kind"`
-	Message string `json:"message"`
+	Kind    string       `json:"kind"`
+	Message string       `json:"message"`
+	Context *RepoContext `json:"context,omitempty"`
 }
 
 func (*RepoError) RepoKind() string { return "error" }
 
 func (r *RepoError) Validate() error {
+	if r.Context != nil {
+		return errors.Join(kindLiteral(r, r.Kind), Nested("context", r.Context))
+	}
 	return kindLiteral(r, r.Kind)
 }
 
