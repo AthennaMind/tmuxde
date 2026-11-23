@@ -305,7 +305,7 @@ jobs:
         if: steps.speech-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p .cache/stt-downloads
-          jq -r '[.header, .libraries[], .c_api_sources[], .c_api_headers[], .models[]] | unique_by(.sha256)[] | [.url, .sha256] | @tsv' cmd/tmuxde-stt/assets.json |
+          jq -r '[.header, .onnxruntime_sdk, .libraries[], .c_api_sources[], .c_api_headers[], .models[]] | unique_by(.sha256)[] | [.url, .sha256] | @tsv' cmd/tmuxde-stt/assets.json |
           while IFS=$'\t' read -r url checksum; do
             asset=".cache/stt-downloads/$checksum"
             if ! echo "$checksum  $asset" | sha256sum --check --status; then

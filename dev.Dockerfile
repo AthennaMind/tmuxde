@@ -41,7 +41,7 @@ ENTRYPOINT ["/bin/bash", "-ec", "mkdir -p /tmp/tmuxde-dev/bin; export TMUXDE_LIS
 CMD ["air", "-c", ".air.toml"]
 
 FROM dev-go AS dev-stt
-RUN apt-get update && apt-get install -y --no-install-recommends bzip2 \
+RUN apt-get update && apt-get install -y --no-install-recommends bzip2 unzip \
   && rm -rf /var/lib/apt/lists/*
 ARG TARGETARCH
 COPY cmd/tmuxde-stt/assets.json /opt/stt/assets.json
@@ -67,6 +67,10 @@ if [ "$TARGETARCH" = arm64 ]; then
     tar -xzf "$name.tar.gz" -C "$name" --strip-components=1
     rm "$name.tar.gz"
   done
+  curl --fail --location --retry 3 "$(jq -r '.onnxruntime_sdk.url' assets.json)" -o onnxruntime.zip
+  echo "$(jq -r '.onnxruntime_sdk.sha256' assets.json)  onnxruntime.zip" | sha256sum --check
+  unzip -joq onnxruntime.zip '*/include/onnxruntime*.h' -d include
+  rm onnxruntime.zip
   jq -r '.c_api_headers | to_entries[] | [.key, .value.url, .value.sha256] | @tsv' assets.json |
   while IFS=$'\t' read -r name url checksum; do
     mkdir -p "$(dirname "include/$name")"

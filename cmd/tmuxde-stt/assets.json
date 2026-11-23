@@ -64,33 +64,13 @@
     }
   },
   "c_api_headers": {
-    "onnxruntime_ep_c_api.h": {
-      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.2/include/onnxruntime/core/session/onnxruntime_ep_c_api.h",
-      "sha256": "db86df0f846b8d3bdbf429a5c76c5805293196575ca3c475878612591cd18e51"
-    },
-    "onnxruntime_float16.h": {
-      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.2/include/onnxruntime/core/session/onnxruntime_float16.h",
-      "sha256": "88b242845d25981633a0bbd1c148e273cf8bfb016ea3f57c4af41a06530f72b0"
-    },
-    "onnxruntime_error_code.h": {
-      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.2/include/onnxruntime/core/session/onnxruntime_error_code.h",
-      "sha256": "5ce3b054e798eced8d14f5b86e98692fd33470463f96194ce0700a2d53dd8721"
-    },
-    "onnxruntime_c_api.h": {
-      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.2/include/onnxruntime/core/session/onnxruntime_c_api.h",
-      "sha256": "b69a133143c0da61782b2b02cc8a620d21ac139231fd211719776d10385135c1"
-    },
-    "onnxruntime_cxx_api.h": {
-      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.2/include/onnxruntime/core/session/onnxruntime_cxx_api.h",
-      "sha256": "c6bf005e4063b7db911d0a6b030452bcb9d4fc5e87530a39d94c4a5fcd311b61"
-    },
-    "onnxruntime_cxx_inline.h": {
-      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.2/include/onnxruntime/core/session/onnxruntime_cxx_inline.h",
-      "sha256": "97f960b1bc4a372918893ef4c77102dee725ccfce0d76607f4570b03e7e28325"
-    },
     "nlohmann/json.hpp": {
       "url": "https://raw.githubusercontent.com/nlohmann/json/v3.12.0/single_include/nlohmann/json.hpp",
       "sha256": "aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63"
     }
+  },
+  "onnxruntime_sdk": {
+    "url": "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-linux-aarch64-static_lib-1.28.2-glibc2_17.zip",
+    "sha256": "fba13fa68dbc9305512869bfa74f53a15e7af983c44ba8a9cbecbce5c21b33b3"
   }
 }
