@@ -6,6 +6,7 @@ export type RepositoryView = {
   directory: string | null;
   filter: string;
   preview: {
+    root?: string;
     path: string;
     scope?: "staged" | "unstaged" | "untracked";
     size?: number;
@@ -13,7 +14,7 @@ export type RepositoryView = {
   } | null;
   changesPath?: string | null;
   /** A commit open from History. Absent in entries saved before history. */
-  commit?: { hash: string; subject: string } | null;
+  commit?: { hash: string; subject: string; root?: string } | null;
 };
 
 type Entry = { id: number; view: RepositoryView };
@@ -48,10 +49,12 @@ function sameView(left: RepositoryView, right: RepositoryView) {
     left.directory === right.directory &&
     left.filter === right.filter &&
     left.preview?.path === right.preview?.path &&
+    left.preview?.root === right.preview?.root &&
     left.preview?.scope === right.preview?.scope &&
     left.preview?.size === right.preview?.size &&
     left.preview?.symlink === right.preview?.symlink &&
-    left.commit?.hash === right.commit?.hash
+    left.commit?.hash === right.commit?.hash &&
+    left.commit?.root === right.commit?.root
   );
 }
 

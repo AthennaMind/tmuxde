@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { ChevronRight, Folder, GitBranch, List, ListCollapse, ListTree } from "lucide-react";
+import type { WorkspaceChanges } from "./use-workspace-changes";
+import { useMemo } from "react";
+import { ChevronRight, Folder, List, ListCollapse, ListTree } from "lucide-react";
 import type { RepoResult } from "@/protocol";
 import { cn } from "@/shared/utils";
 import { buildChangeTree, type ChangeNode } from "./repository-tree";
@@ -20,47 +21,9 @@ const SCOPE_LABELS = {
   unstaged: "Unstaged",
   untracked: "Untracked",
 };
-const VIEW_KEY = "tmuxde-change-view";
-
-/** The saved layout, read once when the list mounts. */
-function savedView(): "list" | "tree" {
-  try {
-    return localStorage.getItem(VIEW_KEY) === "tree" ? "tree" : "list";
-  } catch {
-    /* Storage can be unavailable. */
-    return "list";
-  }
-}
-
 type ChangeEntry = Extract<RepoResult, { kind: "status" }>["entries"][number];
-export function ChangesList({
-  root,
-  workdir,
-  entries,
-  onOpen,
-  dense = false,
-  branch,
-}: {
-  root: string;
-  workdir: string;
-  entries: ChangeEntry[];
-  onOpen: (path: string, scope: Scope) => void;
-  /** Mouse density for the desktop sidebar. Touch rows stay 44px. */
-  dense?: boolean;
-  /** Optional branch beside layout controls in the desktop sidebar. */
-  branch?: string | null;
-}) {
-  const actions = useChangeActions(root, workdir, onOpen);
-  const [view, setView] = useState(savedView);
-  const selectView = (value: "list" | "tree") => {
-    setView(value);
-    try {
-      localStorage.setItem(VIEW_KEY, value);
-    } catch {
-      /* Keep preference for this visit. */
-    }
-  };
-  const groups: { scope: Scope; files: ChangeEntry[] }[] = [
+function changeScopes(entries: ChangeEntry[]): { scope: Scope; files: ChangeEntry[] }[] {
+  return [
     {
       scope: "unstaged",
       files: entries.filter(
@@ -78,98 +41,137 @@ export function ChangesList({
       files: entries.filter((entry) => entry.index === "?" || entry.worktree === "?"),
     },
   ];
-  const collapseAll = () => {
-    for (const { scope, files } of groups) {
-      const folders = new Set<string>();
-      const collect = (nodes: ChangeNode<ChangeEntry>[]) => {
-        for (const node of nodes) {
-          if (!node.children) continue;
-          folders.add(node.path);
-          collect(node.children);
-        }
-      };
-      collect(buildChangeTree(files));
-      if (!folders.size) continue;
-      useExplorerStore
-        .getState()
-        .updateFolders(
-          explorerTreeKey(machineId(), `changes:${scope}`, root, workdir),
-          (previous) => new Set([...(previous ?? []), ...folders]),
-        );
-    }
-  };
+}
+
+function collapseFolders(root: string, workdir: string, entries: ChangeEntry[]) {
+  for (const { scope, files } of changeScopes(entries)) {
+    const folders = new Set<string>();
+    const collect = (nodes: ChangeNode<ChangeEntry>[]) => {
+      for (const node of nodes) {
+        if (!node.children) continue;
+        folders.add(node.path);
+        collect(node.children);
+      }
+    };
+    collect(buildChangeTree(files));
+    if (!folders.size) continue;
+    useExplorerStore
+      .getState()
+      .updateFolders(
+        explorerTreeKey(machineId(), `changes:${scope}`, root, workdir),
+        (previous) => new Set([...(previous ?? []), ...folders]),
+      );
+  }
+}
+export function ChangesToolbar({
+  groups,
+  workdir,
+  dense,
+  view,
+  onSelect,
+}: {
+  groups: WorkspaceChanges["groups"];
+  workdir: string;
+  dense?: boolean;
+  view: "tree" | "list";
+  onSelect: (value: "list" | "tree") => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 items-center justify-end gap-3",
+        dense ? "px-3 pb-1" : "border-b px-3 pb-2",
+      )}
+    >
+      <div className="flex shrink-0 items-center gap-1">
+        {view === "tree" && (
+          <button
+            type="button"
+            aria-label="Collapse all"
+            title="Collapse all"
+            onClick={() => {
+              for (const { root, status } of groups)
+                if (status) collapseFolders(root, workdir, status.entries);
+            }}
+            disabled={
+              !groups.some((group) =>
+                group.status?.entries.some((entry) => entry.path.includes("/")),
+              )
+            }
+            className={cn(
+              "flex shrink-0 items-center justify-center rounded text-muted-foreground enabled:hover:bg-accent/60 enabled:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40",
+              dense ? "h-7 w-7 pointer-coarse:h-11 pointer-coarse:w-11" : "h-11 w-11",
+            )}
+          >
+            <ListCollapse className="h-4 w-4" aria-hidden />
+          </button>
+        )}
+        <div
+          role="group"
+          aria-label="Changed file layout"
+          className={cn(
+            "flex shrink-0 items-center",
+            dense ? "gap-0.5 rounded-md bg-muted/50 p-0.5" : "gap-1",
+          )}
+        >
+          {(["list", "tree"] as const).map((value) => {
+            const Icon = value === "tree" ? ListTree : List;
+            const label = value === "tree" ? "Tree" : "List";
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-label={dense ? `${label} view` : label}
+                title={`${label} view`}
+                aria-pressed={view === value}
+                onClick={() => onSelect(value)}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  dense ? "h-7 w-7 pointer-coarse:h-11 pointer-coarse:w-11" : "min-h-11 px-3",
+                  view === value
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:bg-accent/60",
+                )}
+              >
+                <Icon className="h-4 w-4" aria-hidden />
+                {!dense && label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+export function ChangesList({
+  root,
+  workdir,
+  entries,
+  onOpen,
+  dense = false,
+  filesRoot,
+  onReveal,
+  view,
+}: {
+  root: string;
+  workdir: string;
+  entries: ChangeEntry[];
+  onOpen: (path: string, scope: Scope) => void;
+  /** Mouse density for the desktop sidebar. Touch rows stay 44px. */
+  dense?: boolean;
+  view: "list" | "tree";
+  filesRoot: string;
+  onReveal?: (path: string) => void;
+}) {
+  const actions = useChangeActions(root, workdir, filesRoot, onOpen, onReveal);
+  const groups = changeScopes(entries);
   return (
     <div
       key={`${machineId()}:${root}:${workdir}`}
-      data-changes-list
+      data-changes-list={root}
       tabIndex={-1}
       className={dense ? "py-1" : "py-2"}
     >
-      <div
-        className={cn(
-          "flex min-w-0 items-center justify-between gap-3",
-          dense ? "px-3 pb-1" : "border-b px-3 pb-2",
-        )}
-      >
-        {branch ? (
-          <span className="flex min-w-0 items-center gap-2 text-[13px]" title={branch}>
-            <GitBranch className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-            <span className="truncate">{branch}</span>
-          </span>
-        ) : (
-          <span />
-        )}
-        <div className="flex shrink-0 items-center gap-1">
-          {view === "tree" && (
-            <button
-              type="button"
-              aria-label="Collapse all"
-              title="Collapse all"
-              onClick={collapseAll}
-              disabled={!entries.some((entry) => entry.path.includes("/"))}
-              className={cn(
-                "flex shrink-0 items-center justify-center rounded text-muted-foreground enabled:hover:bg-accent/60 enabled:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40",
-                dense ? "h-7 w-7 pointer-coarse:h-11 pointer-coarse:w-11" : "h-11 w-11",
-              )}
-            >
-              <ListCollapse className="h-4 w-4" aria-hidden />
-            </button>
-          )}
-          <div
-            role="group"
-            aria-label="Changed file layout"
-            className={cn(
-              "flex shrink-0 items-center",
-              dense ? "gap-0.5 rounded-md bg-muted/50 p-0.5" : "gap-1",
-            )}
-          >
-            {(["list", "tree"] as const).map((value) => {
-              const Icon = value === "tree" ? ListTree : List;
-              const label = value === "tree" ? "Tree" : "List";
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  aria-label={dense ? `${label} view` : label}
-                  title={`${label} view`}
-                  aria-pressed={view === value}
-                  onClick={() => selectView(value)}
-                  className={cn(
-                    "flex items-center justify-center gap-2 rounded text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    dense ? "h-7 w-7 pointer-coarse:h-11 pointer-coarse:w-11" : "min-h-11 px-3",
-                    view === value
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent/60",
-                  )}
-                >
-                  <Icon className="h-4 w-4" aria-hidden />
-                  {!dense && label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
       {actions.pending && !actions.confirmation && (
         <p role="status" className="px-3 py-1 text-xs text-muted-foreground">
           Updating files. {actions.completed} done.
@@ -308,7 +310,7 @@ function ChangeTree({
               onOpen={onOpen}
               menu={menu}
               depth={depth}
-              basename
+              name={node.name}
               dense={dense}
             />
           )}
@@ -325,7 +327,7 @@ function ChangeButton({
   onOpen,
   menu,
   depth = 0,
-  basename = false,
+  name,
   dense = false,
 }: {
   entry: ChangeEntry;
@@ -333,7 +335,7 @@ function ChangeButton({
   onOpen: (path: string, scope: Scope) => void;
   menu: ChangeMenu;
   depth?: number;
-  basename?: boolean;
+  name?: string;
   dense?: boolean;
 }) {
   const code = scope === "untracked" ? "?" : scope === "staged" ? entry.index : entry.worktree;
@@ -353,11 +355,13 @@ function ChangeButton({
         }}
       >
         <ChangeCode code={code} />
-        <RepositoryFileIcon path={entry.path} />
+        <RepositoryFileIcon
+          path={entry.path}
+          type={entry.submodule ? "directory" : "file"}
+          repository={entry.submodule}
+        />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm">
-            {basename ? entry.path.split("/").pop() : entry.path}
-          </span>
+          <span className="block truncate text-sm">{name ?? entry.path}</span>
           {entry.originalPath && (
             <span className="block truncate text-[11px] text-muted-foreground">
               from {entry.originalPath}

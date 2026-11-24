@@ -230,35 +230,44 @@ func (w *metadataWalk) entry(dir string, e fs.DirEntry) error {
 // .git entry turns up, the file system root is reached or the parent is
 // outside the allowed roots. A nil repository means none.
 func (s *Service) discover(ctx context.Context, start string) (*repository, error) {
+	root, err := s.findRoot(ctx, start)
+	if err != nil || root == "" {
+		return nil, err
+	}
+	return s.openRepository(ctx, root, filepath.Join(root, ".git"))
+}
+
+// findRoot identifies the guarded work tree even if its metadata needs repair.
+func (s *Service) findRoot(ctx context.Context, start string) (string, error) {
 	root, err := s.checked(start)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	st, err := os.Stat(root)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	if !st.IsDir() {
-		return nil, fail(msgNotDirectory)
+		return "", fail(msgNotDirectory)
 	}
 	for {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return "", err
 		}
 		dotgit := filepath.Join(root, ".git")
 		found, err := exists(dotgit)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		if found {
-			return s.openRepository(ctx, root, dotgit)
+			return root, nil
 		}
 		parent := filepath.Dir(root)
 		if parent == root || !s.guard.Allowed(parent) {
-			return nil, nil
+			return "", nil
 		}
 		if root, err = s.checked(parent); err != nil {
-			return nil, err
+			return "", err
 		}
 	}
 }
@@ -348,11 +357,12 @@ read:
 				continue
 			}
 			entries = append(entries, protocol.FileEntry{
-				Name:     e.Name(),
-				Path:     file,
-				Type:     entryType(st),
-				Size:     float64(st.Size()),
-				Modified: isoTime(st.ModTime()),
+				Repository: st.IsDir() && e.IsDir() && s.repositoryFolder(file),
+				Name:       e.Name(),
+				Path:       file,
+				Type:       entryType(st),
+				Size:       float64(st.Size()),
+				Modified:   isoTime(st.ModTime()),
 			})
 		}
 		if errors.Is(readErr, io.EOF) {

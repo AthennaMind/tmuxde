@@ -478,3 +478,135 @@ func TestIntegrationConcurrentRequests(t *testing.T) {
 		}
 	}
 }
+
+func TestIntegrationNestedRepositoryHistory(t *testing.T) {
+	base := tempBase(t)
+	workspace := filepath.Join(base, "src")
+	foo := filepath.Join(workspace, "foo")
+	bar := filepath.Join(workspace, "projects", "bar")
+	child := filepath.Join(foo, "child")
+	denied := filepath.Join(workspace, "private")
+	git := newGit(t, filepath.Join(base, "home"))
+	for _, dir := range []string{foo, bar, child, denied} {
+		mustMkdir(t, dir)
+		git.init(dir, "-b", "main")
+		git.run(dir, "commit", "--allow-empty", "-m", filepath.Base(dir))
+	}
+	if err := os.Symlink(foo, filepath.Join(workspace, "alias")); err != nil {
+		t.Fatal(err)
+	}
+	linked := filepath.Join(workspace, "linked")
+	git.run(foo, "worktree", "add", "--detach", linked)
+	service := newService(newTestGuard(t, []string{base}, []string{denied}), Options{})
+	for _, parent := range []bool{false, true} {
+		want := []string{foo, child, linked, bar}
+		if parent {
+			git.init(workspace, "-b", "main")
+			git.run(workspace, "commit", "--allow-empty", "-m", "src")
+			want = append([]string{workspace}, want...)
+		}
+		roots := as[*protocol.RepoRoots](t, request(t, service, workspace, client.RepoRequest{Action: "roots"}))
+		if roots.Truncated || !slices.Equal(roots.Roots, want) {
+			t.Fatalf("roots = %+v, want %v", roots, want)
+		}
+		for _, dir := range want {
+			log := as[*protocol.RepoLog](t, request(t, service, workspace, client.RepoRequest{Action: "log", Path: &dir}))
+			if log.Root == nil || *log.Root != dir || len(log.Commits) != 1 {
+				t.Fatalf("unexpected history for %s: %+v", dir, log)
+			}
+		}
+	}
+	listing := as[*protocol.RepoList](t, request(t, service, workspace, client.RepoRequest{Action: "list"}))
+	for _, entry := range listing.Entries {
+		if entry.Repository != (entry.Path == foo || entry.Path == linked) {
+			t.Fatalf("unexpected repository marker: %+v", entry)
+		}
+	}
+}
+
+func TestIntegrationNestedRepositoryChanges(t *testing.T) {
+	base := tempBase(t)
+	parent := filepath.Join(base, "src")
+	child := filepath.Join(parent, "repo2")
+	mustMkdir(t, child)
+	git := newGit(t, filepath.Join(base, "home"))
+	for _, root := range []string{parent, child} {
+		git.init(root, "-b", "main")
+		mustWrite(t, filepath.Join(root, "note.txt"), filepath.Base(root))
+	}
+	service := newService(newTestGuard(t, []string{base}, nil), Options{})
+	for _, root := range []string{parent, child} {
+		status := as[*protocol.RepoStatus](t, request(t, service, parent, client.RepoRequest{Action: "status", Path: &root}))
+		if status.Root == nil || *status.Root != root || len(status.Entries) != 1 || status.Entries[0].Path != "note.txt" {
+			t.Fatalf("status of %s = %+v", root, status)
+		}
+	}
+}
+
+func TestIntegrationWorkspaceWithInvalidParent(t *testing.T) {
+	base := tempBase(t)
+	parent := filepath.Join(base, "src")
+	child := filepath.Join(parent, "foo")
+	docs := filepath.Join(parent, "docs")
+	mustMkdir(t, docs)
+	mustMkdir(t, child)
+	mustWrite(t, filepath.Join(parent, ".git"), "invalid pointer")
+	git := newGit(t, base)
+	git.init(child)
+	git.run(child, "commit", "--allow-empty", "-qm", "child history")
+	s := newService(newTestGuard(t, []string{base}, nil), Options{})
+	problem := as[*protocol.RepoError](t, request(t, s, docs, client.RepoRequest{Action: "context"}))
+	if problem.Message != msgPointer || problem.Context == nil || problem.Context.Path != docs || deref(problem.Context.Root) != parent {
+		t.Fatalf("missing workspace context: %+v", problem)
+	}
+	roots := as[*protocol.RepoRoots](t, request(t, s, docs, client.RepoRequest{Action: "roots", Path: problem.Context.Root}))
+	if !slices.Equal(roots.Roots, []string{parent, child}) {
+		t.Fatalf("roots = %v", roots.Roots)
+	}
+	log := as[*protocol.RepoLog](t, request(t, s, docs, client.RepoRequest{Action: "log", Path: &child}))
+	if len(log.Commits) != 1 || log.Commits[0].Subject != "child history" {
+		t.Fatalf("child history = %+v", log)
+	}
+}
+
+func TestIntegrationSubmoduleCommitChanges(t *testing.T) {
+	base := tempBase(t)
+	parent := filepath.Join(base, "parent")
+	source := filepath.Join(base, "source")
+	child := filepath.Join(parent, "module")
+	git := newGit(t, base)
+	for _, dir := range []string{parent, source} {
+		mustMkdir(t, dir)
+		git.init(dir)
+	}
+	git.run(source, "commit", "--allow-empty", "-qm", "first")
+	git.run(parent, "-c", "protocol.file.allow=always", "submodule", "add", "-q", source, "module")
+	git.run(parent, "commit", "-qm", "add module")
+	s := newService(newTestGuard(t, []string{base}, nil), Options{})
+	status := func(root string) *protocol.RepoStatus {
+		return as[*protocol.RepoStatus](t, request(t, s, root, client.RepoRequest{Action: "status"}))
+	}
+	mustWrite(t, filepath.Join(child, "note.txt"), "child")
+	if len(status(parent).Entries) != 0 || len(status(child).Entries) != 1 {
+		t.Fatal("child file edits must appear only in child status")
+	}
+	git.run(child, "add", "note.txt")
+	git.run(child, "commit", "-qm", "next")
+	check := func(scope string) {
+		t.Helper()
+		got := status(parent)
+		if len(got.Entries) != 1 || got.Entries[0].Path != "module" || !got.Entries[0].Submodule || !inChangeScope(got.Entries[0], scope) {
+			t.Fatalf("unexpected %s commit pointer status: %+v", scope, got)
+		}
+		diff := as[*protocol.RepoDiff](t, request(t, s, parent, client.RepoRequest{Action: "diff", File: ptr("module"), Scope: &scope}))
+		if !strings.Contains(diff.Content, "+Subproject commit ") {
+			t.Fatalf("missing %s pointer diff: %q", scope, diff.Content)
+		}
+	}
+	check("unstaged")
+	for _, mutation := range []struct{ action, scope, after string }{{"stage", "unstaged", "staged"}, {"unstage", "staged", "unstaged"}} {
+		as[*protocol.RepoStatus](t, request(t, s, parent, client.RepoRequest{Action: mutation.action, Path: &parent, File: ptr("module"), Scope: &mutation.scope}))
+		check(mutation.after)
+	}
+	as[*protocol.RepoError](t, request(t, s, parent, client.RepoRequest{Action: "discard", Path: &parent, File: ptr("module"), Scope: ptr("unstaged")}))
+}

@@ -148,7 +148,7 @@ inside attached session. Each request receives `repo:result` with matching
   type: "repo:request";
   requestId: string;
   id: string; // Target pane ID. Required for every action.
-  action: "context" | "list" | "read" | "status" | "diff" | "log" | "show" | "search" | "stage" | "unstage" | "discard";
+  action: "context" | "roots" | "list" | "read" | "status" | "diff" | "log" | "show" | "search" | "stage" | "unstage" | "discard";
   path?: string;
   file?: string;
   scope?: "unstaged" | "staged" | "untracked";
@@ -158,10 +158,18 @@ inside attached session. Each request receives `repo:result` with matching
 }
 ```
 
-`context` resolves current pane directory from tmux. `list` defaults to that
+`context` resolves current pane directory from tmux. If Git metadata fails after locating a guarded work tree, the error includes a `context` object with pane path, work tree root and null branch. Clients can still browse files and discover child repositories. `list` defaults to that
 directory. `read` requires `path`. `status` and `diff` accept captured context
 in `path` so changing pane directory does not silently switch repositories.
 `diff` requires `file`, relative to repository root, and `scope`.
+Untracked nested work trees appear in `roots`. Request their status separately
+to get their changed files. Parent status omits the untracked directory marker.
+
+`roots` requires `repo:roots`. It finds work trees under `path` or the pane
+directory, including the directory itself. Discovery skips symlinks, denied
+paths and Git internals. A partial scan sets `truncated`. The default limits
+are 5 seconds, 100,000 entries and 128 roots. Use each returned path for its
+own history and commit requests.
 
 `log` and `show` require `repo:history` in `auth:success.features`. `log`
 pages history from `HEAD`, 100 commits per page, starting after `skip`
@@ -294,6 +302,7 @@ None of these messages are queued across a reconnect.
 | Kind | Fields |
 | --- | --- |
 | `context` | `path`, `root: string \| null`, `branch: string \| null` |
+| `roots` | `roots: string[]`, `truncated` |
 | `list` | `path`, `entries: FileEntry[]`, `truncated` |
 | `read` | `path`, `content`, `truncated`, `binary` |
 | `status` | `root`, `branch`, `entries: { path, originalPath?, index, worktree }[]`, `truncated` |
@@ -414,6 +423,7 @@ type WindowInfo = {
 };
 
 type FileEntry = {
+  repository?: boolean; // Repository listing found a .git directory or worktree file.
   name: string;
   path: string;
   type: "file" | "directory" | "symlink" | "other";
@@ -804,7 +814,7 @@ Those fields identify native installation; public browser inventory omits paths.
 
 `repo:mutate` in machine features enables `repo:request` actions `stage`,
 `unstage` and `discard`. Each requires `file`, relative to repository root,
-and `scope`. `path` pins repository context. Attached-session pane ownership
+and `scope`. Mutations must start at the exact repository root. Supply it in `path`, or omit `path` when the pane is at that root. A missing or moved root cannot redirect a write to an ancestor. Attached-session pane ownership
 and file path guards apply. Existing machine forwarding carries requests
 and correlated results unchanged. Full authenticated machine access is required.
 
@@ -813,7 +823,7 @@ and preserves worktree content, including before first commit. Both handle
 rename source and destination together. `discard` accepts unstaged or untracked
 files. Unstaged discard restores worktree from index and preserves staged work.
 Untracked discard deletes exactly selected file. Staged discard is refused.
-Directories, symlink paths, Git metadata, merge conflicts and files outside
+Initialized submodules report changed commit pointers in parent status with `submodule: true`. Their file edits appear in child status. Stage and unstage accept these verified Git links. Other directories, symlink paths, Git metadata, merge conflicts and files outside
 current change group are refused. Success returns fresh `status`; failure
 returns `error`. Browser confirms discard and protects unsaved drafts.
 

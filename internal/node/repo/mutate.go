@@ -13,7 +13,7 @@ import (
 )
 
 // mutationPath accepts one file, never a directory, pathspec or metadata.
-func (s *Service) mutationPath(repo repository, name string) (string, error) {
+func (s *Service) mutationPath(ctx context.Context, repo repository, name string, allowGitlink bool) (string, error) {
 	if name == "" || strings.ContainsRune(name, 0) || filepath.IsAbs(name) || filepath.Clean(name) != name || name == "." || name == ".." || strings.HasPrefix(name, "../") {
 		return "", fail(msgOutsideRepo)
 	}
@@ -31,6 +31,13 @@ func (s *Service) mutationPath(repo repository, name string) (string, error) {
 	info, err := os.Lstat(real)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return "", err
+	}
+	if info != nil && allowGitlink && info.IsDir() {
+		if link, err := s.isGitlink(ctx, repo, real); err != nil {
+			return "", err
+		} else if link {
+			return real, nil
+		}
 	}
 	if info != nil && !info.Mode().IsRegular() {
 		return "", fail(msgNotRegular)
@@ -60,7 +67,7 @@ func (s *Service) mutate(ctx context.Context, repo repository, action, name, sco
 	if (action == "stage" && scope != "unstaged" && scope != "untracked") || (action == "unstage" && scope != "staged") || (action == "discard" && scope != "unstaged" && scope != "untracked") {
 		return nil, fail("File and matching change scope required")
 	}
-	if _, err := s.mutationPath(repo, name); err != nil {
+	if _, err := s.mutationPath(ctx, repo, name, action != "discard"); err != nil {
 		return nil, err
 	}
 	status, err := s.status(ctx, &repo)
@@ -77,7 +84,7 @@ func (s *Service) mutate(ctx context.Context, repo repository, action, name, sco
 	}
 	paths := []string{name}
 	if entry.OriginalPath != nil && ((action == "unstage" && entry.Index == "R") || (action == "stage" && entry.Worktree == "R")) {
-		if _, err := s.mutationPath(repo, *entry.OriginalPath); err != nil {
+		if _, err := s.mutationPath(ctx, repo, *entry.OriginalPath, false); err != nil {
 			return nil, err
 		}
 		paths = append(paths, *entry.OriginalPath)

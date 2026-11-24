@@ -13,6 +13,11 @@ describe("change tree", () => {
     expect(tree[0]?.count).toBe(3);
   });
 
+  it("keeps a directory entry from an older agent on one named row", () => {
+    const entry = { path: "repo2/" };
+    expect(buildChangeTree([entry])).toEqual([{ name: "repo2", path: "repo2/", count: 1, entry }]);
+  });
+
   it("keeps dotfiles, spaces, Unicode and prototype-like names", () => {
     const tree = buildChangeTree([
       { path: "__proto__/constructor.ts" },

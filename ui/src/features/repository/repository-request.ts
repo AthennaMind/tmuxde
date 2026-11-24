@@ -59,8 +59,10 @@ export function repositoryRequest(
     unsubscribeMessage = client.onMessage((message) => {
       if (message.type !== "repo:result" || message.requestId !== requestId) return;
       cleanup();
-      if (message.result.kind === "error") reject(new Error(message.result.message));
-      else resolve(message.result);
+      if (message.result.kind === "error") {
+        if (query.action === "context" && message.result.context) resolve(message.result.context);
+        else reject(new Error(message.result.message));
+      } else resolve(message.result);
     });
     unsubscribeStatus = client.onStatusChange((status) => {
       if (status !== "connected") fail(new Error("Connection lost. Reconnect to browse files."));

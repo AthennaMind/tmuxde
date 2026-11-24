@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -229,10 +230,34 @@ func (s *Service) status(ctx context.Context, repo *repository) (*protocol.RepoS
 	if err != nil {
 		return nil, err
 	}
-	// The last piece is empty, or a record the cap cut off.
-	records := strings.Split(out.content, "\x00")
-	records = records[:len(records)-1]
-	entries := []protocol.RepoStatusEntry{}
+	links, err := s.submoduleChanges(ctx, *repo)
+	if err != nil {
+		return nil, err
+	}
+	entries, truncated := s.appendStatus([]protocol.RepoStatusEntry{}, repo.root, out, false)
+	entries, linksTruncated := s.appendStatus(entries, repo.root, links, true)
+	branch, err := s.branch(ctx, *repo)
+	if err != nil {
+		return nil, err
+	}
+	return &protocol.RepoStatus{
+		Kind:      "status",
+		Root:      &repo.root,
+		Branch:    branch,
+		Entries:   entries,
+		Truncated: truncated || linksTruncated,
+	}, nil
+}
+
+// gitRecords drops the unterminated record when Git output reaches its cap.
+func gitRecords(output string) []string {
+	records := strings.Split(output, "\x00")
+	return records[:len(records)-1]
+}
+
+func (s *Service) appendStatus(entries []protocol.RepoStatusEntry, root string, out gitOutput, submodule bool) ([]protocol.RepoStatusEntry, bool) {
+	records := gitRecords(out.content)
+	truncated := out.truncated || len(records) > s.opts.MaxEntries-len(entries)
 	for i := 0; i < len(records) && len(entries) < s.opts.MaxEntries; i++ {
 		record := records[i]
 		if len(record) < 4 {
@@ -248,26 +273,21 @@ func (s *Service) status(ctx context.Context, repo *repository) (*protocol.RepoS
 			}
 			original = records[i]
 		}
-		if !s.visible(repo.root, file, original) {
+		if !s.visible(root, file, original) {
 			continue
 		}
-		entry := protocol.RepoStatusEntry{Path: file, Index: index, Worktree: worktree}
+		// With all untracked files requested, Git reports an embedded work tree
+		// as one directory. Its own status supplies the individual changes.
+		if index == "?" && worktree == "?" && strings.HasSuffix(file, "/") && s.repositoryFolder(filepath.Join(root, file)) {
+			continue
+		}
+		entry := protocol.RepoStatusEntry{Path: file, Index: index, Worktree: worktree, Submodule: submodule}
 		if original != "" {
 			entry.OriginalPath = &original
 		}
 		entries = append(entries, entry)
 	}
-	branch, err := s.branch(ctx, *repo)
-	if err != nil {
-		return nil, err
-	}
-	return &protocol.RepoStatus{
-		Kind:      "status",
-		Root:      &repo.root,
-		Branch:    branch,
-		Entries:   entries,
-		Truncated: out.truncated || len(records) > s.opts.MaxEntries,
-	}, nil
+	return entries, truncated
 }
 
 func isRenameOrCopy(code string) bool { return code == "R" || code == "C" }
@@ -310,7 +330,13 @@ func (s *Service) diff(ctx context.Context, repo repository, name, scope string)
 		result.Binary = t.binary
 		return result, nil
 	}
-	args := []string{"diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", "--ignore-submodules=all"}
+	ignore := "--ignore-submodules=all"
+	if link, err := s.isGitlink(ctx, repo, file); err != nil {
+		return nil, err
+	} else if link {
+		ignore = "--ignore-submodules=dirty"
+	}
+	args := []string{"diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", ignore}
 	if scope == "staged" {
 		args = append(args, "--cached")
 	}

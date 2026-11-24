@@ -149,3 +149,38 @@ func TestIntegrationUnstageBeforeFirstCommit(t *testing.T) {
 		t.Fatal("unstage changed file")
 	}
 }
+
+func TestIntegrationStaleChildMutation(t *testing.T) {
+	base := tempBase(t)
+	parent := filepath.Join(base, "src")
+	child := filepath.Join(parent, "child")
+	mustMkdir(t, child)
+	git := newGit(t, base)
+	s := newService(newTestGuard(t, []string{base}, nil), Options{})
+	for _, root := range []string{parent, child} {
+		git.init(root)
+		mustWrite(t, filepath.Join(root, "note.txt"), root+" staged")
+		git.run(root, "add", "note.txt")
+		mustWrite(t, filepath.Join(root, "note.txt"), root+" edited")
+	}
+	metadata := filepath.Join(child, ".git")
+	saved := filepath.Join(base, "child.git")
+	if err := os.Rename(metadata, saved); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutation := range []struct{ action, scope string }{{"stage", "unstaged"}, {"unstage", "staged"}, {"discard", "unstaged"}} {
+		got := request(t, s, parent, client.RepoRequest{Action: mutation.action, Path: &child, File: ptr("note.txt"), Scope: &mutation.scope})
+		if message := errorText(t, got); !strings.Contains(message, "Repository moved") {
+			t.Fatalf("%s returned %q", mutation.action, message)
+		}
+	}
+	if err := os.Rename(saved, metadata); err != nil {
+		t.Fatal(err)
+	}
+	for _, root := range []string{parent, child} {
+		data, err := os.ReadFile(filepath.Join(root, "note.txt"))
+		if err != nil || string(data) != root+" edited" || git.run(root, "show", ":note.txt") != root+" staged" {
+			t.Fatalf("worktree or index changed in %s", root)
+		}
+	}
+}

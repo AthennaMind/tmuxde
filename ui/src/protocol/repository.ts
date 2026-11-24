@@ -8,6 +8,7 @@ export const RepoRequest = z.object({
   id: z.string().min(1),
   action: z.enum([
     "context",
+    "roots",
     "list",
     "read",
     "status",
@@ -71,13 +72,16 @@ export const RepoCommitFileSchema = z.object({
 });
 export type RepoCommitFile = z.infer<typeof RepoCommitFileSchema>;
 
+const RepoContext = z.object({
+  kind: z.literal("context"),
+  path: z.string(),
+  root: z.string().nullable(),
+  branch: z.string().nullable(),
+});
+
 export const RepoResult = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("context"),
-    path: z.string(),
-    root: z.string().nullable(),
-    branch: z.string().nullable(),
-  }),
+  RepoContext,
+  z.object({ kind: z.literal("roots"), roots: z.array(z.string()), truncated: z.boolean() }),
   z.object({
     kind: z.literal("list"),
     path: z.string(),
@@ -101,6 +105,7 @@ export const RepoResult = z.discriminatedUnion("kind", [
         originalPath: z.string().optional(),
         index: z.string(),
         worktree: z.string(),
+        submodule: z.boolean().optional(),
       }),
     ),
     truncated: z.boolean(),
@@ -160,7 +165,7 @@ export const RepoResult = z.discriminatedUnion("kind", [
       .max(200),
     truncated: z.boolean(),
   }),
-  z.object({ kind: z.literal("error"), message: z.string() }),
+  z.object({ kind: z.literal("error"), message: z.string(), context: RepoContext.optional() }),
 ]);
 export type RepoResult = z.infer<typeof RepoResult>;
 export const RepoResponse = z.object({

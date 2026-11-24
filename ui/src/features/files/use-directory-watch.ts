@@ -5,14 +5,14 @@ import { holdDirectoryWatch } from "./directory-watch";
 
 /** Watch only listed folders. Poll catches refused watches and missed events. */
 export function useDirectoryWatch(
-  client: RepositoryClient,
+  client: RepositoryClient | null,
   path: string | null,
   refresh: () => void,
 ) {
   const changed = useEffectEvent(refresh);
   const watch = useRef<ReturnType<typeof holdDirectoryWatch> | null>(null);
   useEffect(() => {
-    if (!path) return;
+    if (!path || !client) return;
     const held = holdDirectoryWatch(client, path, () => changed());
     watch.current = held;
     return () => {
@@ -22,7 +22,7 @@ export function useDirectoryWatch(
   }, [client, path]);
   useVisibleInterval(
     () => {
-      if (client.status !== "connected") return;
+      if (client?.status !== "connected") return;
       watch.current?.renew();
       refresh();
     },

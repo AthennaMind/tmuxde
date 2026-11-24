@@ -34,6 +34,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -175,6 +176,10 @@ func (s *Service) handle(ctx context.Context, cwd string, req *client.RepoReques
 	}
 	path := deref(req.Path)
 	switch req.Action {
+	case "context":
+		return s.paneContext(ctx, cwd)
+	case "roots":
+		return s.roots(ctx, resolvePath(cwd, path))
 	case "content-search":
 		return s.contentSearch(ctx, cwd, req)
 	case "search":
@@ -214,13 +219,13 @@ func (s *Service) handle(ctx context.Context, cwd string, req *client.RepoReques
 			return nil, err
 		}
 		return &protocol.RepoRead{Kind: "read", Path: file, Content: t.content, Truncated: t.truncated, Binary: t.binary}, nil
-	case "context", "status", "diff", "log", "show", "stage", "unstage", "discard":
+	case "status", "diff", "log", "show", "stage", "unstage", "discard":
 	default:
 		return nil, fail(msgUnknownAction)
 	}
 
 	start := cwd
-	if req.Action != "context" && path != "" {
+	if path != "" {
 		start = resolvePath(cwd, path)
 	}
 	repo, err := s.discover(ctx, start)
@@ -228,17 +233,6 @@ func (s *Service) handle(ctx context.Context, cwd string, req *client.RepoReques
 		return nil, err
 	}
 	switch req.Action {
-	case "context":
-		result := &protocol.RepoContext{Kind: "context", Path: cwd}
-		if repo != nil {
-			branch, err := s.branch(ctx, *repo)
-			if err != nil {
-				return nil, err
-			}
-			result.Root = &repo.root
-			result.Branch = branch
-		}
-		return result, nil
 	case "status":
 		return s.status(ctx, repo)
 	case "log":
@@ -265,9 +259,33 @@ func (s *Service) handle(ctx context.Context, cwd string, req *client.RepoReques
 		return s.show(ctx, *repo, commit)
 	}
 	if req.Action == "stage" || req.Action == "unstage" || req.Action == "discard" {
+		if start != repo.root {
+			return nil, fail("Repository moved. Refresh Changes before trying again")
+		}
 		return s.mutate(ctx, *repo, req.Action, deref(req.File), deref(req.Scope))
 	}
 	return s.diff(ctx, *repo, deref(req.File), deref(req.Scope))
+}
+
+func (s *Service) paneContext(ctx context.Context, cwd string) (protocol.RepoResult, error) {
+	root, err := s.findRoot(ctx, cwd)
+	if err != nil {
+		return nil, err
+	}
+	result := &protocol.RepoContext{Kind: "context", Path: cwd}
+	if root == "" {
+		return result, nil
+	}
+	result.Root = &root
+	repo, err := s.openRepository(ctx, root, filepath.Join(root, ".git"))
+	if err == nil {
+		result.Branch, err = s.branch(ctx, *repo)
+	}
+	if err != nil {
+		message, _ := publicMessage(err)
+		return &protocol.RepoError{Kind: "error", Message: message, Context: result}, nil
+	}
+	return result, nil
 }
 
 // Messages a result of kind error carries. The first group is the relay's,

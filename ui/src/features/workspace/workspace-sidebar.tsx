@@ -27,6 +27,7 @@ import {
 } from "./ui-store";
 import { MachinesTree } from "./machines-tree";
 import { FilesView } from "@/features/files/files-view";
+import { useWorkspaceChanges } from "@/features/repository/use-workspace-changes";
 import { ChangesView } from "@/features/repository/changes-view";
 import { HistoryView } from "@/features/repository/history-view";
 import { PhotosView } from "@/features/photos/photos-view";
@@ -219,15 +220,23 @@ function RepositoryViews({
   const watching = !collapsed && REPO_VIEWS.includes(view);
   const repo = useRepositoryState(watching);
   const { refreshStatus } = repo;
-  const count = repo.status?.entries.length ?? 0;
+  const workspace = useWorkspaceChanges(
+    repo.client,
+    repo.paneId,
+    repo.context,
+    repo.status,
+    repo.refreshKey,
+    watching && (view === "changes" || view === "history"),
+  );
+  const count = workspace.count;
   useEffect(() => onChangeCount(count), [count, onChangeCount]);
   useEffect(() => {
     if (watching) refreshStatus();
   }, [watching, view, refreshStatus]);
   if (noFiles) return null;
   if (view === "files") return <FilesView repo={repo} />;
-  if (view === "changes") return <ChangesView repo={repo} />;
-  if (view === "history") return <HistoryView repo={repo} />;
+  if (view === "changes") return <ChangesView repo={repo} workspace={workspace} />;
+  if (view === "history") return <HistoryView repo={repo} workspace={workspace} />;
   return null;
 }
 
