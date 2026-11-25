@@ -159,6 +159,7 @@ export function EditableFileTab({
         ) : (
           <div className="min-h-0 flex-1 overflow-hidden">
             <MonacoEditor
+              commentFile={{ path: tab.path, machine: tab.machineId ?? "local" }}
               content={draft.content}
               position={tab.position}
               onNavigate={() => {

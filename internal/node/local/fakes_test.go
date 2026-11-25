@@ -264,6 +264,10 @@ func (f *fakeTmux) CapturePane(_ context.Context, s string, opts tmux.CaptureOpt
 	return f.capture, f.captureErr
 }
 
+func (f *fakeTmux) PastePane(_ context.Context, id, command, text string, submit bool) error {
+	return f.record("PastePane", id, command, text, submit)
+}
+
 func (f *fakeTmux) CapturePaneByID(_ context.Context, id string, opts tmux.CaptureOptions) (string, error) {
 	err := f.record("CapturePaneByID", id)
 	f.mu.Lock()

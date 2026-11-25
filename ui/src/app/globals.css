@@ -1100,3 +1100,12 @@ html[data-keyboard="open"] .tmuxde-terminal-shell {
     text-decoration: none;
   }
 }
+
+.monaco-editor .agent-comment-range {
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  border-bottom: 1px dotted var(--primary);
+}
+
+.monaco-editor .agent-comment-gutter {
+  border-left: 3px solid var(--primary);
+}

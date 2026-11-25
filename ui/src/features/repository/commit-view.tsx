@@ -5,7 +5,7 @@ import { cn } from "@/shared/utils";
 import { copyFailureReason, copyText } from "@/shared/clipboard";
 import { useAlertStore } from "@/shared/alert-store";
 import { useSettingsStore } from "@/features/settings/settings-store";
-import { parsePatch, splitPath, type DiffRow } from "./commit-diff";
+import { parsePatch, splitPath } from "./commit-diff";
 import {
   addSeenIndices,
   commitSections,
@@ -23,14 +23,14 @@ import { RefChip } from "./commit-log";
 import { formatCommitDate, parseRefs } from "./commit-format";
 import { ChangeCode } from "./change-code";
 import { RepositoryFileIcon } from "@/features/files/repository-file-icon";
-import { RepositorySyntaxLine } from "./repository-syntax";
+import { DiffRows, CommentableDiffRows } from "./diff-rows";
 import { useRepositorySyntax } from "./use-syntax-tokens";
-import type { RepositorySyntaxToken } from "./repository-syntax-tokens";
 
 export type CommitResult = Extract<RepoResult, { kind: "show" }>;
 
 export type DiffFile = RepoCommitFile & {
   scope?: "staged" | "unstaged" | "untracked";
+  root?: string;
   error?: string;
   truncated?: boolean;
 };
@@ -765,14 +765,6 @@ const FileSection = memo(function FileSection({
   );
 }, sameSectionProps);
 
-const ROW_COLORS: Record<DiffRow["kind"], string> = {
-  add: "bg-signal-done-surface text-term-added",
-  del: "bg-signal-failed-surface text-term-removed",
-  hunk: "bg-muted text-term-path",
-  note: "text-muted-foreground",
-  context: "text-foreground",
-};
-
 /**
  * Memoized. Its props stay the same while the filter changes, and a big
  * commit has thousands of rows to build again otherwise. Wrap lines only
@@ -839,45 +831,28 @@ const FileDiff = memo(function FileDiff({
                 : "min-w-max [&_code]:whitespace-pre",
             )}
           >
-            <DiffRows rows={rows} tokens={tokens} digits={digits} />
+            {file.scope && file.root ? (
+              <CommentableDiffRows
+                root={file.root}
+                path={file.root.replace(/\/$/, "") + "/" + file.path}
+                oldPath={
+                  file.originalPath
+                    ? file.root.replace(/\/$/, "") + "/" + file.originalPath
+                    : undefined
+                }
+                scope={file.scope}
+                rows={rows}
+                tokens={tokens}
+                digits={digits}
+              />
+            ) : (
+              <DiffRows rows={rows} tokens={tokens} digits={digits} />
+            )}
           </div>
         </div>
       )}
     </>
   );
-});
-
-/** The rows of one diff. Memoized and free of `wrap`, see `FileDiff`. */
-const DiffRows = memo(function DiffRows({
-  rows,
-  tokens,
-  digits,
-}: {
-  rows: DiffRow[];
-  tokens: RepositorySyntaxToken[][] | undefined;
-  /** Digits of the largest line number, for the gutter width. */
-  digits: number;
-}) {
-  const gutter = { width: `calc(${digits}ch + 0.75rem)` };
-  return rows.map((row) => (
-    <div key={row.index} className={cn("flex", ROW_COLORS[row.kind])}>
-      <span
-        aria-hidden
-        // In `ch`, so the gutter grows with the code zoom.
-        className="sticky start-0 flex shrink-0 select-none border-e bg-surface-sunken tabular-nums text-muted-foreground"
-      >
-        <span className="pe-2 text-end" style={gutter}>
-          {"old" in row ? row.old : ""}
-        </span>
-        <span className="pe-2 text-end" style={gutter}>
-          {"new" in row ? row.new : ""}
-        </span>
-      </span>
-      <code className="min-w-0 flex-1 ps-2 pe-4">
-        <RepositorySyntaxLine line={row.text} tokens={tokens?.[row.index]} />
-      </code>
-    </div>
-  ));
 });
 
 function Note({ children }: { children: React.ReactNode }) {

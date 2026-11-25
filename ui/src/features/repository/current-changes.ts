@@ -104,6 +104,7 @@ export async function loadCurrentChanges(
         const rows = binary || truncated ? [] : parsePatch(patch).rows;
         files[index] = {
           ...file,
+          root: contextPath,
           patch,
           binary,
           truncated,

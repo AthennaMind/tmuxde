@@ -151,6 +151,39 @@ func TestIntegrationTmux(t *testing.T) {
 	f.startCaptureFixture(t)
 
 	t.Run("capturePane", f.testCapturePane)
+	t.Run("paste only", func(t *testing.T) {
+		pane, file := f.openTUI(t, "paste")
+		neighbor, other := f.openTUI(t, "keys")
+		f.tmux(t, "join-pane", "-s", pane, "-t", neighbor, "-d")
+		command := strings.TrimSpace(f.tmux(t, "display-message", "-p", "-t", pane, "#{pane_current_command}"))
+		text := "first.go:8 fix retry\nsecond.go:12 fix timeout"
+		if err := f.c.PastePane(bg, pane, "changed-command", text, true); err == nil {
+			t.Fatal("accepted changed foreground process")
+		}
+		f.tmux(t, "set-window-option", "-t", pane, "synchronize-panes", "on")
+		if err := f.c.PastePane(bg, pane, command, text, true); err == nil {
+			t.Fatal("accepted synchronized destination")
+		}
+		f.tmux(t, "set-window-option", "-t", pane, "synchronize-panes", "off")
+		if err := f.c.PastePane(bg, pane, command, text, false); err != nil {
+			t.Fatal(err)
+		}
+		poll(t, "paste received", time.Second, 10*time.Millisecond, func() (bool, string) {
+			got := string(readReceived(file))
+			return got == "\x1b[200~"+text+"\x1b[201~", got
+		})
+		if err := f.c.PastePane(bg, pane, command, text, true); err != nil {
+			t.Fatal(err)
+		}
+		poll(t, "submit received", time.Second, 10*time.Millisecond, func() (bool, string) {
+			got := string(readReceived(file))
+			paste := "\x1b[200~" + text + "\x1b[201~"
+			return got == paste+paste+"\r", got
+		})
+		if got := readReceived(other); len(got) > 0 {
+			t.Fatalf("other pane received %q", got)
+		}
+	})
 	t.Run("capturePaneById", f.testCapturePaneByID)
 	t.Run("scrollHistory", f.testScrollHistory)
 	t.Run("splitPane", f.testSplitPane)
@@ -843,7 +876,7 @@ func (f *fixture) openTUI(t *testing.T, mode string) (pane, received string) {
 		return err == nil, fmt.Sprint(err)
 	})
 	format := "#{mouse_any_flag}"
-	if mode == "keys" {
+	if mode == "keys" || mode == "paste" {
 		format = "#{alternate_on}"
 	}
 	poll(t, "tty app modes", 10*time.Second, 20*time.Millisecond, func() (bool, string) {

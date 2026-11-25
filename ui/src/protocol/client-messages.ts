@@ -375,6 +375,20 @@ export const TmuxExitCopyModeMessage = z.object({
   type: z.literal("tmux:exit-copy-mode"),
 });
 
+const PanePasteStatus = z.object({
+  type: z.literal("pane:paste:status"),
+  requestId: z.string().min(1).max(128),
+});
+
+const PanePasteMessage = z.object({
+  requestId: z.string().min(1).max(128).optional(),
+  type: z.literal("pane:paste"),
+  id: z.string().min(1),
+  command: z.string().min(1),
+  text: z.string().min(1).max(32768),
+  submit: z.boolean().optional(),
+});
+
 export const PaneCaptureMessage = z.object({
   type: z.literal("pane:capture"),
   id: z.string(),
@@ -488,6 +502,8 @@ const ClientMessageUnion = z.discriminatedUnion("type", [
   TmuxScrollToMessage,
   TmuxScrollStateRequest,
   TmuxExitCopyModeMessage,
+  PanePasteMessage,
+  PanePasteStatus,
   PaneCaptureMessage,
   SessionWindowsMessage,
   DictationStartMessage,

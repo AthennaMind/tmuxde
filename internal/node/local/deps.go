@@ -55,6 +55,7 @@ type Tmux interface {
 
 	PreviewScreens(ctx context.Context, targets []protocol.PreviewTarget, exclude []string) []protocol.PreviewFrame
 	CapturePane(ctx context.Context, session string, opts tmux.CaptureOptions) (string, error)
+	PastePane(ctx context.Context, paneID, command, text string, submit bool) error
 	CapturePaneByID(ctx context.Context, paneID string, opts tmux.CaptureOptions) (string, error)
 
 	SendPrefix(ctx context.Context, session string) error

@@ -1,0 +1,23 @@
+[
+  {
+    "type": "pane:paste",
+    "id": "%1",
+    "command": "codex",
+    "text": "review this"
+  },
+  {
+    "type": "pane:paste",
+    "id": "%1",
+    "command": "codex",
+    "text": "review this",
+    "submit": false
+  },
+  {
+    "type": "pane:paste",
+    "id": "%1",
+    "command": "codex",
+    "text": "review this",
+    "submit": true,
+    "requestId": "paste1"
+  }
+]

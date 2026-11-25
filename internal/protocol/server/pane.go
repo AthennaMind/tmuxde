@@ -11,6 +11,7 @@ var paneTypes = map[string]func() Message{
 	"terminal:output":   func() Message { return &TerminalOutput{} },
 	"pane:list":         func() Message { return &PaneList{} },
 	"pane:changed":      func() Message { return &PaneChanged{} },
+	"pane:paste:result": func() Message { return &PanePasteResult{} },
 	"pane:captured":     func() Message { return &PaneCaptured{} },
 	"tmux:scroll-state": func() Message { return &TmuxScrollState{} },
 }
@@ -68,6 +69,19 @@ func (m *PaneChanged) Validate() error {
 		protocol.RequiredSlice("panes", m.Panes),
 		protocol.Each("panes", m.Panes),
 	)
+}
+
+// PanePasteResult confirms a paste request on the originating connection.
+type PanePasteResult struct {
+	Type      string `json:"type"`
+	RequestID string `json:"requestId"`
+	Success   bool   `json:"success"`
+	Error     string `json:"error,omitempty"`
+}
+
+func (*PanePasteResult) WireType() string { return "pane:paste:result" }
+func (m *PanePasteResult) Validate() error {
+	return errors.Join(protocol.Literal("type", m.Type, "pane:paste:result"), protocol.LengthBetween("requestId", m.RequestID, 1, 128))
 }
 
 // PaneCaptured answers pane:capture with the pane's contents as text.

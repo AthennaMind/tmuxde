@@ -1,3 +1,4 @@
+import { CommentComposer } from "@/features/files/comment-composer";
 import { useSettingsStore } from "@/features/settings/settings-store";
 import { draftKey, draftModified, useFileDrafts } from "@/features/files/file-drafts";
 import { useCallback, useEffect, useId, useMemo } from "react";
@@ -234,6 +235,7 @@ export function MainTabs() {
           <span className="sr-only" role="status">
             {announcement}
           </span>
+          <CommentComposer machine={activeMachine} workspaceReview />
         </nav>
       </ContextMenuTrigger>
       {/* Portalled out of the row, so it does not inherit the face. */}

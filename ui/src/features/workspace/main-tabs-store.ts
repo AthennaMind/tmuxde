@@ -47,7 +47,15 @@ export interface FileTab extends TabOrigin {
   /** The tree listed the path as a symbolic link. */
   symlink?: boolean;
   /** Explicit editor navigation. Identity changes on every result selection. */
-  position?: { line: number; column: number; endColumn: number; requestId: string };
+  commentJump?: { id: string; requestId: string };
+  position?: {
+    commentId?: string;
+    endLine?: number;
+    line: number;
+    column: number;
+    endColumn: number;
+    requestId: string;
+  };
 }
 
 /**
@@ -288,7 +296,9 @@ export function restoreTabs(persisted: unknown): Pick<MainTabsStore, "tabs" | "a
         state.tabs
           .filter(isMainTab)
           .map((tab) =>
-            tab.kind === "file" && tab.position ? { ...tab, position: undefined } : tab,
+            tab.kind === "file" && (tab.position || tab.commentJump)
+              ? { ...tab, position: undefined, commentJump: undefined }
+              : tab,
           ),
         keep,
       )
@@ -401,8 +411,10 @@ export const useMainTabsStore = create<MainTabsStore>()(
       clearFilePosition: (id, requestId) =>
         set((s) => ({
           tabs: s.tabs.map((tab) =>
-            tab.kind === "file" && tab.id === id && tab.position?.requestId === requestId
-              ? { ...tab, position: undefined }
+            tab.kind === "file" &&
+            tab.id === id &&
+            (tab.position?.requestId === requestId || tab.commentJump?.requestId === requestId)
+              ? { ...tab, position: undefined, commentJump: undefined }
               : tab,
           ),
         })),

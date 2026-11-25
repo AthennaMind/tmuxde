@@ -1,0 +1,13 @@
+[
+  {
+    "type": "pane:paste:result",
+    "requestId": "a1",
+    "success": true
+  },
+  {
+    "type": "pane:paste:result",
+    "requestId": "a2",
+    "success": false,
+    "error": "pane process changed"
+  }
+]

@@ -36,6 +36,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -314,6 +315,10 @@ func (c *Client) execProgram(ctx context.Context, bin string, argv, tmuxArgs []s
 }
 
 func (c *Client) execProgramLimit(ctx context.Context, bin string, argv, tmuxArgs []string, limit int) (string, bool, error) {
+	return c.execWithInput(ctx, bin, argv, tmuxArgs, limit, nil)
+}
+
+func (c *Client) execWithInput(ctx context.Context, bin string, argv, tmuxArgs []string, limit int, input io.Reader) (string, bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.opts.Timeout)
 	defer cancel()
 
@@ -322,6 +327,7 @@ func (c *Client) execProgramLimit(ctx context.Context, bin string, argv, tmuxArg
 	cmd := exec.CommandContext(ctx, bin, argv...)
 	cmd.Dir = c.opts.Dir
 	cmd.Env = c.env
+	cmd.Stdin = input
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	cmd.WaitDelay = waitDelay

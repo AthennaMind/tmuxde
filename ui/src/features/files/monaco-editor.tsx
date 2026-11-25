@@ -1,3 +1,6 @@
+import { useComments } from "./comment-store";
+import { useSessionStore } from "@/features/session/session-store";
+import { useAlertStore } from "@/shared/alert-store";
 import type { FileTab } from "@/features/workspace/main-tabs-store";
 import { useFileDrafts } from "./file-drafts";
 import Editor, { loader } from "@monaco-editor/react";
@@ -6,6 +9,7 @@ import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useState } from "react";
 import { useTerminalStore } from "@/features/terminal/terminal-store";
 import { applyMonacoTheme, useMonacoTheme } from "./monaco-theme";
+import { AgentComments } from "./agent-comments";
 import { FileLoading } from "./file-loading";
 // Before loader.config, so Monaco finds the bundled workers.
 import "./monaco-workers";
@@ -20,6 +24,7 @@ loader.config({ monaco });
 type CodeEditor = Parameters<OnMount>[0];
 
 interface MonacoEditorProps {
+  commentFile?: { path: string; machine: string };
   /**
    * The text to show. Monaco takes it at mount, and again whenever
    * `revision` changes. Edits in the editor do not come back through it.
@@ -45,6 +50,7 @@ interface MonacoEditorProps {
 export function MonacoEditor({
   content,
   modelPath,
+  commentFile,
   revision = content,
   language,
   readOnly = false,
@@ -115,15 +121,26 @@ export function MonacoEditor({
     if (!editor || !position) return;
     const range = {
       startLineNumber: position.line,
-      endLineNumber: position.line,
+      endLineNumber: position.endLine ?? position.line,
       startColumn: position.column,
       endColumn: position.endColumn,
     };
+    if (position.commentId && commentFile) {
+      const key = JSON.stringify([commentFile.machine, useSessionStore.getState().activeSessionId]);
+      const c = useComments.getState().batches[key]?.find((item) => item.id === position.commentId);
+      if (c && editor.getModel()?.getValueInRange(range).replaceAll("\r\n", "\n") !== c.snippet) {
+        useAlertStore
+          .getState()
+          .push("info", "File changed. Review the original selection in the batch.");
+        navigated();
+        return;
+      }
+    }
     editor.setSelection(range);
     editor.revealRangeInCenter(range);
     editor.focus();
     navigated();
-  }, [editor, position]);
+  }, [editor, position, commentFile]);
 
   // Ctrl+S / Cmd+S runs the `onSave` of the latest render.
   const save = useEffectEvent(() => onSave?.());
@@ -147,40 +164,46 @@ export function MonacoEditor({
   );
 
   return (
-    <div className="relative h-full">
-      {!editor && <FileLoading />}
-      <div className="absolute inset-0" style={{ visibility: editor ? "visible" : "hidden" }}>
-        <Editor
-          height="100%"
-          path={modelPath}
-          keepCurrentModel={!!modelPath}
-          saveViewState
-          language={language}
-          defaultValue={content}
-          theme={theme}
-          beforeMount={applyMonacoTheme}
-          loading={null}
-          onChange={handleChange}
-          onMount={handleMount}
-          options={{
-            // Retained models must not restore pending occurrence requests.
-            occurrencesHighlight: modelPath ? "off" : "singleFile",
-            readOnly,
-            minimap: { enabled: false },
-            lineNumbers: "on",
-            wordWrap,
-            fontSize,
-            fontFamily: CODE_FONT,
-            fontWeight: String(codeWeight),
-            fontLigatures: true,
-            scrollBeyondLastLine: false,
-            automaticLayout: true,
-            tabSize: 2,
-            renderWhitespace: "selection",
-            bracketPairColorization: { enabled: true },
-            padding: { top: 8 },
-          }}
-        />
+    <div className="flex h-full flex-col">
+      <div className="relative min-h-0 flex-1">
+        {commentFile && editor && <AgentComments {...commentFile} editor={editor} />}
+        {!editor && <FileLoading />}
+        <div className="absolute inset-0" style={{ visibility: editor ? "visible" : "hidden" }}>
+          {/* Monaco caches line widths at creation. Keep its mount measurable
+              while the wrapper hides it during loading. */}
+          <Editor
+            className="absolute inset-0 block!"
+            height="100%"
+            path={modelPath}
+            keepCurrentModel={!!modelPath}
+            saveViewState
+            language={language}
+            defaultValue={content}
+            theme={theme}
+            beforeMount={applyMonacoTheme}
+            loading={null}
+            onChange={handleChange}
+            onMount={handleMount}
+            options={{
+              // Retained models must not restore pending occurrence requests.
+              occurrencesHighlight: modelPath ? "off" : "singleFile",
+              readOnly,
+              minimap: { enabled: false },
+              lineNumbers: "on",
+              wordWrap,
+              fontSize,
+              fontFamily: CODE_FONT,
+              fontWeight: String(codeWeight),
+              fontLigatures: true,
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              tabSize: 2,
+              renderWhitespace: "selection",
+              bracketPairColorization: { enabled: true },
+              padding: { top: 8 },
+            }}
+          />
+        </div>
       </div>
     </div>
   );
