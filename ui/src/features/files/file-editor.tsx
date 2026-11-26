@@ -30,6 +30,7 @@ import { useFileStore } from "./file-store";
 import { useSessionStore } from "@/features/session/session-store";
 import { getRelayClient } from "@/features/connection/use-websocket";
 import type { RelayClient } from "@/features/connection/ws-client";
+import { machineId } from "@/features/connection/machine-context";
 import { sendCommand } from "@/features/terminal/send-command";
 import { useConnectionStore } from "@/features/connection/connection-store";
 
@@ -350,6 +351,7 @@ function OpenFileEditor({ path }: { path: string }) {
         <div className="flex-1 overflow-hidden">
           {currentContent !== null ? (
             <MonacoEditor
+              commentFile={{ path, machine: machineId() }}
               content={currentContent}
               revision={loads}
               language={language}

@@ -223,6 +223,13 @@ export const SessionAttachedMessage = z.object({
   attachId: z.string().optional(),
 });
 
+const PanePasteResult = z.object({
+  type: z.literal("pane:paste:result"),
+  requestId: z.string().min(1).max(128),
+  success: z.boolean(),
+  error: z.string().optional(),
+});
+
 export const PaneCapturedMessage = z.object({
   type: z.literal("pane:captured"),
   id: z.string(),
@@ -340,6 +347,7 @@ export const ServerMessage = z.discriminatedUnion("type", [
   WindowChangedMessage,
   SessionAttachedMessage,
   PaneCapturedMessage,
+  PanePasteResult,
   TmuxScrollStateMessage,
   SessionWindowsResponse,
   DictationReadyMessage,

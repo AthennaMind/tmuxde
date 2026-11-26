@@ -1,0 +1,10 @@
+[
+  {
+    "field": "requestId",
+    "message": {
+      "type": "pane:paste:result",
+      "requestId": "",
+      "success": true
+    }
+  }
+]

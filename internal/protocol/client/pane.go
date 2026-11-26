@@ -20,6 +20,8 @@ var paneTypes = map[string]func() Message{
 	"pane:swap":           func() Message { return &PaneSwap{} },
 	"pane:join":           func() Message { return &PaneJoin{} },
 	"pane:break":          func() Message { return &PaneBreak{} },
+	"pane:paste:status":   func() Message { return &PanePasteStatus{} },
+	"pane:paste":          func() Message { return &PanePaste{} },
 	"pane:capture":        func() Message { return &PaneCapture{} },
 	"tmux:prefix":         func() Message { return &TmuxPrefix{} },
 	"tmux:copy-mode":      func() Message { return &TmuxCopyMode{} },
@@ -241,6 +243,40 @@ func (*PaneBreak) WireType() string { return "pane:break" }
 
 func (m *PaneBreak) Validate() error {
 	return protocol.Literal("type", m.Type, "pane:break")
+}
+
+// PanePasteStatus reads an outcome without repeating terminal input.
+type PanePasteStatus struct {
+	Type      string `json:"type"`
+	RequestID string `json:"requestId"`
+}
+
+func (*PanePasteStatus) WireType() string { return "pane:paste:status" }
+func (m *PanePasteStatus) Validate() error {
+	return errors.Join(protocol.Literal("type", m.Type, "pane:paste:status"), protocol.LengthBetween("requestId", m.RequestID, 1, 128))
+}
+
+// PanePaste inserts text into a selected foreground process.
+type PanePaste struct {
+	Type      string  `json:"type"`
+	ID        string  `json:"id"`
+	Command   string  `json:"command"`
+	Text      string  `json:"text"`
+	Submit    *bool   `json:"submit,omitempty"`
+	RequestID *string `json:"requestId,omitempty"`
+}
+
+func (*PanePaste) WireType() string { return "pane:paste" }
+func (m *PanePaste) Validate() error {
+	if m.RequestID != nil {
+		if err := protocol.LengthBetween("requestId", *m.RequestID, 1, 128); err != nil {
+			return err
+		}
+	}
+	return errors.Join(protocol.Literal("type", m.Type, "pane:paste"), protocol.MinLength("id", m.ID, 1), protocol.MinLength("command", m.Command, 1), protocol.LengthBetween("text", m.Text, 1, 32768))
+}
+func (m *PanePaste) LogValue() slog.Value {
+	return slog.GroupValue(slog.String("type", m.Type), slog.Int("textLength", len(m.Text)))
 }
 
 // PaneCapture asks for a pane's contents as text.

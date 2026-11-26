@@ -62,6 +62,8 @@ corrupt its state machine. Optional, so older clients stay compatible.
 | `pane:join` | `id`, `windowId`, `direction: "h" \| "v"` | Move a pane into window `windowId`, beside its active pane for `h` or below it for `v` |
 | `pane:break` | `id` | Move a pane out into a new window |
 | `pane:kill` | `id` | Kill a pane |
+| `pane:paste:status` | `requestId` | Read the correlated delivery result in the attached session. A running request answers when checked after completion. Nodes retain up to 1024 receipts in memory. |
+| `pane:paste` | `id`, `command`, `text`, optional `submit`, `requestId` | Paste into selected pane in attached session if foreground command matches. Send Enter only when submit is true. |
 | `pane:capture` | `id` | Capture a pane's contents as text |
 
 Every pane and window id in these messages must belong to the attached session.
@@ -280,6 +282,7 @@ None of these messages are queued across a reconnect.
 | --- | --- | --- |
 | `pane:list` | `panes: PaneInfo[]`, `windowId` | Response to `pane:list` |
 | `pane:changed` | `panes: PaneInfo[]`, `windowId` | Pane layout changed |
+| `pane:paste:result` | `requestId`, `success`, optional `error` | Confirms the tmux paste operation for a correlated request. |
 | `pane:captured` | `id`, `content` | Response to `pane:capture` |
 | `window:list` | `windows: WindowInfo[]`, `sessionName` | Response to `window:list` |
 | `window:changed` | `windows: WindowInfo[]`, `sessionName` | Window set changed |

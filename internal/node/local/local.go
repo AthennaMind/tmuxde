@@ -63,6 +63,7 @@ var (
 
 // Node is the local node. It is safe for concurrent use.
 type Node struct {
+	pastes     pasteReceipts
 	searchMu   sync.Mutex
 	cfg        config.Config
 	tmux       Tmux

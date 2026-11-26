@@ -51,7 +51,7 @@ func runTTYApp(mode, out, ready string) error {
 		return errors.New("output and ready files must be set")
 	}
 	switch mode {
-	case "sgr", "legacy", "keys", "inline":
+	case "sgr", "legacy", "keys", "inline", "paste":
 	default:
 		return fmt.Errorf("unknown mode %q", mode)
 	}
@@ -62,7 +62,9 @@ func runTTYApp(mode, out, ready string) error {
 	if mode != "inline" {
 		b = append(b, "\x1b[?1049h"...)
 	}
-	if mode != "keys" {
+	if mode == "paste" {
+		b = append(b, "\x1b[?2004h"...)
+	} else if mode != "keys" {
 		b = append(b, "\x1b[?1000h"...)
 	}
 	if mode == "sgr" || mode == "inline" {

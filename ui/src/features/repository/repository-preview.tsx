@@ -1,3 +1,6 @@
+import { useMemo } from "react";
+import { parsePatch } from "./commit-diff";
+import { CommentableDiffRows } from "./diff-rows";
 import { cn } from "@/shared/utils";
 import { Notice } from "@/shared/notice";
 import { RepositorySyntaxLine } from "./repository-syntax";
@@ -27,6 +30,8 @@ export function FilePreview({
   rendered = false,
   onOpenPath,
   machineId,
+  root,
+  jump,
 }: {
   result: Extract<RepositoryResult, { kind: "read" | "diff" }>;
   path: string;
@@ -41,12 +46,21 @@ export function FilePreview({
   onOpenPath?: (path: string) => void;
   /** Machine the file lives on. The active route by default. */
   machineId?: string;
+  root?: string | null;
+  jump?: { id: string; requestId: string };
 }) {
   const markdown = result.kind === "read" && rendered && !result.binary && isMarkdownPath(path);
   const syntax = useRepositorySyntax(
     path,
     result.binary || markdown ? "" : result.content,
     result.kind === "diff",
+  );
+  const patch = useMemo(
+    () =>
+      result.kind === "diff" && !result.binary
+        ? parsePatch(result.content.split("\n", 10000).join("\n"))
+        : null,
+    [result],
   );
   if (result.kind === "read") {
     // Media by extension. Any other file with bytes that are not text gets
@@ -93,40 +107,54 @@ export function FilePreview({
           className="min-h-0 flex-1 overflow-auto bg-surface-sunken"
         >
           <div className={cn("py-2 font-mono text-code", wrap ? "w-full" : "min-w-max")}>
-            {visible.map((line, index) => (
-              <div
-                key={index}
-                className={cn(
-                  "flex",
-                  isDiff && line.startsWith("+")
-                    ? "bg-signal-done-surface text-term-added"
-                    : isDiff && line.startsWith("-")
-                      ? "bg-signal-failed-surface text-term-removed"
-                      : isDiff && line.startsWith("@@")
-                        ? "bg-muted text-term-path"
-                        : isDiff && /^(diff |index |Binary files)/.test(line)
-                          ? "text-muted-foreground"
-                          : "text-foreground",
-                )}
-              >
-                <span
-                  aria-hidden="true"
-                  // In `ch`, so the gutter grows with the code zoom and five
-                  // digit line numbers still fit.
-                  className="sticky left-0 mr-3 w-[calc(5ch+0.5rem)] shrink-0 select-none border-r bg-surface-sunken pr-2 text-right tabular-nums text-muted-foreground"
+            {patch && result.kind === "diff" ? (
+              <>
+                {visible.slice(0, patch.rows[0]?.index ?? visible.length).map((line, index) => (
+                  <div key={index} className="px-3 text-muted-foreground">
+                    {line}
+                  </div>
+                ))}
+                <div
+                  className={
+                    wrap
+                      ? "[&_code]:whitespace-pre-wrap [&_code]:break-all"
+                      : "[&_code]:whitespace-pre"
+                  }
                 >
-                  {index + 1}
-                </span>
-                <code
-                  className={cn(
-                    "min-w-0 flex-1 pr-4",
-                    wrap ? "whitespace-pre-wrap break-all" : "whitespace-pre",
-                  )}
-                >
-                  <RepositorySyntaxLine line={line} tokens={syntax?.[index]} />
-                </code>
-              </div>
-            ))}
+                  <CommentableDiffRows
+                    root={root ?? undefined}
+                    jump={jump}
+                    scope={result.scope}
+                    machine={machineId}
+                    path={path}
+                    rows={patch.rows}
+                    tokens={syntax}
+                    digits={5}
+                  />
+                </div>
+              </>
+            ) : (
+              visible.map((line, index) => (
+                <div key={index} className="flex text-foreground">
+                  <span
+                    aria-hidden="true"
+                    // In `ch`, so the gutter grows with the code zoom and five
+                    // digit line numbers still fit.
+                    className="sticky left-0 mr-3 w-[calc(5ch+0.5rem)] shrink-0 select-none border-r bg-surface-sunken pr-2 text-right tabular-nums text-muted-foreground"
+                  >
+                    {index + 1}
+                  </span>
+                  <code
+                    className={cn(
+                      "min-w-0 flex-1 pr-4",
+                      wrap ? "whitespace-pre-wrap break-all" : "whitespace-pre",
+                    )}
+                  >
+                    <RepositorySyntaxLine line={line} tokens={syntax?.[index]} />
+                  </code>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

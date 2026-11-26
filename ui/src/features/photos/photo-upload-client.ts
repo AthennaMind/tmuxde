@@ -79,13 +79,24 @@ export async function preparePhoto(file: File) {
   }
 }
 
-export async function uploadPhoto(client: UploadClient, file: File, directory: string) {
-  if (!file.size) throw new Error("Photo is empty");
-  if (file.size > MAX_PHOTO_SIZE) throw new Error("Choose a photo smaller than 10 MB");
+export function photoUploadPath(file: File, directory: string, id: string = crypto.randomUUID()) {
   const extension = PHOTO_TYPES.get(file.type);
   if (!extension) throw new Error("Unsupported photo format");
-  const path = `${directory.replace(/\/$/, "")}/photo-${crypto.randomUUID()}.${extension}`;
+  if (!/^[a-f0-9-]+$/.test(id)) throw new Error("Invalid photo ID");
+  const path = `${directory.replace(/\/$/, "")}/photo-${id}.${extension}`;
   photoPathText(path);
+  return path;
+}
+
+export async function uploadPhoto(
+  client: UploadClient,
+  file: File,
+  directory: string,
+  id?: string,
+) {
+  if (!file.size) throw new Error("Photo is empty");
+  if (file.size > MAX_PHOTO_SIZE) throw new Error("Choose a photo smaller than 10 MB");
+  const path = photoUploadPath(file, directory, id);
   let interrupted = false;
   const stopWatching = client.onStatusChange((status) => {
     if (status !== "connected") interrupted = true;

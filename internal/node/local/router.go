@@ -238,6 +238,21 @@ func (n *Node) route(ctx context.Context, c *conn, msg client.Message) error {
 			c.setActiveWindow(wid)
 			return nil
 		})
+	case *client.PanePaste:
+		return n.paste(ctx, c, m)
+	case *client.PanePasteStatus:
+		session := c.attachedSession()
+		if session == "" {
+			return nil
+		} // Reconnect can authenticate before attach completes.
+		result, found := n.pastes.lookup(pasteKey{session, m.RequestID})
+		if !found {
+			return c.send(ctx, &server.PanePasteResult{Type: "pane:paste:result", RequestID: m.RequestID, Error: "No retained delivery receipt. Inspect the destination before sending again."})
+		}
+		if result == nil {
+			return nil
+		}
+		return c.send(ctx, result)
 	case *client.PaneCapture:
 		return n.withPane(ctx, c, m.ID, func(string) error {
 			// Plain text, 2000 lines: the package defaults.

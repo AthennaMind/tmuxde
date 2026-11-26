@@ -2,9 +2,12 @@ package tmux
 
 import (
 	"context"
+	"crypto/rand"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"tmuxde/internal/protocol"
 	"tmuxde/internal/protocol/client"
@@ -347,6 +350,43 @@ func (c *Client) CapturePane(ctx context.Context, session string, opts CaptureOp
 		return "", err
 	}
 	return c.capture(ctx, t, opts)
+}
+
+// PastePane pastes into one pane and optionally submits the draft.
+func (c *Client) PastePane(ctx context.Context, id, command, text string, submit bool) error {
+	if err := checkPaneID(id); err != nil {
+		return err
+	}
+	if strings.ContainsFunc(text, func(r rune) bool { return unicode.IsControl(r) && r != '\n' && r != '\t' }) {
+		return errors.New("prompt contains terminal control characters")
+	}
+	// Only the comparison operand contains user input. Keep tmux format
+	// operators out of that operand. Command bodies contain only validated IDs.
+	if command == "" || strings.ContainsAny(command, "#{},") || strings.ContainsFunc(command, unicode.IsControl) {
+		return errors.New("unsupported pane command name")
+	}
+	guard := "#{&&:#{==:#{pane_current_command}," + command + "},#{&&:#{==:#{pane_in_mode},0},#{==:#{pane_dead},0}}}"
+	guard = "#{&&:" + guard + ",#{!=:#{pane_synchronized},1}}"
+	name := "tmuxde-" + rand.Text()
+	paste := "paste-buffer -p -r -d -b " + name + " -t " + id
+	const refused = "display-message -p destination-changed"
+	// Evaluate inside the tmux server after load-buffer finishes reading stdin.
+	args := c.withSocket([]string{"load-buffer", "-b", name, "-", ";", "if-shell", "-F", "-t", id, guard, paste, refused})
+	out, _, err := c.execWithInput(ctx, c.bin, args, args, c.opts.MaxOutput, strings.NewReader(text))
+	if err != nil || strings.TrimSpace(out) == "destination-changed" {
+		_, _ = c.run(context.WithoutCancel(ctx), "delete-buffer", "-b", name)
+		if err != nil {
+			return err
+		}
+		return errors.New("pane changed, synchronized, or unavailable")
+	}
+	if submit {
+		out, err = c.run(ctx, "if-shell", "-F", "-t", id, guard, "send-keys -t "+id+" Enter", refused)
+		if err != nil || strings.TrimSpace(out) == "destination-changed" {
+			return errors.New("prompt pasted; Enter unconfirmed. Inspect the destination pane")
+		}
+	}
+	return nil
 }
 
 // CapturePaneByID captures one pane by id, for the copy mode overlay.

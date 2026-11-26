@@ -131,6 +131,8 @@ function FileTabBody({
   if (!content) return null;
   return (
     <FilePreview
+      root={tab.root ?? tab.contextPath}
+      jump={tab.commentJump}
       result={content}
       path={fullPath}
       wrap={wrap}

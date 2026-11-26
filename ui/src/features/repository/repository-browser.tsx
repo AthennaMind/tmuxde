@@ -491,6 +491,7 @@ function BrowserContents({
                   <Notice>Loading preview...</Notice>
                 ) : content ? (
                   <FilePreview
+                    root={previewRoot}
                     result={content}
                     path={previewPath ?? preview.path}
                     wrap={wrap}

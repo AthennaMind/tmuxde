@@ -160,6 +160,9 @@ func TestOwnershipRule(t *testing.T) {
 			return &client.PaneJoin{Type: "pane:join", ID: "%1", WindowID: id, Direction: "h"}
 		}, false, "JoinPane"},
 		{"pane:break", func(id string) client.Message { return &client.PaneBreak{Type: "pane:break", ID: id} }, true, "BreakPane"},
+		{"pane:paste", func(id string) client.Message {
+			return &client.PanePaste{Type: "pane:paste", ID: id, Command: "codex", Text: "review"}
+		}, true, "PastePane"},
 		{"pane:capture", func(id string) client.Message { return &client.PaneCapture{Type: "pane:capture", ID: id} }, true, "CapturePaneByID"},
 		{"pane:zoom", func(id string) client.Message {
 			return &client.PaneZoom{Type: "pane:zoom", ID: &id, Zoomed: ptr(true)}
@@ -768,5 +771,34 @@ func TestSessionKillError(t *testing.T) {
 	}
 	if got := sink.all(); len(got) != 0 {
 		t.Fatalf("got %v", typesOf(got))
+	}
+}
+
+func TestReconnectPasteReceipt(t *testing.T) {
+	h := newHarness(t)
+	h.open(1)
+	sink := h.open(2)
+	h.setAttached(1, "work")
+	h.setAttached(2, "work")
+	id := "test-request"
+	paste := &client.PanePaste{Type: "pane:paste", ID: "%1", Command: "codex", Text: "review", RequestID: &id}
+	h.must(1, paste)
+	status := &client.PanePasteStatus{Type: "pane:paste:status", RequestID: id}
+	h.must(2, status)
+	h.must(2, paste)
+	h.setAttached(2, "other")
+	h.must(2, status)
+	messages := sink.all()
+	if len(messages) != 3 {
+		t.Fatalf("unexpected replies %v", typesOf(messages))
+	}
+	for i, msg := range messages {
+		result, ok := msg.(*server.PanePasteResult)
+		if !ok || result.Success != (i < 2) || result.RequestID != id {
+			t.Fatalf("reply %d: %+v", i, msg)
+		}
+	}
+	if calls := h.tm.called("PastePane"); len(calls) != 1 {
+		t.Fatalf("unexpected paste calls %v", calls)
 	}
 }
