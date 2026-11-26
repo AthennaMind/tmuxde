@@ -232,6 +232,7 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
     markdown ? s.drafts[draftKey(markdown.machineId, markdown.path)] : undefined,
   );
   const markdownPreview = useSettingsStore((s) => s.markdownPreview);
+  const zenMode = useUiStore((s) => s.zenMode);
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const { theme, setTheme } = useTheme();
   const themeName = useTerminalStore((s) => s.themeName);
@@ -513,6 +514,14 @@ export function usePaletteCommands(query: string): PaletteGroup[] {
       keywords: ["images", "screenshots", "sidebar"],
       icon: <Images />,
       run: showSidebar("photos"),
+    });
+    navigate.push({
+      id: "go:zen",
+      label: zenMode ? "Exit Zen mode" : "Enter Zen mode",
+      keywords: ["terminal", "focus", "hide"],
+      icon: zenMode ? <Minimize2 /> : <Maximize2 />,
+      shortcut: hint("zen.toggle"),
+      run: invoke("zen.toggle", zenMode ? undefined : "terminal"),
     });
     navigate.push({
       id: "go:sidebar",

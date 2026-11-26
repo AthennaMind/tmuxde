@@ -13,6 +13,7 @@ export function clampSidebarWidth(width: number): number {
 }
 
 interface UiStore {
+  zenMode: boolean;
   mobileTab: MobileTab;
   paneListOpen: boolean;
   fabOpen: boolean;
@@ -65,6 +66,7 @@ interface UiStore {
 }
 
 export const useUiStore = create<UiStore>((set) => ({
+  zenMode: false,
   mobileTab: "terminal",
   paneListOpen: false,
   fabOpen: false,

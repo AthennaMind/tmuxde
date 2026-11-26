@@ -80,6 +80,22 @@ describe("decideBinding", () => {
     ).toBe("dictation.toggle");
   });
 
+  it("toggles Zen from terminal, page and text inputs on either platform", () => {
+    for (const platform of ["other", "mac"] as const) {
+      const key = press({
+        key: "z",
+        code: "KeyZ",
+        altKey: true,
+        ctrlKey: platform === "other",
+        metaKey: platform === "mac",
+      });
+      for (const focus of [TERMINAL, PAGE, INPUT]) {
+        expect(commandOf(key, focus, { platform })).toBe("zen.toggle");
+        expect(decide({ ...key, repeat: true }, focus, { platform })?.repeat).toBe(true);
+      }
+    }
+  });
+
   it("maps Ctrl with = and Ctrl with + to zoom in", () => {
     expect(commandOf(press({ key: "=", code: "Equal", ctrlKey: true }), TERMINAL)).toBe(
       "terminal.zoomIn",

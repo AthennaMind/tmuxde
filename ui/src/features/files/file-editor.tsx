@@ -1,3 +1,4 @@
+import { useUiStore } from "@/features/workspace/ui-store";
 import { holdDirectoryWatch } from "./directory-watch";
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { X, Save, WrapText, Terminal, AlertTriangle, Lock } from "lucide-react";
@@ -54,6 +55,7 @@ export function FileEditor() {
 }
 
 function OpenFileEditor({ path }: { path: string }) {
+  const zenMode = useUiStore((s) => s.zenMode);
   const editorTruncated = useFileStore((s) => s.editorTruncated);
   const isSaving = useFileStore((s) => s.isSaving);
   const closeEditor = useFileStore((s) => s.closeEditor);
@@ -251,6 +253,9 @@ function OpenFileEditor({ path }: { path: string }) {
     if (!sendCommand(`vim ${path}`, { record: false })) return;
     closeEditor();
   }, [path, activeSessionId, closeEditor]);
+
+  // Keep the draft and file watch while the terminal has the screen.
+  if (zenMode) return null;
 
   const fileName = path.split("/").pop() ?? "";
   const language = getMonacoLanguage(path);

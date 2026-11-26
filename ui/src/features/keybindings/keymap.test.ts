@@ -21,8 +21,8 @@ const resolve = (user: KeybindingEntry[], platform: Platform = "other") =>
   resolveKeymap(DEFAULT_KEYBINDINGS, user, platform);
 
 describe("defaults", () => {
-  it("has eighteen entries with known commands", () => {
-    expect(DEFAULT_KEYBINDINGS_COUNT).toBe(18);
+  it("has nineteen entries with known commands", () => {
+    expect(DEFAULT_KEYBINDINGS_COUNT).toBe(19);
     expect(DEFAULT_KEYBINDINGS.every((entry) => isCommandId(entry.command))).toBe(true);
   });
 

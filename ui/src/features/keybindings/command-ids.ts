@@ -39,6 +39,7 @@ export const COMMAND_INFO = {
 
   "sidebar.toggle": { title: "Toggle sidebar", group: "workspace", toggle: true },
   "sidebar.files": { title: "Toggle files", group: "workspace", toggle: true },
+  "zen.toggle": { title: "Toggle Zen mode", group: "workspace", toggle: true },
   "overview.toggle": { title: "Toggle overview", group: "workspace", toggle: true },
   "settings.open": { title: "Open settings", group: "workspace", toggle: true },
   "shortcuts.open": { title: "Show keyboard shortcuts", group: "workspace", toggle: true },

@@ -300,7 +300,7 @@ export function TerminalGestureSurface({ children, className }: TerminalGestureS
         dragToScroll: gestures.dragToScroll,
         pinchToZoom: gestures.pinchToZoom,
         swipeToSwitch: gestures.swipeToSwitchSessions || gestures.swipeToSwitchPanes,
-        longPressPaneMenu: gestures.longPressPaneMenu,
+        longPressPaneMenu: gestures.longPressPaneMenu && !useUiStore.getState().zenMode,
         cellHeightPx: getTerminalHandle()?.getCellHeightPx() || FALLBACK_CELL_PX,
       };
     };

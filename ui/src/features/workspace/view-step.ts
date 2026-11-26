@@ -4,6 +4,7 @@ import { useSessionStore } from "@/features/session/session-store";
 import { getTerminalHandle } from "@/features/terminal/terminal-handle";
 import { isMobileViewport } from "@/shared/mobile-query";
 import { TERMINAL_TAB, reconcileTabOrder, useMainTabsStore } from "./main-tabs-store";
+import { useUiStore } from "./ui-store";
 import { activateView, openMachineSession } from "./workspace-target";
 
 /**
@@ -97,8 +98,9 @@ export function stepView(delta: 1 | -1): void {
   if (!next) return;
   if (next.terminal) openMachineSession(next.terminal.machineId, next.terminal.sessionName);
   else activateView(next.id);
-  // A phone would open its keyboard for the terminal.
-  if (isMobileViewport()) return;
+  // Zen focuses the visible content. Its tab handles are unmounted.
+  // On phones, focusing the terminal would open the keyboard.
+  if (useUiStore.getState().zenMode || isMobileViewport()) return;
   requestAnimationFrame(() => {
     if (next.terminal) {
       getTerminalHandle()?.focus();
