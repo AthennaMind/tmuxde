@@ -206,13 +206,16 @@ func (s *Service) handle(ctx context.Context, cwd string, req *client.RepoReques
 			dir = resolvePath(cwd, path)
 		}
 		return s.list(ctx, dir)
-	case "read":
+	case "baseline", "read":
 		if path == "" {
 			return nil, fail(msgPathRequired)
 		}
 		file, err := s.checked(resolvePath(cwd, path))
 		if err != nil {
 			return nil, err
+		}
+		if req.Action == "baseline" {
+			return s.baseline(ctx, file)
 		}
 		t, err := s.textFile(file)
 		if err != nil {

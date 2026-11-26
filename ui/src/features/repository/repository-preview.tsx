@@ -1,4 +1,14 @@
-import { useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
+import { machineId as activeMachine } from "@/features/connection/machine-context";
+import {
+  findOpenHunk,
+  normalizeFileLines,
+  hunkBlocks,
+  hunkKind,
+  type FileHunk,
+} from "@/features/files/file-hunk";
+import { useFileHunks } from "@/features/files/use-file-hunks";
+import type { RepositorySyntaxToken } from "./repository-syntax-tokens";
 import { parsePatch } from "./commit-diff";
 import { CommentableDiffRows } from "./diff-rows";
 import { cn } from "@/shared/utils";
@@ -50,9 +60,13 @@ export function FilePreview({
   jump?: { id: string; requestId: string };
 }) {
   const markdown = result.kind === "read" && rendered && !result.binary && isMarkdownPath(path);
+  const source =
+    result.kind === "read" && !result.binary && !markdown
+      ? normalizeFileLines(result.content)
+      : result.content;
   const syntax = useRepositorySyntax(
     path,
-    result.binary || markdown ? "" : result.content,
+    result.binary || markdown ? "" : source,
     result.kind === "diff",
   );
   const patch = useMemo(
@@ -78,13 +92,13 @@ export function FilePreview({
       );
   }
   if (result.binary) return <Notice>Binary file. Text preview is unavailable.</Notice>;
-  if (!result.content)
+  if (!result.content && (result.kind === "diff" || markdown))
     return (
       <Notice>
         {result.kind === "diff" ? "No text differences for this file." : "This file is empty."}
       </Notice>
     );
-  const lines = result.content.split("\n");
+  const lines = source.split("\n");
   const visible = lines.slice(0, 10_000);
   const isDiff = result.kind === "diff";
   return (
@@ -134,30 +148,101 @@ export function FilePreview({
                 </div>
               </>
             ) : (
-              visible.map((line, index) => (
-                <div key={index} className="flex text-foreground">
-                  <span
-                    aria-hidden="true"
-                    // In `ch`, so the gutter grows with the code zoom and five
-                    // digit line numbers still fit.
-                    className="sticky left-0 mr-3 w-[calc(5ch+0.5rem)] shrink-0 select-none border-r bg-surface-sunken pr-2 text-right tabular-nums text-muted-foreground"
-                  >
-                    {index + 1}
-                  </span>
-                  <code
-                    className={cn(
-                      "min-w-0 flex-1 pr-4",
-                      wrap ? "whitespace-pre-wrap break-all" : "whitespace-pre",
-                    )}
-                  >
-                    <RepositorySyntaxLine line={line} tokens={syntax?.[index]} />
-                  </code>
-                </div>
-              ))
+              <FileSourceRows
+                key={JSON.stringify([machineId, path])}
+                machine={machineId ?? activeMachine()}
+                path={result.truncated ? null : path}
+                content={source}
+                lines={visible}
+                tokens={syntax}
+                wrap={wrap}
+              />
             )}
           </div>
         </div>
       )}
     </>
   );
+}
+
+function FileSourceRows({
+  machine,
+  path,
+  content,
+  lines,
+  tokens,
+  wrap,
+}: {
+  machine: string;
+  path: string | null;
+  content: string;
+  lines: string[];
+  tokens: RepositorySyntaxToken[][] | null | undefined;
+  wrap: boolean;
+}) {
+  const hunks = useFileHunks(machine, path, content);
+  const [open, setOpen] = useState<{ hunk: FileHunk; line: number }>();
+  if (open && hunks && !hunks.includes(open.hunk)) {
+    const match = findOpenHunk(hunks, open.hunk, open.line);
+    setOpen(
+      match
+        ? { hunk: match, line: Math.min(match.end, match.start + open.line - open.hunk.start) }
+        : undefined,
+    );
+  }
+  const markers = useMemo(() => {
+    const byLine = new Map<number, FileHunk[]>();
+    for (const hunk of hunks ?? []) {
+      for (let line = hunk.start; line <= Math.min(hunk.end, lines.length); line++) {
+        const marks = byLine.get(line) ?? [];
+        marks.push(hunk);
+        byLine.set(line, marks);
+      }
+    }
+    return byLine;
+  }, [hunks, lines.length]);
+  if (!content && !hunks?.length) return <Notice>This file is empty.</Notice>;
+  return lines.map((text, index) => {
+    const line = index + 1;
+    const marks = markers.get(line);
+    return (
+      <Fragment key={line}>
+        <div className="flex text-foreground">
+          <span className="sticky left-0 mr-3 flex w-[calc(5ch+1.5rem)] shrink-0 select-none items-center justify-end border-r bg-surface-sunken pr-2 tabular-nums text-muted-foreground">
+            {marks?.map((hunk) => (
+              <button
+                key={String(hunk.beforeFirst)}
+                type="button"
+                className={cn(
+                  "file-diff-dot flex h-full flex-1 items-center justify-center",
+                  "file-diff-" + hunkKind(hunk),
+                )}
+                aria-label={`Show ${hunkKind(hunk)} lines at line ${line}`}
+                aria-expanded={open?.hunk === hunk}
+                onClick={() => setOpen(open?.hunk === hunk ? undefined : { hunk, line })}
+              />
+            ))}
+            <span aria-hidden="true">{line}</span>
+          </span>
+          <code
+            className={cn(
+              "min-w-0 flex-1 pr-4",
+              wrap ? "whitespace-pre-wrap break-all" : "whitespace-pre",
+            )}
+          >
+            <RepositorySyntaxLine line={text} tokens={tokens?.[index]} />
+          </code>
+        </div>
+        {open?.line === line && marks?.includes(open.hunk) && (
+          <div role="region" aria-label="Inline file change" className="file-diff-preview max-h-64">
+            {hunkBlocks(open.hunk).map((block) => (
+              <pre key={block.className} className={block.className}>
+                {block.text}
+              </pre>
+            ))}
+          </div>
+        )}
+      </Fragment>
+    );
+  });
 }

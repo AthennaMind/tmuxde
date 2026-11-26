@@ -1,4 +1,5 @@
 [
+  { "type": "repo:request", "requestId": "index", "id": "%1", "action": "baseline", "path": "/src/a.txt" },
   {
     "type": "repo:request",
     "requestId": "roots-1",

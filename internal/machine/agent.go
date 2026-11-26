@@ -18,6 +18,7 @@ import (
 	"github.com/coder/websocket"
 
 	"tmuxde/internal/node"
+	"tmuxde/internal/protocol"
 	"tmuxde/internal/protocol/client"
 	"tmuxde/internal/protocol/server"
 	"tmuxde/internal/update"
@@ -226,8 +227,25 @@ func (a *Agent) serveStream(ctx context.Context, httpClient *http.Client, req in
 
 type agentSink struct{ c *websocket.Conn }
 
-func (s agentSink) Send(ctx context.Context, msg server.Message) error {
+// Fit the optional editor baseline to the same wire budget the hub reads.
+func encodeAgentMessage(msg server.Message, limit int) ([]byte, error) {
 	b, err := server.Encode(msg)
+	if err != nil || len(b) <= limit {
+		return b, err
+	}
+	if reply, ok := msg.(*server.RepoResult); ok {
+		if baseline, ok := reply.Result.(*protocol.RepoBaseline); ok {
+			return server.Encode(&server.RepoResult{
+				Type: reply.Type, RequestID: reply.RequestID,
+				Result: &protocol.RepoBaseline{Kind: "baseline", Root: baseline.Root},
+			})
+		}
+	}
+	return b, nil
+}
+
+func (s agentSink) Send(ctx context.Context, msg server.Message) error {
+	b, err := encodeAgentMessage(msg, maxFrame)
 	if err != nil {
 		return err
 	}

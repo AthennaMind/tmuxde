@@ -1,6 +1,16 @@
 [
   {
     "type": "repo:result",
+    "requestId": "index",
+    "result": { "kind": "baseline", "root": "/src", "content": "staged text\n" }
+  },
+  {
+    "type": "repo:result",
+    "requestId": "plain",
+    "result": { "kind": "baseline", "root": null, "content": null }
+  },
+  {
+    "type": "repo:result",
     "requestId": "submodule-status",
     "result": {
       "kind": "status",
