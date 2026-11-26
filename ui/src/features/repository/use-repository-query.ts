@@ -25,6 +25,9 @@ export type RepositoryResult = Exclude<RepoResult, { kind: "error" }>;
  * `keepOnRefresh` does that only when the query is the same and just
  * `refresh` moved, as a quiet reload after a change on disk does. A new
  * query still starts empty.
+ *
+ * `retainResultOnError` keeps the last result for this key alongside the error.
+ * File diffs use its repository root to keep the watch alive during retries.
  */
 export function useRepositoryQuery(
   client: RepositoryClient | null,
@@ -33,7 +36,8 @@ export function useRepositoryQuery(
   {
     keepPrevious = false,
     keepOnRefresh = false,
-  }: { keepPrevious?: boolean; keepOnRefresh?: boolean } = {},
+    retainResultOnError = false,
+  }: { keepPrevious?: boolean; keepOnRefresh?: boolean; retainResultOnError?: boolean } = {},
 ) {
   // An absolute path answers the same through any pane, so the pane stays out
   // of the key. Moving between panes then asks nothing again.
@@ -81,11 +85,12 @@ export function useRepositoryQuery(
       })
       .catch((error: unknown) => {
         if (!controller.signal.aborted)
-          setState({
+          setState((previous) => ({
             key,
             refresh: revision,
+            result: retainResultOnError && previous?.key === key ? previous.result : undefined,
             error: error instanceof Error ? error.message : "Could not load files.",
-          });
+          }));
       })
       .finally(() => {
         if (controller.signal.aborted) return;
@@ -100,7 +105,7 @@ export function useRepositoryQuery(
       busy.current = false;
       again.current = false;
     };
-  }, [attached, client, key, revision]);
+  }, [attached, client, key, revision, retainResultOnError]);
   const current = state?.key === key && state.refresh === revision ? state : undefined;
   const shown =
     current ??

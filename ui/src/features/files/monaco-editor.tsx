@@ -9,6 +9,7 @@ import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useState } from "react";
 import { useTerminalStore } from "@/features/terminal/terminal-store";
 import { applyMonacoTheme, useMonacoTheme } from "./monaco-theme";
+import { EditorGitChanges } from "./editor-git-changes";
 import { AgentComments } from "./agent-comments";
 import { FileLoading } from "./file-loading";
 // Before loader.config, so Monaco finds the bundled workers.
@@ -24,7 +25,7 @@ loader.config({ monaco });
 type CodeEditor = Parameters<OnMount>[0];
 
 interface MonacoEditorProps {
-  commentFile?: { path: string; machine: string };
+  file?: { path: string; machine: string; truncated?: boolean };
   /**
    * The text to show. Monaco takes it at mount, and again whenever
    * `revision` changes. Edits in the editor do not come back through it.
@@ -50,7 +51,7 @@ interface MonacoEditorProps {
 export function MonacoEditor({
   content,
   modelPath,
-  commentFile,
+  file,
   revision = content,
   language,
   readOnly = false,
@@ -125,8 +126,8 @@ export function MonacoEditor({
       startColumn: position.column,
       endColumn: position.endColumn,
     };
-    if (position.commentId && commentFile) {
-      const key = JSON.stringify([commentFile.machine, useSessionStore.getState().activeSessionId]);
+    if (position.commentId && file) {
+      const key = JSON.stringify([file.machine, useSessionStore.getState().activeSessionId]);
       const c = useComments.getState().batches[key]?.find((item) => item.id === position.commentId);
       if (c && editor.getModel()?.getValueInRange(range).replaceAll("\r\n", "\n") !== c.snippet) {
         useAlertStore
@@ -140,7 +141,7 @@ export function MonacoEditor({
     editor.revealRangeInCenter(range);
     editor.focus();
     navigated();
-  }, [editor, position, commentFile]);
+  }, [editor, position, file]);
 
   // Ctrl+S / Cmd+S runs the `onSave` of the latest render.
   const save = useEffectEvent(() => onSave?.());
@@ -166,7 +167,15 @@ export function MonacoEditor({
   return (
     <div className="flex h-full flex-col">
       <div className="relative min-h-0 flex-1">
-        {commentFile && editor && <AgentComments {...commentFile} editor={editor} />}
+        {file && editor && <AgentComments {...file} editor={editor} />}
+        {file && !file.truncated && editor && (
+          <EditorGitChanges
+            key={JSON.stringify([file.machine, file.path])}
+            {...file}
+            content={content}
+            editor={editor}
+          />
+        )}
         {!editor && <FileLoading />}
         <div className="absolute inset-0" style={{ visibility: editor ? "visible" : "hidden" }}>
           {/* Monaco caches line widths at creation. Keep its mount measurable
@@ -190,6 +199,7 @@ export function MonacoEditor({
               readOnly,
               minimap: { enabled: false },
               lineNumbers: "on",
+              ...(file && { glyphMargin: true }),
               wordWrap,
               fontSize,
               fontFamily: CODE_FONT,

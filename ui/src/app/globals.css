@@ -1109,3 +1109,39 @@ html[data-keyboard="open"] .tmuxde-terminal-shell {
 .monaco-editor .agent-comment-gutter {
   border-left: 3px solid var(--primary);
 }
+
+.file-diff-dot {
+  cursor: pointer;
+}
+
+.file-diff-dot::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--term-added);
+}
+
+.file-diff-removed::before {
+  background: var(--term-removed);
+}
+
+.file-diff-modified::before {
+  background: linear-gradient(to bottom, var(--term-removed) 50%, var(--term-added) 50%);
+}
+
+.file-diff-preview {
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-block: 1px solid var(--border);
+  background: var(--surface-sunken);
+  padding-block: 0.25em;
+}
+
+.file-diff-preview pre {
+  margin: 0;
+  padding-inline: 0.5em;
+  font: inherit;
+  width: max-content;
+  min-width: 100%;
+}

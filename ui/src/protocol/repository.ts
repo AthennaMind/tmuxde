@@ -11,6 +11,7 @@ export const RepoRequest = z.object({
     "roots",
     "list",
     "read",
+    "baseline",
     "status",
     "diff",
     "log",
@@ -94,6 +95,11 @@ export const RepoResult = z.discriminatedUnion("kind", [
     content: z.string(),
     truncated: z.boolean(),
     binary: z.boolean(),
+  }),
+  z.object({
+    kind: z.literal("baseline"),
+    root: z.string().nullable(),
+    content: z.string().nullable(),
   }),
   z.object({
     kind: z.literal("status"),

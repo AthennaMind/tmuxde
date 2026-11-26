@@ -1,5 +1,13 @@
 [
   {
+    "field": "result.content",
+    "message": {
+      "type": "repo:result",
+      "requestId": "index",
+      "result": { "kind": "baseline", "root": "/src" }
+    }
+  },
+  {
     "field": "result.entries[0].submodule",
     "message": {
       "type": "repo:result",

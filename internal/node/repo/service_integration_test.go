@@ -610,3 +610,44 @@ func TestIntegrationSubmoduleCommitChanges(t *testing.T) {
 	}
 	as[*protocol.RepoError](t, request(t, s, parent, client.RepoRequest{Action: "discard", Path: &parent, File: ptr("module"), Scope: ptr("unstaged")}))
 }
+
+func TestIntegrationEditorBaseline(t *testing.T) {
+	base := tempBase(t)
+	root, git := committedRepo(t, base)
+	mustWrite(t, filepath.Join(root, ".gitignore"), "*.ignored\n")
+	mustWrite(t, filepath.Join(root, "skip.ignored"), "ignored")
+	mustWrite(t, filepath.Join(root, ":(glob)*\tnew"), "untracked")
+	mustWrite(t, filepath.Join(root, "binary"), "a\x00b")
+	mustWrite(t, filepath.Join(root, ".gitattributes"), "id.txt ident\nplain.txt -ident\nfiltered.txt filter=external\nencoded.txt working-tree-encoding=UTF-8\n")
+	mustWrite(t, filepath.Join(root, "id.txt"), "$Id$\n")
+	mustWrite(t, filepath.Join(root, "plain.txt"), "$Id$\n")
+	mustWrite(t, filepath.Join(root, "filtered.txt"), "filtered\n")
+	mustWrite(t, filepath.Join(root, "encoded.txt"), "encoded\n")
+	git.run(root, "add", "binary", ".gitattributes", "id.txt", "plain.txt", "filtered.txt", "encoded.txt")
+	if err := os.Remove(filepath.Join(root, "id.txt")); err != nil {
+		t.Fatal(err)
+	}
+	git.run(root, "checkout", "--", "id.txt")
+	s := newService(newTestGuard(t, []string{base}, []string{filepath.Join(root, "private")}), Options{})
+	read := func(name string) protocol.RepoResult {
+		return request(t, s, base, client.RepoRequest{Action: "baseline", Path: ptr(filepath.Join(root, name))})
+	}
+	for _, tc := range []struct {
+		name string
+		want *string
+	}{
+		{"both.txt", ptr("staged\n")}, {":(glob)*\tnew", ptr("")}, {"binary", nil}, {"skip.ignored", nil},
+		{"id.txt", nil}, {"plain.txt", ptr("$Id$\n")}, {"filtered.txt", nil}, {"encoded.txt", nil},
+	} {
+		got := as[*protocol.RepoBaseline](t, read(tc.name))
+		if got.Root == nil || *got.Root != root || !reflect.DeepEqual(got.Content, tc.want) {
+			t.Fatalf("%s: unexpected baseline %+v", tc.name, got)
+		}
+	}
+	as[*protocol.RepoError](t, read("private"))
+	mustWrite(t, filepath.Join(base, "plain"), "outside Git")
+	got := as[*protocol.RepoBaseline](t, read("../plain"))
+	if got.Root != nil || got.Content != nil {
+		t.Fatalf("outside Git: %+v", got)
+	}
+}

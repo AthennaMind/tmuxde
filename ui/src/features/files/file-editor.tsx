@@ -97,6 +97,7 @@ function OpenFileEditor({ path }: { path: string }) {
         clearTimeout(loadTimeoutRef.current);
         loadTimeoutRef.current = null;
       }
+      useFileStore.setState({ editorTruncated: !!msg.truncated });
       setSavedContent(msg.content);
       setCurrentContent(msg.content);
       setLoads((n) => n + 1);
@@ -351,7 +352,7 @@ function OpenFileEditor({ path }: { path: string }) {
         <div className="flex-1 overflow-hidden">
           {currentContent !== null ? (
             <MonacoEditor
-              commentFile={{ path, machine: machineId() }}
+              file={{ path, machine: machineId(), truncated: editorTruncated }}
               content={currentContent}
               revision={loads}
               language={language}

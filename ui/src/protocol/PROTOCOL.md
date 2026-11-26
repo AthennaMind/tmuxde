@@ -813,6 +813,20 @@ retains original launch settings. No systemd or launchd API is called. Speech
 health adds `version`, `binary`, `pid` and `updateControl` on private Unix socket.
 Those fields identify native installation; public browser inventory omits paths.
 
+### Inline editor diff
+
+Machines advertising `repo:baseline` accept `repo:request` action `baseline`.
+Supply the open file in `path`. The node resolves it through the file guard
+and finds the Git repository containing it. The result is
+`{kind: "baseline", root, content}`. Tracked files return stage zero index
+text. Untracked files return an empty string. Files outside Git return null
+for both fields. Ignored files, unresolved merges, binary blobs and blobs
+over the Git output limit return null content. Tracked files with active
+`ident`, `filter` or `working-tree-encoding` attributes also return null content.
+Agents omit baseline content if the encoded reply exceeds the stream limit.
+The editor compares this text
+with its live buffer. Index changes refresh the baseline.
+
 ### Changed file mutations
 
 `repo:mutate` in machine features enables `repo:request` actions `stage`,

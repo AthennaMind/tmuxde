@@ -12,7 +12,7 @@ import (
 // packages. This file holds what they carry.
 
 // RepoActions are the values of repo:request action.
-var RepoActions = []string{"context", "roots", "list", "read", "status", "diff", "log", "show", "search", "content-search", "stage", "unstage", "discard"}
+var RepoActions = []string{"context", "roots", "list", "read", "baseline", "status", "diff", "log", "show", "search", "content-search", "stage", "unstage", "discard"}
 
 // RepoScopes mirrors RepoScope.
 var RepoScopes = []string{"unstaged", "staged", "untracked"}
@@ -35,6 +35,7 @@ var repoKinds = map[string]func() RepoResult{
 	"context":        func() RepoResult { return &RepoContext{} },
 	"list":           func() RepoResult { return &RepoList{} },
 	"read":           func() RepoResult { return &RepoRead{} },
+	"baseline":       func() RepoResult { return &RepoBaseline{} },
 	"status":         func() RepoResult { return &RepoStatus{} },
 	"diff":           func() RepoResult { return &RepoDiff{} },
 	"log":            func() RepoResult { return &RepoLog{} },
@@ -45,7 +46,7 @@ var repoKinds = map[string]func() RepoResult{
 }
 
 // RepoKinds lists the values of result.kind, in the order of the union.
-var RepoKinds = []string{"context", "roots", "list", "read", "status", "diff", "log", "show", "search", "content-search", "error"}
+var RepoKinds = []string{"context", "roots", "list", "read", "baseline", "status", "diff", "log", "show", "search", "content-search", "error"}
 
 // errNotResultObject is returned for a result that is not a JSON object.
 // Within adds the field name.
@@ -144,6 +145,16 @@ func (*RepoRead) RepoKind() string { return "read" }
 func (r *RepoRead) Validate() error {
 	return kindLiteral(r, r.Kind)
 }
+
+// RepoBaseline carries index text for an editor. Content is nil when unavailable.
+type RepoBaseline struct {
+	Kind    string  `json:"kind"`
+	Root    *string `json:"root"`
+	Content *string `json:"content"`
+}
+
+func (*RepoBaseline) RepoKind() string  { return "baseline" }
+func (r *RepoBaseline) Validate() error { return kindLiteral(r, r.Kind) }
 
 // RepoStatus answers action status.
 type RepoStatus struct {
