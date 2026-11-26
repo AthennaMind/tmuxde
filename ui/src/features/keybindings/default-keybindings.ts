@@ -30,6 +30,7 @@ export const DEFAULT_KEYBINDINGS: readonly DefaultKeybindingEntry[] = [
   { key: "ctrl+shift+space", command: "dictation.toggle", scope: "global" },
   { key: "ctrl+shift+l", mac: "cmd+shift+l", command: "lock.now", scope: "global" },
   { key: "shift+/", command: "shortcuts.open", scope: "app" },
+  { key: "mod+alt+z", command: "zen.toggle", scope: "global" },
   { key: "alt+pageup", mac: "cmd+alt+[", command: "views.previous", scope: "global" },
   { key: "alt+pagedown", mac: "cmd+alt+]", command: "views.next", scope: "global" },
 ];

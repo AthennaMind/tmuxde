@@ -1,10 +1,15 @@
 import { filesDisabled, useConnectionStore } from "@/features/connection/connection-store";
+import { useMachineStore } from "@/features/connection/machine-store";
 import { toggleDictation } from "@/features/dictation/dictation";
 import { lockNow } from "@/features/lock/lock-controller";
 import { disconnectDevice } from "@/features/lock/sign-out";
 import { isEnrolled, isUnlocked } from "@/features/lock/unlocked";
 import type { PaletteMode } from "@/features/palette/palette-key";
-import { confirmAfterPalette, togglePalette } from "@/features/palette/palette-store";
+import {
+  confirmAfterPalette,
+  togglePalette,
+  usePaletteStore,
+} from "@/features/palette/palette-store";
 import { useShortcutsDialog } from "@/features/palette/shortcuts-dialog-store";
 import { useSessionStore } from "@/features/session/session-store";
 import { applyFontZoom, fontZoomSurface } from "@/features/terminal/font-zoom";
@@ -100,6 +105,20 @@ const BEHAVIOUR: Record<CommandId, Behaviour> = {
       // Desktop has no Files tab. It has a sidebar view.
       if (isMobileViewport()) useUiStore.getState().setMobileTab("files");
       else useUiStore.getState().toggleSidebarView("files");
+    },
+  },
+  "zen.toggle": {
+    run: () => {
+      const zenMode = !useUiStore.getState().zenMode;
+      usePaletteStore.setState({ open: false, prompt: null, confirm: null });
+      useShortcutsDialog.setState({ open: false });
+      if (zenMode) {
+        useMachineStore.setState({ createSession: false });
+        useMainTabsStore.getState().showTerminal();
+        useUiStore.setState({ zenMode, mobileTab: "terminal", terminalSearchOpen: false });
+      } else {
+        useUiStore.setState({ zenMode });
+      }
     },
   },
   "overview.toggle": {

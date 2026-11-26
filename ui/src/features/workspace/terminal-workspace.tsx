@@ -1,5 +1,5 @@
 import { MachineContent } from "./machine-workspace";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import { useStableMediaQuery } from "@/shared/use-media-query";
 import { MOBILE_MEDIA_QUERY } from "@/shared/mobile-query";
 import { TerminalView, type TerminalViewHandle } from "@/features/terminal/terminal-view";
@@ -69,30 +69,21 @@ const CopyModeOverlay = lazyComponent(() =>
   import("@/features/mobile/copy-mode-overlay").then((m) => m.CopyModeOverlay),
 );
 
+function setCreateDialogOpen(open: boolean) {
+  useMachineStore.setState({ createSession: open });
+}
+
 /** Shared workspace chrome stays mounted across session and machine changes. */
 export function TerminalWorkspace() {
+  const zenMode = useUiStore((s) => s.zenMode);
   const isMobile = useStableMediaQuery(MOBILE_MEDIA_QUERY);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const activeMachine = useMachineStore((s) => s.activeMachine);
-  /*
-   * The new session dialog opens from this view's buttons, or from another
-   * view through `createSession`, which often comes with a machine switch.
-   * That request holds the dialog open once the switch lands. Closing the
-   * dialog clears both.
-   *
-   * The request lasts no longer than this view. A lock unmounts it with the
-   * dialog open, and the dialog must not come back, empty, after the unlock.
-   */
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const createRequested = useMachineStore((s) => s.createSession && s.requested === null);
-  const createDialogOpen = showCreateDialog || createRequested;
-  const setCreateDialogOpen = useCallback((open: boolean) => {
-    setShowCreateDialog(open);
-    if (!open) useMachineStore.setState({ createSession: false });
-  }, []);
+  const createDialogOpen = useMachineStore((s) => s.createSession && s.requested === null);
+  // A lock unmounts the workspace. Drop any pending dialog on the way out.
   useEffect(
     () => () => {
-      useMachineStore.setState({ createSession: false });
+      setCreateDialogOpen(false);
     },
     [],
   );
@@ -133,6 +124,13 @@ export function TerminalWorkspace() {
    * and a callback ref is what lets the listener follow the swap between them.
    */
   const paneRef = useWheelScroll();
+
+  // A machine switch mounts a new xterm, even with the tab strip hidden.
+  useEffect(() => {
+    if (!zenMode || mainTab !== TERMINAL_TAB || mobileTab !== "terminal") return;
+    const frame = requestAnimationFrame(() => terminalRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [zenMode, mainTab, activeMachine, activeSessionId, mobileTab]);
 
   // #3: Auto-switch to terminal tab on session attach
   useEffect(() => {
@@ -255,8 +253,8 @@ export function TerminalWorkspace() {
           )}
         >
           <div className="flex h-full flex-col">
-            <MainTabs />
-            {!selectedTab && (
+            {!zenMode && <MainTabs />}
+            {!zenMode && !selectedTab && (
               <MachineContent>
                 <WindowTabs className="tmuxde-hide-when-keyboard" />
               </MachineContent>
@@ -274,11 +272,11 @@ export function TerminalWorkspace() {
                     sessionName={activeSessionId}
                     // Keep the gutter narrow on phone screens.
                     className="h-full [&_.xterm]:px-1"
-                    onCreateSession={() => setShowCreateDialog(true)}
+                    onCreateSession={() => setCreateDialogOpen(true)}
                   />
                 </MachineContent>
               </TerminalGestureSurface>
-              <SwitchHint />
+              {!zenMode && <SwitchHint />}
               {terminalSearchOpen && (
                 <TerminalSearch
                   className="absolute inset-x-2 top-2 z-[var(--z-banner)]"
@@ -289,11 +287,11 @@ export function TerminalWorkspace() {
                 />
               )}
               {/* Actions open from More, outside terminal gesture handling. */}
-              {!selectedTab && <TmuxFab />}
+              {!zenMode && !selectedTab && <TmuxFab />}
               {/* A sibling of the gesture surface, like everything else that
                   needs its own touches: `touch-action: none` cannot be given
                   back to a descendant. */}
-              {!selectedTab && (
+              {!zenMode && !selectedTab && (
                 <MachineContent>
                   <TerminalScrollRail sessionName={activeSessionId} />
                 </MachineContent>
@@ -304,10 +302,12 @@ export function TerminalWorkspace() {
           </div>
         </div>
         <div className={cn("h-full flex-col", mobileTab === "sessions" ? "flex" : "hidden")}>
-          <MachinesTree
-            onCreateSession={() => setShowCreateDialog(true)}
-            visible={mobileTab === "sessions"}
-          />
+          {(!zenMode || mobileTab === "sessions") && (
+            <MachinesTree
+              onCreateSession={() => setCreateDialogOpen(true)}
+              visible={mobileTab === "sessions"}
+            />
+          )}
         </div>
         <div className={cn("h-full flex-col", mobileTab === "files" ? "flex" : "hidden")}>
           {mobileTab === "files" && (
@@ -317,7 +317,7 @@ export function TerminalWorkspace() {
           )}
         </div>
         <div className={cn("h-full flex-col", mobileTab === "settings" ? "flex" : "hidden")}>
-          <SettingsPanel className="h-full" />
+          {(!zenMode || mobileTab === "settings") && <SettingsPanel className="h-full" />}
         </div>
         {/* Outside the terminal tab, which turns invisible on the others, and
             the toolbar mic goes with it. A live microphone must stay visible
@@ -330,25 +330,21 @@ export function TerminalWorkspace() {
               <FileEditor />
             </MachineContent>
           ) : (
-            <MachineContent>
-              <FileViewer />
-            </MachineContent>
+            <MachineContent>{!zenMode && <FileViewer />}</MachineContent>
           ))}
         {/* Copy mode overlay */}
-        {copyModeOpen && (
+        {!zenMode && copyModeOpen && (
           <MachineContent>
             <CopyModeOverlay />
           </MachineContent>
         )}
-        <MachineContent>
-          <PaneListPanel />
-        </MachineContent>
-        <MachineContent>
-          <PaneOptionsSheet />
-        </MachineContent>
-        <MachineContent>
-          <PaneResizeControls />
-        </MachineContent>
+        {!zenMode && (
+          <MachineContent>
+            <PaneListPanel />
+            <PaneOptionsSheet />
+            <PaneResizeControls />
+          </MachineContent>
+        )}
         <MachineContent>
           <SessionCreateDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
         </MachineContent>
@@ -361,10 +357,10 @@ export function TerminalWorkspace() {
   const tabActive = !!selectedTab;
   return (
     <div className="absolute inset-0 flex">
-      <WorkspaceSidebar onCreateSession={() => setShowCreateDialog(true)} />
+      {!zenMode && <WorkspaceSidebar onCreateSession={() => setCreateDialogOpen(true)} />}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <MainTabs />
+        {!zenMode && <MainTabs />}
         <div className="relative min-h-0 flex-1">
           <div
             className={cn(
@@ -390,10 +386,10 @@ export function TerminalWorkspace() {
                   ref={terminalRef}
                   sessionName={activeSessionId}
                   className="h-full [&_.xterm]:px-2"
-                  onCreateSession={() => setShowCreateDialog(true)}
+                  onCreateSession={() => setCreateDialogOpen(true)}
                 />
               </MachineContent>
-              <SwitchHint />
+              {!zenMode && <SwitchHint />}
               {/* Floats like a browser find bar. Opened from the command
                   palette. */}
               {terminalSearchOpen && (
@@ -405,14 +401,16 @@ export function TerminalWorkspace() {
                   onClose={() => setTerminalSearchOpen(false)}
                 />
               )}
-              <MachineContent>
-                <TerminalScrollRail sessionName={activeSessionId} />
-              </MachineContent>
+              {!zenMode && (
+                <MachineContent>
+                  <TerminalScrollRail sessionName={activeSessionId} />
+                </MachineContent>
+              )}
             </div>
           </div>
           {tabContent}
           {overview}
-          <FloatingAlerts />
+          {!zenMode && <FloatingAlerts />}
           {/* Outside the terminal box, which turns invisible under a file
               tab. A live microphone must stay visible whatever is open. */}
           <DictationIndicator />
@@ -426,9 +424,7 @@ export function TerminalWorkspace() {
             <FileEditor />
           </MachineContent>
         ) : (
-          <MachineContent>
-            <FileViewer />
-          </MachineContent>
+          <MachineContent>{!zenMode && <FileViewer />}</MachineContent>
         ))}
 
       <MachineContent>

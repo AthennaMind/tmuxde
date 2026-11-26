@@ -72,6 +72,7 @@ function TerminalLayoutInner() {
   const [token] = useState(readSelfHostedToken);
   // Selected, and for the sharpest reason of all: `composerDraft` lives in this
   // same store and is written on every keystroke in the command composer.
+  const zenMode = useUiStore((s) => s.zenMode);
   const mobileTab = useUiStore((s) => s.mobileTab);
   const setMobileTab = useUiStore((s) => s.setMobileTab);
   const terminalTabActive = useMainTabsStore((s) => s.active === TERMINAL_TAB);
@@ -208,7 +209,11 @@ function TerminalLayoutInner() {
   ) : undefined;
 
   return (
-    <AppShell className="tmuxde-terminal-shell" header={header} toolbar={toolbar}>
+    <AppShell
+      className="tmuxde-terminal-shell"
+      header={!zenMode && header}
+      toolbar={!zenMode && toolbar}
+    >
       {/* WebKit skips edge colors from boxes at most 10px tall. Clipping
           background to empty text preserves its color without covering content. */}
       {isMobile && (
@@ -222,9 +227,9 @@ function TerminalLayoutInner() {
         <Outlet />
         <TerminalWorkspace />
       </TerminalErrorBoundary>
-      <TransferPanel />
+      {!zenMode && <TransferPanel />}
       <Palette />
-      <CommandComposer />
+      {!zenMode && <CommandComposer />}
       <KeyboardShortcutsDialog />
     </AppShell>
   );
